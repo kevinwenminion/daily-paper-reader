@@ -1,0 +1,1428 @@
+Title: 2606.19798v1.pdf
+
+URL Source: https://arxiv.org/pdf/2606.19798v1
+
+Published Time: Fri, 19 Jun 2026 00:27:36 GMT
+
+Number of Pages: 24
+
+Markdown Content:
+1
+
+# MinSurf: resolving the atomic-scale stability landscape 
+
+# of mineral surfaces 
+
+Fengzijun Pan a, b, Zhoulin Liu c,d , Pingyang Zhang d, Jiaqiu Xu e, Zepeng Fan a, b,* ,
+
+Dawei Wang a, b, Jianzhong Pei f, 
+
+> a
+
+School of Transportation Science and Engineering, Harbin Institute of Technology, 
+
+Harbin, China  
+
+> b
+
+Chongqing Research Institute of HIT, Chongqing, China  
+
+> c
+
+School of Science, Harbin Institute of Technology, Shenzhen , China  
+
+> d
+
+National Engineering Laboratory for Reducing Emissions from Coal Combustion, 
+
+Shandong University, Jinan, China  
+
+> e
+
+Department of Civil and Environmental Engineering, The Hong Kong Polytechnic 
+
+University, Hong Kong, China  
+
+> f
+
+School of Highway, Chang ’an University, Xi ’an, China 
+
+*Email: zepeng.fan@hit.edu.cn 2
+
+Abstract : Mineral surfaces govern interfacial reactivity in carbon mineralization, geo-energy 
+
+storage, contaminant immobilization, heterogeneous catalysis and electrochemical interface 
+
+engineering. Yet atomistic simulations often rely on commonly used facets or facet-level 
+
+stability criteria, while distinct atomic terminations of the same crystallographic orientation 
+
+are rarely resolved systematically because experimental characterization and density 
+
+functional theory (DFT) calculations remain costly across large surface spaces. Here we 
+
+present MinSurf, a high-throughput framework that resolves mineral surface selection as a
+
+surface-energy and morphology problem. MinSurf integrates surface enumeration, DFT 
+
+labelling, machine-learning interatomic potentials and Wulff construction to predict stable 
+
+terminations, surface-energy landscapes and equilibrium crystal morphologies. Applied to ten 
+
+representative minerals, MinSurfSet comprises 764 surface slabs, with 90 corresponding 
+
+oriented unit cells constructed as bulk references for surface-energy evaluation. The resulting 
+
+MinNEP model predicts DFT surface energies with a mean absolute error of 0.0119 eV Å−2
+
+and achieves an overall acceleration of 1.14 × 10 4 relative to DFT. MinNEP preserves the 
+
+DFT-derived morphology-determining surface-energy hierarchy and reproduces the dominant 
+
+Wulff-exposed facets, while X-ray diffraction provides an independent crystallographic 
+
+consistency check for the α-quartz benchmark. By linking atomic terminations, surface 
+
+energies and equilibrium morphologies, MinSurf provides reproducible and physically 
+
+representative surface models for high-throughput simulations of mineral interfaces across 
+
+energy, environmental and advanced inorganic materials. 
+
+# Introduction 
+
+Mineral surfaces mediate matter exchange, charge redistribution and interfacial bonding 
+
+across natural, engineered and planetary materials [1 –3] . At exposed crystal facets, local 
+
+atomic coordination governs how water, ions, molecules and binding phases interact with 
+
+mineral frameworks, thereby regulating hydration, dissolution, adsorption, ion exchange, 
+
+nucleation, carbon mineralization and contaminant immobilization [4 –6] . These 
+
+surface-mediated processes underpin construction materials, environmental interfaces, energy 
+
+technologies, catalytic systems and planetary regoliths and advanced inorganic materials [7,8] .
+
+Understanding mineral surfaces at the atomic scale is therefore essential for linking crystal 
+
+structure to interfacial reactivity, morphology evolution and material performance [6,9] .
+
+Atomistic simulation provides a route to establish this link at the scale where mineral 
+
+surfaces are defined [10,11] . By resolving local coordination, surface relaxation, charge 
+
+redistribution and molecular interactions near exposed facets, it can reveal structure –property 3
+
+relationships that are difficult to access experimentally [12] . This capability is becoming 
+
+increasingly important for materials design, where large chemical and structural spaces must 
+
+be explored to identify stable, reactive or functional interfaces. High-throughput atomistic 
+
+modelling therefore offers a path from case-by-case surface studies towards systematic 
+
+prediction of mineral interface behaviour [13] . Its predictive value, however, depends on 
+
+whether the surface models used in these simulations represent physically relevant exposed 
+
+surfaces. 
+
+This requirement creates a less visible but consequential uncertainty: the choice of the 
+
+surface slab. In many atomistic studies, surface models are inherited from previous work, 
+
+inferred from common cleavage planes, selected using facet-level stability arguments or 
+
+chosen for computational convenience [14] . Such choices may appear technical, but they can 
+
+determine predicted adsorption strength, dissolution pathway, hydration mechanism, charge 
+
+distribution and interfacial adhesion [15] . The central difficulty is that a crystallographic facet 
+
+does not uniquely define an atomic surface [8] . A Miller index specifies the orientation of a
+
+plane, but not the termination exposed after cleavage. The same facet can generate multiple 
+
+non-equivalent atomic surfaces with different stoichiometry, polarity, coordination 
+
+environment, relaxation behaviour and surface energy, especially in minerals with mixed 
+
+ionic –covalent bonding, low symmetry, large unit cells and heterogeneous cation 
+
+sublattices [15 –17] .
+
+A rigorous mineral surface model should therefore be placed within the broader surface 
+
+landscape of a crystal rather than defined by a single cleavage plane [6,15] . This landscape 
+
+includes possible crystallographic orientations, atomic terminations, relaxation responses, 
+
+relative stabilities and morphological exposures. Surface energy provides a thermodynamic 
+
+coordinate for comparing candidate surfaces, while Wulff construction translates this 
+
+energetic landscape into the facets expected to remain exposed at equilibrium [16,18] .
+
+Resolving this landscape remains difficult at scale. Experimental techniques such as X-ray 
+
+diffraction (XRD) and high-resolution transmission electron microscopy (HRTEM) provide 
+
+essential structural information, but they are not readily scalable for large numbers of 
+
+candidate facets and terminations [19,20] . Density functional theory (DFT) provides a
+
+first-principles route to surface relaxation and energy evaluation, yet its cost is intrinsically 
+
+high because each structural optimization step requires repeated self-consistent solution of 
+
+the electronic structure [21] . Machine-learning interatomic potentials (MLIPs) offer a route to 
+
+bridge this gap, but mineral surfaces require models that can describe bulk-like interiors, 4
+
+under-coordinated surface atoms, distorted coordination polyhedra, polar environments and 
+
+small surface-energy differences across competing terminations [22] .
+
+Here we present MinSurf, an extensible workflow for resolving stable and 
+
+morphologically exposed mineral surfaces using machine-learning interatomic potentials. 
+
+MinSurf integrates surface enumeration, density functional theory labelling, relaxation with 
+
+MinNEP —a charge-aware neuroevolution potential (qNEP) tailored to mineral surfaces —and 
+
+Wulff construction to connect atomic slab models with surface-energy landscapes and 
+
+equilibrium crystal morphologies. MinSurfSet is constructed as a slab-based first-principles 
+
+dataset in which surface slabs are paired with corresponding oriented unit cells used as bulk 
+
+references for surface-energy evaluation. Trained on this dataset, MinNEP captures mineral 
+
+surface energetics through environment-dependent effective charges and first-principles 
+
+supervision of energies and atomic forces. By moving beyond convention-based or 
+
+facet-level surface selection, MinSurf provides a standardized and expandable route for 
+
+constructing physically grounded surface models for high-throughput simulations of mineral 
+
+interfaces. 
+
+# Results 
+
+MinSurf workflow for resolving stable mineral surfaces 
+
+Predictive mineral simulations require surface models that are selected according to stability 
+
+rather than convention. However, mineral slabs are often inherited from previous studies, 
+
+inferred from common cleavage planes or chosen for computational convenience, even 
+
+though such choices may not uniquely define the physical surface being simulated. The same 
+
+Miller index can correspond to different atomic terminations, stoichiometries or polar 
+
+compensation schemes, leading to distinct surface energies and relaxation behaviours [15,23] .
+
+Because adsorption, dissolution, hydration and interfacial bonding are inherently 
+
+surface-specific, this ambiguity can propagate directly into the predicted mechanisms and 
+
+interfacial properties [9,15] .
+
+MinSurf addresses this issue by treating surface construction as a reproducible 
+
+surface-resolution task. The workflow begins from a mineral crystal structure and generates 
+
+OUCs along selected Miller indices (Fig. 1a ). For each crystallographic orientation, 
+
+candidate terminations are enumerated rather than assuming a single surface for each facet. 
+
+This separates the orientation of a plane from the atomic termination actually exposed to the 
+
+environment, allowing competing surface models to be compared using a common 
+
+thermodynamic criterion. 5                                                                              
+
+> Fig. 1|MinSurf workflow for resolving stable mineral surfaces .a, Generation of candidate surfaces by
+> cleaving OUCs along selected Miller indices. b, Construction of MinSurfSet from DFT-labelled slab
+> configurations with corresponding OUCs references. c, Training of the MinNEP model using the curated
+> MinSurfSet. d, Rapid relaxation of OUCs references and surface slabs using MinNEP, enabling an overall
+> speedup of 1.14 ×10 4relative to the DFT reference workflow. e, Wulff construction based on predicted surface
+> energies to determine equilibrium morphology and surface exposure.
+
+The generated OUCs and slab configurations are labelled using DFT to provide 
+
+reference energies and atomic forces for model development (Fig. 1b ). These data are 
+
+assembled into MinSurfSet and used to train MinNEP, a charge-aware MLIP designed for 
+
+mineral surface environments (Fig. 1c ). Once trained, MinNEP enables rapid relaxation of 
+
+OUCs and surface slabs and provides the energies required to rank competing facets and 
+
+terminations at substantially reduced computational cost relative to DFT (Fig. 1d ). 
+
+The final step converts surface energies into surface exposure. Surface energies 
+
+calculated from relaxed bulk-reference and slab structures are used for Wulff construction, 
+
+which maps orientation-dependent stability onto equilibrium morphology and surface area 
+
+fraction (Fig. 1e) . MinSurf therefore provides a standardized route from crystal structure to 
+
+thermodynamically stable and morphologically exposed mineral surfaces. Because newly 
+
+added minerals, facets and terminations can be incorporated using the same generation and 
+
+labelling logic, the workflow is inherently extensible and can support a growing 
+
+surface-energy landscape for mineral modelling. 6
+
+Construction of MinSurfSet and training of MinNEP 
+
+To provide first-principles supervision for mineral surface energetics, we constructed 
+
+MinSurfSet from ten representative mineral crystals spanning calcium silicates, calcium 
+
+aluminates, aluminosilicates, feldspars and quartz (Supplementary Table S1 and 
+
+Supplementary Fig. S1 )[24 –26] . These minerals cover representative phases relevant to 
+
+broad surface-controlled applications, including low-carbon cementitious materials, 
+
+geochemical and environmental mineral reactions, and advanced inorganic functional 
+
+materials, while retaining broader chemical and crystallographic diversity [27 –29] . For each 
+
+crystal, OUCs and surface slabs were generated from selected Miller indices and 
+
+non-equivalent terminations, so that both bulk-like coordination environments and 
+
+under-coordinated surface configurations were included (Fig. 2a )[30] . The procedures for 
+
+OUC construction, slab generation and termination enumeration are described in the 
+
+Methods .
+
+MinSurfSet contains 90 OUCs and 764 surface structures. The number of generated 
+
+surfaces varies substantially among minerals, reflecting differences in crystal symmetry, 
+
+primitive-cell size and termination diversity. This structure-dependent distribution highlights 
+
+the need for systematic enumeration: low-symmetry or chemically complex minerals can 
+
+generate many possible slabs, whereas highly symmetric phases may produce only a small 
+
+number of distinct surfaces. 
+
+As detailed in the Methods , DFT calculations were performed using parameter settings 
+
+validated by systematic convergence tests to provide reliable reference energies and atomic 
+
+forces. In total, the labelling workflow produced 75,906 DFT-labelled configurations, 
+
+including surface slabs and their corresponding OUC references, of which 75,305 converged 
+
+calculations were retained as valid reference labels after data cleaning (Supplementary 
+
+Table S2 ). This reference labelling strategy is essential for surface-energy prediction, because 
+
+surface energy is evaluated from the energetic difference between a relaxed slab and its 
+
+corresponding OUC reference. 
+
+MinNEP adopts the qNEP framework, in which local atomic energies are combined with 
+
+environment-dependent effective charges and a reciprocal-space electrostatic term, allowing 
+
+long-range electrostatic contributions to be retained while preserving the efficiency of NEP 
+
+(Supplementary Section S1 )[23,31] . The final model was trained for Ca, Si, O, Na, Al, Fe 
+
+and K using 7 Å radial and angular cutoffs, a 40-neuron hidden layer and a descriptor basis 
+
+size of 12. These settings were selected from hyperparameter tests comparing surface-energy 
+
+accuracy, energy and force errors, model size and training cost (Supplementary Section S6 ). 7
+
+The trained model was then evaluated against DFT reference energies and forces and 
+
+compared with a conventional NEP baseline. 
+
+Fig. 2 | Slab construction and model-level evaluation of MinNEP. a, Generation of surface slabs from OUCs 
+
+with vacuum layers and fixed atomic layers. b, Learned effective charge distributions of different elements in 
+
+the charge-aware qNEP model. c,d, Parity plots of qNEP-predicted energies and forces against DFT reference 
+
+values. e, Error distributions of NEP for energy and force predictions. f,g, Parity plots of conventional 
+
+NEP-predicted energies and forces. h, Error distributions of conventional NEP for energy and force predictions. 
+
+Evaluation of the MinNEP model 
+
+Before assessing surface-energy prediction, we first evaluated whether MinNEP provides a
+
+reliable potential energy surface for mineral slab relaxation. This model-level evaluation is 8
+
+important because surface energy depends not only on final total energies, but also on the 
+
+forces that determine how surface atoms relax after cleavage [8] . The DFT-labelled 
+
+configurations used for model development contain surface-specific environments, including 
+
+under-coordinated atoms, distorted coordination polyhedra and relaxation-induced local 
+
+structural changes. 
+
+The learned effective charges show clear element-dependent distributions across O, Na, 
+
+K, Fe, Ca, Al and Si environments (Fig. 2b ). Oxygen atoms are mainly assigned negative 
+
+effective charges, whereas network-forming and charge-balancing cations occupy positive 
+
+charge ranges. These learned charges should not be interpreted as fixed oxidation states. 
+
+Instead, they are environment-dependent latent variables optimized to reproduce DFT 
+
+energies and forces within the qNEP framework. Their chemically separated distributions 
+
+indicate that MinNEP captures distinct local bonding environments while retaining the 
+
+flexibility to adapt charges during structural relaxation. 
+
+MinNEP accurately reproduces DFT energies and forces for the labelled configurations. 
+
+The energy parity plot shows close agreement with DFT reference values, with a mean 
+
+absolute error of 0.0098 eV atom −1 (Fig. 2c ). Force prediction is more demanding because 
+
+surface cleavage and relaxation generate local environments that deviate from ideal bulk 
+
+coordination. Nevertheless, MinNEP achieves a force mean absolute error of 0.1287 eV Å−1,
+
+and the corresponding error distribution remains concentrated near zero (Fig. 2d,e ). This 
+
+force accuracy supports the use of MinNEP for relaxing candidate mineral slabs before 
+
+surface-energy evaluation. 
+
+We further compared the charge-aware qNEP with a conventional NEP trained using the 
+
+same data. The conventional NEP captures the overall energy and force trends, but gives 
+
+slightly larger errors, with an energy mean absolute error of 0.0105 eV atom −1 and a force 
+
+mean absolute error of 0.1444 eV Å−1 (Fig. 2f –h). The improvement is more evident for 
+
+forces than for energies, suggesting that the charge-aware formulation is particularly useful 
+
+for describing the local gradients of the potential energy surface. This behaviour is consistent 
+
+with the partially ionic character of the mineral systems considered here, where polar 
+
+environments and coordination changes can introduce electrostatic contributions beyond a
+
+purely local description. These results establish the model-level basis for the subsequent 
+
+evaluation of surface-energy prediction and morphology-resolved surface exposure. 
+
+Accuracy and efficiency of MinNEP for surface-energy prediction 
+
+Surface-energy prediction is the central test of whether the MinNEP framework can resolve 
+
+stable mineral surfaces, because it couples slab relaxation, OUC reference consistency and 9
+
+the relative energetic ordering of competing terminations. Unlike total energy or force 
+
+prediction, surface energy is evaluated from the energy difference between a relaxed slab and 
+
+its corresponding OUC reference. Even small errors in relaxation or energy evaluation can 
+
+therefore affect the surface-energy hierarchy, which ultimately determines whether a facet 
+
+persists or disappears in Wulff construction. Two MinNEP variants trained on MinSurfSet, 
+
+the qNEP version and the conventional NEP version, were therefore evaluated against 
+
+DFT-calculated surface energies and compared with the previously reported NEP89 model 
+
+(Fig. 3a –c)[32] .                                                         
+
+> Fig. 3|Accuracy and efficiency of MinNEP for mineral surface prediction. a–c, Parity plots comparing DFT
+> surface energies with predictions from two MinSurfSet trained MinNEP variants, namely the charge aware
+> qNEP version and the conventional NEP version, together with the previously reported NEP89 model. d,
+> Mineral resolved surface energy distributions predicted by the charge aware qNEP version, with bars indicating
+
+10                                                      
+
+> mean values and points representing individual slab terminations. e, Comparison of qNEP and DFT optimized
+> lattice constants with experimental values. f, Computational speedup of the charge aware qNEP version relative
+> to the DFT reference workflow for surface energy calculations of different minerals. g, Scaling of computational
+> speed with system size on an NVIDIA GeForce RTX 4090 GPU.
+
+The qNEP version gives the closest agreement with DFT surface energies, with a mean 
+
+absolute error of 0.0119 eV Å−2 (Fig. 3a ). The conventional NEP version gives a larger error 
+
+of 0.0181 eV Å−2, while NEP89 gives an error of 0.0244 eV Å−2 (Fig. 3b,c ). Because NEP89 
+
+is a broad 89 element model designed for general atomistic environments, this comparison 
+
+indicates that broad elemental coverage alone is not sufficient for resolving mineral surface 
+
+energetics. The improved performance of the MinSurfSet-trained qNEP version shows that 
+
+surface-energy prediction benefits from slab data targeted to mineral surface environments 
+
+and from an explicit treatment of environment-dependent charges. This is consistent with the 
+
+nature of cleaved mineral surfaces, where polarity, under-coordination and local charge 
+
+redistribution can affect the relative stability of competing terminations. 
+
+The mineral-resolved surface-energy distributions further show that surface stability is 
+
+controlled by both mineral chemistry and termination structure (Fig. 3d ). Different minerals 
+
+exhibit distinct average surface-energy levels, reflecting differences in crystal framework, 
+
+bonding character and exposed cation environments. At the same time, the spread of 
+
+individual slab terminations within each mineral shows that termination chemistry can be as 
+
+important as crystallographic orientation. Surfaces generated from the same parent crystal 
+
+may expose different cation –oxygen polyhedra, coordination defects or polar arrangements, 
+
+leading to different energetic penalties. This result explains why explicit termination 
+
+enumeration is necessary: a conventionally selected slab may not correspond to the most 
+
+stable or morphologically relevant surface. 
+
+The qNEP version also preserves the structural consistency required for reliable 
+
+surface-energy evaluation. Its optimized lattice constants agree closely with experimental 
+
+values, with a mean absolute error of 0.0229 Å and a mean absolute percentage error of 
+
+0.28% (Fig. 3e )[25] . In the same comparison, DFT gives a mean absolute error of 0.0441 Å
+
+and a mean absolute percentage error of 0.52%. This result should be interpreted as a
+
+structural consistency check rather than as a general claim that qNEP is intrinsically more 
+
+accurate than DFT. The agreement indicates that the model maintains the equilibrium 
+
+geometry of mineral frameworks during relaxation, which can be attributed to its ability to 
+
+reproduce the local force balance around cation –oxygen coordination polyhedra while 11 
+
+retaining charge-dependent electrostatic constraints in partially ionic lattices. This supports its 
+
+use for optimizing both OUC references and surface slabs. 
+
+The efficiency of the qNEP version changes the practical scale of surface-energy 
+
+evaluation. It achieves an overall speedup of 1.14 × 10 4 relative to the DFT reference 
+
+workflow (Fig. 3f ), because energies and forces are evaluated directly from learned atomic 
+
+descriptors and environment-dependent charges rather than through repeated electronic 
+
+self-consistency iterations. The magnitude of acceleration varies among minerals because the 
+
+computational burden of DFT is strongly affected by crystal structure, cell size, elemental 
+
+composition, electronic complexity and the number and complexity of slab terminations. 
+
+Chemically complex or electronically demanding minerals, such as Fe-containing phases, 
+
+therefore benefit particularly from MLIP s when many candidate surfaces must be relaxed and 
+
+ranked. 
+
+Scaling tests on an NVIDIA GeForce RTX 4090 GPU show that both the qNEP version 
+
+and the conventional NEP version retain high computational throughput as system size 
+
+increases (Fig. 3g ). Enabled by the particle –particle particle –mesh (PPPM) method, qNEP 
+
+retains high computational efficiency relative to conventional NEP while incorporating 
+
+environment-dependent charge effects [31] . This scalability enables high-throughput 
+
+screening of candidate facets and terminations, as well as the construction of large, 
+
+application-ready surface models for molecular dynamics simulations across energy, 
+
+environmental and advanced inorganic interfaces. 
+
+Wulff-based validation and prediction of mineral surface exposure 
+
+Wulff construction provides the thermodynamic link between surface-energy landscapes and 
+
+equilibrium crystal morphology, allowing stable facets to be identified according to their 
+
+expected surface exposure [33,34] . Accurate surface-energy prediction becomes useful for 
+
+surface model selection only when the predicted energies are translated into the facets that are 
+
+expected to remain exposed. We therefore used the MinNEP-predicted surface energies to 
+
+construct equilibrium Wulff morphologies and quantify surface area fractions. This 
+
+morphology-level analysis provides a more stringent assessment than individual 
+
+surface-energy errors alone, because Wulff construction depends on the relative energetic 
+
+hierarchy among facets. Small changes in this hierarchy can alter whether a surface persists, 
+
+shrinks or disappears from the equilibrium morphology. 
+
+α-Quartz was used as a representative benchmark to evaluate whether MinNEP 
+
+preserves the morphology-determining surface-energy hierarchy. The DFT- and 
+
+MinNEP-derived Wulff constructions show similar equilibrium shapes and retain the same 12 
+
+dominant exposed surface families (Fig. 4a,b ). Although the exact surface area fractions 
+
+differ slightly, MinNEP preserves the facets that control the equilibrium morphology. This 
+
+agreement indicates that the model reproduces not only the magnitude of individual surface 
+
+energies, but also the relative stability relationships required for Wulff-based surface 
+
+exposure prediction. 
+
+We further compared the MinNEP-resolved quartz surfaces with experimental XRD 
+
+measurements. The measured diffraction pattern exhibits characteristic peaks associated with 
+
+the predicted crystallographic planes, providing an experimental crystallographic check for 
+
+the resolved surface model (Fig. 4c ). Because powder XRD reflects long-range 
+
+crystallographic order rather than directly measuring surface area fractions, this comparison 
+
+should be interpreted as supporting consistency between the predicted exposed planes and the 
+
+experimentally observed quartz structure, rather than as a direct quantification of equilibrium 
+
+morphology. Together with the DFT Wulff comparison, it supports the use of 
+
+MinNEP-derived Wulff morphologies as physically grounded references for constructing 
+
+quartz surface models. 
+
+The workflow was then applied to the remaining representative minerals considered in 
+
+this study. The resulting Wulff constructions reveal distinct exposure patterns across 
+
+dicalcium silicate (C 2S), tricalcium silicate (C 3S), tricalcium aluminate (C 3A), tetracalcium 
+
+aluminoferrite (C 4AF), wollastonite, albite, anorthite, orthoclase and microcline (Fig. 4d ). In 
+
+several cases, only a small subset of the enumerated slab terminations contributes appreciably 
+
+to the final morphology, whereas higher-energy surfaces vanish or remain weakly expressed. 
+
+This result shows that stable surface exposure cannot be inferred reliably from Miller indices 
+
+alone or from a small number of conventional cleavage planes. Instead, morphology-relevant 
+
+surfaces emerge from the surface-energy hierarchy across the enumerated termination space. 
+
+These Wulff morphologies provide the final link between surface-energy prediction and 
+
+downstream atomistic modelling [35 –37] . Rather than selecting mineral slabs empirically, 
+
+MinSurf identifies the facets and terminations that are thermodynamically favourable and 
+
+morphologically exposed for each mineral. The resulting surface models can serve as 
+
+standardized inputs for molecular dynamics simulations of hydration, dissolution, adsorption 
+
+and interfacial bonding. Because additional minerals, facets and surface chemistries can be 
+
+incorporated into the same workflow, MinSurf provides an expandable route for constructing 
+
+physically grounded mineral surface models beyond the specific systems examined here. 13 
+
+Fig. 4 | Wulff-based validation and application of MinNEP-predicted mineral surface exposure. a,b, 
+
+Comparison of DFT- and MinNEP-derived Wulff constructions for α-quartz, with surface area fractions and 
+
+relative surface-energy levels labelled for each exposed facet. c, Experimental XRD comparison of α-quartz, 
+
+showing consistency between characteristic diffraction features and the predicted crystallographic planes. d, 14                 
+
+> MinNEP-predicted Wulff constructions for representative minerals, with exposed Miller indices and surface area
+> fractions summarized in each panel.
+
+# Discussion 
+
+This work reframes mineral surface construction as a problem of resolving the surface 
+
+landscape of a crystal, rather than as a matter of selecting a conventional slab. In this view, 
+
+surface identity is not determined by a Miller index alone, but emerges from the combined 
+
+effects of crystallographic orientation, atomic termination, stoichiometry, polarity, relaxation 
+
+and morphological exposure [38] . Distinct atomic surfaces associated with the same 
+
+orientation can occupy different positions in the surface-energy landscape and can therefore 
+
+contribute differently to the equilibrium morphology [39] . By enumerating these candidates 
+
+and evaluating them through a common energetic and morphological criterion, MinSurf 
+
+provides a reproducible route for translating crystallographic surface possibilities into 
+
+morphology-aware atomic surface models. 
+
+This shift has direct implications for molecular simulations of mineral interfaces. The 
+
+relevant input for downstream simulations is not simply a plane such as (001) or (010) [14] ,
+
+but a relaxed atomic configuration with a defined bulk reference, energetic stability and 
+
+expected exposure. If a slab is not representative of a stable or morphologically exposed 
+
+surface, simulated interfacial processes may reflect the modelling choice as much as the 
+
+intrinsic chemistry of the mineral. MinSurf addresses this problem by linking atomistic slab 
+
+construction, surface-energy landscapes and Wulff-derived exposure [40] . The α-quartz 
+
+comparison illustrates why morphology-level agreement is a stricter test than isolated 
+
+surface-energy accuracy: a model must preserve the relative energetic hierarchy that 
+
+determines which facets remain exposed, rather than only reproduce individual 
+
+surface-energy values. 
+
+Resolving this landscape at practical scale requires models that are both efficient and 
+
+physically expressive. Mineral surfaces commonly involve under-coordinated atoms, 
+
+distorted coordination polyhedra, polar cuts and partially ionic bonding, making surface 
+
+relaxation and termination stability sensitive to electrostatic interactions and local charge 
+
+redistribution [38] . Purely local models can capture many short-range structural correlations, 
+
+but may require larger cutoffs or more extensive training data when long-range electrostatic 
+
+contributions affect the relative stability of competing surfaces. MLIPs that combine local 
+
+structural descriptors with environment-dependent charges or explicit long-range electrostatic 
+
+terms, such as the formulation used in MinNEP, provide a more suitable representation for 
+
+these partially ionic surface environments. Their key value is not merely lower prediction 15 
+
+error, but the ability to make landscape-level screening feasible by relaxing, ranking and 
+
+converting large numbers of candidate surfaces into morphology-aware models. 
+
+MinSurfSet is more than a training set for the present model. It provides a structured 
+
+representation of mineral surface landscapes, in which each slab is linked to a parent crystal, 
+
+an OUC reference, a Miller index, an atomic termination and a DFT label. This structure 
+
+makes MinSurfSet suitable for systematic expansion as new minerals, higher-index facets, 
+
+surface chemistries or chemical environments are introduced. More importantly, it positions 
+
+MinSurfSet as a morphology-aware benchmark dataset for future MLIPs for mineral surfaces. 
+
+Such a benchmark should test not only energy and force accuracy, but also whether a model 
+
+preserves surface-energy hierarchies, termination stability and Wulff-derived exposure, 
+
+because small errors in relative surface energies can change the predicted exposed 
+
+morphology. This makes MinSurfSet more than a repository of slab energies and forces: it 
+
+provides a benchmark for whether an MLIP can support physically meaningful surface 
+
+selection. 
+
+Several limitations define the next stage of MinSurf. The present workflow focuses 
+
+mainly on dry surfaces generated from crystalline bulk structures, whereas real mineral 
+
+interfaces may be hydroxylated, hydrated, defective, reconstructed or covered by ions and 
+
+organic molecules [41,42] . These effects can modify both absolute surface energies and 
+
+relative termination stability. Wulff construction provides an equilibrium thermodynamic 
+
+reference, but does not capture kinetic effects associated with fracture, grinding, growth, 
+
+dissolution or ageing [40] . The XRD comparison for α-quartz provides crystallographic 
+
+consistency, not a direct measurement of surface area fractions. Extending MinSurfSet to 
+
+hydrated, hydroxylated, defective and adsorbate-covered surfaces, together with MLIPs that 
+
+explicitly incorporate long-range interactions or physics-informed constraints, would allow 
+
+mineral surface landscapes to be resolved under more realistic chemical environments. 
+
+Overall, by translating first-principles surface landscapes into reproducible atomic models, 
+
+MinSurf provides a standardized and expandable basis for more reliable simulations of 
+
+mineral interfaces across natural, engineered and planetary materials. 
+
+# Methods 
+
+Crystal structure preparation and surface model generation 
+
+The initial crystal structures were collected from crystallographic databases and materials 
+
+repositories. Ten mineral crystals were selected in this work, including dicalcium silicate 
+
+(Ca 2SiO 4), tricalcium silicate (Ca 3SiO 5), tricalcium aluminate (Ca 3Al 2O6), tetracalcium 16 
+
+aluminoferrite (Ca 2AlFeO 5), wollastonite (CaSiO 3), α-quartz (SiO 2), albite (NaAlSi 3O8), 
+
+anorthite (CaAl 2(SiO 4)2), orthoclase (KAlSi 3O8) and microcline (KAlSi 3O8). C2S and C4AF 
+
+were obtained from the American Mineralogist Crystal Structure Database [26] , C3S was 
+
+obtained from the Cambridge Crystallographic Data Centre [24] , and the remaining structures 
+
+were obtained from the Materials Project [25] .
+
+OUCs and slab models were constructed from the collected crystal structures using a
+
+surface-orientation-based slab generation method implemented in the pymatgen 
+
+package [30,43,44] . Candidate facets were enumerated from Miller indices satisfying |h|, |k| 
+
+and |l| ≤ 1, excluding the (0, 0, 0) plane. For each selected orientation, an OUC was 
+
+constructed as the bulk reference, and candidate surface slabs were generated by sampling 
+
+different termination shifts. Each surface model was identified by its mineral identity, Miller 
+
+index and termination shift. The slab thickness was set to no less than 10 Å, and a vacuum 
+
+layer of at least 15 Å was introduced along the surface-normal direction. This procedure 
+
+generated 90 OUC s and 764 candidate surface slabs in total. 
+
+Density functional theory calculations 
+
+DFT calculations were performed using the Vienna Ab initio Simulation Package. The 
+
+projector augmented-wave method and the Perdew –Burke –Ernzerhof exchange –correlation 
+
+functional within the generalized gradient approximation were used [45,46] . The plane-wave 
+
+energy cutoff was set to 520 eV. The precision level was set to Normal, and real-space 
+
+projection was evaluated automatically. Electronic self-consistency was converged to 10−6 eV. 
+
+Gaussian smearing was used with a smearing width of 0.1 eV. Spin-polarized calculations 
+
+were performed for Fe-containing systems, whereas spin-unpolarized calculations were used 
+
+for all other systems. 
+
+Geometry optimizations were carried out for mineral crystals, OUCs and surface slabs 
+
+using structure-specific settings. Mineral crystals were relaxed with variable cell shape and 
+
+volume until the residual force was below 0.01 eV Å−1. OUCs and surface slabs were relaxed 
+
+with fixed cell parameters and a force convergence criterion of 0.02 eV Å−1. The 
+
+quasi-Newton algorithm was used for mineral crystals and OUCs , with the conjugate-gradient 
+
+algorithm used when required for robust convergence. Surface slabs were relaxed using the 
+
+conjugate-gradient algorithm. 
+
+The energies and atomic forces generated during structural optimizations were collected 
+
+as DFT reference labels for MinSurfSet. Γ-centred k-point meshes were used throughout. The 
+
+k-point density was tested from 5 to 35, and the selected density was defined as the lowest 
+
+value for which all higher-density calculations remained within 1 meV atom −1 of the 17 
+
+highest-density reference calculation. For surface slabs, the same in-plane k-point sampling 
+
+was used, whereas the surface-normal direction was sampled only at Γ. Detailed input 
+
+parameters and k-point convergence tests are provided in the Supplementary Sections S3 
+
+and S4 .
+
+Machine-learning interatomic potential architecture 
+
+We developed a charge-aware neuroevolution potential, termed MinNEP, using the qNEP 
+
+framework implemented in GPUMD v4.8 [31,47,48] . The qNEP architecture was adopted 
+
+because it retains the computational efficiency of conventional NEP while introducing 
+
+environment-dependent effective charges and long-range electrostatic interactions. In 
+
+MinNEP, the total energy is represented by a local NEP contribution, a reciprocal-space 
+
+electrostatic contribution derived from the learned charges and a short-range repulsive 
+
+correction [49] . This formulation is suitable for mineral surface systems, where cleavage and 
+
+relaxation can generate under-coordinated atoms, polar environments and local charge 
+
+redistribution. Detailed model principles are provided in Supplementary Section S1 .
+
+MinNEP was trained for seven elements, Ca, Si, O, Na, Al, Fe and K, using the 
+
+fourth-generation NEP formalism. Both radial and angular cutoff radii were set to 7 Å.
+
+Charge mode 2 was used, in which only the reciprocal-space electrostatic contribution is 
+
+explicitly retained, reducing possible double counting of short-range electrostatic interactions 
+
+already represented by the local NEP term. A Ziegler –Biersack –Littmark correction with a
+
+cutoff of 2.5 Å was included to describe short-range repulsion. The model was optimized 
+
+against DFT energies and atomic forces with equal weights, whereas virial loss and L1 
+
+regularization were disabled. The batch size was set to 200, and training was performed for 
+
+200,000 generations. Training details and hyperparameter settings are provided in 
+
+Supplementary Sections S5 and S6 .
+
+Surface energy calculation 
+
+Surface energies were evaluated using the generated paired OUCs and slab models. All 
+
+MinNEP-based calculations were performed using GPUMD 4.8 [47,48] . For each surface 
+
+indexed by (hkl ), the OUC was used as the bulk reference, and the corresponding slab was 
+
+used to represent the exposed surface. During slab relaxation, atoms in the middle region of 
+
+the slab, defined as those located more than 2 Å away from both exposed surfaces, were fixed 
+
+to preserve a bulk-like interior, whereas surface atoms were allowed to relax. 
+
+Structural optimizations were performed using the steepest descent optimizer until the 
+
+force convergence threshold of 10 −6 eV Å−1 was reached, or until no further reduction in 18 
+
+system energy could be achieved. The average surface energy of each (hkl ) slab was 
+
+calculated as :   
+
+> ,,,
+> ,OUC
+> ,
+
+2    
+
+> hkl hkl hkl
+> hkl slab
+> surf hkl
+
+E N E
+
+E A 
+
+> 
+> 
+> 
+
+
+
+
+
+where ,hkl 
+
+> surf
+
+E 
+
+> 
+
+is the surface energy, ,hkl 
+
+> slab
+
+E 
+
+> 
+
+is the total energy of the relaxed slab, ,
+
+> OUC
+> hkl
+
+E 
+
+> 
+
+is the bulk 
+
+OUC energy per atom, ,hkl 
+
+N 
+
+> 
+
+is the number of atoms in the slab, and ,hkl 
+
+A 
+
+> 
+
+is the surface 
+
+cross-sectional area, all corresponding to termination 
+
+ of the (hkl ). 
+
+Wulff construction 
+
+The equilibrium morphology of the mineral crystal was predicted using the Wulff 
+
+construction based on the calculated orientation-dependent surface energies. Rather than 
+
+treating the exposed surfaces independently, this method determines the stable crystal shape 
+
+by imposing a geometric relationship between the surface energy of each crystallographic 
+
+plane and its distance from the crystal center. For a given (hkl ) surface, the Wulff condition 
+
+can be expressed as: 
+
+> hkl
+> hkl
+
+d
+
+
+
+ 
+
+where hkl 
+
+ is the surface energy of the (hkl ) facet, hkl d denotes the perpendicular distance from 
+
+the crystal center to this facet, and 
+
+ is a proportionality constant determined by the fixed 
+
+crystal volume. According to this relationship, facets with lower surface energies tend to be 
+
+more prominently expressed in the equilibrium morphology, whereas high-energy facets are 
+
+less stable and may contribute only a small surface area or disappear from the final Wulff 
+
+shape. The resulting Wulff morphology was then used to quantify the relative area fraction of 
+
+each exposed crystallographic surface of the mineral crystal. 
+
+Experimental XRD characterization 
+
+Natural quartz from Gongyi, Henan Province, China, was used for experimental 
+
+validation. The sample had a SiO 2 content of approximately 99.56 wt%, as determined by 
+
+inductively coupled plasma optical emission spectroscopy. The raw quartz was pulverized 
+
+using a planetary ball mill to a particle size below 5 μm and sieved through a 3500-mesh 
+
+standard screen before measurement. Powder X-ray diffraction was performed on an X’Pert 
+
+PRO diffractometer (PANalytical, Netherlands) using Cu Kα1 radiation (λ = 1.5406 Å) at 40 
+
+kV and 40 mA. Diffraction patterns were collected in continuous scan mode over a 2θ range 
+
+of 5.0 –90.0 °, with a counting time of 97.92 s per data point. 19 
+
+# References 
+
+[1] K. Li, A. Zhou, T. Liu, D. Zou, Z. Yu, Long-term performance and deterioration 
+
+mechanism of novel hydrophobic coated fiber reinforced composite in marine environment, 
+
+Composites, Part A 190 (2025) 108716. https://doi.org/10.1016/j.compositesa.2025.108716. 
+
+[2] S. Sharma, R.D. Roppel, A.E. Murphy, L.W. Beegle, R. Bhartia, A. Steele, J.R. Hollis, S. 
+
+Siljestr öm, F.M. McCubbin, S.A. Asher, W.J. Abbey, A.C. Allwood, E.L. Berger, B.L. 
+
+Bleefeld, A.S. Burton, S.V. Bykov, E.L. Cardarelli, P.G. Conrad, A. Corpolongo, A.D. Czaja, 
+
+L.P. DeFlores, K. Edgett, K.A. Farley, T. Fornaro, A.C. Fox, M.D. Fries, D. Harker, K. 
+
+Hickman-Lewis, J. Huggett, S. Imbeah, R.S. Jakubek, L.C. Kah, C. Lee, Y. Liu, A. Magee, M. 
+
+Minitti, K.R. Moore, A. Pascuzzo, C. Rodriguez Sanchez-Vahamonde, E.L. Scheller, S. 
+
+Shkolyar, K.M. Stack, K. Steadman, M. Tuite, K. Uckert, A. Werynski, R.C. Wiens, A.J. 
+
+Williams, K. Winchell, M.R. Kennedy, A. Yanchilina, Diverse organic-mineral associations in 
+
+jezero crater, mars, Nature 619 (2023) 724 –732. https://doi.org/10.1038/s41586-023-06143-z. 
+
+[3] W. Li, C. Xiong, Y. Zhou, Y. Zheng, J. Xing, Y. Jin, Y. Wang, Deciphering the initial 
+
+hydration reaction of tricalcium aluminate based on ab initio-accurate machine learning force 
+
+field, Cem. Concr. Res. 201 (2026) 108124. 
+
+https://doi.org/10.1016/j.cemconres.2025.108124. 
+
+[4] K. Li, A. Zhou, T. Liu, D. Zou, Z. Que, J. Ou, Low-alkalinity seawater sea sand columns 
+
+reinforced with hydrophobic SFCBs and FRP hoops: a durability and energy dissipation 
+
+capacity enhancement scheme for marine engineering, Eng. Struct. 350 (2026) 122059. 
+
+https://doi.org/10.1016/j.engstruct.2025.122059. 
+
+[5] F. Pan, Z. Liu, G. Li, Y. Zhang, Z. Fan, Y. Gang, D. Wang, Hydration behavior of quartz 
+
+surfaces revealed by molecular dynamics simulations with a novel machine learning potential, 
+
+J. Phys. Chem. C 129 (2025) 14829 –14840. https://doi.org/10.1021/acs.jpcc.5c03759. 
+
+[6] X. Xu, Z. Liu, D. Spagnoli, D.J. Armaghani, C. Qi, Adsorption mechanism of multiple 
+
+water molecules on tricalcium silicate (001) surface: A DFT study, (n.d.) 1–9. 
+
+https://doi.org/10.1007/s12613-024-3073-7. 
+
+[7] Y. Li, H. Pan, Q. Liu, X. Ming, Z. Li, Ab initio mechanism revealing for tricalcium 
+
+silicate dissolution, Nat. Commun. 13 (2022) 1253. 
+
+https://doi.org/10.1038/s41467-022-28932-2. 
+
+[8] J. Yin, H. Chen, J. Qiu, W. Li, P. He, J. Li, I.A. Karimi, X. Lan, T. Wang, X. Wang, 
+
+SurFF: a foundation model for surface exposure and morphology across intermetallic crystals, 
+
+Nat. Comput. Sci. (2025). https://doi.org/10.1038/s43588-025-00839-0. 20 
+
+[9] C. Qi, X. Xu, Q. Chen, H. Liu, X. Min, A. Fourie, L. Chai, Ab initio calculation of the 
+
+adsorption of As, Cd, Cr, and Hg heavy metal atoms onto the illite(001) surface: implications 
+
+for soil pollution and reclamation, Environ. Pollut. 312 (2022) 120072. 
+
+https://doi.org/10.1016/j.envpol.2022.120072. 
+
+[10] J. Zhuo, A. Zhou, Z. Yu, T. Liu, Nanoscale toughening strategy for colloidal calcium 
+
+silicate hydrate/crystalline calcium hydroxide interface in cementitious composites via 
+
+molecular bridging in protrusion-induced gap, Composites, Part A 203 (2026) 109597. 
+
+https://doi.org/10.1016/j.compositesa.2026.109597. 
+
+[11] P. Zhang, Z. Liu, X. Wang, R. Mi, Y. Pang, F. Pan, J. Li, Z. Wang, W. Wang, K.H. Luo, 
+
+Unraveling the early-stage hydration mechanism of tricalcium silicate via machine learning 
+
+potentials, Chem. Eng. J. 538 (2026) 176856. https://doi.org/10.1016/j.cej.2026.176856. 
+
+[12] X. Xu, C. Qi, X.M. Aretxabaleta, C. Ma, D. Spagnoli, H. Manzano, The initial stages of 
+
+cement hydration at the molecular level, Nat. Commun. 15 (2024) 2731. 
+
+https://doi.org/10.1038/s41467-024-46962-w. 
+
+[13] Y. Li, C. Chen, Z. Li, Z. Li, High-throughput atomistic modeling of nanocrystalline 
+
+structure and mechanics of calcium aluminate silicate hydrate, Nat. Commun. 16 (2025) 5352. 
+
+https://doi.org/10.1038/s41467-025-60631-6. 
+
+[14] J. Xu, F. Pan, Z. Fan, J. Liu, G. Lu, D. Wang, Multi-scale insights of recycling solid 
+
+waste-based fillers into asphalt mastics: surface adsorption configuration, microstructural 
+
+morphology, and mechanical performances, Colloids Surf., A 729 (2026) 138920. 
+
+https://doi.org/10.1016/j.colsurfa.2025.138920. 
+
+[15] X. Xu, H. Du, G. Geng, Molecular insights into the onset of tricalcium silicate hydration, 
+
+Cem. Concr. Res. 205 (2026) 108242. https://doi.org/10.1016/j.cemconres.2026.108242. 
+
+[16] H.G. Yang, C.H. Sun, S.Z. Qiao, J. Zou, G. Liu, S.C. Smith, H.M. Cheng, G.Q. Lu, 
+
+Anatase TiO2 single crystals with a large percentage of reactive facets, Nature 453 (2008) 
+
+638 –641. https://doi.org/10.1038/nature06964. 
+
+[17] C. Barth, M. Reichling, Imaging the atomic arrangements on the high-temperature 
+
+reconstructed α-Al2O3(0001) surface, Nature 414 (2001) 54 –57. 
+
+https://doi.org/10.1038/35102031. 
+
+[18] H.H. Teng, P.M. Dove, C.A. Orme, J.J.D. Yoreo, Thermodynamics of calcite growth: 
+
+baseline for understanding biomineral formation, Science 282 (1998) 724 –727. 
+
+https://doi.org/10.1126/science.282.5389.724. 21 
+
+[19] J. Zhuo, A. Zhou, Z. Yu, T. Liu, Revealing the nanoscale mechanism of water states in 
+
+the interparticle cohesion of calcium silicate hydrate, Cem. Concr. Res. 205 (2026) 108237. 
+
+https://doi.org/10.1016/j.cemconres.2026.108237. 
+
+[20] D.J. Eaglesham, A.E. White, L.C. Feldman, N. Moriya, D.C. Jacobson, Equilibrium 
+
+shape of Si, Phys, Rev, Lett, 70 (1993) 1643 –1646. 
+
+https://doi.org/10.1103/PhysRevLett.70.1643. 
+
+[21] F. Shen, G. Liu, Y. Zhang, C. Liu, Molecular insights into sulfate-induced chloride 
+
+release from friedel ’s salt, Cem. Concr. Res. 199 (2026) 108042. 
+
+https://doi.org/10.1016/j.cemconres.2025.108042. 
+
+[22] F. Pan, G. Li, J. Xu, Z. Wang, Z. Fan, A. Zhang, D. Wang, CeNEP: a general-purpose 
+
+machine learning interatomic potential for cementitious materials, Chem. Eng. J. (2025) 
+
+170639. https://doi.org/10.1016/j.cej.2025.170639. 
+
+[23] Z. Liu, Z. Wang, Z. Chen, J. Sha, F. Pan, P. Zhang, Y. Zhang, Unveiling mechanisms of 
+
+SEI formation and sodium loss in so- dium batteries via interface reactor sampling, (n.d.) 
+
+1–34. 
+
+[24] C.R. Groom, I.J. Bruno, M.P. Lightfoot, S.C. Ward, The cambridge structural database, 
+
+Acta Crystallogr. B Struct. Sci. Cryst. Eng. Mater. 72 (2016) 171 –179. 
+
+https://doi.org/10.1107/S2052520616003954. 
+
+[25] A. Jain, S.P. Ong, G. Hautier, W. Chen, W.D. Richards, S. Dacek, S. Cholia, D. Gunter, D. 
+
+Skinner, G. Ceder, K.A. Persson, Commentary: the materials project: a materials genome 
+
+approach to accelerating materials innovation, APL Mater. 1 (2013) 11002. 
+
+https://doi.org/10.1063/1.4812323. 
+
+[26] R.T. Downs, M. Hall-Wallace, The american mineralogist crystal structure database, Am. 
+
+Mineral. 88 (2003) 247 –250. 
+
+[27] R. Rathar, S. Ding, D. Sanchez-Fuentes, C. Jolly, C. Andr é-Arpin, R. Desgarceaux, N. 
+
+Guillaume, G. Ardila, R. Garcia-Bermejo, J. Gazquez, S. Plana-Ruiz, L. Picas, A. 
+
+Carretero-Genevrier, Wafer-scale integration of α-quartz thin films toward super high 
+
+frequency piezoelectric bioNEMS for chikungunya virus detection, Adv. Funct. Mater. 36 
+
+(2026) e14484. https://doi.org/10.1002/adfm.202514484. 
+
+[28] F. Shen, J. Tang, Y. Wang, G. Liu, C. Liu, Molecular-scale understanding of 
+
+crystallographic controlled anisotropic dissolution of albite in sulfate solution, Npj Mater. 
+
+Degrad. 9 (2025) 123 –138. https://doi.org/10.1038/s41529-025-00672-w. 22 
+
+[29] T. Jiang, K. Cui, J. Chang, Development of low-carbon cement: carbonation of 
+
+compounded C2S by β-C2S and γ-C2S, Cem. Concr. Compos. 139 (2023) 105071. 
+
+https://doi.org/10.1016/j.cemconcomp.2023.105071. 
+
+[30] W. Sun, G. Ceder, Efficient creation and convergence of surface slabs, Surf. Sci. 617 
+
+(2013) 53 –59. https://doi.org/10.1016/j.susc.2013.05.016. 
+
+[31] Z. Fan, B. Tang, E. Berger, E. Berger, E. Fransson, K. Xu, Z. Yan, Z. Liu, Z. Song, H. 
+
+Dong, S. Chen, L. Li, Z. Wang, Y. Zhu, J. Wiktor, P. Erhart, qNEP: a highly efficient 
+
+neuroevolution potential with dynamic charges for large-scale atomistic simulations, J. Chem. 
+
+Theory Comput. 22 (2026) 4787 –4801. https://doi.org/10.1021/acs.jctc.6c00146. 
+
+[32] T. Liang, K. Xu, E. Lindgren, Z. Chen, R. Zhao, J. Liu, B. Tang, B. Zhang, Y. Wang, K. 
+
+Song, P. Ying, H. Dong, S. Chen, P. Erhart, Z. Fan, T. Ala-Nissila, J. Xu, NEP89: universal 
+
+neuroevolution potential for inorganic and organic materials across 89 elements, (2025). 
+
+https://doi.org/10.48550/arXiv.2504.21286. 
+
+[33] L. Wang, S.N. Shirodkar, Z. Zhang, B.I. Yakobson, Defining shapes of two-dimensional 
+
+crystals with undefinable edge energies, Nat. Comput. Sci. 2 (2022) 729 –735. 
+
+https://doi.org/10.1038/s43588-022-00347-5. 
+
+[34] W. Sun, D.A. Kitchaev, D. Kramer, G. Ceder, Non-equilibrium crystallization pathways 
+
+of manganese oxides in aqueous solution, Nat. Commun. 10 (2019) 573 –581. 
+
+https://doi.org/10.1038/s41467-019-08494-6. 
+
+[35] K. Koo, B. Shen, S.-I. Baik, Z. Mao, P.J.M. Smeets, I. Cheuk, K. He, R. Dos Reis, L. 
+
+Huang, Z. Ye, X. Hu, C.A. Mirkin, V.P. Dravid, Formation mechanism of high-index faceted 
+
+Pt-Bi alloy nanoparticles by evaporation-induced growth from metal salts, Nat. Commun. 14 
+
+(2023) 3790. https://doi.org/10.1038/s41467-023-39458-6. 
+
+[36] H. Manzano, E. Durgun, I. López-Arbeloa, J.C. Grossman, Insight on tricalcium silicate 
+
+hydration and dissolution mechanism from molecular simulations, ACS Appl. Mater. 
+
+Interfaces 7 (2015) 14726 –14733. https://doi.org/10.1021/acsami.5b02505. 
+
+[37] E. Durgun, H. Manzano, P.V. Kumar, J.C. Grossman, The characterization, stability, and 
+
+reactivity of synthetic calcium silicate surfaces from first principles, J. Phys. Chem. C 118 
+
+(2014) 15214 –15219. https://doi.org/10.1021/jp408325f. 
+
+[38] P.W. Tasker, The stability of ionic crystal surfaces, J. Phys. C: Solid State Phys. 12 (1979) 
+
+4977 –4984. https://doi.org/10.1088/0022-3719/12/22/036. 
+
+[39] A. Wander, F. Schedin, P. Steadman, A. Norris, R. McGrath, T.S. Turner, G. Thornton, 
+
+N.M. Harrison, Stability of polar oxide surfaces, Phys. Rev. Lett. 86 (2001) 3811 –3814. 
+
+https://doi.org/10.1103/PhysRevLett.86.3811. 23 
+
+[40] L.D. Marks, L. Peng, Nanoparticle shape, thermodynamics and kinetics, J. Phys.: 
+
+Condens. Matter 28 (2016) 53001. https://doi.org/10.1088/0953-8984/28/5/053001. 
+
+[41] M. Sulpizi, M.-P. Gaigeot, M. Sprik, The silica –water interface: how the silanols 
+
+determine the surface acidity and modulate the water properties, J. Chem. Theory Comput. 8
+
+(2012) 1037 –1047. https://doi.org/10.1021/ct2007154. 
+
+[42] B.L. Phillips, W.H. Casey, M. Karlsson, Bonding and reactivity at oxide mineral surfaces 
+
+from model aqueous complexes, Nature 404 (2000) 379 –382. 
+
+https://doi.org/10.1038/35006036. 
+
+[43] R. Tran, Z. Xu, B. Radhakrishnan, D. Winston, W. Sun, K.A. Persson, S.P. Ong, Surface 
+
+energies of elemental crystals, Sci. Data 3 (2016) 160080. 
+
+https://doi.org/10.1038/sdata.2016.80. 
+
+[44] S.P. Ong, W.D. Richards, A. Jain, G. Hautier, M. Kocher, S. Cholia, D. Gunter, V.L. 
+
+Chevrier, K.A. Persson, G. Ceder, Python materials genomics (pymatgen): a robust, 
+
+open-source python library for materials analysis, Comput. Mater. Sci. 68 (2013) 314 –319. 
+
+https://doi.org/10.1016/j.commatsci.2012.10.028. 
+
+[45] J.P. Perdew, K. Burke, M. Ernzerhof, Generalized gradient approximation made simple, 
+
+Phys. Rev. Lett. 77 (1996) 3865 –3868. https://doi.org/10.1103/PhysRevLett.77.3865. 
+
+[46] G. Kresse, J. Furthm üller, Efficient iterative schemes for ab initio total-energy 
+
+calculations using a plane-wave basis set, Phys. Rev. B 54 (1996) 11169 –11186. 
+
+https://doi.org/10.1103/PhysRevB.54.11169. 
+
+[47] K. Xu, H. Bu, S. Pan, E. Lindgren, Y. Wu, Y. Wang, J. Liu, K. Song, B. Xu, Y. Li, T. 
+
+Hainer, L. Svensson, J. Wiktor, R. Zhao, H. Huang, C. Qian, S. Zhang, Z. Zeng, B. Zhang, B. 
+
+Tang, Y. Xiao, Z. Yan, J. Shi, Z. Liang, J. Wang, T. Liang, S. Cao, Y. Wang, P. Ying, N. Xu, C. 
+
+Chen, Y. Zhang, Z. Chen, X. Wu, W. Jiang, E. Berger, Y. Li, S. Chen, A.J. Gabourie, H. Dong, 
+
+S. Xiong, N. Wei, Y. Chen, J. Xu, F. Ding, Z. Sun, T. Ala ‐Nissila, A. Harju, J. Zheng, P. Guan, 
+
+P. Erhart, J. Sun, W. Ouyang, Y. Su, Z. Fan, GPUMD 4.0: a high ‐performance molecular 
+
+dynamics package for versatile materials simulations with machine ‐learned potentials, Mater. 
+
+Genome Eng. Adv. (2025) e70028. https://doi.org/10.1002/mgea.70028. 
+
+[48] Z. Fan, Y. Wang, P. Ying, K. Song, J. Wang, Y. Wang, Z. Zeng, K. Xu, E. Lindgren, J.M. 
+
+Rahm, A.J. Gabourie, J. Liu, H. Dong, J. Wu, Y. Chen, Z. Zhong, J. Sun, P. Erhart, Y. Su, T. 
+
+Ala-Nissila, GPUMD: a package for constructing accurate machine-learned potentials and 
+
+performing highly efficient atomistic simulations, J. Chem. Phys. 157 (2022) 114801. 
+
+https://doi.org/10.1063/5.0106617. 24 
+
+[49] Z. Fan, Improving the accuracy of the neuroevolution machine learning potential for 
+
+multi-component systems, J. Phys.: Condens. Matter 34 (2022) 125902. 
+
+https://doi.org/10.1088/1361-648X/ac462b. 
+
+# Data availability 
+
+All of the data supporting this study are available at repository via 
+
+https://huggingface.co/datasets/Fengzijun/MinSurfProjectV1.0. 
+
+# Code availability 
+
+All codes developed to support this study are available from the repository at 
+
+https://huggingface.co/datasets/Fengzijun/MinSurfProjectV1.0 .
+
+MinNEP training and calculations were performed using the open-source GPUMD 
+
+package [47] , which is developed and maintained independently and is available at 
+
+https://github.com/brucefan1983/GPUMD. 
+
+# Acknowledgements 
+
+The authors are grateful for financial support from the National Natural Science Foundation 
+
+of China (52308448). 
+
+# Competing interests 
+
+The authors declare no competing interests. 
+
+# Additional information 
+
+Supplementary Information .pdf is available for this paper.

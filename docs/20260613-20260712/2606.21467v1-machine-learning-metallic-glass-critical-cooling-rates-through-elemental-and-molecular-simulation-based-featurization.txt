@@ -1,0 +1,556 @@
+Title: Machine learning metallic glass critical cooling rates through elemental and molecular simulation based featurization
+
+URL Source: https://arxiv.org/pdf/2606.21467v1
+
+Published Time: Tue, 23 Jun 2026 01:09:56 GMT
+
+Number of Pages: 48
+
+Markdown Content:
+# Machine Learning Metallic Glass Critical Cooling Rates Through Elemental and Molecular Simulation Based Featurization 
+
+Lane E. Schultz a* , Benjamin Afflerbach a, Paul M. Voyles a, and Dane Morgan aaUniversity of Wisconsin-Madison, 1500 engineering Drive, Madison, WI 53706, USA 
+
+> *
+
+Corresponding author. E-mail address: lsschultz@wisc.edu (L. E. Schultz) June 23, 2026 
+
+Abstract 
+
+We have developed a machine learning model for critical cooling rates for metallic glasses based on computational properties. We compare results for features derived from easy-to-compute functions of elemental properties to more complex physically motivated properties using ab initio, machine-learning potentials, and empirical potential molecular dynamics methods. The established approach enables property acquisition across a diverse range of alloys. Analysis of various features for 34 alloys from 20 chemical systems shows that the best model for critical cooling rates was learned from one elemental property-based feature and three simulated features. The elemental property-based feature is an ideal entropy value based on alloy stoichiometry. The simulated features were acquired from estimates of energies above the convex hull, changes in heat capacity, and the fraction of icosahedra-like Voronoi polyhedra. Models were assessed through a demanding cross validation test based on repeatedly leaving out full chemical systems as test sets and had an R2 of 0.78 and a mean average error of 0.76 in units of [ log 10 (K/s )]. We demonstrate with Shapley additive explanation analysis that the most impactful features have physically reasonable influence on model predictions. The established methodology can be applied to other high-throughput studies of material properties of diverse compositions. 
+
+# 1 Introduction 
+
+Unlike their crystalline counterparts, metallic glasses are a type of metallic material charac-terized by a lack of long-range atomic order. Metallic glasses can have exceptional hardness, increased strength, superior corrosion resistance, smaller magnetic hysteresis, and higher resis-tivity when compared to their crystalline counterparts. These properties have led to a range of applications, including structural supports within the human body [1, 2], voltage transformers [3], and golf clubs [4]. Each of these applications depend on the composition of the material in question and the ability for that composition to form a glass instead of a crystal during processing. One significant obstacle to the more widespread adoption of metallic glasses for engineering ap-plications is their size limitation, which is primarily due to the greater thermodynamic stability of their crystalline counterparts. When metallic glasses are manufactured through melt-quench methods, heat must be quickly dissipated from samples or else crystalline phases are formed, 1
+
+> arXiv:2606.21467v1 [cond-mat.mtrl-sci] 19 Jun 2026
+
+which limits the maximum size the quenched samples can reach and remain a glass. The slowest rate at which a molten material can be cooled to produce a glass is called the critical cooling rate (denoted by Rc) and is an intrinsic measure of glass forming ability (GFA). The size of a glass that can be produced is closely related to Rc. This size is typically quantified by the maximum potential length of the shortest sample section of a produced glass before nucleation of crystalline phases occurs (often represented as Zmax ). If the geometry is cylindrical, then the diameter, Dmax , can be referenced specifically. Any length above Zmax will lead to the emergence of crystalline phases. Zmax and Dmax are also widely used as measures of GFA, although they can depend on the quenching method and are not as intrinsic to the material as 
+
+Rc.Many previous efforts to quantify GFA relied on arithmetic operations of the glass transition (Tg), crystallization ( Tx), and the liquidus ( Tl) temperatures [5, 6]. A significant limitation of these methods is the prerequisite formation of a glass to measure Tg and Tx. Nonetheless, models derived from these temperatures can offer valuable insights into the potential size of metallic glass samples, once they are established as glass formers. The rheology of a material, typically characterized by viscosity or relaxation time, is suggested by other studies to play a pivotal role in explaining GFA [7–9]. Relaxation time and viscosity are frequently used interchangeably because they are directly proportional to each other [10]. As a material cools from a molten state and transitions into a glass, atoms with increasingly restrained movement, reflected by higher viscosity at lower temperatures, tend to remain amorphous. The change in viscosity (or relaxation time) with respect to temperature when the material is near Tg is called fragility, 
+
+m, [11]. The conventional understanding is that high m indicates poor glass formers, while low 
+
+m suggests favorable glass formers. There are alternate properties that correlate with m, as highlighted in the work by Gangopadhyay et al. [12]. Two noteworthy properties include a cross-over from Arrhenius behavior temperature during cooling to non-Arrhenius behavior, Ta, and the temperature at which materials reach a chosen viscosity cutoff, Tc, as described in Ref. [12]. Ratios of the aforementioned temperatures and Tg were shown to have significant correlations with m. However, m alone does not describe GFA. As discussed in Ref. [13], m sometimes exhibits the opposite relationship with GFA than anticipated. In the studied M gCuY system, many compositions displayed high GFA despite having high m values. Additionally, Ref. [7] uses Tg, Tl, and m to predict Dmax because none of these properties cannot robustly predict 
+
+Dmax alone. Together, however, these properties produced a model for log 10 (D2
+
+> max
+
+) with a coefficient of determination of R2 = 0 .980. While these correlations are often extremely good, any correlation based on experimentally measured values has a severe limitation of needing to make and characterize the material to predict Rc. Several efforts have been made to correlate GFA to descriptors that can be trivially computed from properties of elements or properties that can be computed from molecular simulations. Among these properties are those based on pre-tabulated values of simple alloying properties. These properties are nearly instantaneous to evaluate and are very easy to use. Some authors have combined experimentally produced physical descriptors with easy to compute elemental properties (i.e., properties built from chemical information of each element). In Ref. [14], the experimental descriptors of Tg, Tx, and Tl were combined with elemental features to produce a model for Dmax with a score of R2 = 0 .763. While this model shows promise, the use of experimental characteristic temperatures introduces the limitations noted above. More general models that use only composition as features to predict GFA have been produced. A notable example is from Ward et al. [15] who built a Dmax model with a correlation coefficient (not R2)of R = 0 .89 when assessing their model through 10-fold cross validation (CV). Their mean aver-age error ( M AE ) was 0.21 mm . However, 10-fold CV produces an overly confident assessment of model performance due to similar compositions appearing in both the training and test sets. 2When the authors assess their model by iteratively excluding binary systems from training, the 
+
+M AE rises to 0.81 mm for tests (a 286% increase). A MAE of 0.81 mm accounts for 68% of the mean absolute deviation of test sets, so there is considerable room for improvement. Afflerbach et al., combined experimental data containing Zmax , Dmax , Rc, Tg, Tx, Tl, and melt-spun ribbon information to produce approximate Rc values (denoted as Ra here) for 2,125 materials [16]. When manufactured, ribbons can form fully amorphous, partially amorphous, or fully crys-talline samples. The phases present in a ribbon are indicative of the quality of the GFA. The authors assigned Rc values of 10 5.5 and 10 7 [K/s ] for partially amorphous and fully crystalline ribbons, respectively. However, fully amorphous sheets were not included in their analysis. Through systematically excluding complete chemical systems as test sets (i.e., materials were grouped by chemical systems and iteratively left out as the test set), they were able to produce random forest regression models of log 10 (Ra) with a M AE of 0.82 [ log 10 (K/s )]. A lower M AE 
+
+of 0.36 [ log 10 (K/s )] was obtained from a 5-fold CV assessment because it is a less demanding test. When applying 5-fold CV, many of the test compositions may be similar to those included in the training set (e.g., Zr 49 Cu 51 in training and Zr 50 Cu 50 in test). The features used to build the model were from elemental properties generated with the Materials Simulation Toolkit for Machine Learning (MAST-ML) [17]. The studies in Refs. [15] and [16] highlight the challenge of GFA features being applicable across chemical systems, as model predictions deteriorate markedly for compositions significantly different from those used in training. As demonstrated in Ref. [18], models constructed using physically motivated features exhibit greater extrapo-lation capabilities compared to models built with features acquired through numerical brute force. The authors examined models trained separately on compositions, elemental features, and three physically motivated features to predict whether a composition is likely to produce a large metallic glass. When assessed through 10-fold CV, all models showed similar prediction ability. When assessed with chemistries more different from those used for training models, they find that models built from physically motivated features correctly classified 20 times more ma-terials of interest than models built from elemental features. Models built from compositions alone identified none. This result leads us to heavily emphasize the physical relevance of features used to build models in this present work. The computational approaches mentioned previously either rely on pre-existing or easy to gener-ate data for constructing models. More sophisticated computational methods exist for extract-ing physical properties from materials and present an opportunity to enhance GFA prediction. From a structural standpoint, exploring the short-range order of glasses through Voronoi poly-hedra (VPs) could provide valuable insights into their GFA. To construct VPs bisecting planes are positioned between an atom and its nearest neighbors. The type of VP is determined by the number of faces and their corresponding edges that enclose the atom. The work in Ref. [19] argues that the variance of VPs from a high temperature liquid (at 1,478 [ K] and above Tl)can be used as an indicator of GFA. Follow up work in Ref. [20] uses clustering techniques on VPs. Studies have also focused on VPs resembling icosahedra (ICO-like, characterized by having at least 10 faces with 5 edges each [21]), demonstrating that ICO-like VPs exhibit slow movement during cooling, consequently enhancing GFA [21, 22]. However, none of these works were assessed on a large database of GFA for their ability to provide accurate regression or classification predictions. Structural features in the form of VPs, among many others, were studied in Ref. [23] in a regres-sion task. Molecular dynamics (MD) was used to measure Rc by studying crystallization rates, and a set of simulated material properties was used to predict log 10 (Rc). Elemental features were also included from the elemental properties generated with MAST-ML. While differences exist between experimentally acquired Rc and its simulated counterpart (in particular, the sim-ulated values were limited by computational constraints to above 10 11 [K/s ]), the results appear 3promising given that the model validation yielded an R2 of 0.769. Features from VPs, rheology, and elemental properties were found to significantly impact the model. In a similar spirit to Ref. [23], characteristic temperatures obtained through rheology, temperature, energies, and phase diagrams were used to construct regression and classification models within a limited composition space [24]. Regression models yielded unsatisfactory results for Dmax prediction, while classification metrics for high or low Dmax were more promising. Both Ref. [23] and [24] relied on classical interatomic potentials, which are difficult and time-consuming to construct. The need to have acceptably accurate potentials available for each system being studied greatly limited the chemical space accessible to the studies. Ab initio methods can be used for many chemical compositions, but several of the studied properties were impractical to obtain through ab initio methods because of the computational expense associated with the necessary system sizes and simulation time scales. In this work, we take advantage of recent developments in ma-chine learning potentials (MLPs), which allow for the rapid construction of accurate potentials. These MLPs were used to study 34 systems with diverse chemical compositions. Employing MLPs constructed from ab initio data with machine learning can enable practical simulations at the necessary length and time with near ab initio accuracy [25, 26]. Here, we integrate the best practices of previous efforts to quantify GFA and use them to guide developing descriptors from material properties that are computationally accessible. We extend the previous chemical domain of properties that can be obtained with MLPs. Then we evaluate the ability of these descriptors to predict Rc. The properties we use include those that are trivial to compute but also ones derived from simulations of rheological behavior, energy differences across phases, and many other physically motivated aspects. We obtain encouraging results, with a cross validation test based on repeatedly leaving out full chemical systems yielding an 
+
+R2 of 0.78 and M AE of 0.76 in units of [ log 10 (K/s )]. We use SHapley Additive exPlanations (SHAP) values to extract correlations of Rc with physically motivated features and show that these correlations align with physical expectations. SHAP values quantify the contribution of each feature to a machine learning model’s prediction, based on game theory principles [27]. 
+
+# 2 Methods 
+
+2.1 Software 
+
+The MLPs in this study were constructed using the Machine-Learning Interatomic Potentials 2 (MLIP-2) package, which fits a moment tensor potential (MTP) [26]. For all other machine learning tasks, MAST-ML was employed along with scikit-learn [17, 28]. Ab initio calculations were carried out using the Vienna Ab initio Simulation Package (VASP) [29] and classical MD simulations utilized the Large-scale Atomic/Molecular Massively Parallel Simulator (LAMMPS) [30]. OVITO was used for the calculation of VP types through its python application program interface (API) [31]. 
+
+2.2 Database 
+
+Two sources of data for Rc were used in this study. One dataset contained 299 entries (where some are duplicates) gathered with the assistance of large language models [32, 33]. Another set of data was taken from a metallic glass database containing Rc and other properties from Ref. [34]. These last data were curated by researchers sifting through various publications 4manually. If duplicates existed across both sources of data, then the entry from Ref. [34] was kept and the other was discarded. For duplicate compositions within each dataset, the mean 
+
+Rc was taken to produce a one-to-one mapping between composition and Rc. The merged data set contained 177 entries. For the portion of the study that includes fitting MLPs and computationally expensive simulations, only 34 out of the 177 entries were studied. The subset of 34 compositions was acquired from Ref. [34], and none of them originated from the data obtained using large language models. 
+
+2.3 Summary of Explored Properties 
+
+The properties studied in this work include those acquired using MLPs and those gathered from elemental properties. Due to the extensive number of features and potential for confusion in feature nature and naming conventions, we present a comprehensive summary of features and their corresponding descriptions in Table 1. Secs. 2.6, 2.7, and 2.8 will elaborate on the acquisition of features and which set of features and their connection to the different feature sets (i.e., Xi where i ∈ { long, mtp, crys, mastml }). 5Table 1: The features included in this study are tabulated below. Formulas are provided for features that are further discussed from other sources. Feature Set Description ¯x Xlong Sum of the multiple of Pauling electronegativity and element fractions [14] 
+
+γ Xlong A function of atomic radii [14] 
+
+Hmix Xlong A function of molar mixing enthalpy [14] 
+
+δ Xlong A function of atomic radii and element fractions [14] ¯r Xlong Sum of the multiple of atomic radii and element fractions [14] 
+
+Smix Xlong −R PNi=1 ciln (ci), where c is the atomic fraction, R is the gas constant, and i is the element in question [14] ∆C Xmtp Difference in dE/dT between a frozen glass and liquid 
+
+Tf Xmtp The fictive temperature 
+
+Ts Xmtp High temperature dynamical transition 
+
+Ta dif f Xmtp The cross-over temperature denoting the start of non-Arrhenius behav-ior for self-diffusion 
+
+Ta visc Xmtp The cross-over temperature denoting the start of non-Arrhenius behav-ior for viscosity 
+
+Tg dif f Xmtp The temperature where a material reaches a self-diffusion of 10 −12 [˚ A/ps ]
+
+Tg visc Xmtp The temperature where a material reaches a viscosity of 10 12 [P a/s ]
+
+Tc dif f Xmtp The temperature where a material reaches a self-diffusion of 10 −6 [˚ A/ps ]
+
+Tc visc Xmtp The temperature where a material reaches a viscosity of 10 4 [P a/s ]
+
+Da Xmtp The MYEGA fitting parameter a in Eq. 4 for self-diffusion 
+
+Db Xmtp The MYEGA fitting parameter b in Eq. 4 for self-diffusion 
+
+Dc Xmtp The MYEGA fitting parameter c in Eq. 4 for self-diffusion 
+
+ηa Xmtp The MYEGA fitting parameter a in Eq. 4 for viscosity 
+
+ηb Xmtp The MYEGA fitting parameter b in Eq. 4 for viscosity 
+
+ηc Xmtp The MYEGA fitting parameter c in Eq. 4 for viscosity 
+
+Dm Xmtp The MD fragility index for self-diffusion 
+
+ηm Xmtp The MD fragility index for viscosity ICO-like Xmtp The fraction of Voronoi polyhedrons where number of faces with 5 edges are greater than 9 at 1500 [ K] [21] 
+
+var (V P ) Xmtp The variance of Voronoi polyhedrons at 1500 [ K] [19] 
+
+Ef orm Xcrys The formation energy for the amorphous phase 
+
+Eabove Xcrys The energy above the convex hull Many Xmastml Algebraic operations of elemental properties (not explored in feature selection) Many Xlong Features from Ref. [14] Many Xmtp Features derived from simulation with MTPs only Many Xcrys Features derived from simulation with MTPs and ab initio Many Xtot Xlong ∪ Xmtp ∪ Xcrys 
+
+Many Xbest Xbest ⊂ Xtot 
+
+2.4 Creation and Validation of MLP Fitting Methodology 
+
+Prior to calculating computationally expensive properties for learning Rc, MLPs were fit and the approach carefully validated. Our properties of interest stem from the relationships between viscosity, self-diffusion, and potential energies with respect to temperature. Any MLP must 6have almost the same behavior across these properties when compared to first principles MD for its training to be considered accurate. For validation of our approach, we needed a ground truth system for which all properties could be robustly determined. This ruled out validating on ab initio data since some key properties, like viscosity, were not practical to compute fully with ab initio. Therefore, we fit MLPs to data from embedded atom method (EAM) potentials and compared the MLP predictions to those from EAM potentials [35–41]. Specifically, the potential for the systems of AlCuZr , P dSi , and N iP are from Refs. [38], [35, 42], and [36], respectively. While the EAM potentials may not be highly accurate vs. experiments, they can still be used as a physically realistic materials system for validation. We assessed our fitting of MLPs using atomic positions, energies, forces, and stresses (i.e., the set of which form one configuration) generated through classical interatomic potentials for three materials: N i 80 P20 ,
+
+P d 75 Si 25 , and Al 10 Cu 40 Zr 50 .For producing data to train potentials, LAMMPS was used to simulate the aforementioned compositions. The data generation process was chosen so that it was practical for ab initio molecular dynamics (MD) and therefore includes fairly short MD simulation times. Materials were created randomly in a cubic configuration, then melted at 3,000 [ K] for 1 [ ps ]. Then, materials were held for another 1 [ ps ] at 3,000 [ K] and iteratively cooled by 300 [ K] with 1 [ps ] holds until a final temperature of 300 [ K] was reached. At the beginning of each hold, 61 configurations with volumes expanded and contracted by ± 15% the cubic side length were taken. We conducted these expansions and contractions to ensure that the training data for potentials encompassed a broad range of energies and forces. While our choices regarding the number of configurations and the extent of contractions and expansions may not be optimal, we find them sufficient for our work because they yield excellent agreement for properties of interest. The 61 configurations making out the equation of state might seem particularly excessive but we found that just using a modest number like five configurations significantly degraded the results. All simulation was done with a time step of 1 [ f s ]. Energies, forces, and stresses were taken from all the volumetric contraction/expansion data along with every 100th frame from isothermal holds to produce the data used to fit level 08 MTPs (the level 08 and other levels are described in Ref. [26]). The final number of MD frames used for training was 724. All configurations used for building MLPs were from amorphous phases (liquid and solid). None of the potentials have crystalline information used in the fitting. Constructed MTPs were validated with separate MD. We performed a new set of melt quench runs following the approach previously discussed but without the volume compression/expansion grid using EAM potentials. For each set of atomic positions, we used MTPs to predict the energies and forces. We then compared them directly to values from classical EAM potentials. All simulation described so far in this section included system sizes of 100 atoms in the NPT ensemble. Subsequently, MD simulations were conducted for both the classical potentials and MLPs to col-lect data on potential energy, self-diffusion, and viscosity as functions of temperature (method-ology covered in Sec. 2.6). While MLPs are employed to acquire other properties in our study, we find that acquiring these properties was particularly challenging, and their validation serves as an effective check. Trends for these properties were compared between the MLP and EAM potentials for simulated systems of 1,000 atoms. The comparison was done with values of po-tential energy, self-diffusion, and viscosity averaged over 10 independent runs separately for each potential to assume robust converged values. We show in Sec. 3.1 that potential energy, self-diffusion, and viscosity were modeled accurately with the MLP vs. EAM potentials and therefore apply a similar methodology to MLPs fit with ab initio data in Sec. 2.5. 72.5 Applying MLP Fitting Methodology to Materials of Interest 
+
+We selected 34 compositions from 20 different chemical systems for fitting MLPs. The number of explored compositions was decreased from 177 because of the computational cost of fitting potentials and simulation of properties. The Rc for the chosen compositions span eight orders of magnitude and exhibit variations in the number of constituent element types. The smallest systems studied comprised two elements, while the largest system investigated involved six elements. The total number of chemical species considered in this study amounted to 19 and formed 20 chemical systems (with some chemical systems being subsets of others). Training data for MLPs were created with the use of ab initio MD in VASP. We employed a 1x1x1 Γ mesh for the k-points in our calculations. The energy cutoffs were determined by selecting the largest value of ENMAX defined in the POTCAR file for each composition (the default for VASP). Ab initio calculations were conducted for the 34 compositions following as closely as possible to the methods described for the EAM and MLP comparisons (Sec. 2.4). The only notable difference between the ab initio and EAM training approaches was a switch from the NPT to the NVT ensemble. The Nose-Hoover thermostat was used for NVT. The only thermostat compatible with NPT simulation in VASP is the Langevin thermostat, which requires defining friction coefficients for each atomic species. However, determining these coefficients for all atomic species across the 34 studied compositions was impractical for generalized approaches. For holds under the NVT ensemble, the grid of volumetric contractions/expansions were used to find the zero pressure volume that was used for each respective isothermal hold. Some MLPs trained on the ab initio data obtained in this manner were unstable, possibly because of the change in ensemble from the previous validation on EAM potentials to the approach used in fitting with ab initio. NPT allows for many more perturbations to volumes in the system and may provide more information for potentials. The issue of MLP instability was solved with the use of active learning. NPT runs described in Sec. 2.4 with isothermal holds of 100 [ ps ] instead of 1 [ ps ] were simulated using the MLIP-2 interface with LAMMPS. Whenever a configuration of atoms was considered uncertain based on the default criterion outlined in Ref. [26], an additional ab initio calculation was carried out on that configuration. The information obtained from these supplementary ab initio calculations was subsequently incorporated into the training data. MD was repeated until potentials were stable. Because of this process, differing number of training configurations were used for each composition. Additional data were acquired to train MLPs compared to the method outlined in Sec. 2.4, so we anticipate improvements in behavior across properties. Errors in forces and energies were acquired in the same manner as in Sec. 2.4. The fitting errors are described in Sec. 3.1. All MD in this study was conducted with a time step of 1 [ f s ]. 
+
+2.6 Features Generated from MLP MD 
+
+This section describes how we extracted properties from simulations of 34 compositions to be used to machine learn Rc. In Sec. 1, we discussed the significance of viscosity and characteristic temperatures in prior GFA studies. As self-diffusion data can be obtained from the same MD simulations used for measuring viscosity and signifies the mobility of atoms within a system, we incorporate it into our set of properties of interest. For MD in this section, viscosity, self-diffusion, energies, etc. were acquired from the average of 5 independent simulations for each of the 34 studied materials. Each composition of interest underwent an initial equilibration at 2,000 [ K] for 100 [ ps ] with a system size of 1,000 atoms. Subsequently, materials were iteratively quenched by decreasing the temperature by 50 [ K] instantaneous decrements and holding for 110 [ ps ] until a final temperature of 100 [ K]. The first 10 [ ps ] were used for equilibration 8and were discarded from any data analysis. Each isothermal hold was continued from the previous hold. The average cooling rate was approximately 0.45 [ K/ps ]. As an example of one iteration, an isothermal hold at 1,500 [ K] would decrease instantly to 1,450 [ K] after 110 [ps ]. All these processes were conducted under the NPT ensemble and the potential energy was measured for each temperature. A Nose-Hoover thermostat and barostat were used for the NPT ensemble. The average potential energy versus temperature were used to measure the fictive temperature, Tf , and a dynamic slowdown temperature, Ts [36]. Ts indicates the onset of non-Arrhenius relaxation for a liquid material [36]. Both Tf and Ts were determined by fitting the data with three optimal linear segments using the PieceWise Linear Functions (PWLF) package [43]. Essentially, the two most drastic changes in the slope of potential energy with respect to temperature denote Tf and Ts, with Tf occurring at a lower temperature than Ts.The difference between slopes of total energies with respect to temperature above and below 
+
+Tf effectively gives change in the heat capacity, ∆ C. ∆ C was used as a feature for learning Rc.This feature was included based on arguments made in Ref. [44], which relate change in heat capacity to m with random first order transition theory. Generally, an increase in ∆ C results in a higher value of m and vice versa (See Eq. 43 or Fig. 3b in Ref. [44]). We included two features regarding VPs by measuring atom positions at 1,500 [ K] for each composition. Note that the atom positions at 1,500 [ K] were near the temperature of 1,478 [ K]used in Ref [19] and is above all Tf explored in our study. These positions were determined at the final step of the NPT quenching process at 1,500 [ K] specified at the beginning of this section. We measure the fraction of ICO-like Voronoi polyhedra (VP) and the variance of VP as defined in Ref.s [21] and [19], respectively. ICO-like VP are VP whose number of faces with 5 edges are greater than 9. Variance of VP (denoted as var (V P )) is defined by 
+
+var (V P ) = 1
+
+G
+
+> G
+
+X
+
+> i
+
+(fi − μ)2 (1) where i is the type of VP, f is the fraction of i in the system, G is the number of VP types, and μ is the average of all fi. The python3 API from OVITO was used to calculate VP with an edge threshold of 0.1 [˚ A] [31]. These are not necessarily the optimal types of VPs, temperatures to explore VPs, etc. for predicting GFA. However, such detailed exploration would involve an impractical level of effort given all the features being modeled and was therefore outside the scope of this work. For each of the explored temperatures above 1 .1Tf , simulations were extended for 10 [ ns ] under the NVT ensemble and were used to measure self-diffusion and viscosity. We explored tem-peratures near Tf but above because atoms are sufficiently mobile to acquire converged mea-surements of self-diffusion and viscosity. Viscosity can be determined using the Green-Kubo formalism [45, 46]. The autocorrelation of pressure tensor components ( Pij ∈ { Pxy , P xz , P yz })under the NVT ensemble was integrated, following Eq. 2. Here, η is the viscosity, V represents the system volume, T is the temperature, kB denotes Boltzmann’s constant, and t represents a specific time value. The integrals of Pxy , Pxz , and Pyz were averaged together. 
+
+η = VkB T
+
+Z ∞
+
+> 0
+
+⟨Pij (t0)Pij (t0 + t)⟩ dt (2) To measure self-diffusion, the long-time limit of mean squared displacement (MSD) was taken (Eq. 3) [45]. In Eq. 3, D is self-diffusion, N is the number of atoms, t is the time, r is the 9position, and i indicates the atom in question. We measured self-diffusion because it describes how rapidly atoms move in a system and is acquired from the same simulations needed to compute viscosity. 
+
+D = lim 
+
+> t→∞
+
+16N t 
+
+* NX
+
+> i=1
+
+[ri(t) − ri(t = 0)] 2
+
++
+
+(3) Both high temperature self-diffusion and viscosity, as functions of temperature, were fitted using the MYEGA equation [47, 48]. The MYEGA function is a three parameter model that has superior extrapolation properties compared to the more commonly used Vogel-Fulcher-Tammann (VFT) equation. In Eq. 4, νa, νb, and νc are fitting parameters to map a temperature, 
+
+T , to a given property, ν. ν = D for discussions on self-diffusion and ν = η for discussions on viscosity. log 10 (ν) = νa + νb
+
+T eνc/T (4) From the rheological data, we derived various features. The fitting parameters from the MYEGA function for self-diffusion and viscosity for each composition were obtained. Subsequently, we employed MYEGA to extrapolate self-diffusion values to 10 −12 [˚ A/ps ] and viscosity to 10 12 
+
+[P a · s]. The temperatures corresponding to these extrapolated values were designated as the glass transition temperatures ( Tgv isc and Tgdif f for viscosity and self-diffusion, respectively), based on experimental results and approaches. In particular, the glass transition temperature is determined experimentally when a material attains a viscosity of 10 12 [P a · s] [11]. Regard-ing diffusion, we utilized the self-diffusion value observed at a glass transition temperature in Ref. [49]. The slopes immediately preceding Tg visc and Tg dif f were adopted as a proxy for experimental m. Another feature derived from rheology is Tc, which is determined at the tem-perature where materials reach a cutoff in viscosity [12]. We extracted the temperatures at which self-diffusion and viscosity reach values of 10 −4.0 [˚ A/ps ] and 10 2.0 [P a · s], respectively for each composition. The chosen values ensured that the functions from Eq. 4 were not sig-nificantly extrapolated beyond the temperature range used to fit the equation’s parameters for most compositions. Additionally, deviations from Arrhenius behavior for self-diffusion and vis-cosity were measured. For viscosity, this matches the definition of the temperature denoted as 
+
+Ta. For diffusion, we are not aware of any specific naming convention for the temperature at which it is measured. However, we included this temperature as a feature because it seemed plausible that it could provide useful information. The features discussed so far will be denoted as Xmtp as they all come from the MTPs. 
+
+2.7 Features Generated by Mixing MLP Potential and Ab Initio Energies 
+
+Enthalpy of formation, Ef orm , and energy above the convex hull, Eabove , constitute the feature set Xcrys and are an approximation of the stability of the amorphous phase (given in Table 1). Differences between energies of phases have previously been shown to be important for GFA models as seen by the top features in Ref. [23]. We generated Xcrys to capture information about crystalline metals through a combination of MLPs and ab initio. We added pure ab initio because the MLPs were not fit to any crystalline structures and might be unreliable for those atomic arrangements. All simulations were conducted with 100 atoms. Amorphous structures were obtained through simulated quenches from 3,000 [ K] down to 100 [ K] at 0.5 10 [K/f s ] using MLPs. The resulting structures were relaxed with ab initio approaches to obtain the enthalpy of amorphous structures (denoted as Eamorph ). This process was repeated 3 times for each material to give an average Eamorph . Ef orm was calculated with a face-centered cubic (FCC) crystal reference for each element in the compound (each of which is denoted by Ei for a total of N chemical species). Specifically, Ef orm was determined with Eq. 5. 
+
+Ef orm = Eamorph −
+
+> N
+
+X
+
+> i
+
+Ei (5) For each chemical system, an estimated convex hull was generated using the Materials Project database of crystal structures [50]. Comparing the enthalpy of formation for each specific composition to the hull energy gives the resulting Eabove for each amorphous material, which can be taken as an approximation to the driving force for crystallization. 
+
+2.8 Elemental Property Based Features 
+
+Here we discuss the more easily computed features based on elemental properties. For an al-loy, one can take functions of the constituent elements in ways that represent the alloy [51]. Specifically, simple to generate features based on minimum, maximum, averaged, and composi-tion weighed averaged properties of elements were acquired through MAST-ML. 409 elemental properties included, such as thermal conductivity, atomic sizes, and electronegativities. We refer to these features as Xmastml . Additional descriptors involving specific physically moti-vated functions of atomic sizes, enthalpies, Pauling electronegativity, and mole fractions have shown promise in the work of Long et al. [14]. These descriptors were also used in the present study, following the formulae and naming conventions provided in Ref. [14]. We refer to these features as Xlong . Table 1 provides the formulation for features from Xlong that were identified as important in the SHAP analysis (see Sec. 2.10). Features from Xmastml and Xlong can be easily generated for all 177 materials in Sec. 2.2. 
+
+2.9 Regression Models and Corresponding Assessment 
+
+An eXtreme Gradient Boosting (XGBoost) model type was employed throughout the study [52] due to its ability to efficiently and accurately learn complex relationships. The target of regression models was log 10 (Rc) and were evaluated through a Chemical System Leave-Out (CSLO) CV. For CSLO CV, we group each material by its chemical system. We then perform leave one group out CV. As an illustration, assume a dataset has material entries with elements 
+
+e1, e2, and e3. The following are all possible combinations of left out sets of materials: {e1},
+
+{e2}, {e3}, {e1, e 2}, {e1, e 3}, {e2, e 3}, and {e1, e 2, e 3}. As an illustration of 1 iteration, an evaluation focused on the ZrCuAl system could use data from the systems of LaAu and ZrCu 
+
+for training and predict ZrCuAl as left out validation data. Note that ZrCu is in the ZrCuAl 
+
+system but has a different number of components and is therefore considered to be in another group. Test metrics were gathered across all iterations of leaving chemical systems out. Various metrics were employed to evaluate models, including the coefficient of determination (R2), mean average error ( M AE ), root mean squared error ( RM SE ), and RM SE normalized by the target standard deviation ( RM SE/σ y = √1 − R2). In comparing model assessments, 
+
+RM SE/σ y was favored due to its intuitive nature. If RM SE/σ y is close to one, it suggests 11 that the errors of the model are comparable to a naive model that predicts only the mean of the property of interest. RM SE/σ y is defined by 
+
+RM SE/σ y =
+
+s PNi=1 (yi − ˆyi)2
+
+PNi=1 (yi − ¯y)2 (6) where i denotes a specific material, y denotes a property of interest, ˆ y denotes the prediction of 
+
+y, and ¯ y denotes the mean value calculated from all y.
+
+2.10 Comparison of Feature Effectiveness 
+
+XGBoost models constructed using Xmastml , Xlong , and a union of both (i.e. Xmastml ∪ Xlong )were assessed with CSLO CV for 177 materials, with results shown in Sec. 3.3. Models fit with 
+
+Xlong alone tended to outperform models fit to Xmastml or Xmastml ∪ Xlong . Consequently, only 
+
+Xlong was kept for subsequent analyses and compared to more intricate, simulated features. To assess the value added by our set of simulated features to GFA models, we train XGBoost models on 34 materials (i.e., materials that have MLPs) with the combined set of Xlong ∪ Xmtp ∪ Xcrys .We will refer to Xlong ∪ Xmtp ∪ Xcrys as Xtot for simplicity. We also train models on Xlong alone as a comparison. SHAP values were used to compare the relative importance of physically motivated features for Xtot [27]. These values assess feature contributions to predictions for a given model, with principles rooted in game theory. We create a feature learning curve, ordered in importance by their SHAP values, to select the subset of Xtot with the lowest RM SE/σ y which we will call 
+
+Xbest . CSLO CV was used in feature selection because we desire models that can predict GFA across chemical systems. To demonstrate that the selection of Xbest was not due to chance, given the similar number of features and observations, we repeated the feature selection process with shuffled log 10 (Rc) values. This approach demonstrated that achieving an RM SE/σ y as low as the model from the original feature selection is improbable when randomly fitting a model to log 10 (Rc) with features unrelated to GFA (see Sec. 3.5). 
+
+# 3 Results 
+
+3.1 Errors from MLPs 
+
+For the three test systems where we are comparing the MLPs to EAM potentials, the fitting methodology outlined in Sec. 2.4 produced the RM SE for forces and energies (shown in the Supplemental Materials). Our RM SE values are generally comparable to other MLPs on metal alloys ( 0.1 [ eV / ˚A] for forces and 0.01 [ eV /atom ] for energies), except maybe for the force errors being a bit higher. However, the MLPs are sufficiently accurate to produce properties of interest. Fig. 1 shows an example temperature dependence of potential energy, self-diffusion, and viscosity for Al 10 Cu 40 Zr 50 . Parallel data for the other materials may be found in the Supplemental Materials. All three properties are similar between EAM potentials and MLPs. In other words, we can simulate properties of interest with sufficient accuracy with the potential errors in Table 2. 12 (a) Potential Energy  
+
+> (b) Self-Diffusion (c) Viscosity
+
+Figure 1: Potential energy, self-diffusion, and viscosity for Al 10 Cu 40 Zr 50 as functions of tem-perature are shown. MTP and classical EAM potentials show excellent agreement across all shown properties. Note that simulated properties were averaged across 10 independent runs. 13 For the 34 MLPs used to extract features for machine learning, the errors in energies and forces were acquired with the method outlined in Sec. 2.4 (see Supplemental Materials for tabulated data). Generally, chemical systems with more types of elements require more training configurations. The maximum obtained RM SE across all MLPs for energies and forces was 0.031 [ eV /atom ] and 0.290 [ eV / ˚A], respectively. These values are larger than ideal and larger than our worst test case from Sec. 3.1, but only by up to at most 2-3 times. We therefore believe that these MLPs will produce similarly accurate model results as those used in the EAM comparison. While more accurate MLPs can certainly be developed using more complex potential functions and additional training data, such refinements were beyond the scope of this work, given the large number of systems studied. 
+
+3.2 Visualization of Some Properties Attained Through MD 
+
+The potential energy versus temperature curve for Cu 25 M g 65 Y10 is shown in Fig. 2a. Figures for all other compositions are available as described in the Data Availability section. Fig. 2a also shows the values of Tf and Ts. Self-diffusion data for 34 compositions are shown in Fig. 2b. Viscosity values are shown in Fig. 2c. The data points denote isothermal holds where averaging was performed, and continuous lines show the MYEGA fits to the data. 14 (a) Potential Energy 
+
+(b) Self-Diffusion (c) Viscosity 
+
+Figure 2: Potential energy (Fig. 2a), self-diffusion (Fig. 2b), and viscosity (Fig. 2c) versus temperature for 34 compositions are shown. The potential energy relationship with respect to temperature is shown for Cu 25 M g 65 Y10 only. There are high and low temperature transitions denoted by Tf and Ts. As materials cool in Figs. 2b and 2c, they experience restrained movement at varying degrees with respect to Tg dif f or Tg visc . The points represent measured viscosity values and solid lines are the MYEGA fits. The MYEGA function fit to points was extrapolated to -12 and 12 on the vertical axis for self-diffusion and viscosity, respectively. Note that all fits converge at Tg visc /T = 1 and Tg dif f /T = 1 because of our definitions of Tg visc and Tg dif f for viscosity and diffusion, respectively. 
+
+3.3 Exploring Models Fit to Elemental Features 
+
+For 177 compositions, we evaluated the RM SE/σ y for log 10 (Rc) across three feature sets, 
+
+Xmastml , Xlong , and Xmastml ∪ Xlong . XGBoost models were evaluated with CSLO CV. The feature set that yielded the lowest RM SE/σ y was found to be Xlong . Parity plots are supplied in the Supplemental Materials. Models fit to Xlong had an RM SE/σ y of 0.85 whereas models fit to Xmastml and Xmastml ∪ Xlong had RM SE/σ y of 1.00 and 0.92, respectively. None of these models are particularly accurate, as can be seen by the fact that RM SE/σ y for all feature sets are close to 1.00, which is the score that would be obtained by a naive model that predicts just the mean of y. Therefore, it is useful to explore other properties that can improve our log 10 (Rc)15 model. 
+
+3.4 Exploring Models Fit with Simulated Features 
+
+XGBoost models were assessed using the CSLO CV for 34 materials that had MLPs. Models were built by using Xlong alone and the combined feature set of Xtot (defined in Sec. 2.10 and Table 1). The resulting RM SE/σ y was 0.76 and 0.60 for Xlong and Xtot respectively (par-ity plots provided in the Supplemental Materials). These results suggest that the inclusion of simulated features improve a model’s ability to predict GFA. We refined our model by imple-menting feature selection via SHAP values to show which features in Xtot are most important for predicting log 10 (Rc). 
+
+3.5 Ranking Features Based with Feature Selection 
+
+Shapley Additive Explanations (SHAP), a method based on game theory principles, provides valuable insights into feature contributions. Fig. 3 illustrates the SHAP values for Xtot with respect to an XGBoost model. The vertical axis of Fig. 3 represents the features, while the horizontal axis displays the SHAP values, indicating whether the prediction of a model using that feature increases or decreases the predicted value of log 10 (Rc). The mean absolute SHAP values for each feature in Fig. 3 determine the importance and ranking of the features. Higher values signify greater influence on a model’s prediction. Each dot from each feature value corresponds to a specific material (e.g., Al 25 Co 5Cu 10 La 55 N i 5). By examining the color bar, we can assess whether the feature value for a specific material is high or low and then observe if those values drive the model’s predictions to be higher or lower. Note that out of the 4 features shown, only Smix was derived from the easy-to-compute elemental features in Xlong and is ranked first. Other features derived from more complex simulations significantly contribute to a model’s prediction on log 10 (Rc). 
+
+Figure 3: The SHAP values for XGBoost is shown for Xtot . Higher values of log 10 (Rc) are denoted by higher values of model output on the horizontal axis and vice versa. We show RM SE/σ y as a function of the number of features used when the features are ordered based on SHAP values in Fig. 4. Any feature after the top 4 did not lead to regression improve-ments. The addition of the fifth top feature arbitrarily increased model complexity which is 16 concerning for a small data set of 34 points and causes overfitting. Overfitting can be seen by the increase of RM SE/σ y starting at 5 features and beyond. The top 4 features are denoted as Xbest , which are the ones shown in Fig. 3. 
+
+Figure 4: RM SE/σ y as a function included features sorted with SHAP values for XGBoost models are shown. Assessing models with Xbest yields an RM SE/σ y (R2) of 0.46 (0.78). The associated parity plot is shown in Fig. 5. It is worth noting that the best cited RM SE/σ y is an overestimation of what might be expected on test data due to feature selection being conducted without an explicit test set. Nevertheless, the number of features in Xbest is much smaller than the 34 studied materials and the assessment is tested with CSLO CV, which provides some protection against significant overfitting. The top four features are discussed in detail in Sec. 4. 
+
+Figure 5: The parity plot using Xbest for the 34 compositions that had MLPs are shown. The model appears to predict Rc across chemical systems well. The lowest RM SE/σ y obtained from the shuffling feature selection procedure (see the end of Sec. 2.10) is about 1.36 (see Supplemental Materials) and is significantly higher than the 0.46 17 achieved in Fig. 5. These results indicate that the selection of Xbest from our extensive feature set was not random and that Xbest is crucial for constructing a log 10 (Rc) model. 
+
+# 4 Discussion 
+
+Xlong emerged as the feature set yielding the lowest model errors of RM SE/σ y among the 177 values of Rc compared to Xmastml . It is perhaps not surprising that a set of physically motivated features would yield superior predictions compared to those derived from brute force arithmetic operations on elemental properties, although this does not always occur (e.g., see [53]). Nev-ertheless, models built from the 177 compositions using just Xlong have a high RM SE/σ y of 0.85. SHAP value rankings show that both simulated properties and Xlong could produce viable models for predicting log 10 (Rc). The best performing models were built from only the top four features. The selected features were the mixing entropy ( Smix defined in Sec. 2.8), the energy of the amorphous phase above the convex hull ( Eabove defined in Sec. 2.7), the fraction of icosahedral-like local VP environments in the high-temperature liquid (ICO-like defined in Sec. 2.6), and the difference in heat capacity between the glass and liquid phases (∆ C defined in Sec. 2.6). The important of Smix is not surprising and it likely reflects the confusion principle associated with GFA [4]. In other words, including more chemical species in a material may hinder crys-talline phase formation because atoms struggle to find suitable sites to form crystals, which shows up as a higher value of Smix . Given this argument, we would expect higher values of 
+
+Smix to correspond to lower values log 10 (Rc) (higher GFA), which is exactly the trend in Fig. 3. The importance of Eabove is also expected. Eabove is a measure of the stability of the amorphous phase of our final glass relative to stable crystal structures and is therefore a qualitative guide to the drive for crystallization, a crucial factor controlling Rc. Higher values of Eabove indicate less stable glasses with more driving force to crystallization, while lower values imply greater stability glasses with less driving force for crystallization. Given this argument we would expect higher Eabove values to correspond to higher values of log 10 (Rc) (lower GFA), which is exactly the trend in Fig. 3. The importance of ∆ C is perhaps easiest to understand when we consider its correlation with fragility (see Ref. [44]), which is known to correlate with measures of GFA such as the Rc. An increase in ∆ C is expected to correlate with an increase in fragility, which, in turn, is expected to correlate with a decrease in GFA and higher values of log 10 (Rc). This trend is precisely what is observed in Fig. 3. The importance of ICO-like is consistent with results of previous research that have demon-strated that these types of polyhedral structures slow the liquid and relate to GFA [21, 54–56]. However, previous studies suggest a positive correlation between the icosahedral VP and GFA, which implies a larger ICO-like value would give a lower log 10 (Rc), which is the opposite of the trend in Fig. 3. It is worth noting that the impact of this variable in the SHAP analysis is modest, the negative trend of log 10 (Rc) with ICO-like value is weak and the overall impact of this variable on the model accuracy in Fig. 4 is very modest. Taken together it is reasonable to say that the impact of this variable on log 10 (Rc) is not well determined by the preset model and data, so disagreement with trends is not unexpected. However, it may also be that icosahedral fractions do not have simple correlations with GFA and log 10 (Rc) across so many widely varying 18 chemistries, especially when evaluated at a single fixed temperature (e.g., rather than a fixed homologous temperature). Even the definition of VP that are considered ICO-like is somewhat ambiguous and can vary because of distortions [57]. In summary, when one looks deeply, the possibly somewhat unphysical behavior of the ICO-like variable correlations is not evidence of any significant issue with the model. We highlight the significance of developing a model of experimental log 10 (Rc) from features developed computationally, especially since many of the features from Xbest are more simple to acquire computationally compared to their experimental counterparts. Take Eabove and ∆ C as examples. While ∆ C can be obtained through calorimetry, it remains challenging unless a large quantity of a high GFA alloy is accessible (i.e., this quantity cannot be easily experimentally measured for low GFA alloys). Determining Eabove experimentally is even more difficult due to the complexities in establishing a baseline for differential scanning calorimetry. Thus, leveraging computational models not only streamlines the process of measuring critical material properties but also offers an alternative to experimental characterization and their inherent challenges. Together the 4 features yield an apparently fairly capable model of log 10 (Rc), with an R2 of 0.78 (although we reiterate that this is likely an overestimation due to some data leakage). Regardless of model metrics, it is crucial to note that the model should not be relied upon for any significant materials screening. Further tuning of model parameters with a larger dataset than the current 34 observations is necessary to assure the model has a reasonable domain of applicability. However, these initial results are quite encouraging. Furthermore, generating larger data sets is largely limited by computation, which will become much easier with increases in computational power and more efficient computational techniques. This study suggests a promising path for integrating elemental and simulated features for predicting GFA in metals and illustrates how researchers can explore and identify physically motivated features with the flexibility now provided by MLPs. 
+
+# 5 Conclusion 
+
+In this work we explored an extensive range of elemental and molecular simulation calculated properties to develop a simple model for predicting critical cooling rate, Rc for metallic glasses. In particular, we employed machine-learned interatomic potentials to facilitate the simulation of materials properties inaccessible via traditional ab initio or classical interatomic potential meth-ods and difficult or expensive to obtain through experiments, all while maintaining accuracy comparable to ab initio and computational efficiency comparable to potentials. We conducted simulations on 34 compositions to collect properties potentially linked to the glass forming abil-ity in metallic systems. We investigated self-diffusion, viscosity, characteristic temperatures, short range order, and energy comparisons between material crystalline and amorphous phases. Additionally, we explored easily computed features based on elemental properties that do not require simulation. Out of this feature set, we identified that four features were particularly significant for constructing regression models to predict Rc. Notably, one of the features was obtained through trivial computation, while the other three required simulation with machine-learned interatomic potentials. Evaluated models could predict log 10 (Rc) with an R2 of 0.78 for chemical systems excluded from model training. While our model had an impressive R2, caution is warranted due to potential overfitting from the feature selection process and the small data sets involved. More broadly, we have demonstrated a versatile approach to systematically ex-plore previously inaccessible material properties across diverse chemical systems using machine learned potentials. Almost all properties used as features for our model followed physical intu-19 ition outlined by previous research. Other computational endeavors can benefit from adopting a similar approach to quantify desirable characteristics across multiple materials, rather than focusing solely on properties within individual chemical systems. 
+
+# 6 Data Availability 
+
+The raw and processed data required to reproduce these findings are available to download from figshare at doi: 10.6084/m9.figshare.26142382. 
+
+# 7 Acknowledgments 
+
+Lane E. Schultz is grateful for the Bridge to the Doctorate: Wisconsin Louis Stokes Alliance for Minority Participation National Science Foundation (NSF) award number HRD-1612530, the University of Wisconsin–Madison Graduate Engineering Research Scholars (GERS) fellowship program for the financial support for graduate student investigation, and the PPG Coating In-novation Center for financial support. Dr. Afflerbach gratefully acknowledges research support from the NSF through the University of Wisconsin Materials Research Science and Engineering Center (DMR-2309000). All authors gratefully acknowledge support from the NSF Collab-orative Research: Framework: Machine Learning Materials Innovation Infrastructure award number 1931306. Machine learning was performed with the computational resources provided by XSEDE 2.0: Integrating, Enabling and Enhancing National Cyberinfrastructure with Ex-panding Community Involvement Grant ACI-1548562. 20 References 
+
+[1] H. F. Li and Y. F. Zheng, “Recent advances in bulk metallic glasses for biomedical appli-cations,” 2016, issn : 18787568. doi : 10.1016/j.actbio.2016.03.047 
+
+[2] M. Jafary-Zadeh, G. Praveen Kumar, P. Branicio, M. Seifi, J. Lewandowski, and F. Cui, “A Critical Review on Metallic Glasses as Structural Materials for Cardiovascular Stent Applications,” Journal of Functional Biomaterials , vol. 9, no. 1, p. 19, 2018, issn : 2079-4983. doi : 10 . 3390 / jfb9010019 [Online]. Available: http : / / www . mdpi . com / 2079 -4983/9/1/19 
+
+[3] G. Herzer, “Modern soft magnets: Amorphous and nanocrystalline materials,” Acta Ma-terialia , vol. 61, no. 3, pp. 718–734, Feb. 2013, issn : 1359-6454. doi : 10.1016/J.ACTAMAT. 2012.10.040 [Online]. Available: https://www.sciencedirect.com/science/article/ pii/S1359645412007872?via%3Dihub 
+
+[4] W. Wang, C. Dong, and C. Shek, “Bulk metallic glasses,” Materials Science and Engi-neering: R: Reports , vol. 44, no. 2, pp. 45–89, 2004, issn : 0927-796X. doi : https://doi. org/10.1016/j.mser.2004.03.001 [Online]. Available: https://www.sciencedirect. com/science/article/pii/S0927796X04000300 
+
+[5] Z. Long, H. Wei, Y. Ding, P. Zhang, G. Xie, and A. Inoue, “A new criterion for predicting the glass-forming ability of bulk metallic glasses,” Journal of Alloys and Compounds ,vol. 475, no. 1, pp. 207–219, 2009, issn : 0925-8388. doi : https://doi.org/10.1016/j. jallcom.2008.07.087 [Online]. Available: https://www.sciencedirect.com/science/ article/pii/S0925838808012206 
+
+[6] L. E. Schultz, B. Afflerbach, C. Francis, P. M. Voyles, I. Szlufarska, and D. Morgan, “Exploration of characteristic temperature contributions to metallic glass forming ability,” 
+
+Computational Materials Science , vol. 196, p. 110 494, 2021, issn : 0927-0256. doi : https: //doi.org/10.1016/j.commatsci.2021.110494 [Online]. Available: https://www. sciencedirect.com/science/article/pii/S0927025621002196 
+
+[7] W. L. Johnson, J. H. Na, and M. D. Demetriou, “Quantifying the origin of metallic glass formation,” Nature Communications , vol. 7, no. 1, p. 10 313, Dec. 2016, issn : 20411723. 
+
+doi : 10.1038/ncomms10313 [Online]. Available: http://www.nature.com/articles/ ncomms10313 
+
+[8] R. Dai, R. Ashcraft, A. K. Gangopadhyay, and K. F. Kelton, “Predicting metallic glass for-mation from properties of the high temperature liquid,” Journal of Non-Crystalline Solids ,vol. 525, no. October, p. 119 673, 2019, issn : 00223093. doi : 10.1016/j.jnoncrysol. 2019.119673 [Online]. Available: https://doi.org/10.1016/j.jnoncrysol.2019. 119673 
+
+[9] A. Jaiswal, T. Egami, K. F. Kelton, K. S. Schweizer, and Y. Zhang, “Correlation between Fragility and the Arrhenius Crossover Phenomenon in Metallic, Molecular, and Network Liquids,” 2016. doi : 10 . 1103 / PhysRevLett . 117 . 205701 [Online]. Available: https : //journals.aps.org/prl/pdf/10.1103/PhysRevLett.117.205701 
+
+[10] Q. Gao and Z. Jian, “Fragility and Vogel-Fulcher-Tammann parameters near glass tran-sition temperature,” Materials Chemistry and Physics , vol. 252, no. May, p. 123 252, 2020, issn : 02540584. doi : 10.1016/j.matchemphys.2020.123252 [Online]. Available: 
+
+https://doi.org/10.1016/j.matchemphys.2020.123252 
+
+[11] A. C. Angell, “Formation of Glasses from Liquids and Biopolymers,” Science , vol. 267, no. 5206, pp. 1924–1935, 1995. doi : 10.1126/science.267.5206.1924 [Online]. Avail-able: papers2://publication/uuid/46ED95A9-CC48-4242-A7C5-9438976B8C42 
+
+21 [12] A. Gangopadhyay and K. Kelton, “Recent progress in understanding high temperature dynamical properties and fragility in metallic liquids, and their connection with atomic structure,” Journal of Materials Research , vol. 32, pp. 2638–2657, 14 Jul. 2017, issn : 0884-2914. doi : 10.1557/jmr.2017.253 [Online]. Available: https://www.cambridge.org/ core/product/identifier/S0884291417002539/type/journal_article 
+
+[13] S. A. Kube et al., “Compositional dependence of the fragility in metallic glass forming liquids,” Nature Communications , vol. 13, no. 1, p. 3708, Dec. 2022, issn : 2041-1723. 
+
+doi : 10.1038/s41467- 022- 31314- 3 [Online]. Available: https://www.nature.com/ articles/s41467-022-31314-3 
+
+[14] T. Long, Z. Long, and Z. Peng, “Rational design and glass-forming ability prediction of bulk metallic glasses via interpretable machine learning,” Journal of Materials Science ,vol. 58, no. 21, pp. 8833–8844, May 2023, issn : 15734803. doi : 10.1007/s10853- 023-08528 - x [Online]. Available: https : / / link . springer . com / 10 . 1007 / s10853 - 023 -08528-x 
+
+[15] L. Ward, S. C. O’Keeffe, J. Stevick, G. R. Jelbert, M. Aykol, and C. Wolverton, “A machine learning approach for engineering bulk metallic glass alloys,” Acta Materialia ,vol. 159, pp. 102–111, 2018, issn : 1359-6454. doi : https : / / doi . org / 10 . 1016 / j . actamat.2018.08.002 [Online]. Available: https://www.sciencedirect.com/science/ article/pii/S1359645418306268 
+
+[16] B. T. Afflerbach et al., “Machine Learning Prediction of the Critical Cooling Rate for Metallic Glasses from Expanded Datasets and Elemental Features,” Chemistry of Materi-als , acs.chemmater.1c03542, Mar. 2022, issn : 0897-4756. doi : 10.1021/acs.chemmater. 1c03542 [Online]. Available: https://pubs.acs.org/doi/10.1021/acs.chemmater. 1c03542 
+
+[17] R. Jacobs et al., “The materials simulation toolkit for machine learning (mast-ml): An automated open source toolkit to accelerate data-driven materials research,” Computa-tional Materials Science , vol. 176, October 2019 2020, issn : 09270256. doi : 10.1016/j. commatsci.2020.109544 
+
+[18] G. Liu et al., “Machine learning versus human learning in predicting glass-forming ability of metallic glasses,” Acta Materialia , vol. 243, Jan. 2023, issn : 13596454. doi : 10.1016/ j.actamat.2022.118497 
+
+[19] J. Wang, A. Agrawal, and K. Flores, “Are hints about glass forming ability hidden in the liquid structure?” Acta Materialia , vol. 171, pp. 163–169, Jun. 2019, issn : 13596454. doi :
+
+10.1016/j.actamat.2019.04.001 
+
+[20] W. P. Weeks and K. M. Flores, “Using characteristic structural motifs in metallic liquids to predict glass forming ability,” Intermetallics , vol. 145, Jun. 2022, issn : 09669795. doi :
+
+10.1016/j.intermet.2022.107560 
+
+[21] G. B. Bokas, L. Zhao, J. H. Perepezko, and I. Szlufarska, “On the role of sm in solidifica-tion of al-sm metallic glasses,” Scripta Materialia , vol. 124, pp. 99–102, Nov. 2016, issn :13596462. doi : 10.1016/j.scriptamat.2016.06.045 
+
+[22] G. B. Bokas, Y. Shen, L. Zhao, H. W. Sheng, J. H. Perepezko, and I. Szlufarska, “Syn-thesis of sm–al metallic glasses designed by molecular dynamics simulations,” Journal of Materials Science , vol. 53, pp. 11 488–11 499, 16 Aug. 2018, issn : 15734803. doi : 10.1007/ s10853-018-2393-2 
+
+[23] B. T. Afflerbach, L. Schultz, J. H. Perepezko, P. M. Voyles, I. Szlufarska, and D. Morgan, “Molecular simulation-derived features for machine learning predictions of metal glass forming ability,” Computational Materials Science , vol. 199, Nov. 2021, issn : 09270256. 
+
+doi : 10.1016/j.commatsci.2021.110728 
+
+22 [24] L. E. Schultz, B. Afflerbach, I. Szlufarska, and D. Morgan, “Molecular dynamic character-istic temperatures for predicting metallic glass forming ability,” Computational Materials Science , vol. 201, p. 110 877, 2022, issn : 0927-0256. doi : https://doi.org/10.1016/ j . commatsci . 2021 . 110877 [Online]. Available: https : / / www . sciencedirect . com / science/article/pii/S0927025621005899 
+
+[25] Y. Zuo et al., “Performance and cost assessment of machine learning interatomic poten-tials,” Journal of Physical Chemistry A , vol. 124, pp. 731–745, 4 2020, issn : 15205215. 
+
+doi : 10.1021/acs.jpca.9b08723 
+
+[26] I. S. Novikov, K. Gubaev, E. V. Podryabinkin, and A. V. Shapeev, “The mlip package: Moment tensor potentials with mpi and active learning,” Machine Learning: Science and Technology , vol. 2, p. 025 002, 2 2021, issn : 2632-2153. doi : 10.1088/2632-2153/abc9fe 
+
+[27] S. M. Lundberg and S.-I. Lee, “A unified approach to interpreting model predictions,” in Advances in Neural Information Processing Systems 30 , I. Guyon et al., Eds., Curran Associates, Inc., 2017, pp. 4765–4774. [Online]. Available: http : / / papers . nips . cc / paper/7062-a-unified-approach-to-interpreting-model-predictions.pdf 
+
+[28] F. Pedregosa et al., “Scikit-learn: Machine learning in Python,” Journal of Machine Learn-ing Research , vol. 12, pp. 2825–2830, 2011. [29] G. Kresse and J. Hafner, “Ab initio molecular dynamics for liquid metals,” Phys. Rev. B ,vol. 47, pp. 558–561, 1 Jan. 1993. doi : 10.1103/PhysRevB.47.558 [Online]. Available: 
+
+https://link.aps.org/doi/10.1103/PhysRevB.47.558 
+
+[30] A. P. Thompson et al., “LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales,” Comp. Phys. Comm. , vol. 271, p. 108 171, 2022. doi : 10.1016/j.cpc.2021.108171 
+
+[31] A. Stukowski, “Visualization and analysis of atomistic simulation data with ovito-the open visualization tool,” Modelling and Simulation in Materials Science and Engineering ,vol. 18, 1 2010, issn : 09650393. doi : 10.1088/0965-0393/18/1/015012 
+
+[32] M. P. Polak and D. Morgan, “Extracting accurate materials data from research papers with conversational language models and prompt engineering,” Nature Communications ,vol. 15, 1 Dec. 2024, issn : 20411723. doi : 10.1038/s41467-024-45914-8 
+
+[33] M. P. Polak et al., “Flexible, model-agnostic method for materials data extraction from text using general purpose language models,” 2023. arXiv: 2302.04914 [cond-mat.mtrl-sci] .[34] P. M. Voyles, L. E. Schultz, D. Morgan, C. Francis, B. Afflerbach, and A. Hakeem, Metallic glasses and their properties , Data set. doi : 10 . 18126 / 7yg1 - osf2 [Online]. Available: 
+
+https://foundry-ml.org/#/datasets/10.18126%2F7yg1-osf2 
+
+[35] H. Sheng. [Online]. Available: https://sites.google.com/site/eampotentials/ 
+
+[36] H. W. Sheng, E. Ma, and M. J. Kramer, “Relating dynamic properties to atomic structure in metallic glasses,” JOM , vol. 64, no. 7, pp. 856–881, Jul. 2012, issn : 1543-1851. doi :
+
+10.1007/s11837-012-0360-y [Online]. Available: https://doi.org/10.1007/s11837-012-0360-y 
+
+[37] H. W. Sheng, M. J. Kramer, A. Cadien, T. Fujita, and M. W. Chen, “Highly opti-mized embedded-atom-method potentials for fourteen fcc metals,” Phys. Rev. B , vol. 83, p. 134 118, 13 Apr. 2011. doi : 10.1103/PhysRevB.83.134118 [Online]. Available: https: //link.aps.org/doi/10.1103/PhysRevB.83.134118 
+
+[38] Y. Q. Cheng, E. Ma, and H. W. Sheng, “Atomic level structure in multicomponent bulk metallic glass,” Phys. Rev. Lett. , vol. 102, p. 245 501, 24 Jun. 2009. doi : 10 . 1103 / PhysRevLett.102.245501 [Online]. Available: https://link.aps.org/doi/10.1103/ PhysRevLett.102.245501 
+
+23 [39] T. Fujita, P. F. Guan, H. W. Sheng, A. Inoue, T. Sakurai, and M. W. Chen, “Coupling between chemical and dynamic heterogeneities in a multicomponent bulk metallic glass,” 
+
+Phys. Rev. B , vol. 81, p. 140 204, 14 Apr. 2010. doi : 10 . 1103 / PhysRevB . 81 . 140204 
+
+[Online]. Available: https://link.aps.org/doi/10.1103/PhysRevB.81.140204 
+
+[40] Y. Q. Cheng, H. W. Sheng, and E. Ma, “Relationship between structure, dynamics, and mechanical properties in metallic glass-forming alloys,” Phys. Rev. B , vol. 78, p. 014 207, 1 Jul. 2008. doi : 10.1103/PhysRevB.78.014207 [Online]. Available: https://link.aps. org/doi/10.1103/PhysRevB.78.014207 
+
+[41] Q.-J. Li, H. Sheng, and E. Ma, “Strengthening in multi-principal element alloys with local-chemical-order roughened dislocation pathways,” Nature Communications , vol. 10, no. 1, p. 3563, Aug. 2019, issn : 2041-1723. doi : 10.1038/s41467-019-11464-7 [Online]. Available: https://doi.org/10.1038/s41467-019-11464-7 
+
+[42] H. Sheng, Pdsi potential table , https : / / sites . google . com / site / eampotentials / table/pdsi?authuser=0 .[43] C. F. Jekel and G. Venter, pwlf: a python library for fitting 1d continuous piecewise linear functions , 2019. [Online]. Available: https://github.com/cjekel/piecewise_linear_ fit_py 
+
+[44] G. Biroli and J. P. Bouchaud, “The random first-order transition theory of glasses: A critical assessment,” 2009. arXiv: 0912.2542 [cond-mat.dis-nn] .[45] D. Rapaport, The Art of Molecular Dynamics Simulation . Cambridge University Press, 2007, isbn : 9780521825689. [46] F. Puosi, N. Jakse, and A. Pasturel, “Dynamical, structural and chemical heterogeneities in a binary metallic glass-forming liquid,” Journal of Physics Condensed Matter , vol. 30, no. 14, Mar. 2018, issn : 1361648X. doi : 10.1088/1361-648X/aab110 
+
+[47] J. C. Mauro, Y. Yue, A. J. Ellison, P. K. Gupta, and D. C. Allan, “Viscosity of glass-forming liquids,” 2009. [48] R. M. Reis et al., “Relationship between viscous dynamics and the configurational thermal expansion coefficient of glass-forming liquids,” Journal of Non-Crystalline Solids , vol. 358, pp. 648–651, 3 2012, issn : 00223093. doi : 10.1016/j.jnoncrysol.2011.11.029 [Online]. Available: http://dx.doi.org/10.1016/j.jnoncrysol.2011.11.029 
+
+[49] Y. Chen, W. Zhang, and L. Yu, “Hydrogen Bonding Slows Down Surface Diffusion of Molecular Glasses,” Journal of Physical Chemistry B , vol. 120, no. 32, pp. 8007–8015, 2016, issn : 15205207. doi : 10.1021/acs.jpcb.6b05658 
+
+[50] A. Jain et al., “The Materials Project: A materials genome approach to accelerating materials innovation,” APL Materials , vol. 1, no. 1, p. 11 002, 2013, issn : 2166532X. doi :
+
+10.1063/1.4812323 [Online]. Available: http://link.aip.org/link/AMPADS/v1/i1/ p011002/s1%5C&Agg=doi 
+
+[51] L. Ward, A. Agrawal, A. Choudhary, and C. Wolverton, “A general-purpose machine learning framework for predicting properties of inorganic materials,” npj Computational Materials , vol. 2, no. 1, p. 16 028, 2016, issn : 2057-3960. doi : 10.1038/npjcompumats. 2016.28 [Online]. Available: https://doi.org/10.1038/npjcompumats.2016.28 
+
+[52] T. Chen and C. Guestrin, “Xgboost: A scalable tree boosting system,” in Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining , ser. KDD ’16, ACM, Aug. 2016. doi : 10 . 1145 / 2939672 . 2939785 [Online]. Available: http://dx.doi.org/10.1145/2939672.2939785 
+
+[53] R. Jacobs, J. Liu, H. Abernathy, and D. Morgan, “Machine learning design of perovskite catalytic properties,” Advanced Energy Materials , 2024, issn : 16146840. doi : 10.1002/ aenm.202303684 
+
+24 [54] Y. Cheng and E. Ma, “Atomic-level structure and structure–property relationship in metallic glasses,” Progress in Materials Science , vol. 56, no. 4, pp. 379–473, 2011, issn :0079-6425. doi : https://doi.org/10.1016/j.pmatsci.2010.12.002 [Online]. Avail-able: https://www.sciencedirect.com/science/article/pii/S0079642510000691 
+
+[55] M. Chen, “A brief overview of bulk metallic glasses,” NPG Asia Materials , vol. 3, no. 9, pp. 82–90, Sep. 2011, issn : 1884-4057. doi : 10.1038/asiamat.2011.30 [Online]. Avail-able: https://doi.org/10.1038/asiamat.2011.30 
+
+[56] J. Xi et al., “Microalloying effect in ternary al-sm-x (x=ag, au, cu) metallic glasses studied by ab initio molecular dynamics,” Computational Materials Science , vol. 185, p. 109 958, 2020, issn : 0927-0256. doi : https://doi.org/10.1016/j.commatsci.2020. 109958 [Online]. Available: https://www.sciencedirect.com/science/article/pii/ S0927025620304493 
+
+[57] J. Ding, Y.-Q. Cheng, and E. Ma, “Full icosahedra dominate local order in cu64zr34 metallic glass and supercooled liquid,” Acta Materialia , vol. 69, pp. 343–354, 2014, issn :1359-6454. doi : https://doi.org/10.1016/j.actamat.2014.02.005 [Online]. Avail-able: https://www.sciencedirect.com/science/article/pii/S1359645414000858 
+
+[58] M. I. Mendelev, Y. Sun, F. Zhang, C. Z. Wang, and K. M. Ho, “Development of a semi-empirical potential suitable for molecular dynamics simulation of vitrification in Cu-Zr alloys,” The Journal of Chemical Physics , vol. 151, no. 21, p. 214 502, Dec. 2019, issn :0021-9606. doi : 10.1063/1.5131500 eprint: https://pubs.aip.org/aip/jcp/article-pdf/doi/10.1063/1.5131500/13362744/214502\_1\_online.pdf . [Online]. Available: 
+
+https://doi.org/10.1063/1.5131500 
+
+25 Supplemental Materials for Machine Learning Metallic Glass Critical Cooling Rates Through Elemental and Molecular Simulation Based Featurization 
+
+# 1 Validation of Viscosity Computation 
+
+Measuring viscosity via the Green-Kubo formalism is known to have long convergence times and can yield noisy results for individual runs. Therefore, we compared our acquisition of viscosity data with previously published work to ensure the quality of our calculations. For a single composition of Cu 50 Zr 50 , viscosities were measured through the same means described in the main text. We compared viscosity to Ref. [46] for the potential in Ref. [58]. The only point of major disagreement was the lowest temperature point near Tf , which is reasonable given the sluggish kinetics nearing material freezing (Supplementary Figure 6). Our data was averaged between 10 independent runs. 
+
+Supplementary Figure 6: Comparison of viscosity. 
+
+# 2 Validation of MTP Fitting Methodology 
+
+The energy and force errors from the MTP fitting methodology from EAM potentials are tab-ulated in Supplementary Table 2. Both classical potentials and MTPs were used to simulate the properties of potential energy, self-diffusion, and viscosity with respect to temperature and have been found to have excellent agreement (see figures below). The system size was 1,000 atoms when measuring these properties. Only N i 80 P20 has slight, constant off-sets between the MLP and EAM potential for potential energy and viscosity with respect to temperature, and the offsets are small. More importantly, the relationship between temperature and potential 1energy, viscosity, and self-diffusion are similar. Properties were measured in the same manner described in Sec. 2.6. Supplementary Table 2: The errors from MTPs compared with EAM potentials are tabulated below. Composition Property Units RMSE 
+
+N i 80 P20 Force eV / ˚A 0.187 
+
+P d 75 Si 25 Force eV / ˚A 0.124 
+
+Al 10 Cu 40 Zr 50 Force eV / ˚A 0.080 
+
+P d 75 Si 25 Energy eV /atom 0.012 
+
+N i 80 P20 Energy eV /atom 0.007 
+
+Al 10 Cu 40 Zr 50 Energy eV /atom 0.004 
+
+2.1 Potential Energy 
+
+Supplementary Figure 7: Comparison of potential energy between MLP and EAM potentials for N i 80 P20 .2Supplementary Figure 8: Comparison of potential energy between MLP and EAM potentials for P d 75 Si 25 .3Supplementary Figure 9: Comparison of potential energy between MLP and EAM potentials for Al 10 Cu 40 Zr 50 .42.2 Self-Diffusion 
+
+Supplementary Figure 10: Comparison of self-diffusion between MLP and EAM potentials for 
+
+N i 80 P20 .5Supplementary Figure 11: Comparison of self-diffusion between MLP and EAM potentials for 
+
+P d 75 Si 25 .6Supplementary Figure 12: Comparison of self-diffusion between MLP and EAM potentials for 
+
+Al 10 Cu 40 Zr 50 .72.3 Viscosity 
+
+Supplementary Figure 13: Comparison of viscosity between MLP and EAM potentials for 
+
+N i 80 P20 .8Supplementary Figure 14: Comparison of viscosity between MLP and EAM potentials for 
+
+P d 75 Si 25 .9Supplementary Figure 15: Comparison of viscosity between MLP and EAM potentials for 
+
+Al 10 Cu 40 Zr 50 .
+
+# 3 Energy and Force Errors from MLPs 
+
+Each MLP has a corresponding energy and force RM SE from the fitting methodology outlined in Sec. 2.4 from the main text. The data are tabulated in Supplementary Table 3. 10 Supplementary Table 3: The energy RM SE , force RM SE , and number of training configura-tions from MTPs are tabulated below. Composition Energy [ eV /atom ] Force [ eV / ˚A] Configurations 
+
+M g 90 N d 5N i 5 0.007 0.084 992 
+
+M g 77 N d 5N i 18 0.008 0.092 990 
+
+P d 95 Si 5 0.008 0.109 893 
+
+Cu 30 N i 10 P20 P d 40 0.009 0.143 1160 
+
+P d 82 Si 18 0.009 0.144 881 
+
+N i 40 P20 P d 40 0.009 0.156 1039 
+
+Cu 25 M g 65 Y10 0.010 0.094 889 
+
+Cu 25 Gd 10 M g 65 0.010 0.100 889 
+
+M g 65 N d 15 N i 20 0.010 0.111 1010 
+
+Cu 25 N i 10 P20 P d 45 0.010 0.145 1173 
+
+Cu 25 N i 15 P20 P d 40 0.010 0.149 1172 
+
+M g 80 N d 10 N i 10 0.011 0.098 978 
+
+M g 70 N d 15 N i 15 0.012 0.113 1003 
+
+P d 75 Si 25 0.012 0.193 870 
+
+N b 7N i 59 Si 3Sn 2T i 13 Zr 16 0.012 0.202 2541 
+
+Ca 65 M g 15 Zn 20 0.013 0.113 1081 
+
+Cu 6P d 77 Si 17 0.013 0.156 917 
+
+Cu 47 N i 8T i 34 Zr 11 0.017 0.198 1066 
+
+Cu 30 N i 5P20 P d 45 0.019 0.188 1046 
+
+N b 40 N i 60 0.019 0.240 861 
+
+Al 25 Cu 20 La 55 0.020 0.158 1020 
+
+Al 9Cu 16 N i 9Zr 66 0.020 0.230 1223 
+
+Al 25 Cu 15 La 55 N i 5 0.022 0.167 1195 
+
+Al 8Cu 12 N i 14 Zr 66 0.023 0.239 1255 
+
+Al 14 Cu 20 La 66 0.024 0.162 1011 
+
+Be 25 Cu 10 N i 10 T i 11 Zr 44 0.024 0.237 1510 
+
+Al 8Cu 7N i 19 Zr 66 0.025 0.233 1203 
+
+Be 35 Zr 65 0.026 0.250 870 
+
+Al 25 Cu 10 La 55 N i 10 0.028 0.175 1230 
+
+Al 25 Cu 5La 55 N i 15 0.028 0.177 1247 
+
+Al 25 La 55 N i 20 0.029 0.187 955 
+
+Al 8N i 26 Zr 66 0.030 0.235 946 
+
+Al 25 Co 5Cu 10 La 55 N i 5 0.031 0.183 1773 
+
+Be 37 T i 63 0.031 0.290 903 
+
+# 4 CSLO CV Chemical Systems 
+
+The exact chemical system groups are tabulated in this section. For each iteration of CSLO CV, one group is selected and left out as a test set. For assessments on the 34 materials with MLP, entries from Table 4 are used. CV for larger assessments of 177 materials use entries from Table 5. 11 Supplementary Table 4: The chemical systems considered for CSLO CV for the 34 materials with MLPs. Chemical System Count MgNdNi 5CuNiPPd 4PdSi 3AlCuNiZr 3AlCuLaNi 3AlCuLa 2NiPPd 1NbNiSiSnTiZr 1NbNi 1CuPdSi 1CuNiTiZr 1CuMgY 1CuGdMg 1CaMgZn 1BeZr 1BeTi 1BeCuNiTiZr 1AlNiZr 1AlLaNi 1AlCoCuLaNi 1Supplementary Table 5: The chemical systems considered for CSLO CV for 177 materials. Chemical System Count CuNiPPd 15 AlCuNiZr 15 BeCuNiTiZr 11 MgNdNi 7CuTiZr 6CuZr 5CuPdSi 4CuGdMg 4CaMgZn 4BFe 4AlCuZr 4AlCuNiTiZr 4AlCuLaNi 4PdSi 3NiZr 3NbNi 3BCCoCrFeMoY 3AlFeNd 3AlCoCuLaNi 3NiPd 2Continued on next page 12 Supplementary Table 5: The chemical systems considered for CSLO CV for 177 materials. Chemical System Count CuNiTiZr 2CuNiPPt 2AlCuNiPdZr 2AlCuNbNiZr 2AlCuLa 2AlCoZr 2AgAuCuPdSi 2P 1NiSiTiZr 1NiSiSnTiZr 1NiPPt 1NiPPd 1NbNiSiSnTiZr 1GeSbTe 1FeNiZr 1CuPPdPt 1CuPPd 1CuNiSiTiZr 1CuMgYZn 1CuMgY 1CuLa 1CuHfTiZr 1CoCuPPt 1CFeP 1BeZr 1BeTi 1BeCuNbNiZr 1BZr 1BNiSi 1BFeSi 1BFeNiP 1BFeNi 1BFeNbNiSi 1BCoSi 1BCoFeNbSi 1BCoCrFeMoYZr 1BCCrFeMoY 1BCCrFeMnMoSiW 1BCCrFeGaMoP 1AuGeSi 1AlNiZr 1AlMg 1AlLaNi 1AlGdNiZn 1AlGdNiSn 1AlGdMnNi 1Continued on next page 13 Supplementary Table 5: The chemical systems considered for CSLO CV for 177 materials. Chemical System Count AlCuNbZr 1AlCuHfNi 1AlCuGdZr 1AlCuGdNi 1AlCoSm 1AlCoLaNiY 1AlCoGd 1AlCoFeNiY 1AlCoCuZr 1AlCoCuFeSm 1AlCeNi 1AgCuZr 1AgCuMgNiYZn 1AgCuGdMgPd 1AgCuGdMgNiYZn 1AgAlCuZr 1AgAlCuNiZr 1
+
+# 5 Shuffled Learning Curve 
+
+The feature learning curve obtained from the shuffling feature selection procedure (see the end of Sec. 2.10) is shown in Fig. 16. This is evidence that the selection of Xbest did not randomly produce a capable model for log 10 (Rc) prediction. 
+
+Supplementary Figure 16: RM SE/σ y as a function included features sorted with SHAP values for XGBoost models are shown. This feature selection process was performed with shuffled 
+
+log 10 (Rc). 14 6 Parity Plots 
+
+We provide the parity plots for several sets of data and assessments in this section. We em-phasized the use of CSLO CV throughout the main text because we wanted models that could predict well across chemical systems, and include all relevant data here. However, 5-fold CV (repeated 10 times) is a common way to assess models, so we provide those parity plots as well. Also, because of the small set of data with properties acquired from 34 MLPs, we provide plots for leave one out CV for the cases where only 34 data points are fit. The number of points in these data are small and will lead to poor performance in 5-fold CV. 
+
+6.1 CSLO CV 
+
+Supplementary Figure 17: The parity plot for XGBoost models fit to Xlong for 177 materials. Note that test data were produced by CSLO CV. 15 Supplementary Figure 18: The parity plot for XGBoost models fit to Xmastml for 177 materials. Note that test data were produced by CSLO CV. 
+
+Supplementary Figure 19: The parity plot for XGBoost models fit to Xmastml ∪ Xlong for 177 materials. Note that test data were produced by CSLO CV. 16 Supplementary Figure 20: The parity plot for XGBoost models fit to Xlong for 34 materials. Note that test data were produced by CSLO CV. 
+
+Supplementary Figure 21: The parity plot for XGBoost models fit to Xtot for 34 materials. Note that test data were produced by CSLO CV. 17 6.2 5-Fold CV Repeated 10 Times 
+
+Supplementary Figure 22: The parity plot for XGBoost models fit to Xlong for 177 materials. Note that test data were produced by 5-fold CV repeated 10 times. 18 Supplementary Figure 23: The parity plot for XGBoost models fit to Xmastml for 177 materials. Note that test data were produced by 5-fold CV repeated 10 times. 
+
+Supplementary Figure 24: The parity plot for XGBoost models fit to Xmastml ∪ Xlong for 177 materials. Note that test data were produced by 5-fold CV repeated 10 times. 19 Supplementary Figure 25: The parity plot for XGBoost models fit to Xlong for 34 (materials with a built MLP). Note that test data were produced by 5-fold CV repeated 10 times. 
+
+Supplementary Figure 26: The parity plot for XGBoost models fit to Xtot for 34 (materials with a built MLP). Note that test data were produced by 5-fold CV repeated 10 times. 20 Supplementary Figure 27: The parity plot for XGBoost models fit to Xbest for 34 (materials with a built MLP). Note that test data were produced by 5-fold CV repeated 10 times. 21 6.3 Leave One Out CV 
+
+Supplementary Figure 28: The parity plot for XGBoost models fit to Xlong for 34 (materials with a built MLP). Note that test data were produced by Leave One Out CV. 22 Supplementary Figure 29: The parity plot for XGBoost models fit to Xtot for 34 (materials with a built MLP). Note that test data were produced by Leave One Out CV. 
+
+Supplementary Figure 30: The parity plot for XGBoost models fit to Xbest for 34 (materials with a built MLP). Note that test data were produced by Leave One Out CV. 23

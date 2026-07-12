@@ -1,0 +1,1407 @@
+Title: Universal Interatomic Potentials as Configuration-Space Generators for One-Shot and Iterative Fine-Tuning of Ab Initio-Accurate Material-Specific Models
+
+URL Source: https://arxiv.org/pdf/2606.23214v1
+
+Published Time: Tue, 23 Jun 2026 03:13:14 GMT
+
+Number of Pages: 45
+
+Markdown Content:
+## Universal Interatomic Potentials as Configuration-Space Generators for One-Shot and Iterative Fine-Tuning of Ab Initio-Accurate Material-Specific Models 
+
+Jonas H¨ anseroth, 1, ∗ Aaron Fl¨ ototto, 1 and Christian Dreßler 1
+
+> 1
+
+Theoretical Solid State Physics, Institute of Physics, Technische Universit¨ at Ilmenau, 98693 Ilmenau, Germany 
+
+(Dated: June 23, 2026) Universal machine-learning interatomic potentials (MLIPs) are rapidly becoming general-purpose tools for atomistic simulation, but their role in quantitative materials modeling when reactive events are involved remains unsettled. We compare five universal MLIPs across seven chemically diverse systems and find that strong performance on standard benchmarks does not guarantee accurate predictions of target observables. In particular, zero-shot models do not reliably reproduce re-active, transport, or high-barrier processes, exemplified here in particular by the sulfur-vacancy jump in MoS 2. We therefore propose a practical alternative: universal MLIPs are used to generate long molecular dynamics trajectories, the resulting configurations are sub-sampled and relabeled with DFT, and material-specific MLIPs are subsequently trained or fine-tuned on the resulting first-principles datasets. This workflow converts universal models into efficient configuration-space generators while retaining ab initio reference labels for training. Across the tested systems, 2 ,000 DFT-recalculated structures are often sufficient to obtain accurate fine-tuned or trained-from-scratch models. For the most challenging case, iterative self-training progressively refines the sampled con-figuration space and recovers the DFT MoS 2 potential energy profile with only 600 first-principles calculations in total. The resulting workflow enables the generation of 1 ns ab initio-quality trajec-tories - including training data generation and model creation - within three days. 
+
+Atomistic simulations are central to understanding and designing functional materials, but they remain lim-ited by the long-standing trade-off between accuracy and computational cost. Ab initio molecular dynam-ics (AIMD), most commonly based on density func-tional theory (DFT), provides access to chemical bonding and reaction mechanisms without empirical parameteri-zation, but is typically restricted to comparatively small systems and short timescales [1–3]. Classical force fields extend simulations to much larger length and timescales, but their accuracy and transferability are limited by the fixed functional form and the domain in which they were parameterized [4–6]. This accuracy-efficiency dilemma is particularly restrictive for processes such as ion trans-port, defect migration, hydrogen-bond rearrangements, solvation dynamics, and bond breaking, where long tra-jectories are needed but the relevant physics is controlled by subtle changes in the potential energy surface [7–10]. Machine-learning interatomic potentials (MLIPs) have emerged as a powerful route to bridge this gap by learn-ing DFT-quality potential energy surfaces from refer-ence calculations while retaining a computational cost closer to classical molecular dynamics [11–14]. Early neural-network potentials and Gaussian approximation potentials demonstrated that quantum-mechanical ener-gies and forces can be represented accurately from data [15–17]. More recently, graph neural networks, equiv-ariant architectures, and symmetry-preserving represen-tations have substantially improved the accuracy, stabil-ity, and transferability of MLIPs across chemical environ-ments [11, 18–25]. As a result, MLIPs are increasingly used to obtain nanosecond-scale trajectories with ab ini-tio accuracy for materials and molecular systems that are inaccessible to direct AIMD. The most recent development in this field is the emer-gence of universal, or foundation, MLIPs. Instead of training a potential for a single material or chemical sys-tem, these models are pretrained on large and chemically diverse databases containing millions of DFT-labeled structures [26–30]. Universal MLIPs therefore offer the appealing possibility of using a single pretrained model as a general-purpose simulation engine for a broad range of materials. However, the central question is not only whether uni-versal MLIPs perform well on benchmark metrics, but whether they can reproduce the specific observables that motivate a simulation [31, 32]. Many scientifically rele-vant observables depend on rare or reactive events from the high-barrier regions of configuration space rather than on equilibrium structures alone [7, 33, 34]. Exam-ples include diffusion barriers, proton-transfer pathways, and defect migration events [35]. Recent studies have therefore shown that, despite their broad applicability, universal models often require material-specific adapta-tion before quantitative accuracy can be expected in spe-cialized applications [7, 34, 36–42]. Fine-tuning provides one route to this material-specific accuracy [43]. By adapting a pretrained model to a smaller DFT-labeled dataset of the target system, one can correct the potential energy surface in the region rel-evant to the material of interest [7, 34, 36–40, 42, 44]. Several specialized fine-tuning strategies can further control how much of the pretrained model is adapted. In frozen-layer fine-tuning, only selected parts of the 
+
+> arXiv:2606.23214v1 [cond-mat.mtrl-sci] 22 Jun 2026
+
+2network, often the final interaction or readout layers, are optimized while the remaining parameters are fixed [44]. This can reduce the risk of overfitting and preserve the general chemical knowledge of the foundation model, but may limit flexibility when the target system differs strongly from the pretraining distribution. Low-rank adaptation (LoRA) approaches instead add a small num-ber of trainable low-rank parameters to the pretrained model, enabling efficient adaptation with reduced mem-ory requirements and fewer trainable weights [45, 46]. Multi-head replay fine-tuning keeps a shared representa-tion of the atomic environments while assigning separate output heads to different datasets or tasks [20, 47, 48]. During replay, previously learned datasets are included again in the training process, which helps retain earlier information while the shared model is adapted to newly generated configurations. In this work, we investigate how universal MLIPs can be used to obtain material-specific, ab initio-accurate models for particularly demanding systems in which their conventional role as weight initialization for fine-tuning may be insufficient or may require a large amount of ab initio fine-tuning data. Rather than treating them pri-marily as final production potentials, we use them as effi-cient configuration-space generators for the construction of material-specific MLIPs. In this workflow, a univer-sal model is first used to generate long molecular dy-namics trajectories at low cost. The trajectory is then sub-sampled, and only the selected structures are recal-culated with DFT. The final material-specific potential is trained or fine-tuned exclusively on these DFT-labeled configurations. This separation of sampling and label-ing is essential: errors in the universal model energies and forces do not directly enter the training labels, while the universal model still provides inexpensive access to broad and physically meaningful regions of configuration space. The approach therefore exploits the transferabil-ity of universal MLIPs without relying on their zero-shot predictions to be quantitatively correct. We systematically assess this strategy across seven chemically distinct systems that span different bond-ing motifs, phases, and dynamical processes: ce-sium dihydrogen phosphate (CDP) and its derivative Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) [49–51], L-pyroglutamate-ammonium (L-Pyro) [9, 52–54], solvated phenol (PhOH), aqueous potassium hydroxide (KOH) [55], crystalline Li 13 Si 4 [10, 56, 57] and MoS 2 [34, 58, 59] containing sulfur vacancies. These systems probe non-equilibrium properties, rare and reactive events: proton transport, low-barrier hydrogen bonds, liquid-phase solvation, con-centrated electrolytes, intermetallic bonding, and defect dynamics in a two-dimensional material. We first evalu-ate the zero-shot performance of nine universal MLIPs, ranging from earlier foundation models to state-of-the-art models such as MACE-OMAT-0 [60], GRACE-2L-OAM [30], PET-OAM-XL [61] and PET-MAD-S-v1.5.0 [62, 63]. We then compare material-specific models obtained by fine-tuning on datasets generated ei-ther from AIMD trajectories or from DFT-recalculated universal-model trajectories. Together, these results establish practical guidelines for constructing material-specific MLIPs from limited DFT data. Universal MLIPs are most reliable when used as accelerators of the dataset-generation process: they provide inexpensive access to long and diverse trajecto-ries, while DFT remains responsible for the final refer-ence labels. The resulting material-specific models enable nanosecond-scale, first-principles-quality atomistic simu-lations within a practical computational workflow, while retaining validation against the physical observables of interest. Furthermore, the workflow proposed here can be applied fully automatically with minimal user input and does not require system-specific procedures. 
+
+> State-of-the-art universal models
+
+Universal machine-learning interatomic potentials have rapidly improved in scope, accuracy and chemical coverage [31, 61]. The first broadly used generation of foundation MLIPs, such as MACE-MP-0 (small) and 
+
+SevenNet-0 , was largely trained on sub-sampled Ma-terials Project trajectory data [64–66]. More recent universal models extend this training base to substan-tially larger and more diverse datasets, including struc-tures from the Materials Project [64–66], Alexan-dria [67, 68], OpenMaterials2024 [68] and Open-Molecules2025 [69]. Together with larger and more advanced model architectures, this has led to a clear improvement in benchmark accuracy [31]. At the same time, these models have become more expensive at infer-ence, and the central practical question remains whether their improved zero-shot performance is sufficient for target-observable-driven atomistic simulations. We first examine this question using sulfur-vacancy dynamics in 2D MoS 2 as a deliberately demanding test case (Fig. 1), before broadening the analysis to six ad-ditional chemically diverse systems. The sulfur-vacancy jump probes a high-energy, non-equilibrium part of the potential energy surface with a DFT barrier of about 0.8 eV and is therefore sensitive to errors that may not be visible from equilibrium structures or small distortions alone. This process is representative of regimes in which MLIPs are particularly useful, because long simulations are required, while also being among the most challeng-ing cases for zero-shot performance: defect migration, ion diffusion, bond formation and breaking, and solvation in disordered phases. The universal models predict the potential energy pro-file of this process with varying accuracy when compared with DFT. Older foundation models can fail qualita-tively, while newer and larger models substantially re-3ba           
+
+> FIG. 1. Sulfur-vacancy jump in MoS 2and the cor-responding energy profile. aSulfur-vacancy jump in a 2D MoS 2system. The yellow spheres indicate sulfur atoms and the blue sphere molybdenum atoms. The black arrow show the sulfur-vacancy jump investigated in this work and the gray line indicates the size of the the unit. bPotential en-ergy curves for a sulfur jump into a neighboring line of sulfur vacancies, obtained via nudge elastic band calculations with the different universal models (colored solid lines), one fine-tuned MACE-MP-0 foundation model (2 ,000 equidistantly sampled AIMD frames) (black dotted line) and the DFT ref-erence profile [34] (black solid line).
+
+duce the error but still do not recover the DFT refer-ence profile with the accuracy required for reliable in-terpretation. Even the best-performing zero-shot univer-sal model, PET-OAM-XL , underestimates the sulfur-vacancy jump barrier by approximately 0 .3 eV. Thus, al-though the newest universal MLIPs are clearly more ap-plicable than earlier models, the improved performance does not yet guarantee ab initio-level accuracy for reac-tive or high-barrier material-specific observables. In contrast, material-specific adaptation strongly im-proves the description of the same process. A MACE-MP-0 universal model fine-tuned on DFT-labeled MoS 2
+
+configurations, obtained from sub-sampled AIMD trajec-tories, reproduces the DFT energy profile substantially more accurately than the corresponding zero-shot uni-versal model. To test whether this conclusion is specific to MoS 2
+
+or general across chemical space, we evaluated nine universal models on seven chemically distinct systems and compared their ability to reproduce material-specific observables. The tested models span both earlier and state-of-the-art universal MLIPs: MACE-MP-0 
+
+(small) [27], GRACE-1L-OAM [30], SevenNet-0 [70], 
+
+MatterSim-v1.0.0-5M [28], ORB-v2 [71], MACE-OMAT-0 (medium) [60], GRACE-2L-OAM [30], PET-OAM-XL [61], and PET-MAD-S-v1.5.0 [62, 63]. The full observable-level comparison is provided in Supple-mentary Notes 1–9. The corresponding force and en-ergy errors are summarized in Supplementary Notes 10 and 11, and a detailed discussion of the accuracy of the investigated universal models is given in Supplementary Note 12. Across the seven systems, the direct zero-shot use of universal models remains unreliable when the target quantity depends on rare or reactive events. Some mod-els reproduce selected observables for selected materials, but no universal model consistently reaches the desired accuracy across all tested cases. This comparison es-tablishes the central motivation of this work: universal MLIPs are not always reliable as final production poten-tials, but they may provide an efficient starting point for constructing accurate material-specific models. 
+
+> Using universal models to sample the configuration space
+
+The main bottleneck in constructing material-specific MLIPs is the generation of representative first-principles reference data. A straightforward conventional strat-egy, besides active learning, is to run AIMD simulations, sub-sample the resulting trajectories, and train or fine-tune a model on the selected configurations. This ap-proach is robust, but it becomes costly when long trajec-tories, large simulation cells, different concentrations or broad temperature ranges are required. Moreover, AIMD spends first-principles effort on every simulation step, al-though only a small fraction of the generated structures is ultimately used for training. We therefore use universal MLIPs as low-cost training-structure generators. In this workflow, a state-of-the-art universal model is first used to produce long molecular dynamics trajectories of the target material. The trajec-tory is then sub-sampled, and only the selected config-urations are recalculated with DFT. The final material-specific model is trained or fine-tuned exclusively on these DFT-labeled structures. In this way, the universal model is not required to reproduce the target observable quan-titatively in zero-shot mode. Its role is instead to gener-ate physically meaningful structures that cover relevant regions of phase space at substantially lower cost than 4200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+PhOH L-Pyro MoS 2       
+
+> System
+> 0.048 0.035 0.048 0.036 0.043 0.035 0.031 0.022 0.031 0.026 0.050 0.033 0.039 0.030
+
+a AIMD 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+PhOH L-Pyro MoS 2       
+
+> System
+> 0.042 0.030 0.044 0.034 0.044 0.038 0.030 0.024 0.089 0.083 0.108 0.086 0.083 0.070
+
+b MACE-OMAT 0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.5E (eV) 
+
+e
+
+> FT 200 f. (MACE-OMAT-0) FT 2000 f. (MACE-OMAT-0) FT 200 f. (AIMD) FT 2000 f. (AIMD) FT 2000 f. (MACE-MP-0) MACE-MP-0 MACE-OMAT-0 DFT
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+PhOH L-Pyro MoS 2       
+
+> System
+> 0.041 0.031 0.049 0.035 0.045 0.033 0.034 0.028 0.081 0.080 1.303 0.040 1.570 0.060
+
+c GRACE-OAM 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+PhOH L-Pyro MoS 2       
+
+> System
+> 0.042 0.032 0.049 0.033 0.042 0.036 0.030 0.025 0.084 0.077 0.059 0.038 0.076 0.065
+
+d PET-OAM 
+
+Atom configurations Energy  
+
+> Close -to -equilibrium
+> training data points
+> Softening low accuracy in off-equilibrium regimes
+> Off -
+> equilibrium
+> fine-tuning data points
+> DFT labeling
+
+f  
+
+> Universal MLIP Fine-tuned MLIP Reference PES
+
+0.00 0.02 0.04 0.06 0.08 0.10 MAE force (eV/ ˚ A) 
+
+FIG. 2. Fine-tuning on universal model sampled structures. Force mean-absolute error in eV/˚ A of MACE-MP-0 
+
+models fine-tuned on training sets (200 and 2 ,000 data points) obtained by sub-sampled AIMD trajectories ( a), DFT recalculated universal model structures sub-sampled from 3 ns MD trajectories calculated with MACE-OMAT-0 (medium) ( b), GRACE-2L-OAM (c) and PET-OAM-XL (d) for different systems (CDP, CPP, KOH, Li 13 Si 4, L-Pyro, MoS 2, and PhOH). e potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, obtained via nudged elastic band calculations with the fine-tuned models on 200 data points (dotted lines) and 2 ,000 data points (dashed lines) from AIMD (red lines), MACE-MP-0 
+
+(blue lines) and MACE-OMAT-0 (orange lines); MACE-MP-0 foundation model (solid blue line) and DFT (solid black line). 
+
+f Schematic illustration of the systematic softening of a two-dimensional potential energy surface by a universal MLIP. The DFT potential energy surface is shown as a dashed black line, while the softened potential energy surface predicted by the universal model is shown in blue. The orange shaded region highlights the systematic softening error of the universal model in the high-energy regime. Gray circles indicate configurations represented in the universal-model training data. Blue diamonds indicate high-energy configurations sampled during molecular dynamics with the universal model; after DFT relabeling, these configurations are shown as red circles. The potential energy surface obtained after fine-tuning the MLIP on the relabeled configurations is shown in red. 
+
+AIMD. This separation of sampling and labeling is essential. Errors in the universal model energies and forces do not directly enter the training labels, because all selected configurations are recalculated with DFT. The final ac-curacy is therefore controlled by the diversity and rele-vance of the sampled structures, together with the qual-ity of the DFT reference labels. Consequently, a uni-versal model can be valuable for dataset generation even when it is not accurate enough for direct zero-shot pre-dictions. The level of theory used for labeling can also be changed straightforwardly, for example by recalculating the selected configurations with hybrid-functional DFT energies and forces. Modern universal models can generate such tra-jectories efficiently. For systems of approximately 1,000 atoms, models such as MACE-OMAT-0 
+
+(medium) can produce trajectories on the order of 1 ns per day on modern high-performance GPU hard-ware [60]. With a timestep of 0 .5 fs, a 0 .5 ns trajectory contains 1 ,000 ,000 configurations; selecting 2 ,000 frames therefore corresponds to a stride of 500. The selected structures can then be recalculated with DFT as independent single-point calculations. Because these calculations can be performed in parallel, the wall time for dataset generation can be reduced substantially compared to running a continuous AIMD trajectory. This enables material-specific, ab initio-labeled training sets to be constructed within one to two days. We first compare MACE-MP-0 models fine-tuned 5on conventional AIMD data with models fine-tuned on DFT-recalculated structures generated by universal model trajectories (Fig. 2). For the 2 ,000-point datasets, trajectories generated with MACE-OMAT-0 (medium) (Fig. 2b), GRACE-2L-OAM (Fig. 2c) and PET-OAM-XL (Fig. 2d) lead to force errors comparable to the AIMD-trained reference models (Fig. 2a) for CDP, CPP, KOH, Li 13 Si 4 and L-Pyro. The corresponding energy errors, shown in Supplementary Note 13, are generally higher for the universal-model trajectory datasets than for the AIMD datasets. However, they mostly remain below 0 .005 eV/atom, compared with values mostly be-low 0 .003 eV/atom for the AIMD-based models. The be-havior is less favorable for MoS 2 and PhOH. For these systems, models trained on structures sampled from universal-MLIP trajectories show force errors that are approximately two to three times larger than those of models trained on sub-sampled AIMD data. The differ-ence in energy error is also more pronounced. The training-set size has a strong effect on the final model quality. As expected, increasing the dataset from 200 to 2 ,000 DFT-labeled configurations improves the models, with the strongest influence observed for the en-ergy accuracy. With only 200 data points, several models remain insufficiently accurate, and no stable fine-tuned 
+
+MACE-MP-0 model could be obtained for L-Pyro and MoS 2 when using DFT-labeled structures generated by 
+
+GRACE-2L-OAM .The MoS 2 sulfur-vacancy jump provides the most stringent test of whether the resulting models reproduce the target potential energy surface, because this process has a high barrier of 0 .8 eV, which renders transition-state configurations statistically rare and therefore highly sensitive to errors in the learned energy landscape. Among the fine-tuned MACE-MP-0 models shown in Fig. 2e, only the models fine-tuned on 2 ,000 data points from either sub-sampled AIMD trajectories or DFT-recalculated MACE-OMAT-0 trajectory structures re-produce the DFT energy profile with reasonable accu-racy. In contrast, a model fine-tuned on 2 ,000 DFT-recalculated structures generated by the older and less accurate MACE-MP-0 foundation model does not re-cover the DFT curve. The 200 data point models also fail to reproduce the correct profile. Thus, both the qual-ity of the structure-generating model and the size of the DFT-labeled dataset are decisive. The corresponding sulfur-vacancy energy profiles for models fine-tuned on DFT-recalculated GRACE-2L-OAM and PET-OAM-XL trajectories are shown in Supplementary Note 14. As for the MACE-OMAT-0 -based datasets, the models trained on 2 ,000 data points recover the correct qualitative and quantitative behav-ior. This confirms that the target observable is consider-ably more sensitive than the average force error alone. A model can reach a reasonable global error while still fail-ing for a specific high-barrier process if the relevant con-figurations are not sufficiently represented in the training data. This is particularly evident for the sulfur-vacancy jump in MoS 2: the force and energy errors are ensemble-averaged quantities over all atoms and configurations, whereas the NEB profile is governed by a localized dis-placement of a single sulfur atom along a high-energy migration pathway. Consequently, small average errors over the full validation set do not necessarily imply an accurate description of the local potential energy surface that controls this jump process [72]. We further evaluated whether models trained on universal-model-generated structures reproduce the material-specific observables of the remaining systems. The results for MACE-MP-0 models fine-tuned on 
+
+MACE-OMAT-0 -generated datasets are summarized in Supplementary Note 15, and the corresponding re-sults for PET-OAM-XL -generated datasets are shown in Supplementary Note 16. With the exception of the hydroxide ion mobility, the relevant physical proper-ties are reproduced accurately by the fine-tuned mod-els. This demonstrates that universal-model-generated datasets can be sufficient for a broad range of material-specific observables, although difficult transport or re-action processes can still require additional care. For comparison, the observables obtained from MACE-MP-0 models fine-tuned on AIMD datasets are given in Sup-plementary Note 17. We then used the DFT-labeled MACE-OMAT-0 
+
+dataset to fine-tune additional universal models instead of MACE-MP-0 , namely SevenNet-0 , MatterSim-v1.0.0-5M , GRACE-1L-OAM and ORB-v2 . The re-sults are shown in Supplementary Notes 18-22. As dis-cussed in our previous work, fine-tuning these mod-els with a reasonably large dataset results in material-specific models with comparable performance largely in-dependent of architecture [35]. For MoS 2, L-Pyro and PhOH, however, the fine-tuned models show elevated er-rors that are approximately two to three times larger than those of the AIMD-based fine-tuned models, similar to the fine-tuned MACE-MP-0 models for these mate-rials in Fig. 2b. The ability of these different fine-tuned universal mod-els to predict the sulfur-vacancy jump energy curve in MoS 2 is shown in Supplementary Note 20. All models based on the DFT-labeled 2 ,000-point MACE-OMAT-0 dataset reproduce the energy profile, except for the 
+
+ORB-v2 model. The performance of the SevenNet-0 and MatterSim-v1.0.0-5M models for the material properties of the other systems is shown in Supplemen-tary Notes 23 and 24. These material-specific models reproduce the observables for most systems, but they do not predict the hydroxide ion diffusivity with the desired first-principles accuracy. Finally, we considered training models from scratch instead of fine-tuning universal models. For this com-parison, MACE models of similar size to the MACE-6
+
+MP-0 foundation model were trained from scratch on the same datasets. The force and energy errors are shown in Supplementary Notes 23 and 24. For the 2 ,000-point datasets, accurate trained-from-scratch models are obtained for CDP, CPP, KOH and Li 13 Si 4 when us-ing structures generated by PET-OAM-XL , MACE-OMAT-0 (medium) or GRACE-2L-OAM . For L-Pyro, similarly accurate models are obtained with GRACE-2L-OAM and MACE-OMAT-0 . The resulting errors are generally comparable to those of models trained from scratch on sub-sampled AIMD data and are often smaller than those of the corresponding fine-tuned MACE-MP-0 models shown in Fig. 2a-d. For the MoS 2 sulfur-vacancy jump, the energy profiles obtained with trained-from-scratch models show particularly robust behavior, as shown in Supplementary Note 25. While using universal MLIPs to sample configurational space, we are exploiting the recently discussed system-atic softening of the potential energy surface [41]. In this context, softening refers to the tendency of universal models to underestimate energy barriers in high-energy regions of the potential energy surface, as illustrated in Fig. 2f. This behavior likely originates from the com-position of the training data, which is typically domi-nated by close-to-equilibrium structures. Although this limits the direct use of universal MLIPs for quantitative barrier predictions, it can be advantageous for dataset generation: softened barriers allow the model to visit off-equilibrium configurations more frequently during molec-ular dynamics. After these configurations are relabeled with first-principles calculations, they provide targeted reference data for training a material-specific MLIP with improved accuracy in the high-energy regions that are underrepresented in equilibrium AIMD data. However, this strategy is not guaranteed to succeed in a single step. If the generated trajectory does not sample the relevant transition region sufficiently, or if the rela-beled dataset still lacks configurations controlling the tar-get observable, the resulting model may retain the same qualitative failure. These model failures therefore iden-tify cases where a single-pass dataset-generation strategy is insufficient and naturally motivate an iterative refine-ment procedure. 
+
+> Iterative training
+
+The previous results show that DFT-recalculated universal-model trajectories provide an efficient route to accurate material-specific MLIPs, but also that a sin-gle dataset-generation step is not always sufficient. This limitation becomes particularly important when the tar-get observable depends on a narrow, rare, or high-energy region of configuration space. For such cases, we investi-gate an iterative training workflow in which the current material-specific model is used to generate the structures for the next training iteration. The procedure is conceptually simple. In the first generation, a model is trained from scratch or fine-tuned using an initial DFT-labeled dataset obtained ei-ther from a sub-sampled AIMD trajectory or from a DFT-recalculated sub-sampled universal-MLIP trajec-tory. This model is then used to run a molecular dynam-ics simulation. The resulting trajectory is equidistantly sub-sampled, and the selected configurations are recalcu-lated with DFT. These newly labeled configurations are then used to fine-tune the current model and obtain the next model generation, either as a replacement for the previous dataset or in combination with data from ear-lier generations. The loop is repeated until the target observable is reproduced with the desired accuracy. In analogy to modern large-language-model workflows, this strategy can be viewed as iterative self-training or syn-thetic data generation [73]; however, in the present case every newly generated structure is relabeled with first-principles calculations before it enters the training set. This approach is particularly promising because MLIPs trained primarily on equilibrium structures show the ten-dency to underestimate the potential energies of transi-tion states [41], making such states more likely to appear in training sets sampled from MLIP-based MD simula-tions than from AIMD simulations. We demonstrate this strategy for the most challenging observable considered in this work, the sulfur-vacancy jump in MoS 2. The initial model is obtained by fine-tuning MACE-MP-0 on only 200 configurations sub-sampled from an AIMD trajectory (Fig. 3a). This first-generation model is then used to perform an MLIP molec-ular dynamics simulation of 600 ,000 steps. From this trajectory, 200 configurations are equidistantly sampled and recalculated with DFT to form the training set for the next generation. Repeating this procedure yields a third-generation model that correctly reproduces the DFT sulfur-vacancy energy profile, while requiring only 600 first-principles single-point calculations in total and two additional MLIP molecular dynamics simulations. This result is notable because models trained on datasets containing 600 AIMD configurations or 600 MACE-MP-0 -generated configurations fail to re-produce the DFT profile, as shown in Supplementary Note 26. Even fine-tuning on 2 ,000 DFT-labeled configu-rations sampled with the older MACE-MP-0 foundation model does not recover the correct curve (Fig. 3e). We further investigated whether alternative fine-tuning strategies improve the iterative workflow. When the same iterative procedure is performed with LoRA fine-tuning instead of naive fine-tuning (Fig. 3b), the third-generation model reaches a performance compara-ble to the naively fine-tuned model. However, the second-generation LoRA model already predicts the sulfur-vacancy energy profile substantially more accurately than the corresponding naively fine-tuned model. This indi-7Found. Gen1 Gen2 Gen3 Iteration 10 −2
+
+> 10 −1
+> Force error (eV/ ˚ A)
+
+a   
+
+> Iter. naive FT on 200 f. AIMD
+> 0.00.51.0E (eV)
+> 0.00.51.0Configuration coordinate
+> −0.2
+> −0.10.00.1E - E DFT  (eV)
+> Benchmark:
+> DFT MACE-MP-0
+> Found. Gen1 Gen2 Gen3 Iteration
+
+b  
+
+> Iter. LoRA FT on 200 f. AIMD
+> 0.00.51.0Configuration coordinate
+> Found. Gen1 Gen2 Gen3 Iteration
+
+c    
+
+> Iter. LoRA FT on i ·200 f. AIMD
+> 0.00.51.0Configuration coordinate
+> Model generation:
+> Gen1 Gen2 Gen3
+> Found. Gen1 Gen2 Gen3 Iteration
+
+d  
+
+> Iter. Multi-head FT with 200 f./H
+> 0.00.51.0Configuration coordinate
+> Found. Gen1 Gen2 Gen3 Iteration
+
+e  
+
+> Iter. naive FT on 200 f. PET-OAM
+> 0.00.51.0Configuration coordinate
+> 10 −1
+> 10 1
+> 10 3
+> Energy error (eV/atom)
+
+FIG. 3. Iterative self-training. Evaluation of three generations of iteratively fine-tuned MACE-MP-0 models for MoS 2.The upper row shows force and energy errors, the middle row shows the predicted energy profile of the sulfur-vacancy jump in MoS 2, and the lower row shows the deviation from the DFT reference profile. Different iterative fine-tuning strategies are compared: a naive fine-tuning initialized with 200 AIMD data points and a constant dataset size of 200 points per model; b
+
+LoRA fine-tuning initialized with 200 AIMD data points and a constant dataset size of 200 points per model; c LoRA fine-tuning initialized with 200 AIMD data points and a dataset size increasing linearly by 200 points per generation; d multi-head fine-tuning initialized with 200 AIMD data points, using 200 data points per generation and one head per generation; e naive fine-tuning initialized with 200 DFT-labeled structures obtained by sub-sampling a PET-OAM-XL universal-model trajectory, using a constant dataset size of 200 points per model. 
+
+cates that LoRA fine-tuning can improve data efficiency in the early stages of iterative training, where the avail-able DFT-labeled datasets are still small. We then tested whether retaining data from previous generations further improves the LoRA-based workflow. In this variant, the dataset size increases linearly by 200 structures per generation. For example, the second-generation model is fine-tuned not only on the 200 newly generated configurations, but on a combined dataset containing the initial AIMD-based structures and the newly DFT-labeled structures generated from the first-generation model, resulting in 400 data points in total. This strategy leads to a substantially improved second-generation prediction of the sulfur-vacancy energy profile (Fig. 3c). The third-generation model, however, performs comparably to the iterative models trained with a con-stant training dataset size of 200 points per generation. In contrast, multi-head fine-tuning does not provide a clear additional benefit for this system. In this strategy, each newly generated dataset is assigned to a separate head, with one head per model generation (Fig. 3d). Al-though the second-generation model improves relative to the initial model, no substantial additional improvement is observed in the third generation. This suggests that, 8for the present MoS 2 case, separating the generations into different heads is less effective than directly adapt-ing the shared model parameters to the newly sampled configuration space. Finally, we tested whether the iterative workflow re-quires an AIMD-based initial dataset. Starting from 200 DFT-labeled structures obtained by sub-sampling a PET-OAM-XL universal-model trajectory already yields a well-performing first-generation model (Fig. 3e). Additional iterative fine-tuning further improves the model initially, demonstrating that the workflow can also be initialized from universal-model-generated structures. However, during further iterations, the model accuracy decreases, as shown in Supplementary Note 27. This be-havior can be rationalized from the dataset composition of the respective training sets, shown in Supplementary Note 28, and indicates that iterative self-training must still be monitored with respect to the diversity and rele-vance of the generated configurations. Together, these results show that iterative training provides a practical fallback when one-shot fine-tuning or training on AIMD- or universal-model-generated datasets does not yet reach the required target accuracy. The strategy is particularly useful when the relevant con-figurations are not sufficiently represented in the initial dataset. 
+
+> CONCLUSION AND TRAINING GUIDELINES
+
+This work establishes a practical workflow for con-structing material-specific MLIPs with ab initio accu-racy from limited first-principles data. We systemati-cally compared zero-shot universal models, naive fine-tuning, training-from-scratch and iterative fine-tuning across seven chemically distinct systems and several fam-ilies of modern MLIPs. The study deliberately focuses on broadly accessible strategies based on naive fine-tuning and on dataset construction through equidistant sam-pling of molecular dynamics trajectories. This allows the resulting guidelines to be applied across different MLIP frameworks without relying on specialized active-learning infrastructure. The first conclusion is that state-of-the-art universal MLIPs should generally not be treated as final produc-tion potentials for target-observable-driven simulations. Although the newest models are substantially more ac-curate than earlier generations, they still fail for several observables connected to reactive events, ion mobility, defect motion or high-energy regions of the potential en-ergy surface. The sulfur-vacancy jump in MoS 2 is the clearest example: even the best zero-shot universal model underestimates the barrier by approximately 0 .3 eV. For mechanistic interpretation, this level of error is too large because relevant observables depend exponentially on the energy barrier according to Boltzmann statistics, and ab initio-level accuracy cannot be assumed for universal models in such cases. The second conclusion is that universal models are nevertheless highly valuable. Their most robust role is not necessarily to replace DFT directly, but to gener-ate diverse and physically meaningful configurations at low computational cost. After DFT recalculation of se-lected frames, these structures form accurate material-specific training datasets. Using state-of-the-art univer-sal MLIPs as structure generators enables the exploration of nanosecond-scale trajectories before deciding which configurations should receive expensive first-principles la-bels. This shifts the data-generation bottleneck from continuous AIMD to a set of independent DFT single-point calculations, which can be parallelized efficiently. For the systems investigated here, 2,000 DFT-recalculated configurations selected from trajectories generated by modern universal MLIPs are often suffi-cient to obtain accurate material-specific models. When state-of-the-art universal models are used to generate the structures, approximately two thirds of the investigated cases lead to fine-tuned MACE-MP-0 models with the desired accuracy. Using the same datasets for train-ing from scratch yields the desired accuracy in 61 % of the investigated cases. Here, training from scratch per-forms on par with or better than naive fine-tuning when the dataset contains 2 ,000 configurations. This identi-fies an important advantage of universal models: even when their zero-shot predictions are not sufficiently accu-rate, they can strongly accelerate the generation of useful material-specific training data. The quality of the structure-generating model is criti-cal. Datasets generated with older or less accurate uni-versal MLIPs can lead to substantially worse material-specific models, even when all selected structures are re-labeled with DFT. This is because the DFT labels correct the energies and forces of the sampled configurations, but they cannot compensate for missing regions in the sam-pling of the configuration space. If the generating model does not visit the relevant structures, the final material-specific model cannot learn them. This effect is espe-cially important for rare events and transition pathways, where average force and energy errors alone may not re-veal the failure. As universal models continue to improve, the fraction of systems for which this workflow yields ac-curate material-specific models is therefore expected to increase. The results suggest the following practical workflow. 1. 
+
+When no AIMD trajectory is available, start by generat-ing a trajectory with a state-of-the-art universal MLIP, such as PET-OAM-XL , MACE-OMAT-0 (medium) or GRACE-2L-OAM . Sub-sample approximately 2 ,000 configurations from this trajectory and recalculate these structures with parallelized DFT single-point calcula-tions. Use the resulting dataset to train a material-specific model from scratch or to fine-tune a suitable 9foundation model. Based on the present results, MACE 
+
+and SevenNet are particularly useful choices for train-ing from scratch, while MACE-MP-0 , SevenNet-0 and 
+
+MatterSim-v1.0.0-5M provide strong fine-tuning base-lines. 
+
+2. Validate the resulting model on the physical ob-servable of interest, not only on global force and energy errors. For many systems, a one-shot dataset generated from a modern universal-model trajectory is sufficient. However, observables such as the MoS 2 sulfur-vacancy jump show that good average errors do not always imply correct target behavior. Target-observable validation is therefore essential, especially for high-barrier processes, transport properties and reaction mechanisms. 
+
+3. If the one-shot model fails, apply iterative self-training. Use the current material-specific model to gen-erate additional trajectories, sub-sample the configura-tions it visits, recalculate them with DFT and continue training or fine-tuning. This strategy can be more effi-cient than simply increasing the size of the initial dataset because it exploits a potential softening of the MLIP [41], which can automatically lead to an overrepresentation of particularly relevant transition states in the training set. For MoS 2, this approach recovers the correct sulfur-vacancy energy profile using only 600 DFT single-point calculations in total, whereas several non-iterative strate-gies with comparable or larger datasets fail. Overall, universal MLIPs provide the greatest bene-fit when used as accelerators of the dataset-generation process. They allow long and diverse trajectories to be generated cheaply, while DFT remains responsible for the final reference labels. Material-specific MLIPs trained on these datasets can then reach the accuracy required for ab initio-quality simulations at a fraction of the cost of di-rect AIMD. The resulting workflow enables nanosecond-scale, first-principles-quality atomistic trajectories within only a few days, while retaining a clear validation path through target observables and iterative refinement when necessary. 
+
+> METHODS AIMD simulations
+
+Reference DFT AIMD simulations were performed on CPUs using CP2K (version 2025.1) [74–80] with the BLYP (KOH, L-Pyro, PhOH) [81, 82] and PBE (CDP, CPP, MoS 2, Li 13 Si 4) [83] exchange-correlation func-tional, GTH pseudopotentials [84–86], DZVP-MOLOPT basis set [87], and Nos´ e-Hoover chain thermostats [88– 90] applying a timestep of 0 .5 fs. Training data consisted of 10, 200, and 2 ,000 configurations per system equidis-tantly sampled from AIMD trajectories at relevant tem-peratures: 300 K (PhOH, L-Pyro), 333 K (KOH), 500 K (Li 13 Si 4), [510, 540, 585, 620, 660 K] (CDP, CPP), and 1000 K (MoS 2) with a stride of 10 and 100. 
+
+> Training and fine-tuning MLIPs
+
+All fine-tuning and training calculations were per-formed using the respective MLIP framework imple-mentations: MACE-torch (version 0.3.14) [20, 21], 
+
+GRACE tensorpotential (version 0.5.1) [24, 30], 
+
+SevenNet (version 0.11.2) [47, 70], MatterSim (ver-sion 1.1.2) [28], and ORB (version 0.3.2) [29, 71] through their official releases. For fine-tuning we employed the smaller and more efficient models of the respective MLIP frameworks: MACE-MP-0 (small) [27], GRACE-1L-OAM [30], SevenNet-0 [70], MatterSim-v1.0.0-5M 
+
+(MatterSim-Large) [28] and ORB-v2 [71]. For training we used the same model sizes as the mentioned smaller foundation models, to be able to compare model perfor-mance between fine-tuning and training. Fine-tuning and training were performed using NVIDIA A100 GPUs. For production and the training set generated from DFT-recalculated foundation model structures we used more sophisticated and expensive models: MACE-OMAT-0 (medium) [27], GRACE-2L-OAM [30], 
+
+SevenNet-Omni (mpa modal) [91], PET-OAM-XL 
+
+[61, 92] and PET-MAD-S-v1.5.0 [62, 63, 92]. All errors reported in this work were computed on reference data excluded from the training and valida-tion sets. This test dataset was obtained by recalculat-ing, with first-principles methods, MLIP trajectories gen-erated using the fine-tuned foundational MACE-MP-0 
+
+models (2 ,000 data points, sub-sampled AIMD trajecto-ries, stride 100). 
+
+> MLIP MD and NEB calculations
+
+Molecular dynamics simulations were performed with 
+
+ASE (version 3.25.0) [93] using Nos´ e-Hoover chain ther-mostats [88–90] set up with aMACEing toolkit (ver-sion 0.7.0) [35] for 3 ns at 300 K (PhOH, L-Pyro), 333 K (KOH), 500 K (Li 13 Si 4), [510, 540, 585, 620, 660 K] (CDP, CPP), and 1000 K (MoS 2) with a timestep of 0.5 fs. Nudged elastic band calculations were performed with ASE (version 3.25.0) [93]. MD and NEB calcula-tions were performed using NVIDIA A100 GPUs. 
+
+> DATA AVAILABILITY
+
+The dataset containing training sets and the models are available at doi.org/10.5281/zenodo.20792778 .10 
+
+CODE AVAILABILITY 
+
+The used third-party codes CP2K , ASE ,
+
+MACE , MatterSim , GRACE , SevenNet ,
+
+UPET and ORB are available at cp2k.org ,
+
+ase-lib.org , github.com/acesuit/mace ,
+
+github.com/microsoft/mattersim , github.com/ ICAMS/grace-tensorpotential , github.com/ MDIL-SNU/SevenNet , github.com/lab-cosmo/upet 
+
+and github.com/orbital-materials/orb-models 
+
+respectively. The input-script creator used in this study is available at github.com/jhaens/amaceing_toolkit .
+
+ACKNOWLEDGMENTS 
+
+We thank the staff of the Compute Center of the Technische Universit¨ at Ilmenau, especially Mr. Hen-ning Schwanbeck for providing an excellent research en-vironment. This work is supported by the doctoral schol-arship of the German Academic Scholarship Foundation, Carl-Zeiss-Stiftung (SustEnMat, funding code: P2023-02-008), the Th¨ uringer Aufbaubank (TAB) (KapMemL-yse, grant no. 2024 FGR 0081 / 0082) and the European Social Fund Plus (ESF+). 
+
+COMPETING INTERESTS 
+
+The authors declare no competing interests. 
+
+AUTHOR CONTRIBUTIONS 
+
+J.H. and C.D. conceived the idea, J.H. wrote the high-throughput workflow, J.H. and A.F. performed all calcu-lations; J.H., A.F. and C.D. analyzed the data; J.H. and A.F. visualized all results and J.H. wrote the first draft of the manuscript. C.D. supervised the work; all authors revised and approved the manuscript.  
+
+> ∗
+
+jonas.haenseroth@tu-ilmenau.de [1] D. Marx and J. Hutter, Ab initio molecular dynamics: Theory and implementation, Mod. Methods Algorithms Quantum Chem. 1, 141 (2000). [2] M. E. Tuckerman, Ab initio molecular dynamics: basic concepts, current trends and novelapplications, J. Phys.: Condens. Matter 14 , R1297 (2002). [3] R. Iftimie, P. Minary, and M. E. Tuckerman, Ab initio molecular dynamics: Concepts, recent developments, and future trends, Proc. Natl. Acad. Sci. U.S.A. 102 , 6654 (2005). [4] S. Plimpton, Computational limits of classical molecular dynamics simulations, Comput. Mater. Sci. 4, 361 (1995). [5] G. Sutmann, Classical molecular dynamics, in Quantum Simulations of Complex Many-Body Systems: From The-ory to Algorithms , NIC Series, Vol. 10, edited by J. Gro-tendorst, D. Marx, and A. Muramatsu (John von Neu-mann Institute for Computing, J¨ ulich, 2002) pp. 211–254. [6] C. L. Brooks, D. A. Case, S. Plimpton, B. Roux, D. Van der Spoel, and E. Tajkhorshid, Classical molec-ular dynamics, J. Chem. Phys. 154 , 10.1063/5.0045455 (2021). [7] M. Grunert, M. Großmann, J. H¨ anseroth, A. Fl¨ ototto, J. Oumard, J. L. Wolf, E. Runge, and C. Dreßler, Model-ing complex proton transport phenomena - exploring the limits of fine-tuning and transferability of foundational machine-learned force fields, J. Phys. Chem. C 129 , 9662 (2025). [8] C. Dreßler and D. Sebastiani, Effect of anion reori-entation on proton mobility in the solid acids family CsHyXO4 (X= S, P, Se, y= 1, 2) from ab initio molecu-lar dynamics simulations, Phys. Chem. Chem. Phys. 22 ,10738 (2020). [9] M. N. Qaisrani, C. Kirsch, A. Fl¨ ototto, J. H¨ anseroth, J. Oumard, D. Sebastiani, and C. Dreßler, Bridging atomistic and mesoscale lithium transport via machine-learned force fields and markov state models, arXiv preprint arXiv:2511.20863 10.48550/arXiv.2511.20863 (2025). [10] C. Kirsch, C. Dreßler, and D. Sebastiani, Atomistic dif-fusion pathways of lithium ions in crystalline lithium sili-cides from ab initio molecular dynamics simulations, J. Phys. Chem. C 126 , 12136 (2022). [11] A. Kabylda, J. T. Frank, S. Su´ arez-Dou, A. Khabibrakhmanov, L. Medrano Sandonas, O. T. Unke, S. Chmiela, K.-R. M¨ uller, and A. Tkatchenko, Molecular simulations with a pretrained neural network and universal pairwise force fields, J. Am. Chem. Soc. 
+
+147 , 10.1021/jacs.5c09558 (2025). [12] I. Poltavsky, M. Puleva, A. Charkin-Gorbulin, G. Fon-seca, I. Batatia, N. J. Browning, S. Chmiela, M. Cui, J. T. Frank, S. Heinen, et al. , Crash testing machine learning force fields for molecules, materials, and inter-faces: molecular dynamics in the tea challenge 2023, Chem. Sci. 16 , 3738 (2025). [13] E. Praˇ snikar, M. Ljubiˇ c, A. Perdih, and J. Boriˇ sek, Ma-chine learning heralding a new development phase in molecular dynamics simulations, Artif. Intell. Rev. 57 ,102 (2024). [14] Y. Wang, J. M. L. Ribeiro, and P. Tiwary, Machine learn-ing approaches for analyzing and enhancing molecular dynamics simulations, Curr. Opin. Struct. Biol. 61 , 139 (2020). [15] J. Behler and M. Parrinello, Generalized neural-network representation of high-dimensional potential-energy sur-faces, Phys. Rev. Lett. 98 , 146401 (2007). [16] A. P. Bart´ ok, M. C. Payne, R. Kondor, and G. Cs´ anyi, Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons, Phys. Rev. Lett. 104 , 136403 (2010). [17] P. Friederich, F. H¨ ase, J. Proppe, and A. Aspuru-Guzik, Machine-learned potentials for next-generation matter simulations, Nat. Mater. 20 , 750 (2021). [18] N. Thomas, T. Smidt, S. Kearnes, L. Yang, L. Li, K. Kohlhoff, and P. Riley, Tensor field networks: Rotation-and translation-equivariant neural networks for 3d point clouds, arXiv preprint arXiv:1802.08219 11 
+
+10.48550/arXiv.1802.08219 (2018). [19] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, E (3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials, Nat. Commun. 13 , 2453 (2022). [20] I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Cs´ anyi, Mace: Higher order equivariant message pass-ing neural networks for fast and accurate force fields, Adv. Neural Inf. Process. Syst. 35 , 11423 (2022). [21] I. Batatia, S. Batzner, D. P. Kov´ acs, A. Musaelian, G. N. Simm, R. Drautz, C. Ortner, B. Kozinsky, and G. Cs´ anyi, The design space of E (3)-equivariant atom-centred inter-atomic potentials, Nat. Mach. Intell. 7, 56 (2025). [22] O. T. Unke, S. Chmiela, H. E. Sauceda, M. Gastegger, I. Poltavsky, K. T. Sch¨ utt, A. Tkatchenko, and K. R. M¨ uller, Machine Learning Force Fields, Chem. Rev. 121 ,10142 (2021). [23] P. Reiser, M. Neubert, A. Eberhard, L. Torresi, C. Zhou, C. Shao, H. Metni, C. van Hoesel, H. Schopmans, T. Sommer, and P. Friederich, Graph neural networks for materials science and chemistry, Commun. Mater. 3,10.1038/s43246-022-00315-6 (2022). [24] A. Bochkarev, Y. Lysogorskiy, and R. Drautz, Graph atomic cluster expansion for semilocal interactions be-yond equivariant message passing, Phys. Rev. X 14 ,021036 (2024). [25] R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99 ,014104 (2019). [26] R. Jacobs, D. Morgan, S. Attarian, J. Meng, C. Shen, Z. Wu, C. Y. Xie, J. H. Yang, N. Artrith, B. Blaiszik, 
+
+et al. , A practical guide to machine learning interatomic potentials–status and future, Curr. Opin. Solid State Mater. Sci. 35 , 101214 (2025). [27] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kov´ acs, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, F. Bigi, S. M. Blau, V. C˘ arare, M. Ceriotti, S. Chong, J. P. Darby, S. De, F. Della Pia, V. L. Deringer, R. Elijoˇ sius, Z. El-Machachi, E. Fako, F. Falcioni, A. C. Ferrari, J. L. A. Gardner, M. J. Gawkowski, A. Genreith-Schriever, J. George, R. E. A. Goodall, J. Grandel, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. H. Ho, S. Hofmann, C. Holm, J. Jaa-far, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, P. Kourtis, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuoniute, C. Lin, J. T. Margraf, I.-B. Magd˘ au, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. A. M. Rosset, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, C. Sutton, V. Svahn, T. D. Swinburne, J. Tilly, C. van der Oord, S. Var-gas, E. Varga-Umbrich, T. Vegge, M. Vondr´ ak, Y. Wang, W. C. Witt, T. Wolf, F. Zills, and G. Cs´ anyi, A founda-tion model for atomistic materials chemistry, J. Chem. Phys. 163 , 184110 (2025). [28] H. Yang, C. Hu, Y. Zhou, X. Liu, Y. Shi, J. Li, G. Li, Z. Chen, S. Chen, C. Zeni, et al. , Mattersim: A deep learning atomistic model across elements, tem-peratures and pressures, arXiv preprint arXiv:2405.04967 10.48550/arXiv.2405.04967 (2024). [29] B. Rhodes, S. Vandenhaute, V. ˇSimkus, J. Gin, J. God-win, T. Duignan, and M. Neumann, Orb-v3: atom-istic simulation at scale, arXiv preprint arXiv:2504.06231 10.48550/arXiv.2504.06231 (2025). [30] Y. Lysogorskiy, A. Bochkarev, and R. Drautz, Graph atomic cluster expansion for foundational machine learning interatomic potentials, npj Comput. Mater. 10.1038/s41524-026-01979-1 (2026). [31] J. Riebesell, R. E. Goodall, P. Benner, Y. Chiang, B. Deng, A. A. Lee, A. Jain, and K. A. Persson, Matbench discovery–a framework to evaluate machine learning crystal stability predictions, arXiv preprint arXiv:2308.14920 10.1038/s42256-025-01055-1 (2023). [32] Y. Chiang, T. Kreiman, E. Weaver, M. Kuner, C. Zhang, A. Kaplan, D. Chrzan, S. M. Blau, A. S. Krishnapriyan, and M. Asta, MLIP arena: Advancing fairness and transparency in machine learning interatomic potentials through an open and accessible benchmark platform, in 
+
+AI for Accelerated Materials Design - ICLR 2025 (2025). [33] J. H¨ anseroth, M. Großmann, M. Grunert, E. Runge, and C. Dreßler, High-throughput screening and mechanistic insights into solid acid proton conductors, arXiv preprint arXiv:2602.15268 10.48550/arXiv.2602.15268 (2026). [34] A. Fl¨ ototto, B. Spetzler, R. von Stackelberg, M. Ziegler, E. Runge, and C. Dreßler, Large-scale cooperative sul-fur vacancy dynamics in two-dimensional MoS2 from ma-chine learning interatomic potentials, Small 22 , e10679 (2026). [35] J. H¨ anseroth, A. Fl¨ ototto, M. N. Qaisrani, and C. Dreßler, Fine-tuning unifies foundational machine-learned interatomic potential architectures at ab initio accuracy, J. Phys. Chem. Lett. 17 , 3152 (2026). [36] J. H¨ anseroth and C. Dreßler, Optimizing machine learn-ing interatomic potentials for hydroxide transport: Sur-prising efficiency of single-concentration training, J. Chem. Phys. 163 , 10.1063/5.0284063 (2025). [37] H. Weiske, R. Barrett, R. Tonner-Zech, P. Melix, and J. Westermayr, Statistics makes a difference: Machine learning adsorption dynamics of functionalized cyclooc-tine on Si (001) at DFT accuracy, arXiv preprint arXiv:2509.14828 10.48550/arXiv.2509.14828 (2025). [38] P.-Y. Chen, K. Shibata, and T. Mizoguchi, High preci-sion machine learning force field development for batio3 phase transitions, amorphous, and liquid structures, APL Mach. Learn. 3, 10.1063/5.0268149 (2025). [39] X. Liu, K. Zeng, Z. Luo, Y. Wang, T. Zhao, and Z. Xu, Fine-tuning universal machine-learned interatomic po-tentials: A tutorial on methods and applications, arXiv preprint arXiv:2506.21935 10.48550/arXiv.2506.21935 (2025). [40] H. Kaur, F. Della Pia, I. Batatia, X. R. Advincula, B. X. Shi, J. Lan, G. Cs´ anyi, A. Michaelides, and V. Kapil, Data-efficient fine-tuning of foundational models for first-principles quality sublimation enthalpies, Faraday Dis-cuss. 256 , 120 (2025). [41] B. Deng, Y. Choi, P. Zhong, J. Riebesell, S. Anand, Z. Li, K. Jun, K. A. Persson, and G. Ceder, Systematic soften-ing in universal machine learning interatomic potentials, npj Comput. Mater. 11 , 9 (2025). [42] J. H¨ anseroth, M. N. Qaisrani, M. Moradi, K. Skadell, and C. Dreßler, Revealing hydroxide ion transport mechanisms in commercial anion-exchange membranes at nano-scale from machine-learned interatomic po-tential simulations, arXiv preprint arXiv:2603.13705 12 
+
+10.48550/arXiv.2506.13705 (2026). [43] T. L. Tompa, E. Varga-Umbrich, I. Batatia, A. M. Elena, N. Bernstein, and G. Cs´ anyi, Fine-tuning mlip foundation models: strategies for accuracy and transferability, arXiv preprint arXiv:2606.12704 10.48550/arXiv.2606.12704 (2026). [44] M. Radova, W. G. Stark, C. S. Allen, R. J. Maurer, and A. P. Bart´ ok, Fine-tuning foundation models of materials interatomic potentials with frozen transfer learning, npj Comput. Mater. 11 , 237 (2025). [45] E. J. Hu, yelong shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, and W. Chen, LoRA: Low-rank adap-tation of large language models, in International Confer-ence on Learning Representations (2022). [46] J. Grandel, P. Benner, and J. George, Parameter-efficient fine-tuning of machine-learning interatomic potentials for phonon and thermal properties, arXiv preprint arXiv:2604.01017 10.48550/arXiv.2604.01017 (2026). [47] J. Kim, J. Kim, J. Kim, J. Lee, Y. Park, Y. Kang, and S. Han, Data-efficient multifidelity training for high-fidelity machine learning interatomic potentials, J. Am. Chem. Soc. 147 , 1042 (2024). [48] H. Beck, P. Simko, L. L. Schaaf, O. Marsalek, and C. Schran, Multi-head committees enable direct uncer-tainty prediction for atomistic foundation models, J. Chem. Phys. 163 , 234103 (2025). [49] K. Yamada, T. Sagara, Y. Yamane, H. Ohki, and T. Okuda, Superprotonic conductor CsH2PO4 studied by 1H, 31P NMR and X-ray diffraction, Solid State Ion. 
+
+175 , 557 (2004). [50] L. S. Wang, S. V. Patel, S. S. Sanghvi, Y.-Y. Hu, and S. M. Haile, Structure and properties of Cs7 (H4PO4)(H2PO4) 8: A new superprotonic solid acid fea-turing the unusual polycation (H4PO4)+, J. Am. Chem. Soc. 142 , 19992 (2020). [51] C. Dreßler, J. H¨ anseroth, and D. Sebastiani, Coexistence of cationic and anionic phosphate moieties in solids: Un-usual but not impossible, J. Phys. Chem. Lett. 14 , 7249 (2023). [52] A. D. Stephens, M. N. Qaisrani, M. T. Ruggiero, G. D´ ıaz Mir´ on, U. N. Morzan, M. C. Gonz´ alez Le-brero, S. T. Jones, E. Poli, A. D. Bond, P. J. Wood-hams, et al. , Short hydrogen bonds enhance nonaro-matic protein-related fluorescence, Proc. Natl. Acad. Sci. U.S.A. 118 , e2020389118 (2021). [53] G. D. Mir´ on, J. A. Semelak, L. Grisanti, A. Rodriguez, I. Conti, M. Stella, J. Velusamy, N. Seriani, N. Doˇ sli´ c, I. Rivalta, et al. , The carbonyl-lock mechanism underly-ing non-aromatic fluorescence in biological matter, Nat. Commun. 14 , 7325 (2023). [54] M. N. Qaisrani, N. Kumar, C. Dreßler, R. Gebauer, and A. Hassanali, Acid–base chemistry of short hydrogen bonds: A tale of schr¨ odinger’s cat in glutamine-derived crystals, J. Phys. Chem. Lett. 16 , 8588 (2025). [55] J. H¨ anseroth, D. Sebastiani, J. A. Jimenez Siegert, J. Scholl, K. Skadell, and C. Dreßler, Hydroxide mobility in aqueous systems: Combining ab initio accuracy with millisecond timescales, Small , 2500931 (2025). [56] M. Zeilinger and T. F. F¨ assler, Revision of the Li13Si4 structure, Struct. Rep. 69 , i81 (2013). [57] C. Kirsch, C. Dreßler, and D. Sebastiani, Li+ diffusion in crystalline lithium silicides: influence of intrinsic point defects, J. Phys. Energy 7, 025003 (2025). [58] D. Li, B. Wu, X. Zhu, J. Wang, B. Ryu, W. D. Lu, W. Lu, and X. Liang, MoS 2 memristors exhibiting vari-able switching characteristics toward biorealistic synaptic emulation, ACS Nano 12 , 9240 (2018). [59] B. Spetzler, D. Abdel, F. Schwierz, M. Ziegler, and P. Farrell, The role of vacancy dynamics in two-dimensional memristive devices, Adv. Electron. Mater. 
+
+10 , 10.1002/aelm.202300635 (2024). [60] I. Batatia, C. Lin, J. Hart, E. Kasoar, A. M. Elena, S. W. Norwood, T. Wolf, and C. G´ abor, Cross learn-ing between electronic structure theories for unify-ing molecular, surface, and inorganic crystal foun-dation force fields, arXiv preprint arXiv:2510.25380 10.48550/arXiv.2510.25380 (2025). [61] F. Bigi, P. Pegolo, A. Mazitov, and M. Ceriotti, Push-ing the limits of unconstrained machine-learned in-teratomic potentials, arXiv preprint arXiv:2601.16195 10.48550/arXiv.2601.16195 (2026). [62] A. Mazitov, F. Bigi, M. Kellner, P. Pegolo, D. Tisi, G. Fraux, S. Pozdnyakov, P. Loche, and M. Ceriotti, Pet-mad as a lightweight universal interatomic potential for advanced materials modeling, Nat. Commun. 16 , 10653 (2025). [63] C. Malosso, F. Bigi, P. Pegolo, J. W. Abbott, P. Loche, M. Rossi, M. Ceriotti, and A. Mazitov, High-quality, high-information datasets for universal atom-istic machine learning, arXiv preprint arXiv:2603.02089 10.48550/arXiv.2603.02089 (2026). [64] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, and K. A. Persson, Commentary: The Materials Project: A materials genome approach to accelerating materials innovation, APL Mater. 1, 011002 (2013). [65] S. P. Ong, S. Cholia, A. Jain, M. Brafman, D. Gunter, G. Ceder, and K. A. Persson, The Materials Application Programming Interface (API): A simple, flexible and ef-ficient API for materials data based on REpresentational State Transfer (REST) principles, Comput. Mater. Sci. 
+
+97 , 209–215 (2015). [66] B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, Chgnet as a pretrained universal neural network potential for charge-informed atomistic modelling, Nat. Mach. Intell. 5, 1031 (2023). [67] J. Schmidt, N. Hoffmann, H.-C. Wang, P. Borlido, P. J. M. A. Carri¸ co, T. F. T. Cerqueira, S. Botti, and M. A. L. Marques, Machine-learning-assisted determina-tion of the global zero-temperature phase diagram of ma-terials, Adv. Mater. 35 , 2210788 (2023). [68] L. Barroso-Luque, M. Shuaibi, X. Fu, B. M. Wood, M. Dzamba, M. Gao, A. Rizvi, C. L. Zitnick, and Z. W. Ulissi, Open materials 2024 (omat24) inorganic materi-als dataset and models, arXiv preprint arXiv:2410.12771 10.48550/arXiv.2410.12771 (2024). [69] D. S. Levine, M. Shuaibi, E. W. Clark Spotte-Smith, M. G. Taylor, M. R. Hasyim, K. Michel, I. Bata-tia, G. Cs´ anyi, M. Dzamba, P. Eastman, N. C. Frey, X. Fu, V. Gharakhanyan, A. S. Krishnapriyan, J. A. Rackers, S. Raja, A. Rizvi, A. S. Rosen, Z. Ulissi, S. Vargas, C. L. Zitnick, S. M. Blau, and B. M. Wood, The open molecules 2025 (omol25) dataset, eval-uations, and models, arXiv preprint arXiv:2505.08762 10.48550/arXiv.2505.08762 (2025). [70] Y. Park, J. Kim, S. Hwang, and S. Han, Scalable parallel algorithm for graph neural network interatomic poten-13 
+
+tials in molecular dynamics simulations, J. Chem. Theory Comput. 20 , 4857 (2024). [71] M. Neumann, J. Gin, B. Rhodes, S. Bennett, Z. Li, H. Choubisa, A. Hussey, and J. Godwin, Orb: Afast, scalable neural network potential, arXiv preprint arXiv:2410.22570 10.48550/arXiv.2410.22570 (2024). [72] X. Fu, Z. Wu, W. Wang, T. Xie, S. Keten, R. Gomez-Bombarelli, and T. Jaakkola, Forces are not enough: Benchmark and critical evaluation for machine learning force fields with molecular simulations, arXiv preprint arXiv:2210.07237 10.48550/arXiv.2210.07237 (2022). [73] M. Nad˘ as , , L. Dios , an, and A. Tomescu, Synthetic data generation using large language models: Advances in text and code, IEEE Access 10.1109/ACCESS.2025.3589503 (2025). [74] J. Lippert, G. Hutter and M. Parrinello, A hybrid gaus-sian and plane wave density functional scheme, Mol. Phys. 92 , 477 (1997). [75] J. Hutter, M. Iannuzzi, F. Schiffmann, and J. VandeVon-dele, cp2k: atomistic simulations of condensed matter systems, WIREs Comput. Mol. Sci. 4, 15 (2014). [76] U. Borˇ stnik, J. VandeVondele, V. Weber, and J. Hut-ter, Sparse matrix multiplication: The distributed block-compressed sparse row library, Parallel Comput. 40 , 47 (2014). [77] T. D. K¨ uhne, M. Iannuzzi, M. Del Ben, V. V. Ry-bkin, P. Seewald, F. Stein, T. Laino, R. Z. Khaliullin, O. Sch¨ utt, F. Schiffmann, et al. , CP2K: An electronic structure and molecular dynamics software package-Quickstep: Efficient and accurate electronic structure calculations, J. Chem. Phys. 152 , 10.1063/5.0007045 (2020). [78] M. Iannuzzi, J. Wilhelm, F. Stein, A. Bussy, H. El-gabarty, D. Golze, A. Hehn, M. Graml, S. Marek, B. S. G¨ okmen, et al. , The cp2k program pack-age made simple, arXiv preprint arXiv:2508.15559 10.48550/arXiv.2508.15559 (2025). [79] J. VandeVondele, M. Krack, F. Mohamed, M. Parrinello, T. Chassaing, and J. Hutter, Quickstep: Fast and accu-rate density functional calculations using a mixed gaus-sian and plane waves approach, Comput. Phys. Commun. 
+
+167 , 103 (2005). [80] J. VandeVondele and J. Hutter, An efficient orbital trans-formation method for electronic structure calculations, J. Chem. Phys. 118 , 4365 (2003). [81] A. Becke, Density-functional exchange-energy approxi-mation with correct asymptotic behavior, Phys. Rev. A 
+
+38 , 3098 (1988). [82] C. Lee, W. Yang, and R. Parr, Development of the colle-salvetti correlation-energy formula into a functional of the electron density, Phys. Rev. A 37 , 785 (1988). [83] J. P. Perdew, K. Burke, and M. Ernzerhof, Generalized gradient approximation made simple, Phys. Rev. Lett. 
+
+77 , 3865 (1996). [84] C. Hartwigsen, S. Goedecker, and J. Hutter, Relativistic separable dual-space gaussian pseudopotentials from h to rn, Phys. Rev. B 58 , 3641 (1998). [85] M. Krack, Pseudopotentials for h to kr optimized for gradient-corrected exchange-correlation functionals, Theor. Chem. Acc. 114 , 145 (2005). [86] S. Goedecker, M. Teter, and J. Hutter, Separable dual-space gaussian pseudopotentials, Phys. Rev. B 54 , 1703 (1996). [87] J. VandeVondele and J. Hutter, Gaussian basis sets for accurate calculations on molecular systems in gas and condensed phases, J. Chem. Phys. 127 , 114105 (2007). [88] S. Nos´ e, A Unified Formulation of the Constant Temper-ature Molecular Dynamics Methods, J. Chem. Phys. 81 ,511 (1984). [89] S. Nos´ e, A Molecular Dynamics Method for Simulations in the Canonical Ensemble, Mol. Phys. 52 , 255 (1970). [90] G. J. Martyna, M. L. Klein, and M. Tuckerman, Nos´ e-Hoover chains: The Canonical Ensemble via Continuous Dynamics, J. Chem. Phys. 97 , 2635 (1992). [91] J. Kim, J. You, Y. Park, Y. Lim, Y. Kang, J. Kim, H. Jeon, S. Ju, D. Hong, S. Y. Lee, S. Choi, Y. Kim, J. W. Lee, and S. Han, Optimizing cross-domain trans-fer for universal machine learning interatomic potentials, Nat. Commun. 17 , 10.1038/s41467-026-70195-8 (2026). [92] F. Bigi, J. W. Abbott, P. Loche, A. Mazitov, D. Tisi, M. F. Langer, A. Goscinski, P. Pegolo, S. Chong, R. Goswami, P. Febrer, S. Chorna, M. Kellner, M. Ceri-otti, and G. Fraux, Metatensor and metatomic: Founda-tional libraries for interoperable atomistic machine learn-ing, J. Chem. Phys. 164 , 064113 (2026). [93] A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dulak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. Jensen, J. Kermode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Pe-terson, C. Rostgaard, J. Schiøtz, O. Sch¨ utt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, The atomic simulation en-vironment—a python library for working with atoms, J. Phys.: Condens. Matter 29 , 273002 (2017). 14 U n i v e r s a l
+
+M
+
+L I P
+
+t r a j e c t o r y
+
+A
+
+I
+
+M
+
+D
+
+t r a j e c t o r y 
+
+> sub-sampled &
+> DFT-labeled
+> sub-sampled
+
+UNIVERSAL MLIP 
+
+fine-tune 
+
+## MATERIAL -SPECIFIC MLIP Molecular dynamics T r a j e c t o r y 
+
+> sub-sampled &
+> DFT-labeled
+
+iterative fine-tune 
+
+FIG. 4. TOC Graphic Supplementary Information for ”Universal Interatomic Potentials as Configuration-Space Generators for One-Shot and Iterative Fine-Tuning of Ab Initio-Accurate Material-Specific Models” 
+
+Jonas H¨ anseroth, 1, ∗ Aaron Fl¨ ototto, 1 and Christian Dreßler 1
+
+> 1Theoretical Solid State Physics, Institute of Physics, Technische Universit¨ at Ilmenau, 98693 Ilmenau, Germany
+> (Dated: June 23, 2026)
+
+For more information on abbreviations, please refer to the main text, where all abbreviations are defined in detail. Abbreviations not introduced in the main text are defined here. 
+
+Supplementary Note 1: MACE-MP-0 (small) universal model - prediction of physical properties 3 Supplementary Note 2: MatterSim-v1.0.0-5M universal model - prediction of physical properties 4Supplementary Note 3: SevenNet-0 universal model - prediction of physical properties 5Supplementary Note 4: GRACE-1L-OAM universal model - prediction of physical properties 6Supplementary Note 5: ORB-v2 universal model - prediction of physical properties 7Supplementary Note 6: MACE-OMAT-0 (medium) universal model - prediction of physical properties 8Supplementary Note 7: GRACE-2L-OAM universal model - prediction of physical properties 9Supplementary Note 8: PET-OAM-XL universal model - prediction of physical properties 10 Supplementary Note 9: PET-MAD-S-v1.5.0 universal model - prediction of physical properties 11 Supplementary Note 10: Universal model performance - Force errors 12 Supplementary Note 11: Universal model performance - Energy errors 13 Supplementary Note 12: Discussion of universal model performances 14 Supplementary Note 13: Fine-tuned MACE model performance - Energy errors - Dataset generating universal model vs. systems vs. dataset size (universal model dataset) 15 Supplementary Note 14: Fine-tuned model (universal model dataset) - prediction of potential energy profile for sulfur-vacancy jump in MoS 2 16 Supplementary Note 15: MACE-MP-0 fine-tuned universal model (MACE-OMAT dataset) -prediction of physical properties 17 Supplementary Note 16: MACE-MP-0 fine-tuned universal model (PET-OAM dataset) -prediction of physical properties 18 Supplementary Note 17: MACE-MP-0 fine-tuned universal model (AIMD dataset) - prediction of physical properties 19 2
+
+Supplementary Note 18: Fine-tuned model performance - Force errors - MLIPs vs. systems vs. dataset size (MACE-OMAT universal model dataset) 20 Supplementary Note 19: Fine-tuned model performance - Energy errors - MLIPs vs. systems vs. dataset size (MACE-OMAT universal model dataset) 21 Supplementary Note 20: Fine-tuned model (MACE-OMAT-0 model dataset) - prediction of potential energy profile for sulfur-vacancy jump in MoS 2 22 Supplementary Note 21: SevenNet-0 fine-tuned universal model (MACE-OMAT dataset) -prediction of physical properties 23 Supplementary Note 22: MatterSim-Large fine-tuned universal model (MACE-OMAT dataset) - prediction of physical properties 24 Supplementary Note 23: Trained MACE model performance - Force errors - Dataset generating universal model vs. systems vs. dataset size (universal model dataset) 25 Supplementary Note 24: Trained MACE model performance - Energy errors - Dataset generating universal model vs. systems vs. dataset size (universal model dataset) 26 Supplementary Note 25: Trained-from-scratch model (universal model dataset) - prediction of potential energy profile for sulfur-vacancy jump in MoS 2 27 Supplementary Note 26: Comparing iterative training against single time fine-tuning -prediction of potential energy profile for sulfur-vacancy jump in MoS 2 28 Supplementary Note 27: Iterative training additional model generations 29 Supplementary Note 28: Comparing iterative training dataset composition 30 References 31 3
+
+SUPPLEMENTARY NOTE 1: MACE-MP-0 (SMALL) UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 200 400 600 Time (ps) 012345MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 1.76 
+
+a CDP, CPP H + MSD             
+
+> CDP MLIP DH+= 1.05 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 0.59 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 200 400 Time (ps) 0250 500 750 1000 1250 MSD ( ˚ A2)
+
+b KOH MSD                           
+
+> OH −MLIP DOH −= 0.55 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.01 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.01 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 50 100 Time (ps) 0510 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD       
+
+> MLIP DLi += 0.012 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 
+
+−0.25 0.00 0.25 0.50 0.75 E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.021 eV DFT Ebarrier = 0.023 eV
+
+MACE-MP-0 (small) foundation model vs DFT 
+
+Supplementary Figure 1. MACE-MP-0 (small) universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffu-sion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 4
+
+SUPPLEMENTARY NOTE 2: MATTERSIM-V1.0.0-5M UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 250 500 750 Time (ps) 0246MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 0.96 
+
+a CDP, CPP H + MSD             
+
+> CDP MLIP DH+= 0.97 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 1.01 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 200 Time (ps) 0200 400 600 800 MSD ( ˚ A2)
+
+b KOH MSD                           
+
+> OH −MLIP DOH −= 0.39 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.01 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.02 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 50 100 Time (ps) 0510 15 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD       
+
+> MLIP DLi += 0.026 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.001 eV DFT Ebarrier = 0.023 eV
+
+MatterSim (large) foundation model vs DFT 
+
+Supplementary Figure 2. MatterSim-v1.0.0-5M universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffu-sion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 5
+
+SUPPLEMENTARY NOTE 3: SEVENNET-0 UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 200 400 600 800 Time (ps) 02468MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 2.21 
+
+a CDP, CPP H + MSD             
+
+> CDP MLIP DH+= 1.65 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 0.75 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 100 200 300 400 Time (ps) 0200 400 600 MSD ( ˚ A2)
+
+b KOH MSD                           
+
+> OH −MLIP DOH −= 0.31 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.02 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.01 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 25 50 75 100 Time (ps) 0510 15 20 25 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD       
+
+> MLIP DLi += 0.040 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.00 0.25 0.50 0.75 1.00 Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.002 eV DFT Ebarrier = 0.023 eV
+
+SevenNet-0 foundation model vs DFT 
+
+Supplementary Figure 3. SevenNet-0 (small) universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffusion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 6
+
+SUPPLEMENTARY NOTE 4: GRACE-1L-OAM UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 2000 4000 Time (ps) 010 20 30 MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 0.75 
+
+a CDP, CPP H + MSD 0 250 0.02.5            
+
+> CDP MLIP DH+= 1.08 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 1.44 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 2000 4000 Time (ps) 020000 40000 60000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 02000                           
+
+> OH −MLIP DOH −= 2.25 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.00 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.00 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 25 50 75 100 Time (ps) 0510 15 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD       
+
+> MLIP DLi += 0.021 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.00 0.25 0.50 0.75 1.00 Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.009 eV DFT Ebarrier = 0.023 eV
+
+GRACE-1L-OAM foundation model vs DFT 
+
+Supplementary Figure 4. GRACE-1L-OAM universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffusion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 7
+
+SUPPLEMENTARY NOTE 5: ORB-V2 UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 2000 4000 Time (ps) 010 20 30 40 50 MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 1.42 
+
+a CDP, CPP H + MSD 0 250 02            
+
+> CDP MLIP DH+= 1.66 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 1.16 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 2000 4000 Time (ps) 010000 20000 30000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 01000                           
+
+> OH −MLIP DOH −= 1.26 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.01 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.02 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 50 100 Time (ps) 0510 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD       
+
+> MLIP DLi += 0.011 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.018 eV DFT Ebarrier = 0.023 eV
+
+ORB v2 foundation model vs DFT 
+
+Supplementary Figure 5. ORB-V2 universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffusion co-efficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential en-ergy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 8
+
+SUPPLEMENTARY NOTE 6: MACE-OMAT-0 (MEDIUM) UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 1000 2000 Time (ps) 0246MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 42.44 
+
+a CDP, CPP H + MSD 0 250 02            
+
+> CDP MLIP DH+= 0.47 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 0.01 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 1000 2000 Time (ps) 010000 20000 30000 40000 50000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 02500                           
+
+> OH −MLIP DOH −= 3.02 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.03 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.03 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 1000 2000 3000 Time (ps) 0200 400 600 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 010       
+
+> MLIP DLi += 0.037 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.00 0.25 0.50 0.75 1.00 Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.071 eV DFT Ebarrier = 0.023 eV
+
+MACE-OMAT foundation model vs DFT 
+
+Supplementary Figure 6. MACE-OMAT-0 (medium) universal model . Comparison of different physical properties ob-tained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffusion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displace-ments and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - po-tential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group 
+
+radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer co-ordinate. 9
+
+SUPPLEMENTARY NOTE 7: GRACE-2L-OAM UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 500 1000 1500 Time (ps) 0.02.55.07.510 .012 .5MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 89.89 
+
+a CDP, CPP H + MSD 0 250 02            
+
+> CDP MLIP DH+= 1.15 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 0.01 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 500 1000 1500 Time (ps) 01000 2000 3000 4000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 0500                           
+
+> OH −MLIP DOH −= 0.75 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.01 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.01 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 500 1000 1500 Time (ps) 0510 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 010       
+
+> MLIP DLi += 0.002 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.00 0.25 0.50 0.75 1.00 Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.000 eV DFT Ebarrier = 0.023 eV
+
+GRACE-2L-OAM foundation model vs DFT 
+
+Supplementary Figure 7. GRACE-2L-OAM universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffusion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 10 
+
+SUPPLEMENTARY NOTE 8: PET-OAM-XL UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 500 1000 1500 Time (ps) 0246810 MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 40.52 
+
+a CDP, CPP H + MSD 0 250 02            
+
+> CDP MLIP DH+= 1.10 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 0.03 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 500 1000 1500 Time (ps) 0.00.20.40.60.81.0MSD ( ˚ A2)
+
+×10 8
+
+b KOH MSD 0 200 05
+
+×10 6                          
+
+> OH −MLIP DOH −= 4948.04 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 4.03 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 2.63 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 500 1000 1500 Time (ps) 0100 200 300 400 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 010       
+
+> MLIP DLi += 0.028 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.00 0.25 0.50 0.75 1.00 Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.009 eV DFT Ebarrier = 0.023 eV
+
+PET-OAM-XL foundation model vs DFT 
+
+Supplementary Figure 8. PET-OAM-XL universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffusion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 11 
+
+SUPPLEMENTARY NOTE 9: PET-MAD-S-V1.5.0 UNIVERSAL MODEL - PREDICTION OF PHYSICAL PROPERTIES 0 500 1000 1500 2000 Time (ps) 010 20 30 MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 9.58 
+
+a CDP, CPP H + MSD 0 250 0.02.5            
+
+> CDP MLIP DH+= 2.14 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CPP MLIP DH+= 0.22 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns
+
+0 50 100 150 200 Time (ps) 0200 400 600 800 1000 MSD ( ˚ A2)
+
+b KOH MSD                           
+
+> OH −MLIP DOH −= 0.48 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.13 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.10 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 500 1000 1500 Time (ps) 050 100 150 200 250 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 020       
+
+> MLIP DLi += 0.039 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.00 0.25 0.50 0.75 1.00 Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.015 eV DFT Ebarrier = 0.023 eV
+
+PET-MAD-S (v1.5) foundation model vs DFT 
+
+Supplementary Figure 9. PET-MAD-S-v1.5.0 universal model . Comparison of different physical properties obtained with first-principles methods and the universal model: a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - proton diffu-sion coefficients ratios of D(CDP)/D(CPP), b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 12 
+
+SUPPLEMENTARY NOTE 10: UNIVERSAL MODEL PERFORMANCE - FORCE ERRORS GRACE-1L-OAM GRACE-2L-OAM MACE-OMAT (medium) MACE-MP-0 (small) MatterSim-v1.0.0-5M ORB v2 PET-OAM-XL PET-MAD-S-v1.5 SevenNet-0 SevenNet-Omni (mpa) MLIP CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.278 0.190 0.182 0.241 0.196 0.192 0.175 0.492 0.203 0.185 0.279 0.195 0.197 0.231 0.196 0.197 0.179 0.495 0.204 0.187 0.129 0.086 0.109 0.100 0.095 0.091 0.319 0.767 0.085 0.078 0.092 0.085 0.080 0.133 0.106 0.086 0.104 0.121 0.166 0.071 0.437 0.353 0.424 0.448 0.348 0.329 0.277 0.572 0.358 0.277 0.259 0.235 0.167 0.510 0.232 0.451 0.090 0.264 0.545 0.177 0.175 0.156 0.188 0.156 0.161 0.153 0.144 0.692 0.155 0.153 0.10.20.30.40.50.60.7MAE force (eV/ ˚ A) 
+
+Supplementary Figure 10. Universal model force errors . Mean-absolute-error on the predicted forces (in eV/˚ A) of the different universal MLIPs on the different systems: CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 13 
+
+SUPPLEMENTARY NOTE 11: UNIVERSAL MODEL PERFORMANCE - ENERGY ERRORS GRACE-1L-OAM GRACE-2L-OAM MACE-OMAT (medium) MACE-MP-0 (small) MatterSim-v1.0.0-5M ORB v2 PET-OAM-XL PET-MAD-S-v1.5 SevenNet-0 SevenNet-Omni (mpa) MLIP CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 307.6877 307.6868 307.6880 307.6839 307.6873 307.6877 307.6898 307.1338 307.6854 307.6883 292.8482 292.8452 292.8432 292.8430 292.8482 292.8462 292.8486 292.3003 292.8443 292.8477 161.6220 161.6173 161.6192 161.6135 161.6146 161.6121 161.7287 161.3618 161.6156 161.6143 177.2269 177.2251 177.2334 177.2145 177.2306 177.2236 177.2558 177.0705 177.2162 177.2222 139.4302 139.4324 139.4791 139.4220 139.4423 139.4280 139.4236 139.0057 139.4352 139.4222 807.5241 807.5289 807.5078 807.5087 807.5336 807.5487 807.5341 806.9514 807.5090 807.5310 149.6444 149.6389 149.6449 149.6350 149.6371 149.6342 149.6384 149.2650 149.6380 149.6362 200 300 400 500 600 700 800 MAE energy (eV/atom) 
+
+Supplementary Figure 11. Universal model energy errors . Mean-absolute-error on the predicted energies of the different universal MLIPs on the different systems: CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 14 
+
+> SUPPLEMENTARY NOTE 12: DISCUSSION OF UNIVERSAL MODEL PERFORMANCES
+
+A detailed discussion of the performance of the earlier universal models, namely MACE-MP-0 (small) [1], 
+
+MatterSim-v1.0.0-5M [2], SevenNet-0 [3], GRACE-1L-OAM [4], and ORB-v2 [5], in predicting the physical properties of the seven investigated systems is provided in our previous work [6]. These results are summarized in Supplementary Notes 1-5 and 11-12. The performance of four newer universal models, namely MACE-OMAT-0 (medium) [7], GRACE-2L-OAM [4], 
+
+PET-MAD-S-v1.5.0 [8, 9], and PET-OAM-XL [10], in predicting the material-specific properties across the seven systems is shown in Supplementary Notes 6-12. The force errors reported in Supplementary Note 11 show that these newer universal models perform substantially better than the previously investigated models. For several materials, some of the models achieve force errors below 0 .1 eV/˚ A. Among all investigated models, PET-OAM-XL yields the lowest overall errors, achieving the best performance for five of the seven systems. 
+
+PET-OAM-XL also shows the best performance in predicting the energy profile of the sulfur-vacancy jump in MoS 2, although it still does not reach DFT-level accuracy. Furthermore, it is able to reproduce the solvation structure of phenol in water and the lithium-ion diffusion in Li 13 Si 4. These properties are also well described by the MACE-OMAT-0 (medium) universal model. The PET-MAD-S-v1.5.0 model is able to predict the solvation of the OH group of phenol in water, as well as Li + diffusion in Li 13 Si 4 and the mobility of ions and molecules in aqueous potassium hydroxide solution. The 
+
+GRACE-2L-OAM model reproduces the local solvation environment of the phenol OH group in water and the mobility of K + and H 2O in aqueous potassium hydroxide solution, but overestimates the hydroxide-ion diffusion. Overall, these newer models show improved zero-shot accuracy compared with the previously investigated universal models. This improvement is likely related to their larger and more diverse training datasets, which include data from Alexandria [11, 12], the Materials Project [13–15], Open Materials 2024 [12], and Open Molecules 2025 [16], as well as to the increased number of parameters in these models. 15 
+
+SUPPLEMENTARY NOTE 13: FINE-TUNED MACE MODEL PERFORMANCE - ENERGY ERRORS - DATASET GENERATING UNIVERSAL MODEL VS. SYSTEMS VS. DATASET SIZE (UNIVERSAL MODEL DATASET) 200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0034 0.0004 0.0002 0.0001 0.0043 0.0034 0.0142 0.0031 0.0004 0.0015 0.0026 0.0011 0.0007 0.0005 
+
+AIMD 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0014 0.0011 0.0018 0.0019 0.0029 0.0046 0.0012 0.0002 0.0174 0.0069 0.0139 0.0361 0.1940 0.1939 
+
+MACE-OMAT 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0020 0.0021 0.0042 0.0022 0.0021 0.0031 0.0006 0.0009 144.3680 0.0015 813.7147 0.0298 0.1932 0.1952 
+
+GRACE-OAM 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0010 0.0060 0.0020 0.0041 0.0018 0.0049 0.0032 0.0024 0.0002 0.0016 0.0526 0.0247 0.1922 0.1949 
+
+PET-OAM 
+
+0.000 0.001 0.002 0.003 0.004 0.005 MAE energy (eV/atom) 
+
+Supplementary Figure 12. Fine-tuned MACE model energy errors . Mean-absolute-error on the predicted energies of the fine-tuned MACE-MP-0 universal MLIPs (different universal dataset, 2000 frames) on the different systems: CsH 2PO 4
+
+(CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 16 
+
+SUPPLEMENTARY NOTE 14: FINE-TUNED MODEL (UNIVERSAL MODEL DATASET) -PREDICTION OF POTENTIAL ENERGY PROFILE FOR SULFUR-VACANCY JUMP IN MOS 20.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MACE @ GRACE-OAM structures 
+
+> DFT MACE-MP-0 (small) GRACE-2L-OAM MACE-FT 200 f. (AIMD) MACE-FT 2000 f. (AIMD) MACE-FT 2000 f. (GRACE-OAM)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MACE @ PET-OAM structures 
+
+> DFT MACE-MP-0 (small) PET-OAM-XL MACE-FT 200 f. (AIMD) MACE-FT 2000 f. (AIMD) MACE-FT 200 f. (PET-OAM) MACE-FT 2000 f. (PET-OAM)
+
+Supplementary Figure 13. Energy profiles computed with fine-tuned models with variable universal model dataset . Potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies in MoS 2 via NEB calculations using fine-tuned MACE-MP-0 (small) universal models on DFT-recalculated universal model structures (orange lines) ob-tained with GRACE-2L-OAM (left) and PET-OAM-XL (right); and fine-tuned MACE-MP-0 (small) universal models on sub-sampled AIMD trajectories (red lines); with dataset sizes of 200 (dotted lines) and 2000 (dashed lines), MACE-MP-0 
+
+(small) (solid blue line) and the respective universal model (solid gray line) as well as the DFT reference profile (solid black line). The model fine-tuned on the dataset consisting out of 200 recalculated GRACE-2L-OAM data points is not able to compute converged structures for the NEB replicas. 17 
+
+SUPPLEMENTARY NOTE 15: MACE-MP-0 FINE-TUNED UNIVERSAL MODEL (MACE-OMAT DATASET) - PREDICTION OF PHYSICAL PROPERTIES 1/510 1/540 1/585 1/620 1/660 1/T (1/K) 10 −4
+
+10 −3
+
+10 −2
+
+> D(H) ( ˚ A2/ps)
+
+a CDP, CPP activation energy     
+
+> CDP Ea=0.47 eV CPP Ea=0.89 eV
+
+0 500 1000 1500 Time (ps) 05000 10000 15000 20000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 02000                           
+
+> OH −MLIP DOH −= 2.17 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.18 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.17 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 1000 2000 Time (ps) 0250 500 750 1000 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 020       
+
+> MLIP DLi += 0.051 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.028 eV DFT Ebarrier = 0.023 eV
+
+MACE-FT (2000 frames, stride 100, MACE-OMAT foundation model structures) vs DFT 
+
+Supplementary Figure 14. MACE-FT finetuned universal model on MACE-OMAT dataset . Comparison of different physical properties obtained with first-principles methods and the fine-tuned universal models (MACE-OMAT data, 2000 frames, stride 3000): a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - activation energy of proton diffusion, b KOH -water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 18 
+
+SUPPLEMENTARY NOTE 16: MACE-MP-0 FINE-TUNED UNIVERSAL MODEL (PET-OAM DATASET) - PREDICTION OF PHYSICAL PROPERTIES 1/510 1/540 1/585 1/620 1/660 1/T (1/K) 10 −4
+
+10 −3
+
+10 −2
+
+> D(H) ( ˚ A2/ps)
+
+a CDP, CPP activation energy     
+
+> CDP Ea=0.46 eV CPP Ea=0.73 eV
+
+0 500 1000 1500 Time (ps) 05000 10000 15000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 02500                           
+
+> OH −MLIP DOH −= 2.82 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.16 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.12 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 500 1000 1500 Time (ps) 0100 200 300 400 500 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 010       
+
+> MLIP DLi += 0.039 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.024 eV DFT Ebarrier = 0.023 eV
+
+MACE-FT (2000 frames, stride 100, PET-OAM foundation model structures) vs DFT 
+
+Supplementary Figure 15. MACE finetuned universal model on PET-OAM dataset . Comparison of different physical properties obtained with first-principles methods and the fine-tuned universal models (PET-OAM data, 2000 frames, stride 3000): a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - activation energy of proton diffusion, b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 19 
+
+SUPPLEMENTARY NOTE 17: MACE-MP-0 FINE-TUNED UNIVERSAL MODEL (AIMD DATASET) -PREDICTION OF PHYSICAL PROPERTIES 0 2000 4000 6000 Time (ps) 0510 15 20 25 MSD ( ˚ A2)
+
+MLIP: D(CDP) D(CPP) = 3.96 
+
+a CDP, CPP H + MSD 0 250 02                  
+
+> CDP MLIP DH+= 0.55 ˚ A2/ns CDP DFT DH+= 0.72 ˚ A2/ns CDP U-MLIP DH+= 1.05 ˚ A2/ns CPP MLIP DH+= 0.14 ˚ A2/ns CPP DFT DH+= 1.49 ˚ A2/ns CPP U-MLIP DH+= 0.59 ˚ A2/ns
+
+0 2000 4000 Time (ps) 02000 4000 6000 8000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 0500                                        
+
+> OH −MLIP DOH −= 0.41 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps OH −U-MLIP DOH −= 0.55 ˚ A2/ps H2O MLIP DH2O= 0.15 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps H2O U-MLIP DH2O= 0.01 ˚ A2/ps K+MLIP DK+= 0.13 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps K+U-MLIP DK+= 0.01 ˚ A2/ps
+
+0 50 100 Time (ps) 0510 15 20 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 010         
+
+> MLIP DLi += 0.033 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps U-MLIPD Li += 0.012 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 
+
+−0.25 0.00 0.25 0.50 0.75 E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT U-MLIP
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT U-MLIP
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier      
+
+> MLIP Ebarrier = 0.024 eV DFT Ebarrier = 0.023 eV U-MLIPE barrier = 0.021 eV
+
+MACE-FT (2000 frames, stride 100, AIMD structures) vs DFT 
+
+Supplementary Figure 16. MACE-MP-0 finetuned universal model on AIMD dataset . Comparison of different phys-ical properties obtained with first-principles methods (black lines) and universal model MACE-MP-0 (orange lines) and the fine-tuned universal models (blue line, AIMD dataset, 2000 frames, stride 100): a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8
+
+(CPP) - activation energy of proton diffusion, b KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 20 
+
+SUPPLEMENTARY NOTE 18: FINE-TUNED MODEL PERFORMANCE - FORCE ERRORS - MLIPS VS. SYSTEMS VS. DATASET SIZE (MACE-OMAT UNIVERSAL MODEL DATASET) 200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.042 0.030 0.044 0.034 0.044 0.038 0.030 0.024 0.108 0.086 0.083 0.070 0.089 0.083 
+
+MACE 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.165 0.031 0.680 0.040 0.025 0.019 0.028 0.015 0.071 0.038 0.419 0.075 0.074 0.071 
+
+SevenNet 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.073 0.032 0.080 0.036 0.054 0.036 0.053 0.032 0.152 0.068 0.084 0.062 0.114 0.085 
+
+MatterSim 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.082 0.063 0.090 0.069 1.059 0.089 0.031 0.019 0.155 0.098 0.082 0.063 0.114 0.094 
+
+GRACE 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.080 0.042 0.092 0.074 0.065 0.048 0.054 0.037 0.156 0.107 0.202 0.088 0.112 0.098 
+
+ORB 
+
+0.00 0.02 0.04 0.06 0.08 0.10 MAE force (eV/ ˚ A) 
+
+Supplementary Figure 17. Fine-tuned model force errors . Mean-absolute-error on the predicted forces of the different fine-tuned MLIPs (same MACE-OMAT-0 (medium) universal dataset, 2000 frames) on the different systems: CsH 2PO 4
+
+(CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 21 
+
+SUPPLEMENTARY NOTE 19: FINE-TUNED MODEL PERFORMANCE - ENERGY ERRORS -MLIPS VS. SYSTEMS VS. DATASET SIZE (MACE-OMAT UNIVERSAL MODEL DATASET) 200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0014 0.0011 0.0018 0.0019 0.0029 0.0046 0.0012 0.0002 0.0174 0.0069 0.0139 0.0361 0.1940 0.1939 
+
+MACE 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0233 0.0015 0.0075 0.0065 0.0076 0.0105 0.0065 0.0038 0.0371 0.0204 0.0372 0.0268 0.1923 0.1938 
+
+SevenNet 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0083 0.0080 0.0050 0.0088 0.0132 0.0025 0.0682 0.0083 0.0350 0.0063 0.0071 0.1959 0.1742 0.2001 
+
+MatterSim 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0028 0.0001 0.0002 0.0002 0.0150 0.0021 0.0013 0.0050 0.0150 0.0059 0.0299 0.0375 0.1923 0.1923 
+
+GRACE 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0349 0.0011 0.0034 0.0085 0.0061 0.0057 0.0050 0.0020 0.0066 0.0082 0.0172 0.0332 0.2007 0.1950 
+
+ORB 
+
+0.000 0.001 0.002 0.003 0.004 0.005 MAE energy (eV/atom) 
+
+Supplementary Figure 18. Fine-tuned model energy errors . Mean-absolute-error on the predicted energies of the different fine-tuned MLIPs (same MACE-OMAT-0 (medium) universal dataset, 2000 frames) on the different systems: CsH 2PO 4
+
+(CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 22 
+
+SUPPLEMENTARY NOTE 20: FINE-TUNED MODEL (MACE-OMAT-0 MODEL DATASET) -PREDICTION OF POTENTIAL ENERGY PROFILE FOR SULFUR-VACANCY JUMP IN MOS 20.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MACE 
+
+> DFT MACE-MP-0 (small) MACE-OMAT-0 MACE-FT 200 f. (AIMD) MACE-FT 2000 f. (AIMD) MACE-FT 200 f. (MACE-OMAT-0) MACE-FT 2000 f. (MACE-OMAT-0)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+SevenNet 
+
+> DFT SevenNet-0 MACE-OMAT-0 SevenNet-FT 2000 f. (AIMD) SevenNet-FT 2000 f. (MACE-OMAT-0)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MatterSim 
+
+> DFT MatterSim Large MACE-OMAT-0 MatterSim-FT 200 f. (AIMD) MatterSim-FT 2000 f. (AIMD) MatterSim-FT 200 f. (MACE-OMAT-0) MatterSim-FT 2000 f. (MACE-OMAT-0)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+GRACE 
+
+> DFT GRACE 1L MACE-OMAT-0 GRACE-FT 200 f. (AIMD) GRACE-FT 2000 f. (AIMD) GRACE-FT 200 f. (MACE-OMAT-0) GRACE-FT 2000 f. (MACE-OMAT-0)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+ORB 
+
+> DFT ORB v2 MACE-OMAT-0 ORB-FT 200 f. (AIMD) ORB-FT 2000 f. (AIMD) ORB-FT 200 f. (MACE-OMAT-0) ORB-FT 2000 f. (MACE-OMAT-0)
+
+Supplementary Figure 19. Energy profiles computed with fine-tuned models with variable universal model dataset . Potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies in MoS 2 via NEB calculations using fine-tuned MACE-MP-0 (small), SevenNet-0 , MatterSim-v1.0.0-5M , GRACE-1L-OAM and ORB-v2 universal models on DFT-recalculated universal model structures (orange lines) obtained with MACE-OMAT-0 (medium); and fine-tuned universal models on sub-sampled AIMD trajectories (red lines); with dataset sizes of 200 (dotted lines) and 2000 (dashed lines), the respective universal model (solid blue line) and MACE-OMAT-0 (medium)(solid gray line) as well as the DFT reference profile (solid black line). The universal SevenNet-0 models fine-tuned on the datasets consisting out of 200 data points sub-sampled from an AIMD trajectories and 200 recalculated MACE-OMAT-0 (medium) data points are not able to compute converged structures for the NEB replicas. 23 
+
+SUPPLEMENTARY NOTE 21: SEVENNET-0 FINE-TUNED UNIVERSAL MODEL (MACE-OMAT DATASET) - PREDICTION OF PHYSICAL PROPERTIES 1/510 1/540 1/585 1/620 1/660 1/T (1/K) 10 −4
+
+10 −3
+
+10 −2
+
+> D(H) ( ˚ A2/ps)
+
+a CDP, CPP activation energy     
+
+> CDP Ea=0.52 eV CPP Ea=0.72 eV
+
+0 500 1000 1500 Time (ps) 05000 10000 15000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 02000                           
+
+> OH −MLIP DOH −= 2.26 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.16 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.16 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 500 1000 1500 Time (ps) 0200 400 600 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 020       
+
+> MLIP DLi += 0.052 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0123RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.022 eV DFT Ebarrier = 0.023 eV
+
+SevenNet-FT (2000 frames, stride 100, MACE-OMAT foundation model structures) vs DFT 
+
+Supplementary Figure 20. SevenNet-FT finetuned universal model on MACE-OMAT dataset . Comparison of different physical properties obtained with first-principles methods and the fine-tuned universal models (MACE-OMAT data, 2000 frames, stride 3000): a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - activation energy of proton diffusion, b
+
+KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 24 
+
+SUPPLEMENTARY NOTE 22: MATTERSIM-LARGE FINE-TUNED UNIVERSAL MODEL (MACE-OMAT DATASET) - PREDICTION OF PHYSICAL PROPERTIES 1/510 1/540 1/585 1/620 1/660 1/T (1/K) 10 −4
+
+10 −3
+
+10 −2
+
+> D(H) ( ˚ A2/ps)
+
+a CDP, CPP activation energy     
+
+> CDP Ea=0.68 eV CPP Ea=0.95 eV
+
+0 500 1000 1500 Time (ps) 05000 10000 15000 20000 MSD ( ˚ A2)
+
+b KOH MSD 0 200 02500                           
+
+> OH −MLIP DOH −= 2.77 ˚ A2/ps OH −DFT DOH −= 0.30 ˚ A2/ps H2O MLIP DH2O= 0.14 ˚ A2/ps H2O DFT DH2O= 0.10 ˚ A2/ps K+MLIP DK+= 0.13 ˚ A2/ps K+DFT DK+= 0.10 ˚ A2/ps
+
+0 500 1000 1500 Time (ps) 0100 200 300 MSD ( ˚ A2)
+
+c Li 13 Si 4 Li + MSD 0 50 020       
+
+> MLIP DLi += 0.049 ˚ A2/ps DFT DLi += 0.041 ˚ A2/ps
+
+0.0 0.5 1.0Configuration coordinate 0.00.20.40.60.8E (eV) 
+
+d NEB path of vacancy jump in MoS 2
+
+> MLIP DFT
+
+2 4 6Distance ( ˚ A) 0.00.51.01.52.02.5RDF of H Ph OH -H 2O
+
+e PhOH O-H RDF 
+
+> MLIP DFT
+
+−1.0 −0.5 0.0 0.5 1.0Proton transfer coordinate ( ˚ A) 0.00 0.05 0.10 0.15 0.20 F (eV) 
+
+f L-Pyro proton transfer barrier     
+
+> MLIP Ebarrier = 0.032 eV DFT Ebarrier = 0.023 eV
+
+MatterSim-FT (2000 frames, stride 100, MACE-OMAT foundation model structures) vs DFT 
+
+Supplementary Figure 21. MatterSim-FT finetuned universal model on MACE-OMAT dataset . Comparison of different physical properties obtained with first-principles methods and the fine-tuned universal models (MACE-OMAT data, 2000 frames, stride 3000): a CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP) - activation energy of proton diffusion, b
+
+KOH - water, water molecule and hydroxide ion mean-squared displacements and diffusion coefficients, c Li 13 Si 4 - lithium ion mean-squared displacements and diffusion coefficients, d MoS 2 - potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies, e phenol in water - (H 2O) · · · OHydroxyl-Group radial distribution function and f L-pyroglutamate-ammonium (L-Pyro) - free energy profiles along the proton transfer coordinate. 25 
+
+SUPPLEMENTARY NOTE 23: TRAINED MACE MODEL PERFORMANCE - FORCE ERRORS -DATASET GENERATING UNIVERSAL MODEL VS. SYSTEMS VS. DATASET SIZE (UNIVERSAL MODEL DATASET) 200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.028 0.016 0.032 0.018 0.027 0.019 0.025 0.016 0.042 0.018 0.019 0.013 0.020 0.019 
+
+AIMD 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.027 0.015 0.031 0.017 0.027 0.019 0.025 0.016 0.085 0.043 0.068 0.058 0.085 0.074 
+
+MACE-OMAT 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.027 0.015 0.030 0.017 0.028 0.019 0.031 0.021 1.306 0.022 1.576 0.057 0.074 0.071 
+
+GRACE-OAM 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.028 0.015 0.031 0.017 0.027 0.019 0.027 0.017 0.050 1.301 0.058 0.054 0.072 0.071 
+
+PET-OAM 
+
+0.00 0.02 0.04 0.06 0.08 0.10 MAE force (eV/ ˚ A) 
+
+Supplementary Figure 22. Trained-from-scratch MACE model force errors . Mean-absolute-error on the predicted forces of the trained-from-scratch MACE MLIPs (different universal dataset, 2000 frames) on the different systems: CsH 2PO 4
+
+(CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 26 
+
+SUPPLEMENTARY NOTE 24: TRAINED MACE MODEL PERFORMANCE - ENERGY ERRORS -DATASET GENERATING UNIVERSAL MODEL VS. SYSTEMS VS. DATASET SIZE (UNIVERSAL MODEL DATASET) 200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0001 0.0001 0.0006 0.0005 0.0021 0.0019 0.0002 0.0001 0.0002 0.0001 0.0010 0.0007 0.0001 0.0001 
+
+AIMD 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0002 0.0001 0.0010 0.0008 0.0019 0.0018 0.0002 0.0001 0.0142 0.0051 0.0357 0.0382 0.1941 0.1939 
+
+MACE-OMAT 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0001 0.0001 0.0009 0.0007 0.0020 0.0018 0.0002 0.0001 145.5535 0.0001 814.6854 0.0386 0.1940 0.1940 
+
+GRACE-OAM 
+
+200 2000 Training set size CDP CPP KOH Li 13 Si 4
+
+L-Pyro MoS 2
+
+PhOH System 0.0001 0.0001 0.0008 0.0006 0.0019 0.0018 0.0001 0.0001 0.0002 145.5481 0.0391 0.0396 0.1940 0.1939 
+
+PET-OAM 
+
+0.000 0.001 0.002 0.003 0.004 0.005 MAE energy (eV/atom) 
+
+Supplementary Figure 23. Trained-from-scratch MACE model energy errors . Mean-absolute-error on the pre-dicted energies of the trained-from-scratch MACE MLIPs (different universal dataset, 2000 frames) on the different sys-tems: CsH 2PO 4 (CDP) and Cs 7(H 4PO 4)(H 2PO 4)8 (CPP), aqueous KOH solution, Li 13 Si 4, MoS 2, phenol in water and L-pyroglutamate-ammonium (L-Pyro). 27 
+
+SUPPLEMENTARY NOTE 25: TRAINED-FROM-SCRATCH MODEL (UNIVERSAL MODEL DATASET) - PREDICTION OF POTENTIAL ENERGY PROFILE FOR SULFUR-VACANCY JUMP IN MOS 20.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MACE @ MACE-OMAT-0 structures 
+
+> DFT MACE-MP-0 (small) MACE-OMAT-0 MACE-train 200 f. (AIMD) MACE-train 2000 f. (AIMD) MACE-train 200 f. (MACE-OMAT-0) MACE-train 2000 f. (MACE-OMAT-0)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MACE @ GRACE-OAM structures 
+
+> DFT MACE-MP-0 (small) GRACE-2L-OAM MACE-train 200 f. (AIMD) MACE-train 2000 f. (AIMD) MACE-train 200 f. (GRACE-OAM) MACE-train 2000 f. (GRACE-OAM)
+
+0.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.50.00.51.0E (eV) 
+
+MACE @ PET-OAM structures 
+
+> DFT MACE-MP-0 (small) PET-OAM-XL MACE-train 200 f. (AIMD) MACE-train 2000 f. (AIMD) MACE-train 200 f. (PET-OAM) MACE-train 2000 f. (PET-OAM)
+
+Supplementary Figure 24. Energy profiles computed with trained-from-scratch models with variable universal model dataset . Potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies in MoS 2 via NEB cal-culations using trained-from-scratch MACE models on DFT-recalculated universal model structures (orange lines) obtained with GRACE-2L-OAM (left) and PET-OAM-XL (right) and trained-from-scratch MACE models on sub-sampled AIMD trajectories (red lines); with dataset sizes of 200 (dotted lines) and 2000 (dashed lines), MACE-MP-0 (small) (solid blue line) and the respective universal model (solid gray line) as well as the DFT reference profile (solid black line). 28 
+
+SUPPLEMENTARY NOTE 26: COMPARING ITERATIVE TRAINING AGAINST SINGLE TIME FINE-TUNING - PREDICTION OF POTENTIAL ENERGY PROFILE FOR SULFUR-VACANCY JUMP IN MOS 20.0 0.2 0.4 0.6 0.8 1.0Configuration coordinate 
+
+−0.75 
+
+−0.50 
+
+−0.25 0.00 0.25 0.50 0.75 1.00 E (eV) 
+
+> DFT MACE-MP-0 MACE-FT 600 f. (MACE-MP-0) MACE-FT 600 f. (AIMD) MACE-iterative-FT Gen3
+
+Supplementary Figure 25. Energy profiles computed with iterative-fine-tuned and singular fine-tuned models .Potential energy curves for a sulfur jump into a neighboring line of sulfur vacancies in MoS 2 via NEB calculations using datasets build up from: 600 data points from a sub-sampled MACE-MP-0 trajectory (dashed blue line) and 600 data points from a sub-sampled AIMD trajectory (dashed red line), the third generation of the iterative training approach shown in main text in Figure 5e (solid orange line), the respective universal model (solid blue line) as well as the DFT reference profile (solid black line). 29 
+
+SUPPLEMENTARY NOTE 27: ITERATIVE TRAINING ADDITIONAL MODEL GENERATIONS Gen3 Gen4 Iteration 10 −2
+
+2 × 10 −2
+
+3 × 10 −2
+
+4 × 10 −2
+
+> Force error (eV/ ˚ A)
+
+a
+
+Iter. naive FT on 200 f. AIMD 
+
+0.00.51.0E (eV) 
+
+0.0 0.5 1.0Configuration coordinate 
+
+−0.2
+
+−0.10.00.1E - E DFT  (eV) 
+
+Benchmark: 
+
+DFT MACE-MP-0 
+
+> Gen3 Gen4
+
+Iteration 2 × 10 −2
+
+3 × 10 −2
+
+4 × 10 −2
+
+b
+
+Iter. LoRA FT on 200 f. AIMD 
+
+0.0 0.5 1.0Configuration coordinate 
+
+> Gen3 Gen4
+
+Iteration 2 × 10 −2
+
+3 × 10 −2
+
+4 × 10 −2
+
+c
+
+Iter. LoRA FT on i ·200 f. AIMD 
+
+0.0 0.5 1.0Configuration coordinate 
+
+Model generation: 
+
+Gen3 Gen4 
+
+> Gen3 Gen4
+
+Iteration 2 × 10 −2
+
+3 × 10 −2
+
+4 × 10 −2
+
+d
+
+Iter. Multi-head FT with 200 f./H 
+
+0.0 0.5 1.0Configuration coordinate 
+
+> Gen3 Gen4
+
+Iteration 2 × 10 −2
+
+3 × 10 −2
+
+4 × 10 −2
+
+e
+
+Iter. naive FT on 200 f. PET-OAM 
+
+0.0 0.5 1.0Configuration coordinate 
+
+6 × 10 −2
+
+7 × 10 −2
+
+6 × 10 −2
+
+7 × 10 −2
+
+6 × 10 −2
+
+7 × 10 −2
+
+6 × 10 −2
+
+7 × 10 −2
+
+6 × 10 −2
+
+7 × 10 −2
+
+> Energy error (eV/atom)
+
+Supplementary Figure 26. Iterative model training generations . Iterative training models of generation 3 and 4. The models of generation 4 tend to perform worse then the previous generation because of the bad training data composition. 30 
+
+SUPPLEMENTARY NOTE 28: COMPARING ITERATIVE TRAINING DATASET COMPOSITION 0.25 0.50 0.75 Configuration coordinate 0.00.2Density 
+
+> Training set for model Gen1 (sub-sampled AIMD traj.)
+
+0.25 0.50 0.75 Configuration coordinate 
+
+> Training set for model Gen2 (sub-sampled Gen1-MD traj.)
+
+0.25 0.50 0.75 Configuration coordinate 
+
+> Training set for model Gen3 (sub-sampled Gen2-MD traj.)
+
+0.25 0.50 0.75 Configuration coordinate 
+
+> Training set for model Gen4 (sub-sampled Gen3-MD traj.)
+
+Supplementary Figure 27. Dataset composition for different model generation . Training set composition with respect to the configuration coordinate of the sulfur-vacancy jump of the different model generations. 31  
+
+> ∗
+
+jonas.haenseroth@tu-ilmenau.de [1] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kov´ acs, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, F. Bigi, S. M. Blau, V. C˘ arare, M. Ceriotti, S. Chong, J. P. Darby, S. De, F. Della Pia, V. L. Deringer, R. Elijoˇ sius, Z. El-Machachi, E. Fako, F. Falcioni, A. C. Ferrari, J. L. A. Gardner, M. J. Gawkowski, A. Genreith-Schriever, J. George, R. E. A. Goodall, J. Grandel, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. H. Ho, S. Hofmann, C. Holm, J. Jaafar, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, P. Kourtis, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuoniute, C. Lin, J. T. Margraf, I.-B. Magd˘ au, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. A. M. Rosset, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, C. Sutton, V. Svahn, T. D. Swinburne, J. Tilly, C. van der Oord, S. Vargas, E. Varga-Umbrich, T. Vegge, M. Vondr´ ak, Y. Wang, W. C. Witt, T. Wolf, F. Zills, and G. Cs´ anyi, A foundation model for atomistic materials chemistry, J. Chem. Phys. 163 , 184110 (2025). [2] H. Yang, C. Hu, Y. Zhou, X. Liu, Y. Shi, J. Li, G. Li, Z. Chen, S. Chen, C. Zeni, et al. , Mattersim: A deep learning atom-istic model across elements, temperatures and pressures, arXiv preprint arXiv:2405.04967 10.48550/arXiv.2405.04967 (2024). [3] Y. Park, J. Kim, S. Hwang, and S. Han, Scalable parallel algorithm for graph neural network interatomic potentials in molecular dynamics simulations, J. Chem. Theory Comput. 20 , 4857 (2024). [4] Y. Lysogorskiy, A. Bochkarev, and R. Drautz, Graph atomic cluster expansion for foundational machine learning inter-atomic potentials, npj Comput. Mater. 10.1038/s41524-026-01979-1 (2026). [5] M. Neumann, J. Gin, B. Rhodes, S. Bennett, Z. Li, H. Choubisa, A. Hussey, and J. Godwin, Orb: A fast, scalable neural network potential, arXiv preprint arXiv:2410.22570 10.48550/arXiv.2410.22570 (2024). [6] J. H¨ anseroth, A. Fl¨ ototto, M. N. Qaisrani, and C. Dreßler, Fine-tuning unifies foundational machine-learned interatomic potential architectures at ab initio accuracy, J. Phys. Chem. Lett. 17 , 3152 (2026). [7] I. Batatia, C. Lin, J. Hart, E. Kasoar, A. M. Elena, S. W. Norwood, T. Wolf, and C. G´ abor, Cross learning between electronic structure theories for unifying molecular, surface, and inorganic crystal foundation force fields, arXiv preprint arXiv:2510.25380 10.48550/arXiv.2510.25380 (2025). [8] A. Mazitov, F. Bigi, M. Kellner, P. Pegolo, D. Tisi, G. Fraux, S. Pozdnyakov, P. Loche, and M. Ceriotti, Pet-mad as a lightweight universal interatomic potential for advanced materials modeling, Nat. Commun. 16 , 10653 (2025). [9] C. Malosso, F. Bigi, P. Pegolo, J. W. Abbott, P. Loche, M. Rossi, M. Ceriotti, and A. Mazitov, High-quality, high-information datasets for universal atomistic machine learning, arXiv preprint arXiv:2603.02089 10.48550/arXiv.2603.02089 (2026). [10] F. Bigi, P. Pegolo, A. Mazitov, and M. Ceriotti, Pushing the limits of unconstrained machine-learned interatomic potentials, arXiv preprint arXiv:2601.16195 10.48550/arXiv.2601.16195 (2026). [11] J. Schmidt, N. Hoffmann, H.-C. Wang, P. Borlido, P. J. M. A. Carri¸ co, T. F. T. Cerqueira, S. Botti, and M. A. L. Marques, Machine-learning-assisted determination of the global zero-temperature phase diagram of materials, Adv. Mater. 35 , 2210788 (2023). [12] L. Barroso-Luque, M. Shuaibi, X. Fu, B. M. Wood, M. Dzamba, M. Gao, A. Rizvi, C. L. Zitnick, and Z. W. Ulissi, Open materials 2024 (omat24) inorganic materials dataset and models, arXiv preprint arXiv:2410.12771 10.48550/arXiv.2410.12771 (2024). [13] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, and K. A. Persson, Commentary: The Materials Project: A materials genome approach to accelerating materials innovation, APL Mater. 1, 011002 (2013). [14] S. P. Ong, S. Cholia, A. Jain, M. Brafman, D. Gunter, G. Ceder, and K. A. Persson, The Materials Application Programming Interface (API): A simple, flexible and efficient API for materials data based on REpresentational State Transfer (REST) principles, Comput. Mater. Sci. 97 , 209–215 (2015). [15] B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, Chgnet as a pretrained universal neural network potential for charge-informed atomistic modelling, Nat. Mach. Intell. 5, 1031 (2023). [16] D. S. Levine, M. Shuaibi, E. W. Clark Spotte-Smith, M. G. Taylor, M. R. Hasyim, K. Michel, I. Batatia, G. Cs´ anyi, M. Dzamba, P. Eastman, N. C. Frey, X. Fu, V. Gharakhanyan, A. S. Krishnapriyan, J. A. Rackers, S. Raja, A. Rizvi, A. S. Rosen, Z. Ulissi, S. Vargas, C. L. Zitnick, S. M. Blau, and B. M. Wood, The open molecules 2025 (omol25) dataset, evaluations, and models, arXiv preprint arXiv:2505.08762 10.48550/arXiv.2505.08762 (2025).

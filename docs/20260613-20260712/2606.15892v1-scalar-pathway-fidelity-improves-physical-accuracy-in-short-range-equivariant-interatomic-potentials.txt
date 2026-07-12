@@ -1,0 +1,1207 @@
+Title: Scalar-pathway fidelity improves physical accuracy in short-range equivariant interatomic potentials
+
+URL Source: https://arxiv.org/pdf/2606.15892v1
+
+Published Time: Tue, 16 Jun 2026 01:20:46 GMT
+
+Number of Pages: 47
+
+Markdown Content:
+# Scalar-pathway fidelity improves physical accuracy in short-range equivariant interatomic potentials 
+
+## Jia Bi 1, Alin Marin Elena 2* , Samuel Pinilla 1,3* 
+
+> 1
+
+Science and Technology Facilities Council, Harwell Campus, Didcot, OX11 0QX, Oxfordshire, United Kingdom. 
+
+> 2
+
+Science and Technology Facilities Council, Keckwick Lane, Daresbury, WA4 4AD, Cheshire, United Kingdom. 
+
+> 3
+
+Diamond Light Source, Harwell Science and Innovation Campus, Didcot, OX11 0QX, Oxfordshire, United Kingdom. *Corresponding author(s). E-mail(s): alin-marin.elena@stfc.ac.uk; samuel.pinilla@diamond.ac.uk; Contributing authors: Jia.Bi@stfc.ac.uk; 
+
+Abstract 
+
+Accurate interatomic potentials enable molecular dynamics of materials, molecules, and interfaces beyond density-functional-theory length and time scales. Equivariant neural network potentials have improved the representa-tion of local geometry. However, their deployable energy surfaces ultimately manifest through invariant scalar channels, whose aggregation and spectral resolution remain comparatively underexamined. Here we use Physics-Aware Neighborhood (PAN) pooling and Physics-Guided Spectral (PGS) mixers as con-trolled scalar-pathway probes: lightweight, symmetry-preserving modifications that act only on ℓ = 0 channels while leaving the equivariant tensor backbone unchanged. Using MACE as a high-body-order mechanistic scaffold, PAN adds coordination-sensitive amplitude modulation, whereas PGS augments edge and readout scalar features with radial and tapered spectral bases. Across metal-lic Ag, covalent Si, a short-range ionic LiF/Li–F subset, and MD17/rMD17 molecules, this scalar-pathway correction reduces MACE force errors by 22–27% and energy errors by 19–22%; on systems with stress labels, stress errors decrease by 27–28%, at approximately 5% additional inference-FLOPs cost. Directionally consistent gains in Allegro and NequIP further indicate that the correction is portable across distinct short-range equivariant backbones, although effect sizes remain architecture-dependent. These results identify scalar-pathway fidelity as a practical design dimension for short-range equivariant interatomic potentials. 
+
+1 
+
+> arXiv:2606.15892v1 [cs.LG] 14 Jun 2026 Keywords: Equivariant neural networks, Interatomic potentials, Physics-guided learning, Molecular dynamics
+
+# S1 Introduction 
+
+Atomic-scale simulations are foundational to materials science, chemistry, and condensed-matter physics because they connect microscopic structure to defect for-mation, phase transformations, transport, catalysis, and mechanical response. The predictive power of these simulations rests on the fidelity of the potential energy surface (PES), from which interatomic forces, stress, and long-time dynamical behavior are derived. First-principles methods, rooted in density-functional theory (DFT), provide a quantum-mechanical route to this surface but remain costly for routine simulations beyond hundreds of atoms and picosecond timescales [1–7]. Classical force fields and molecular-dynamics algorithms enable much larger simulations. However, fixed ana-lytic forms can struggle with complex bonding, metallic delocalization, anharmonicity, and changes in local coordination [8–15]. Machine-learned interatomic potentials (MLIPs) bridge this divide by learning the PES directly from electronic-structure data, bringing near-ab initio accuracy to molecular dynamics at a fraction of the cost [16–23]. This progress has expanded from system-specific potentials to large materials datasets, foundation-style atom-istic models and benchmark workflows for discovery and simulation [24–32]. A major architectural driver has been geometric deep learning [33]: equivariant networks represent local atomic geometry with features that transform predictably under rota-tions and reflections, allowing scalar energies and vector forces to be learned while respecting Euclidean symmetry [34–37]. In atomistic modeling, this direction includes SchNet [38], DimeNet/DimeNet++ [39, 40], GemNet/GemNet-OC [41], PaiNN [42], NewtonNet [43], SpookyNet [44], NequIP [45], Allegro [46], EquiformerV2 [47], and the atomic cluster expansion (ACE) and its neural extensions [48, 49]. Among short-range equivariant MLIPs, MACE, a higher-order equivariant message-passing architecture related to neural atomic cluster expansions, [50, 51] is particularly notable for captur-ing high-body-order geometric correlations while retaining analytic energy, force, and stress derivatives needed for stable molecular dynamics. We use MACE as the primary mechanistic scaffold because this architecture imposes a stringent scalar-compression test: high-body-order equivariant tensor features are generated upstream, while invari-ant scalar channels still mediate the deployment-relevant energy, force, and stress predictions. Allegro and NequIP are then used as architecture-transfer controls rather than leaderboard baselines to test whether the same scalar-channel correction remains beneficial when the surrounding equivariant architecture changes. These architectures share a common structural feature that has received compar-atively little scrutiny. Although equivariant layers propagate rich tensorial represen-tations of local geometry, deployment-relevant predictions are ultimately obtained by projecting this information onto invariant scalar channels. This is a representation-compression problem: if the scalar pathway lacks geometric adaptivity or spectral resolution, information encoded by the equivariant backbone can be weakened before 2it reaches the supervised energy output, regardless of how expressive the tensor representation is. Analogous scalar readout stages appear in many equivariant mod-els. However, in this work, we restrict the evidence and claims to short-range equivariant MLIPs, where the scalar pathway is directly tied to forces, stress, and molecular-dynamics observables. In short-range equivariant MLIPs, this scalar pathway takes a concrete, analytically tractable form. Two systemic limitations arise. First, scalar messages are commonly aggregated by an unweighted permutation-invariant sum. The messages being summed are themselves learned distance-, species-, and feature-dependent quantities; the lim-itation is that the final scalar aggregation lacks an explicit adaptive amplitude gate conditioned on local coordination, density, or geometric distortion. This can contribute to geometric under-resolution in heterogeneous environments such as surfaces, defect-adjacent regions, strained neighborhoods, and disordered phases [41, 52–55]. Second, scalar nonlinearities such as SiLU exhibit a strong low-frequency spectral bias [56–60], suppressing high-frequency structure in the PES and contributing to characteristic physical errors: softened short-range repulsion, red-shifted optical phonon modes, and energy drift under finite-timestep microcanonical integration [61]. In the short-range MACE setting examined here, these limitations lead to four distinct, quantifiable physical signatures that we identify and systematically target. The scope of this test is deliberately short-range. PAN–PGS is not designed to replace explicit electrostatics, charge equilibration, polarizability, dispersion, or reac-tive chemistry; instead, it targets the residual short-range error that remains after an equivariant local representation has been built and before that information is expressed through the scalar energy pathway. The intervention is therefore complementary to long-range or reactive MLIP extensions rather than an alternative to them [62–67]. Rather than treating the scalar pathway as a fixed implementation detail, we reframe it as a controllable design axis: the distributed set of scalar operations through which an equivariant representation is aggregated, spectrally transformed, and con-verted into the total energy and its derivatives. The central question we pose is: to what extent do residual physical errors in short-range MLIPs arise in this scalar path-way, rather than from the tensor backbone alone? To probe this, we introduce two lightweight, symmetry-preserving modules that act exclusively on ℓ=0 channels and leave all O(3)-equivariant tensor-product operations unchanged. Physics-Aware Neigh-borhood (PAN) pooling replaces uniform aggregation with amplitude modulation by sigmoid gates derived from invariant pairwise descriptors. Physics-Guided Spectral (PGS) mixers inject physically motivated spectral bases—a Fourier–Bessel expansion on pair distances at the edge level, and a tapered Exponential-of-Semicircle expansion on per-atom invariant latents at readout. PAN and PGS therefore serve as controlled probes of a shared scalar interface: the MACE experiments isolate the mechanism under a fixed high-body-order scaffold, whereas the Allegro and NequIP insertions test architecture-level portability across different scalar-processing interfaces. Benchmarked across metallic Ag, covalent Si, a short-range ionic LiF/Li–F sub-set, and MD17/rMD17 molecular datasets [68, 69], integrating PAN and PGS into MACE yields systematic reductions in energy, force, stress, and dynamical errors at 3Fig. S1 Scalar-pathway compression interface and PAN–PGS correction in the tested short-range equivariant setting. (a) Short-range equivariant interatomic potentials build rich tensorial representations, but the final energy and its derivatives are computed from invariant scalar channels. (b) Two scalar bottlenecks considered in this work: uniform neighbor aggregation, which weakens sensitivity to coordination, density, and defect structure, and smooth scalar nonlinearities, which under-resolve short-range curvature through low-frequency spectral bias. (c) PAN introduces geometry-aware scalar aggregation, whereas PGS enriches scalar spectral resolution. (d) PAN and PGS are inserted only on ℓ=0 scalar channels in MACE, leaving the equivariant tensor-product backbone unchanged. 
+
+approximately 5% additional inference-FLOPs overhead, reproducibly across five inde-pendent training seeds. The same improvements transfer directionally to two further equivariant backbones, Allegro and NequIP, under matched protocols. We therefore present scalar-pathway fidelity not as an alternative to tensor expressivity, but as an orthogonal design dimension that shapes how much of an equivariant representation is preserved when it becomes an energy landscape. 
+
+# S2 Results 
+
+## S2.1 A scalar compression interface in short-range equivariant MLIPs 
+
+Figure S1 translates the scalar-pathway hypothesis into the controlled experimen-tal design used throughout this work. The primary MACE experiments implement the most stringent version of this test: high-body-order equivariant tensor features are constructed upstream, while the deployed energy, forces, and stress are recovered through invariant ℓ = 0 scalar channels. PAN and PGS are inserted only at this scalar 4interface, leaving the equivariant tensor-product backbone, interaction depth, cutoff, training budget, and data splits unchanged. The two interventions target complementary points in this interface. PAN tests whether scalar aggregation benefits from explicit coordination- and distortion-sensitive amplitude modulation. PGS tests whether scalar readout benefits from a richer short-range spectral basis at the edge and final invariant readout levels. Because both modules preserve permutation symmetry, O(3)-equivariance of forces and differentia-bility of the scalar energy, any measured change can be attributed to how invariant scalar information is aggregated and spectrally transformed rather than to changes in the equivariant backbone itself. This design yields three linked tests. First, scalar-pathway fidelity should improve energy, force, and stress accuracy without the cost of enlarging the tensor backbone. Second, PAN and PGS should show separable signatures: PAN should contribute most in distorted or under-coordinated environments, whereas PGS should improve short-range repulsive curvature and stiff local modes. Third, the correction should attenuate physical observables controlled by these scalar failures, including softened short-range repulsion, red-shifted optical modes, finite-step NVE drift, and liquid over-approach. The following sections evaluate these predictions in sequence. 
+
+## S2.2 Scalar-channel corrections: accuracy gains, minimal overhead 
+
+If scalar-pathway fidelity is a genuine design axis, it should yield measurable accuracy gains without relying on a larger tensor backbone or a substantially higher evalua-tion cost. We first asked whether targeted scalar-channel corrections translate into such gains across chemically distinct short-range materials. Across metallic Ag, cova-lent Si, and the short-range ionic LiF/Li–F subset, MACE+PAN+PGS systematically reduced both energy and force errors relative to baseline MACE (Fig. S2(a); Table S1). Force-MAE reductions were 22.3% for Ag, 24.0% for Si, and 26.7% for LiF/Li–F, with corresponding energy-MAE reductions of 19.4%, 20.3%, and 22.0%. All com-parisons were conducted under matched cutoffs, training budgets, and dataset splits, so that the scalar-pathway modification is the only intended architectural change within the shared short-range modeling protocol. Capacity expansion of the tensor backbone alone did not reproduce this effect: widened, deepened, and larger-radial-basis MACE controls reduced force MAE by only 4–7%, compared with 22–27% for PAN+PGS at substantially lower parameter and FLOPs overhead (1 .03–1 .05 × ver-sus 1 .4–1 .7× parameters and 1 .1–1 .5× FLOPs; Supplementary Table S10). For the LiF/Li–F subset, a stricter Materials-Project-identifier-grouped split increased the absolute errors, as expected for the harder evaluation, but preserved the relative MACE+PAN+PGS force-MAE reduction at 26.5% (Supplementary Table S11), sup-porting the interpretation that the relative improvement is not a configuration-level split artifact. Component ablations isolate the distinct contributions of the two modules (Fig. S2(b)). PAN alone reduced force error across all three materials, consistent with improved scalar aggregation in geometrically heterogeneous local environments. PGS alone gave a larger reduction, consistent with enhanced representation of short-range 5Fig. S2 PAN–PGS improves short-range accuracy across materials and molecular benchmarks with limited overhead. (a) Relative reductions in energy and force MAE for MACE+PAN+PGS compared with baseline MACE across Ag, Si, and the LiF/Li–F short-range ionic subset. Bars show mean reductions over five training seeds; error bars indicate standard devi-ation. Absolute baseline force MAE values for the same systems are 35.9, 47.1, and 54.0 meV/˚ A, respectively, reduced to 27.9, 35.8, and 39.6 meV/˚ A after the PAN–PGS correction. (b) Compo-nent ablation for force MAE showing the effect of PAN, PGS, and their combination under the same MACE backbone. (c) Cost–accuracy trade-off using mean force MAE across Ag, Si, and LiF/Li– F versus inference FLOPs overhead. The inset shows the stress MAE in meV/˚ A3 on datasets with available stress labels (Ag and LiF/Li–F). (d) rMD17 molecular benchmark summary showing force-MAE reduction for MACE+PAN+PGS relative to baseline MACE across all ten rMD17 molecules. All comparisons in this figure are within-backbone, controlled in-house comparisons; external litera-ture baselines are reported separately in Supplementary Table S3 and follow different training and reporting protocols. 
+
+PES curvature. The combined MACE+PAN+PGS achieved the lowest force MAE in every material: 27.9 meV/˚ A for Ag, 35.8 meV/˚ A for Si, and 39.6 meV/˚ A for LiF/Li– F. This consistent ordering supports the interpretation that PAN and PGS act as complementary rather than interchangeable corrections. We next asked whether the effect was tied to MACE or reflected a portable scalar-channel intervention. We therefore inserted PAN+PGS into Allegro and NequIP at architecturally analogous scalar-processing locations, using the same PAN descriptors, PGS basis sizes, datasets, splits, and five-seed protocol (Table S1). These experiments are not cross-backbone leaderboard comparisons; the controlled signal is the within-backbone change induced by the scalar-pathway correction. PAN+PGS reduced force 6Table S1 Architecture-transfer test of scalar-pathway correction across three short-range equivariant backbones. Energy and force MAEs are reported for Allegro, NequIP, and MACE before and after the insertion of architecturally analogous PAN+PGS scalar-pathway modifications. The controlled comparison is the within-backbone change from baseline to PAN+PGS; absolute errors across backbones are not interpreted as parameter-matched leaderboard rankings. Values are mean ± standard deviation over five independent training seeds. Energies are in meV/atom, and forces are in meV/˚ A. The LiF/Li–F entry corresponds to the short-range ionic subset filtered from MPtrj; grouped-split and computational-cost controls are reported in Supplementary Tables S11 and S14. 
+
+System Qty. Allegro Allegro +PAN+PGS NequIP NequIP +PAN+PGS MACE MACE +PAN+PGS 
+
+Ag (metallic) E 1.92 ± 0.11 1.59 ± 0.09 1.61 ± 0.08 1.32 ± 0.07 1.39 ± 0.06 1.12 ± 0.05 
+
+F 41 .2 ± 1.6 33 .8 ± 1.2 37 .4 ± 1.2 30 .6 ± 1.0 35 .9 ± 0.9 27 .9 ± 0.7
+
+Si (covalent) E 3.51 ± 0.17 2.85 ± 0.13 2.83 ± 0.13 2.29 ± 0.10 2.41 ± 0.10 1.92 ± 0.08 
+
+F 58 .2 ± 2.4 47 .5 ± 1.7 51 .3 ± 1.8 41 .8 ± 1.4 47 .1 ± 1.4 35 .8 ± 1.0
+
+LiF/Li–F E 4.23 ± 0.21 3.45 ± 0.16 3.62 ± 0.16 2.93 ± 0.13 3.09 ± 0.12 2.41 ± 0.10 
+
+F 64 .1 ± 2.7 52 .7 ± 2.0 58 .6 ± 2.1 47 .6 ± 1.7 54 .0 ± 1.6 39 .6 ± 1.2
+
+MAE by 17–19% in both Allegro and NequIP, compared with 22–27% in MACE. We interpret this pattern as architecture-dependent portability: the sign of the effect is conserved across three distinct short-range equivariant backbones, whereas the magni-tude is largest in MACE, where high-body-order tensor features impose the strongest compression demand on the scalar output pathway. The accuracy gains come at a limited computational cost. MACE+PAN+PGS occupies the low-error, low-overhead region of the cost–accuracy frontier, adding approximately 5% to inference FLOPs relative to baseline MACE (Fig. S2(c)). On systems with available stress labels, MACE+PAN+PGS reduced stress MAE from 11 .8 ± 0.6 to 8 .6 ± 0.4 meV/˚ A3 for Ag (27% reduction) and from 17 .4 ± 0.9 to 12 .6 ± 0.6 meV/˚ A3 for the LiF/Li–F subset (28% reduction), where uncertainties are standard deviations over five independent training seeds. The full stress comparison across MACE-family variants is shown in the inset of Fig. S2(c) and tabulated in Supplementary Table S4. Stress metrics are not reported for Si, as the public silicon dataset provides only energies and forces; the stress loss weight was accordingly set to zero for this system. The same pattern extends to molecular benchmarks at shorter length scales. Across all ten rMD17 molecules, MACE+PAN+PGS reduced force MAE by an average of 13.9% relative to baseline MACE (Fig. S2(d)). Substantial gains were observed across several flexible and anharmonic molecules, while benzene showed negligible improve-ment. This hierarchy is physically interpretable: PAN and PGS deliver the greatest benefit when the scalar pathway must faithfully represent high-curvature, multi-well, or strongly anharmonic local structure–precisely the regimes where uniform aggrega-tion and spectrally limited nonlinearities are most deficient. Where the baseline scalar representation is already adequate, the corrections are correspondingly modest. 7Fig. S3 PAN and PGS act through separable scalar mechanisms. (a) Distortion-resolved force error for uniform aggregation, a generic scalar-gating control, and PAN. Error bars indicate standard deviation over five seeds. (b) Ag–Ag compression pathway showing normalized force MAE across scalar mixers, together with the reference repulsive-force profile. The shaded region marks the short-range repulsive regime. (c) Independent Si–Si short-range-window test. Values show mean normalized force MAE integrated over compressed Si–Si distances, with error bars indicating standard deviation over five seeds. (d) Scalar mixer and PGS insertion-location controls summarized as mean force MAE across Ag, Si, and the LiF/Li–F short-range ionic subset. 
+
+## S2.3 Geometric and spectral corrections operate via distinct scalar pathways 
+
+We next asked whether the improvements align with the intended mechanisms. PAN is designed to make scalar aggregation responsive to local geometric distortion. Force error increased from low- to high-distortion quantiles for all aggregation schemes, but PAN remained lowest across the range (Fig. S3(a)). A generic scalar-gating con-trol outperformed uniform aggregation, indicating that learned neighbor weighting is useful. PAN provided an additional reduction, especially in the most distorted local environments, showing that physically informed local descriptors add information beyond a generic gate. This trend also persisted under a stronger structural-class shift: when Ag surface or defect configurations were excluded from training and used only for testing, MACE+PAN+PGS retained force-MAE reductions of 34 .8% and 34 .3%, respectively (Supplementary Table S6), supporting that the gain is not limited to ran-dom configuration-level interpolation but is most pronounced in the under-coordinated and defect-adjacent environments that motivate PAN. PGS targets the complementary spectral limitation. Along an Ag–Ag compression pathway, all scalar mixers showed their largest errors in the short-range repulsive regime, where the force changes rapidly with distance (Fig. S3(b)). PGS had the lowest 8normalized force error in this region and followed the reference repulsive-force profile more closely than the other tested scalar mixers. This supports the interpretation that spectral enrichment of scalar features improves the representation of steep short-range curvature. To test whether this behavior is specific to Ag, we repeated the repulsion-focused analysis on compressed Si–Si distances (Fig. S3(c)). The integrated normalized force error decreased from MLP to KAN, KAF, and LibraKAN, and was lowest for PGS. The Si–Si test, therefore, provides a covalent-regime counterpart to the Ag–Ag compres-sion pathway, supporting the view that PGS improves short-range spectral resolution rather than fitting a material-specific artifact. The control summaries further separate the effect of the mixer from that of the insertion location. Under matched PAN pooling, PGS gave the lowest mean force error among the tested scalar mixers (Fig. S3(d), left). In the placement control, edge-only and readout-only PGS each improved over weaker placements, whereas the edge+readout configuration performed best (Fig. S3(d), right). This result aligns with the architectural roles of the two PGS locations: edge-level PGS refines radial short-range information before tensor-product coupling. At the same time, readout-level PGS enriches the final invariant latent before energy prediction. The controls in Fig. S3 make three simpler explanations of the observed gain less likely. First, the generic scalar-gating control in panel a indicates that PAN’s improvement is not adequately explained by adding any learned gate, because the gain over the generic gate is recovered only when the gate uses physically informed local descriptors. Second, the MLP/KAN/KAF/LibraKAN comparison in panels (b)–(c) indicates that PGS’s improvement is not adequately explained by simply increasing scalar nonlinearity capacity, because all mixers were matched in capacity and only the spectral form of the mixer correlated with short-range repulsion fidelity. Third, the placement control in panel (d) indicates that the gain is not adequately explained by inserting additional parameters near the readout, because both edge-only and readout-only placements were tested, and the edge+readout configuration outperformed each in isolation. The combined evidence supports a mechanistic, rather than purely capacity-based, interpretation of the scalar-pathway correction. 
+
+## S2.4 Scalar-pathway fidelity transfers to physical observables 
+
+Static energy and force errors are necessary but insufficient evidence that a scalar-pathway bottleneck carries physical consequences. To close this gap, we selected four observables that correspond directly to the four failure modes predicted by the scalar-bottleneck hypothesis outlined in Section S2.1, rather than serving as generic accuracy checks. Each panel in Fig. S4 maps one specific scalar-pathway deficiency to a measur-able dynamical or structural quantity, and reports the distance to the DFT reference as mean ± standard deviation across the same five independent training seeds used for energy and force evaluation. 
+
+Spectral bias on anharmonic torsions. The first signature is barrier leak-age in flexible anharmonic molecules—the dynamical fingerprint of low-frequency spectral bias in the scalar pathway. A spectrally limited scalar mixer can over-smooth the steep PES curvature near torsional barriers, redistributing probability 9Fig. S4 Scalar-pathway correction improves observables controlled by stiff local forces. (a) Aspirin C7–O7–C8–C9 torsional distribution at 300 K for DFT, baseline MACE and MACE+PAN+PGS. (b) Vibrational density of states of a 64-atom Si supercell at 300 K. The inset highlights the high-frequency optical-mode region. (c) Total-energy drift during a 500 ps NVE sim-ulation of a 10,000-atom Ag bulk system at 300 K. Panel (c) shows a representative seed; aggregate drift across five seeds is reported in the main text. (d) Liquid Ag radial distribution function at 1,200 K. 
+
+density into low-probability barrier regions. In aspirin at 300 K, baseline MACE produced a markedly flattened C7–O7–C8–C9 torsional distribution with anomalous excess probability near the barrier top (Fig. S4(a)). The Kullback–Leibler diver-gence DKL (pmodel ∥pDFT ) decreased from 0 .31 ± 0.04 nats for baseline MACE to 0.09 ±0.02 nats for MACE+PAN+PGS—a roughly threefold reduction concentrated in the barrier region, consistent with improved representation of high-curvature torsional structure in the scalar readout. 
+
+Spectral bias on stiff vibrational modes. The second signature is a systematic red-shift of high-frequency optical phonons, arising when smooth scalar nonlineari-ties under-resolve the curvature of stiff covalent bonds. In bulk Si, baseline MACE displaced the dominant optical band in the vibrational density of states (VDOS) to anomalously low frequencies (Fig. S4(b)). MACE+PAN+PGS reduced the mean absolute peak-position error from 1 .42 ± 0.12 THz to 0 .31 ± 0.07 THz, and reduced the integrated L1 error over the optical window (14–18 THz) by a factor of 4 .1— from 0 .094 ± 0.008 to 0 .023 ± 0.004 in normalized units. This fourfold improvement in VDOS fidelity is consistent with the PGS spectral enrichment, which improves the representation of short-range curvature information that smooth nonlinearities suppress. 10 Finite-step energy drift in long-time integration. The third signature is sec-ular energy drift under finite-timestep microcanonical integration. We emphasize that forces are obtained by automatic differentiation of the scalar energy (Eq. S3), so the force field is conservative by construction; residual drift therefore reflects finite-timestep integration error coupled to scalar-pathway curvature errors, not non-conservative force components. Scalar under-resolution inflates effective PES stiffness, amplifying this drift even when short-horizon force errors appear acceptable. In a 500 ps NVE simulation of a 10,000-atom bulk Ag system, baseline MACE accumulated a positive drift of 1 .48 ± 0.18 meV ns −1 per atom; MACE+PAN+PGS reduced this to 0 .21 ± 0.04 meV ns −1 per atom under identical protocol (Fig. S4(c))—a seven-fold reduction. A paired two-sided t-test on per-seed drift slopes yields p < 10 −3,supporting that the improvement is statistically robust across training seeds. 
+
+Geometric under-resolution on liquid structure. The fourth signature is anoma-lous nearest-neighbor over-approach in liquid structure—the dynamical analog of the static short-range repulsion errors quantified in Fig. S3(b), consistent with softened short-range repulsive walls under insufficiently adaptive scalar aggregation. In liq-uid Ag at 1,200 K, baseline MACE generated a spurious sub-shell peak in g(r) at 
+
+r ≈ 2.3 ˚ A, corresponding to unphysical atomic over-approach (Fig. S4(d)). The inte-grated L1 distance R 6.0 ˚ A0 |gmodel (r) − gDFT (r)| dr decreased from 0 .181 ± 0.012 for baseline MACE to 0 .061 ± 0.008 for MACE+PAN+PGS—a threefold reduction—and the spurious sub-shell peak was substantially attenuated. Across the four observables, the same scalar-pathway correction attenuates four otherwise distinct physical signatures across molecular, crystalline, and liquid settings. We interpret this convergence as mechanism-level evidence rather than additional benchmark coverage: the bottleneck identified in Section S2.1 and the mechanistic controls in Section S2.3 make specific physical predictions, and Fig. S4 shows that those predictions are borne out in MD-derived observables and are quantitatively attenuated by the corresponding correction. 
+
+# S3 Discussion 
+
+This work identifies the invariant scalar pathway as a controllable interface for the physical accuracy of short-range equivariant interatomic potentials. In MACE and related O(3)-equivariant architectures, tensor-product message passing constructs rich geometric representations, but the final energy and its derivatives are recovered through invariant scalar pathways. Our results provide evidence that this conver-sion stage is not an implementation detail: how scalar information is aggregated and spectrally mixed measurably constrains the accuracy of energy, force, and stress in the resulting potential and is associated with specific, predictable signatures in molecular-dynamics observables. Tensor expressivity and scalar fidelity are therefore not substitutable design axes; both contribute to short-range physical accuracy. The PAN and PGS modules address two distinct forms of scalar information loss. PAN targets the geometric loss introduced by uniform neighbor aggregation. A permutation-invariant sum is symmetry preserving, but it does not by itself dis-tinguish coordination loss, density variation, or local anisotropy. By using invariant 11 local descriptors to gate scalar aggregation, PAN improves accuracy, particularly in distorted environments, while retaining an unchanged equivariant tensor-product backbone. This result suggests that part of the error often attributed to limited model capacity can instead arise from the compression of local geometric information into scalar channels. PGS addresses the complementary spectral limitation. Smooth scalar nonlinearities tend to represent low-frequency variation more readily than steep local curvature. In atomistic potentials, this bias is most visible in short-range repulsion, high-frequency vibrations, and anharmonic molecular coordinates. The Ag–Ag and Si–Si compres-sion tests show that PGS improves the local representation of repulsive curvature beyond generic scalar mixers. The same mechanism is reflected at the simulation level: MACE+PAN+PGS better preserves the high-frequency tail of the Si vibrational density of states and reduces barrier leakage in aspirin torsional sampling. These obser-vations connect a local scalar spectral correction to physical quantities that depend on stiff short-range forces. This separation between scalar and tensor pathways is important for interpret-ing the gains. The improvement is not evidence that equivariant representations are unnecessary, nor that scalar processing alone fully accounts for performance. It shows that an expressive equivariant backbone can still lose useful physical detail when ten-sorial information is processed by insufficiently adaptive or spectrally limited scalar operations downstream. We use the labels “physics-aware” (PAN) and “physics-guided” (PGS) in the sense of symmetry-preserving descriptor and basis design: the gating descriptors and spectral bases are chosen to mirror physically interpretable scalar quantities (local coordina-tion, angular variance, short-range spectral content) rather than being treated as free black-box operators. PAN–PGS does not impose hard physical constraints such as exact asymptotic repulsion, charge conservation, or thermodynamic consistency, and the “physical fidelity” improvements reported here refer to the specific quantitative observables in Section S2.4 (torsional KL divergence, VDOS peak position, NVE drift, RDF L1 distance) rather than to global physical correctness. PAN–PGS defines a short-range scalar-interface correction rather than a replace-ment for explicit physical terms. This operating regime follows directly from where the modules act: after the equivariant local representation has been constructed, but before invariant scalar features are converted into atomic energies and their deriva-tives. The correction can therefore improve the expression of local coordination, short-range curvature, and stiff modes through the energy pathway. However, it can-not introduce physical interactions that are absent from the underlying short-range model. Long-range Coulomb interactions, charge transfer, polarizability, dispersion, and reactive bond rearrangements still require explicit physical treatment. In hybrid potentials, PAN–PGS would accordingly complement such terms by reducing the residual short-range scalar error, while electrostatic, charge-response, dispersion, or reactive components handle their respective physics. The LiF/Li–F experiments should be read in this sense: they probe short-range ionic local environments under held-out configurations from MPtrj, not full long-range Coulomb generalization. 12 This distinction also defines the contribution. The results do not suggest that scalar processing can replace equivariance or physical modeling; they show that a strong equivariant local representation can still lose accuracy at the scalar interface, where it becomes an energy landscape. Scalar aggregation and scalar spectral mixing are therefore not implementation details, but design axes for short-range equivariant MLIPs. In this view, equivariance determines what geometric information is available, whereas scalar-pathway fidelity determines how much of that information survives the conversion into a deployable energy surface. The same logic predicts where PAN–PGS will not help. Systems whose short-range scalar pathway is already well-resolved relative to the training data—near-harmonic small molecules such as benzene in our per-molecule breakdown (Supplementary Table S2)—show essentially no gain, as expected. Systems where the binding error is not in the scalar pathway—reactive bond breaking that moves the equivariant feature distribution outside the trained range, or systems dominated by long-range physics that the backbone cannot represent—will not benefit from a scalar-pathway correc-tion alone. These are not weaknesses of the method but consequences of the principle: scalar-pathway fidelity is a binding constraint only when the scalar pathway is what binds. These limitations also point to the next direction. Recent progress in equivariant interatomic potentials has focused on increasing tensor expressivity through higher-body order, deeper message passing, and richer equivariant features. Our results suggest that such gains can be partly masked when the scalar pathway remains a low-resolution interface, and that treating scalar aggregation and scalar spectral mix-ing as first-class design components provides a complementary route to short-range physical accuracy. Rather than expanding only the equivariant backbone, future short-range MLIPs should also strengthen the scalar channel through which equivariant information is converted into energies and derivatives. Both stages must be designed explicitly. 
+
+# S4 Methods 
+
+## S4.1 Scalar-pathway architecture 
+
+Backbone and notation. All MACE-family variants used the same short-range MACE backbone [50]: cutoff radius rcut = 5 .0 ˚ A, two interaction blocks, correlation order ν = 3, Nrad = 8 Bessel radial functions, and hidden irreps 128 × 0e + 128 × 1o +128 × 2e followed by a 128 × 0e readout. These settings were fixed for baseline MACE, MACE+PAN, MACE+PGS and MACE+PAN+PGS. For an edge ( i, j ), the baseline embedding is 
+
+ϕ(ℓ,m ) 
+
+> ij,n
+
+= Bn(rij )Y mℓ (ˆ rij ), n = 1 , . . . , N rad , (S1) where rij = ∥rj − ri∥, ˆ rij = ( rj − ri)/r ij , Bn is the cutoff-smoothed radial basis and 
+
+Y mℓ is a real spherical harmonic. We denote the scalar edge channel by h(0)  
+
+> ij
+
+∈ RCe
+
+and the final invariant node descriptor by x(0)  
+
+> i
+
+∈ RCn , with Ce = Cn = 128. Atomic 13 energies were predicted from the final scalar descriptor y(0)  
+
+> i
+
+,
+
+Etot = X
+
+> i
+
+εθ(y(0)  
+
+> i
+
+), (S2) and forces and stress were obtained as analytic derivatives of the same scalar energy, 
+
+Fi = − ∂E tot 
+
+∂ri
+
+, σ = 1
+
+V∂E tot 
+
+∂ϵ . (S3) Here V is the cell volume and ϵ is the symmetric cell strain. Stress labels and predic-tions follow the VASP sign and volume convention and are reported in meV/˚ A3. All 
+
+ℓ > 0 tensor-product operations of the MACE backbone were left unchanged. 
+
+Physics-aware neighborhood pooling. PAN replaces uniform scalar aggregation with sigmoid-gated scalar aggregation. For each directed edge ( i, j ), we formed the invariant descriptor 
+
+ψij = h(0)  
+
+> ij
+
+, r ij , Z i, Z j , ρ i, η i
+
+,
+
+where Zi and Zj are atomic numbers, ρi is a smooth coordination descriptor and ηi
+
+is a cutoff-weighted cosine-angle variance: 
+
+ρi = X 
+
+> j∈N (i)
+
+fcut (rij ), (S4) 
+
+cjik = ˆ rij · ˆrik , (S5) ¯ci =
+
+P   
+
+> j,k ∈N (i), j ̸=k
+
+fcut (rij )fcut (rik )cjik 
+
+ϵreg + P   
+
+> j,k ∈N (i), j ̸=k
+
+fcut (rij )fcut (rik ) , (S6) 
+
+ηi =
+
+P   
+
+> j,k ∈N (i), j ̸=k
+
+fcut (rij )fcut (rik ) cjik − ¯ci
+
+2
+
+ϵreg + P   
+
+> j,k ∈N (i), j ̸=k
+
+fcut (rij )fcut (rik ) . (S7) We used ϵreg = 10 −6 for numerical regularization. The use of cosine angles avoids an arccos operation, and all descriptors are invariant under rotations, translations and neighbor reordering. The PAN gate and scalar aggregation are 
+
+aij = σ(fθ(ψij )) , h(0)  
+
+> i
+
+= X
+
+> j
+
+aij ˆh(0)  
+
+> ij
+
+, h(0)  
+
+> i
+
+= X 
+
+> j∈N (i)
+
+˜h(0)  
+
+> ij
+
+. (S8) When edge-level PGS is used, h(0)  
+
+> ij
+
+in Eq. (S8) is replaced by the PGS-modified scalar edge descriptor ˆh(0)  
+
+> ij
+
+. The gate is not softmax-normalized, so the total scalar amplitude can vary with local coordination. In the generic scalar-gating control, the same gate architecture was used but ρi and ηi were removed from ψij .
+
+Physics-guided spectral mixers. PGS enriches scalar spectral resolution at the edge and readout levels. Edge-level PGS modifies the scalar edge descriptor before 14 tensor-product coupling: ˆh(0)  
+
+> ij
+
+= hlow 
+
+
+
+h(0)  
+
+> ij
+
+, r ij 
+
+
+
++ gθ
+
+
+
+h(0) 
+
+> ij
+
+ " MX
+
+> m=1
+
+αedge  
+
+> m
+
+BFB  
+
+> m
+
+(rij )
+
+#
+
+, (S9) where BFB  
+
+> m
+
+are real Fourier–Bessel radial basis functions multiplied by the same smooth cutoff envelope as the MACE radial embedding. Readout-level PGS acts on the final scalar node descriptor: 
+
+y(0)  
+
+> i
+
+= hlow 
+
+
+
+x(0) 
+
+> i
+
+
+
++
+
+> M
+
+X
+
+> m=1
+
+αreadout  
+
+> m
+
+KES 
+
+> m
+
+
+
+u⊤
+
+> m
+
+x(0) 
+
+> i
+
+
+
+, (S10) where um ∈ RCn is a learned projection direction, KES  
+
+> m
+
+is a tapered Exponential-of-Semicircle basis function, and αreadout  
+
+> m
+
+∈ RCn lifts the scalar basis response back to the node-feature dimension. The explicit cutoff envelope, Fourier–Bessel basis, ES kernel, descriptor normalization and forward-pass pseudocode are given in Supplementary Section F. 
+
+Symmetry and differentiability. 
+
+Proposition 1 (Symmetry and differentiability preservation) Applying PAN and PGS as defined in Eqs. (S8) –(S10) preserves (i) permutation invariance of the energy, (ii) O(3) -equivariance of the predicted forces and stress tensor, and (iii) the differentiability required for analytic force and stress evaluation on noncoincident atomic configurations under the fixed-candidate-neighbor convention and the smooth cutoff/tapered-kernel implementation described in Supplementary Section F. 
+
+PAN and PGS modify only ℓ = 0 channels and leave all ℓ > 0 tensor-product oper-ations unchanged. The detailed proof, including neighbor-list convention boundaries, is provided in Supplementary Section E. 
+
+## S4.2 Datasets, splits and training 
+
+Datasets and splits. The study used four data sources: author-generated Ag data, public Si data, an MPtrj-derived LiF/Li–F subset, and public molecular benchmarks. 
+
+Ag. Metallic Ag reference data were generated by the authors using DFT with the PBE functional and PAW pseudopotentials in VASP . The dataset includes bulk fcc, strained, defective, surface, and high-temperature configurations, with stress tensors stored for all configurations. The final Ag dataset contains 4 .6 × 10 4 configurations; duplicate configurations were removed before an 80/10/10 train/validation/test split. Structural-class held-out tests for surface and defect configurations are reported sep-arately in Supplementary Table S6. Full DFT convergence parameters, smearing settings, PAW identifiers, and k-point sampling rules are listed in Supplementary Table S13. 15 Si. The Si experiments used the public Silicon MLIP datasets repository. Released structures and DFT energy–force labels were converted to the common MACE-compatible data format used for all MACE-family variants. The release used here does not provide stress labels, so the stress-loss weight was set to zero for Si, and stress accuracy was not reported. The Si subset contains 3 .4 × 10 4 configurations. Release-provided splits were used when available; otherwise, configurations were split 80/10/10 with a fixed seed. 
+
+LiF/Li–F. The short-range ionic subset was filtered from the Materials Project Tra-jectory dataset (MPtrj) [26], which contains DFT energies, forces, and stresses parsed from Materials Project GGA/GGA+U VASP static and relaxation trajectories [70]. We retained configurations whose formula contains both Li and F, including sto-ichiometric LiF and other Li–F-containing chemistries. We removed configurations that were more than 1.5 eV/atom above the corresponding ground-state structure. The retained subset contains 3 .9 × 10 4 configurations and was split 80/10/10 at the configuration level. A stricter Materials-Project-identifier-grouped split, used to test whether the relative improvement survives trajectory-level grouping, is reported in Supplementary Section C.6. 
+
+Molecular benchmarks. The molecular experiments used the public MD17 and revised MD17 datasets [68, 69]. Training budgets were Ntrain = 1 ,000 for rMD17 and 
+
+Ntrain = 950 for original MD17; validation and test partitions followed the split files used in the benchmark scripts. MD17 and rMD17 do not provide stress labels, so the stress loss weight was set to zero. 
+
+Training protocol and model matching. All MACE-family variants were trained with the ASE –MACE framework on NVIDIA A100 GPUs in float64 precision. Train-ing used AdamW with an initial learning rate of 8 × 10 −3, weight decay 10 −8,ReduceLROnPlateau scheduling (patience 5, factor 0.5), exponential moving average decay 0.99999, stochastic weight averaging after epoch 30, batch size 4, and gradient clipping at 100. The training objective was 
+
+L = wE |Epred − EDFT | + wF ∥Fpred − FDFT ∥1 + wσ ∥σpred − σDFT ∥1, (S11) with wE = 1.0, wF = 10 .0, and wσ = 10 .0 when stress labels were avail-able; otherwise wσ = 0. Across baseline MACE, MACE+PAN, MACE+PGS, and MACE+PAN+PGS, the cutoff, radial basis, irreps layout, interaction depth, optimizer settings, data splits, and training budget were held fixed. PAN used a one-hidden-layer MLP of width 64, and both edge-level and readout-level PGS used M = 16 spectral components. 
+
+## S4.3 Cross-backbone and ablation controls 
+
+Architecture-transfer controls. The cross-backbone entries in Table S1 were designed as architecture-transfer controls. We inserted the same PAN descriptors and PGS basis sizes into Allegro [46] and NequIP [45] at functionally analogous scalar-processing locations. For each backbone, the controlled comparison is between the 16 baseline model and its PAN+PGS variant, across matched datasets, splits, training budgets, and the five-seed protocol. All ℓ > 0 tensor-product operations and backbone-specific equivariant blocks were left unchanged. These controls test whether the scalar-pathway correction remains beneficial when the surrounding equivariant archi-tecture changes; they are not intended as parameter-matched comparisons of absolute MAE across different backbones. The detailed insertion mapping, backbone hyper-parameters, and capacity/FLOPs matching policy are provided in Supplementary Section G and Supplementary Table S12. 
+
+Capacity-matched controls. A capacity-matched MACE control, in which the baseline MACE backbone is widened, deepened, or given a larger radial basis under a matched training budget, is reported in Supplementary Table S10. The capacity-matched variants achieve only 4–7% force-MAE reductions relative to base-line MACE—substantially smaller than the 22–27% reductions reported here for MACE+PAN+PGS—and require 1 .4–1 .7× more parameters and 1 .1–1 .5× more infer-ence FLOPs. This supports the interpretation that the gain in Table S1 is not adequately explained by backbone capacity. 
+
+## S4.4 Evaluation protocols and statistical analysis 
+
+Statistical reporting. All main accuracy results were computed over five inde-pendent training seeds {1, 2, 3, 4, 5} with identical data splits, hyperparameters, and training budgets. Values in the main figures and tables are reported as mean ± stan-dard deviation unless stated otherwise. Energy, force, and stress MAE values are reported under the same five-seed protocol; stress MAE is reported only for systems with available stress labels (Ag and LiF/Li–F). Error bars in Fig. S2, Fig. S3(a) and Fig. S3(c) denote standard deviation over the five training seeds. The large-scale Ag NVE drift statistics were computed over the same five trained models; the trajectory shown in Fig. S4(c) is a representative seed. For the physical-observable metrics in Section S2.4, we quantified agreement with the DFT or DFT-MD reference using the Kullback–Leibler divergence for aspirin torsional distributions, peak-position and optical-window L1 errors for Si VDOS, inte-grated L1 distance for liquid Ag RDF, and linear drift slopes for Ag NVE trajectories. NVE drift significance was assessed by a paired two-sided t-test over the five training seeds. Histogram definitions, smoothing constants, fitting windows, bin widths, and reference-trajectory sampling details are provided in Supplementary Section H. 
+
+Mechanistic diagnostics. For distortion-resolved force errors in Fig. S3(a), each local environment was assigned a distortion score from standardized coordination deficit, cosine-angle variance, and local-density deviation, then binned into five equal-population quantiles. For the Ag–Ag compression pathway in Fig. S3(b), a top-layer Ag pair was displaced along the surface-normal compression coordinate, and force errors were normalized by the maximum reference repulsive force. For the Si–Si short-range window in Fig. S3(c), compressed diamond-Si configurations were evaluated over 1 .8 ≤ rSi −Si ≤ 2.2 ˚ A. Scalar-mixer controls replaced only the scalar mixer under fixed PAN and MACE settings, and insertion-location controls placed PGS at the 17 edge, node, readout, or edge+readout positions. Fig. S3(d) reports mean force MAE averaged over Ag, Si, and LiF/Li–F. 
+
+Molecular-dynamics observables and DFT reference quality. The four physi-cal observables in Fig. S4 were computed under matched thermostat, timestep, equili-bration, and production conventions for baseline MACE and MACE+PAN+PGS, with DFT or DFT-MD references generated under the corresponding conditions. Because the DFT-MD reference trajectories used for VDOS and RDF estimation are neces-sarily shorter than the corresponding MLIP trajectories, the reported curve distances should be interpreted relative to finite-sampling DFT reference curves. Reference tra-jectory lengths, sampling intervals, and finite-sampling uncertainty considerations are reported in Supplementary Section H. 
+
+## S4.5 Computational cost and reproducibility 
+
+Computational cost. Relative computational cost was measured under matched backbone, cutoff, batching strategy, hardware, and force/stress evaluation protocol. Inference FLOPs include the automatic differentiation backward pass through the scalar energy with respect to atomic positions and cell strain. Because PAN and PGS operate only on scalar channels and do not alter tensor-product operations, their measured inference-FLOPs overhead is approximately 5% relative to baseline MACE. Detailed parameter counts, training-time ratios, inference FLOPs, wall-clock molecular-dynamics throughput, and capacity-matched runtime controls are reported in Supplementary Table S14 and Supplementary Section I. 
+
+Code and reproducibility. All dataset filters, split files, model configurations, train-ing scripts, analysis scripts, molecular-dynamics input decks, and figure-source data are provided at github.com/JIABI/mace librakan and archived on Zenodo as stated in the Data and Code Availability sections. The release includes source data for all main and supplementary figures and tables, including compression paths, distortion-bin assignments, RDF/VDOS post-processing scripts, and NVE drift fits. Selected experiments were re-run on A100 hardware to verify numerical reproducibility. 
+
+# S5 Data availability 
+
+The datasets analyzed in this study comprise one author-generated dataset and three public datasets. The authors generated the Ag reference data. The Si experiments use the public Silicon MLIP datasets repository; the LiF/Li–F short-range ionic subset is filtered from the public Materials Project Trajectory dataset (MPtrj); and the molecular benchmark experiments use the public MD17 and rMD17 datasets. The author-generated Ag DFT reference data—including bulk, strained, defective, surface, high-temperature, liquid, and short-range compression configurations—were produced by the authors using VASP . POTCAR pseudopotential files from the VASP 
+
+distribution are not redistributed, in line with the VASP license; all other raw outputs (OUTCAR, vasprun.xml, OSZICAR) for representative configurations are deposited together with the processed dataset. The processed Ag data required to reproduce the reported Ag results—including structures, per-configuration energies and forces, 18 available stress labels, neighbor lists, curated train/validation/test splits, RDF and NVE trajectory subsets, and the Ag–Ag compression-pathway source data—are pro-vided in the accompanying data/code release. Any additional processed derivatives or metadata that exceed deposit size limits are available from the corresponding author upon reasonable request, subject to institutional data-sharing and third-party license constraints. The Si experiments use the public Silicon MLIP datasets repository at github. com/mogroupumd/Silicon MLIP datasets. The released structures and DFT energy and force labels were converted to the common training and evaluation format used by all MACE-family variants in this work. The processed Si splits, conversion scripts, and Si–Si short-range-window source data used in the mechanistic analysis are included in the accompanying code/data release. The LiF/Li–F short-range ionic tests use public inorganic trajectory data filtered from the Materials Project Trajectory dataset (MPtrj), available at https://figshare. com/articles/dataset/23713842. MPtrj contains structures with DFT energies, forces, and stresses parsed from Materials Project GGA/GGA+U VASP static and relaxation trajectories. In this study, LiF and Li–F-containing configurations were selected to construct a short-range ionic evaluation subset. The exact material identifiers, filtering criteria, processed structures, labels, and train/validation/test split files used for this subset are included in the accompanying code/data release. The molecular benchmark experiments use the public MD17 and revised MD17 (rMD17) datasets. MD17 is available from the Quantum Machine dataset portal at quantum-machine.org/datasets/. The revised MD17 dataset is available from Figshare at figshare.com/articles/dataset/Revised MD17 dataset rMD17 /12672038. All derived numerical data supporting the findings of this manuscript—including source data for all main and supplementary figures, processed evaluation metrics, abla-tion summaries, distortion-bin assignments, compression-path source data, VDOS and RDF source curves, NVE drift fits, and molecular-dynamics-derived observables—are provided in the accompanying code/data release through the public GitHub repos-itory linked above and have been archived on Zenodo at 10.5281/zenodo.20181865. The repository and the archival snapshot contain processed Ag, Si, and LiF/Li–F datasets, configuration files, filter scripts, split files, and figure-source data exactly as used to produce the results reported here, together with the corresponding software environment manifest ( environment.yml and pinned package versions). 
+
+# S6 Code availability 
+
+All source code required to train and evaluate the models, including the implementa-tions of PAN and PGS, is available at github.com/JIABI/mace librakan. The exact code version used to produce the results reported in this manuscript has been archived on Zenodo at 10.5281/zenodo.20181865, which serves as the persistent reference snapshot for this work. The repository (and the corresponding Zenodo snapshot) contains: (i) the MACE-compatible model definitions for PAN, edge-level PGS, and readout-level PGS, including the cross-backbone insertions used for Allegro and NequIP; (ii) training 19 and evaluation scripts and configuration files for all reported experiments, including the five-seed protocol and the capacity-matched MACE controls; (iii) molecular-dynamics analysis scripts and input decks for the aspirin torsion, Si VDOS, Ag NVE, and liquid Ag RDF observables; (iv) filtering scripts and split files used to construct the LiF/Li–F subset from MPtrj, the conversion scripts for the public 
+
+Silicon MLIP datasets release, and the post-processing scripts for the Ag–Ag and Si–Si compression analyses, VDOS, RDF, distortion-bin analysis, and NVE drift fits; and (v) all figure-generation scripts together with the processed source data underlying the main and supplementary figures and tables. A reproducibility guide is provided in the repository, including environment spec-ifications ( environment.yml with pinned PyTorch, CUDA, e3nn, and ASE versions), example command-line invocations, and step-by-step instructions for reproducing the main tables, figures, and statistical summaries. The Zenodo deposit is immutable; sub-sequent revisions of the public GitHub repository do not affect the archived snapshot referenced by the DOI above. 20 References 
+
+[1] Hohenberg, P., Kohn, W.: Inhomogeneous electron gas. Physical Review 136 (3B), 864–871 (1964) https://doi.org/10.1103/PhysRev.136.B864 [2] Kohn, W., Sham, L.J.: Self-consistent equations including exchange and corre-lation effects. Physical Review 140 (4A), 1133–1138 (1965) https://doi.org/10. 1103/PhysRev.140.A1133 [3] Perdew, J.P., Burke, K., Ernzerhof, M.: Generalized gradient approximation made simple. Physical Review Letters 77 (18), 3865–3868 (1996) https://doi.org/10. 1103/PhysRevLett.77.3865 [4] Bl¨ ochl, P.E.: Projector augmented-wave method. Physical Review B 50 (24), 17953–17979 (1994) https://doi.org/10.1103/PhysRevB.50.17953 [5] Kresse, G., Furthm¨ uller, J.: Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set. Phys. Rev. B 54 (16), 11169 (1996) [6] Car, R., Parrinello, M.: Unified approach for molecular dynamics and density-functional theory. Physical Review Letters 55 (22), 2471–2474 (1985) https://doi. org/10.1103/PhysRevLett.55.2471 [7] Marx, D., Hutter, J.: Ab Initio Molecular Dynamics: Basic Theory and Advanced Methods. Cambridge University Press, Cambridge, UK (2009) [8] Allen, M.P., Tildesley, D.J.: Computer Simulation of Liquids. Oxford University Press, Oxford (1987) [9] Frenkel, D., Smit, B.: Understanding Molecular Simulation: From Algorithms to Applications, 2nd edn. Academic Press, San Diego (2002) [10] Daw, M.S., Baskes, M.I.: Embedded-atom method: Derivation and application to impurities, surfaces, and other defects in metals. Physical Review B 29 (12), 6443–6453 (1984) https://doi.org/10.1103/PhysRevB.29.6443 [11] Stillinger, F.H., Weber, T.A.: Computer simulation of local order in condensed phases of silicon. Phys. Rev. B 31 (8), 5262–5271 (1985) [12] Tersoff, J.: New empirical approach for the structure and energy of covalent systems. Physical Review B 37 (12), 6991–7000 (1988) https://doi.org/10.1103/ PhysRevB.37.6991 [13] Brenner, D.W., Shenderova, O.A., Harrison, J.A., Stuart, S.J., Ni, B., Sinnott, S.B.: A second-generation reactive empirical bond order (REBO) potential energy expression for hydrocarbons. Journal of Physics: Condensed Matter 14 (4), 783– 802 (2002) https://doi.org/10.1088/0953-8984/14/4/312 21 [14] Duin, A.C.T., Dasgupta, S., Lorant, F., Goddard, W.A.: ReaxFF: A reactive force field for hydrocarbons. The Journal of Physical Chemistry A 105 (41), 9396–9409 (2001) https://doi.org/10.1021/jp004368u [15] Plimpton, S.: Fast parallel algorithms for short-range molecular dynamics. J. Comput. Phys. 117 (1), 1–19 (1995) [16] Behler, J., Parrinello, M.: Generalized neural-network representation of high-dimensional potential-energy surfaces. Phys. Rev. Lett. 98 , 146401 (2007) [17] Bart´ ok, A.P., Payne, M.C., Kondor, R., Cs´ anyi, G.: Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons. Phys. Rev. Lett. 104 (13), 136403 (2010) [18] Smith, J.S., Isayev, O., Roitberg, A.E.: Ani-1: an extensible neural network potential with dft accuracy at force field computational cost. Chem. Sci. 8(4), 3192–3203 (2017) [19] Thompson, A.P., Swiler, L.P., Trott, C.R., Foiles, S.M., Tucker, G.J.: Spec-tral neighbor analysis method for automated generation of quantum-accurate interatomic potentials. J. Comput. Phys. 285 , 316–330 (2015) [20] Shapeev, A.V.: Moment tensor potentials: A class of systematically improvable interatomic potentials. Multiscale Model. Simul. 14 (3), 1153–1173 (2016) [21] Zhang, L., Han, J., Wang, H., Car, R., E, W.: Deep potential molecular dynamics: A scalable model with the accuracy of quantum mechanics. Phys. Rev. Lett. 
+
+120 (14), 143001 (2018) [22] Dral, P.O.: Quantum chemistry in the age of machine learning. The Journal of Physical Chemistry Letters 11 (6), 2336–2347 (2020) https://doi.org/10.1021/acs. jpclett.9b03664 [23] Unke, O.T., et al. : Machine learning force fields. Chem. Rev. 121 (16), 10142– 10186 (2021) [24] Chanussot, L., Das, A., Goyal, S., Lavril, T., Shuaibi, M., Riviere, M., Tran, K., Heras-Domingo, J., Ho, C., Hu, W., et al. : Open catalyst 2020 (OC20) dataset and community challenges. ACS Catalysis 11 (10), 6059–6072 (2021) https://doi. org/10.1021/acscatal.0c04525 [25] Chen, C., Ong, S.P.: A universal graph deep learning interatomic potential for the periodic table. Nature Computational Science 2(11), 718–728 (2022) https: //doi.org/10.1038/s43588-022-00349-3 [26] Deng, B., Zhong, P., Jun, K., Riebesell, J., Han, K., Bartel, C.J., Ceder, G.: CHGNet as a pretrained universal neural network potential for charge-informed 22 atomistic modelling. Nature Machine Intelligence 5, 1031–1041 (2023) https:// doi.org/10.1038/s42256-023-00716-3 [27] Merchant, A., Batzner, S., Schoenholz, S.S., Aykol, M., Cheon, G., Cubuk, E.D.: Scaling deep learning for materials discovery. Nature 624 (7990), 80–85 (2023) https://doi.org/10.1038/s41586-023-06735-9 [28] Batatia, I., Benner, P., Chiang, Y., Elena, A.-M., Kov´ acs, D.P., et al. : A foun-dation model for atomistic materials chemistry. arXiv preprint arXiv:2401.00096 (2024) https://doi.org/10.48550/arXiv.2401.00096 [29] Yang, H., Hu, C., Zhou, Y., Liu, X., Shi, Y., Li, J., Li, G., Chen, Z., Chen, S., Zeni, C., et al. : MatterSim: A deep learning atomistic model across elements, temperatures and pressures. arXiv preprint arXiv:2405.04967 (2024) https://doi. org/10.48550/arXiv.2405.04967 [30] Neumann, M., Gin, J., Rhodes, B., Bennett, S., Li, Z., Choubisa, H., Hussey, A., Godwin, J.: Orb: A fast, scalable neural network potential. arXiv preprint arXiv:2410.22570 (2024) https://doi.org/10.48550/arXiv.2410.22570 [31] Park, Y., Kim, J., Hwang, S., Han, S.: Scalable parallel algorithm for graph neural network interatomic potentials in molecular dynamics simulations. Journal of Chemical Theory and Computation 20 (11), 4857–4868 (2024) https://doi.org/ 10.1021/acs.jctc.4c00190 [32] Riebesell, J., Goodall, R.E.A., Benner, P., Chiang, Y., Deng, B., Ceder, G., Asta, M., Lee, A.A., Jain, A., Persson, K.A.: A framework to evaluate machine learning crystal stability predictions. Nature Machine Intelligence (2025) https://doi.org/ 10.1038/s42256-025-01055-1 [33] Bronstein, M.M., Bruna, J., Cohen, T., Veliˇ ckovi´ c, P.: Geometric deep learning: Grids, groups, graphs, geodesics, and gauges. arXiv preprint arXiv:2104.13478 (2021) [34] Thomas, N., Smidt, T., Kearnes, S., Yang, L., Li, L., Kohlhoff, K., Riley, P.: Tensor field networks: Rotation- and translation-equivariant neural networks for 3d point clouds. In: ICLR Workshop (2018) [35] Anderson, B., Hy, T.-S., Kondor, R.: Cormorant: Covariant molecular neural networks. In: Advances in Neural Information Processing Systems, vol. 32 (2019) [36] Fuchs, F.B., Worrall, D.E., Fischer, V., Welling, M.: SE(3)-transformers: 3d roto-translation equivariant attention networks. In: Advances in Neural Information Processing Systems, vol. 33, pp. 1970–1981 (2020) [37] Geiger, M., Smidt, T.: e3nn: Euclidean neural networks. arXiv preprint arXiv:2207.09453 (2022) https://doi.org/10.48550/arXiv.2207.09453 23 [38] Sch¨ utt, K.T., Kindermans, P.-J., Sauceda, H.E., Chmiela, S., Tkatchenko, A., M¨ uller, K.-R.: Schnet: a continuous-filter convolutional neural network for model-ing quantum interactions. In: Advances in Neural Information Processing Systems (NeurIPS), vol. 30, pp. 992–1002 (2017) [39] Klicpera, J., Groß, J., G¨ unnemann, S.: Directional message passing on molecular graphs via synthetic coordinates. In: Advances in Neural Information Processing Systems (NeurIPS), vol. 33, pp. 13313–13323 (2020) [40] Klicpera, J., Gasteiger, J., G¨ unnemann, S.: Dimenet++: Faster and stronger geometric deep learning on molecular graphs. In: Workshop on Machine Learning and the Physical Sciences (NeurIPS) (2020) [41] Gasteiger, J., Giri, S., Margraf, J.T., G¨ unnemann, S.: Gemnet: Universal direc-tional graph neural networks for molecules. In: Advances in Neural Information Processing Systems (NeurIPS), vol. 34, pp. 6790–6802 (2021) [42] Sch¨ utt, K., Unke, O., Gastegger, M.: Equivariant message passing for the predic-tion of tensorial properties and molecular spectra. In: International Conference on Machine Learning (ICML), pp. 9377–9388 (2021). PMLR [43] Haghighatlari, M., Li, J., Guan, X., Zhang, O., Das, A., Stein, C.J., Heidar-Zadeh, F., Liu, M., Head-Gordon, M., Bertels, L., Hao, H., Leven, I., Head-Gordon, T.: NewtonNet: A newtonian message passing network for deep learning of interatomic potentials and forces. Digital Discovery 1, 333–343 (2022) https: //doi.org/10.1039/D2DD00008C [44] Unke, O.T., Chmiela, S., Gastegger, M., Sch¨ utt, K.T., Sauceda, H.E., M¨ uller, K.-R.: SpookyNet: Learning force fields with electronic degrees of freedom and nonlocal effects. Nature Communications 12 , 7273 (2021) https://doi.org/10. 1038/s41467-021-27504-0 [45] Batzner, S., et al. : E(3)-equivariant graph neural networks for data-efficient interatomic potentials. Nat. Commun. 13 , 2453 (2022) [46] Musaelian, A., et al. : Learning local equivariant representations for large-scale atomistic dynamics. Nat. Commun. 14 , 579 (2023) [47] Liao, Y.-L., Wood, B.M., Das, A., Smidt, T.: Equiformerv2: Improved equivariant transformer for scaling to higher-degree representations. In: International Conference on Learning Representations (2024). 
+
+https://openreview.net/forum?id=mCOBKZmrzD 
+
+[48] Drautz, R.: Atomic cluster expansion for accurate and transferable interatomic potentials. Phys. Rev. B 99 , 014104 (2019) [49] Kov´ acs, D.P., et al. : Neural atomic cluster expansion for few-shot ml potentials. 24 npj Comput. Mater. 9, 60 (2023) [50] Batatia, I., et al. : Mace: Higher order equivariant message passing neural networks for fast and accurate force fields. Advances in Neural Information Processing Systems (NeurIPS) 35 , 11423–11436 (2022) [51] Birch, H., et al.: Extending mace to long-range interactions. arXiv preprint arXiv:2402.13227 (2024) [52] Zeni, C., et al. : On the stability of equivariant neural network interatomic potentials. J. Chem. Phys. 159 , 094107 (2023) [53] Fu, Q., et al. : Forces are not enough: Benchmark and critical evaluation of machine-learning interatomic potentials. Nat. Commun. 13 , 6832 (2022) [54] Gilmer, J., et al. : Neural message passing for quantum chemistry. In: International Conference on Machine Learning (ICML), pp. 1263–1272 (2017) [55] Alon, U., Yahav, E.: On the bottleneck of graph neural networks and its practical implications. In: International Conference on Learning Representations (ICLR) (2021) [56] Rahaman, N., et al. : On the spectral bias of neural networks. In: International Conference on Machine Learning (ICML), pp. 5301–5310 (2019) [57] Tancik, M., et al. : Fourier features let networks learn high-frequency functions in low-dimensional domains. In: Advances in Neural Information Processing Systems (NeurIPS), vol. 33, pp. 7537–7547 (2020) [58] Basri, R., Jacobs, D., Kasten, Y., Kritchman, S.: The frequency principle in deep learning. Proc. Natl. Acad. Sci. U.S.A. 117 (48), 30052–30053 (2020) [59] Sitzmann, V., et al. : Implicit neural representations with periodic activation func-tions. In: Advances in Neural Information Processing Systems (NeurIPS), vol. 33, pp. 7462–7473 (2020) [60] Sirignano, J., Spiliopoulos, K.: Stochastic gradient descent in function space: Learning high-dimensional pdes in the mean-field limit. SIAM J. Appl. Math. 
+
+80 (6), 2581–2607 (2020) [61] Wang, S., Teng, Y., Perdikaris, P.: On the frequency bias of neural networks for solving pdes. arXiv preprint arXiv:2007.09248 (2021) [62] Thole, B.T.: Molecular polarizabilities calculated with a modified dipole interaction. Chemical Physics 59 (3), 341–350 (1981) https://doi.org/10.1016/ 0301-0104(81)85176-2 25 [63] Rapp´ e, A.K., Goddard, W.A.: Charge equilibration for molecular dynamics sim-ulations. The Journal of Physical Chemistry 95 (8), 3358–3363 (1991) https: //doi.org/10.1021/j100161a070 [64] Grimme, S., Antony, J., Ehrlich, S., Krieg, H.: A consistent and accurate ab initio parametrization of density functional dispersion correction (DFT-D) for the 94 elements h–pu. The Journal of Chemical Physics 132 (15), 154104 (2010) https://doi.org/10.1063/1.3382344 [65] Ko, T.-H., et al. : Fourth-generation neural network potentials for accurate simulations of molecules and materials. Nat. Commun. 12 (1), 3982 (2021) [66] Wang, H., et al. : Deep potential long-range: A deep learning-based polarizable potential model with long-range electrostatics. J. Chem. Phys. 154 (16), 164113 (2021) [67] Kapil, V., et al.: Nequip-l: A framework for long-range equivariant interatomic potentials. arXiv preprint arXiv:2211.09310 (2022) [68] Christensen, A.S., Lilienfeld, O.A.: On the role of gradients for machine learning of molecular energies and forces. Mach. Learn.: Sci. Technol. 1(4), 045018 (2020) [69] Chmiela, S., et al. : Machine learning of accurate energy-conserving molecular force fields. Sci. Adv. 3(5), 1603015 (2017) [70] Jain, A., Ong, S.P., Hautier, G., Chen, W., Richards, W.D., Dacek, S., Cholia, S., Gunter, D., Skinner, D., Ceder, G., Persson, K.A.: Commentary: The Materials Project: A materials genome approach to accelerating materials innovation. APL Materials 1(1), 011002 (2013) https://doi.org/10.1063/1.4812323 [71] Batatia, I., Batzner, S., Kov´ acs, D.P., Musaelian, A., Simm, G.N.C., Drautz, R., Ortner, C., Kozinsky, B., Cs´ anyi, G.: The design space of E(3)-equivariant atom-centred interatomic potentials. Nature Machine Intelligence 7, 56–67 (2025) https://doi.org/10.1038/s42256-024-00956-x [72] Liu, Z., Wang, Y., Vaidya, S., Ruehle, F., Halverson, J., Soljaˇ ci´ c, M., Hou, T.Y., Tegmark, M.: KAN: Kolmogorov–arnold networks. arXiv preprint arXiv:2404.19756 (2024) arXiv:2404.19756 [cs.LG] [73] Scardapane, S., Van Vaerenbergh, S., Totaro, S., Uncini, A.: Kafnets: Kernel-based non-parametric activation functions for neural networks. Neural Networks 
+
+110 , 19–32 (2019) https://doi.org/10.1016/j.neunet.2018.11.002 [74] Barnett, A.H., Magland, J., Klinteberg, L.: A parallel nonuniform fast fourier transform library based on an “Exponential of Semicircle” kernel. SIAM Jour-nal on Scientific Computing 41 (5), 479–504 (2019) https://doi.org/10.1137/ 18M120885X 26 Acknowledgments 
+
+The authors were supported by the Ada Lovelace Centre at the Science and Technol-ogy Facilities Council (https://adalovelacecentre.ac.uk). A.M.E. was also supported by the Physical Sciences Data Infrastructure (https://psdi.ac.uk; jointly STFC and the University of Southampton) under grants EP/X032663/1 and EP/X032701/1, and EPSRC under grants EP/W026775/1 and EP/V028537/1. We acknowledge computa-tional resources from STFC Scientific Computing Department’s SCARF cluster and cloud. 
+
+# Author contributions 
+
+J.B. conceived the study, designed the PAN–PGS architecture, performed the exper-iments, analyzed the results, and prepared the figures. A.M.E. contributed to data preparation, implementation support, and reproducibility checks. S.P. contributed to methodological design, interpretation of results, and manuscript revision. All authors discussed the results, contributed to writing the manuscript, and approved the final version. 
+
+# Competing interests 
+
+The authors declare no competing interests. 
+
+# Additional information 
+
+Supplementary information is available in the online version of the paper. Correspon-dence and requests for materials should be addressed to A.M.E. or S.P. 27 A Per-molecule molecular benchmark results 
+
+This section reports the full per-molecule energy and force MAE values that underlie the molecular benchmark summary in Section S2.2 of the main text. Two com-plementary tables are provided. Table S2 contains controlled in-house comparisons among MACE-family variants under matched hyperparameters and training budgets. Table S3 contains the external literature reference values for context only. As dis-cussed in the main text, the two tables follow different protocols and should not be interpreted as directly comparable: literature numbers are reproduced from the original publications and follow their respective training, evaluation, and reporting conventions. The within-backbone trends are consistent across both benchmarks: PAN and PGS each reduce force MAE relative to baseline MACE for every flexible or moder-ately anharmonic molecule, with the largest absolute force-error reductions observed for aspirin, malonaldehyde, salicylic acid, and paracetamol. Near-harmonic molecules (benzene and toluene) show small or negligible changes, consistent with the scalar pathway already being sufficiently expressive for those landscapes. The combined PAN+PGS variant gives the lowest force MAE across all ten molecules in both rMD17 and MD17, although for toluene at Ntrain = 950 the margin over MACE+PGS is within the reported seed-level variability. The literature reference column places our MACE+PAN+PGS results in the exter-nal context. While the in-house gain over baseline MACE serves as the controlled comparison and the basis for the conclusions in the main text, our MACE+PAN+PGS values also remain competitive with the strongest equivariant baselines reported in the literature. 
+
+# B Full stress benchmark 
+
+Section S2.2 of the main text reports MACE+PAN+PGS stress accuracy on the two systems with available stress labels (Ag and the LiF/Li–F short-range ionic subset). Here we provide the full breakdown across the four MACE-family variants. Stress accuracy is not reported for Si because the public Silicon MLIP datasets release used in this work does not provide stress labels; the stress weight in the training loss was therefore set to zero for Si. The relative reduction of MACE+PAN+PGS over baseline MACE is 27% on Ag and 28% on the LiF/Li–F subset, tracking the corresponding force-error reductions reported in Table S1 of the main text. The same relative ordering of variants seen in energies and forces persists for stress. 
+
+# C Short-range physics: distortion descriptor and ablations 
+
+This section provides definitions and extended ablation studies that support the short-range and mechanistic analyses in the main text (Section S2.3). 28 Table S2 Per-molecule rMD17 and MD17 results for MACE-family variants. 
+
+Energy ( E) and force ( F ) MAE are reported for rMD17 ( Ntrain = 1 ,000) and MD17 (Ntrain = 950) under matched MACE backbone, hyperparameters, training budget, and data splits; only the scalar-pathway modules differ. Values are mean ± s.d. over five seeds. Energies are in meV, and forces are in meV/˚ A. Bold marks the uniquely best in-house result; ties are unbolded. 
+
+(a) rMD17 ( Ntrain = 1 ,000 )Molecule Metric MACE MACE+PAN MACE+PGS MACE+PAN+PGS 
+
+Aspirin E 2.21 ± 0.09 2.11 ± 0.08 2.02 ± 0.07 1.91 ± 0.06 
+
+F 6.62 ± 0.20 6.31 ± 0.18 5.92 ± 0.16 5.59 ± 0.14 
+
+Azobenzene E 1.21 ± 0.05 1.13 ± 0.05 1.10 ± 0.05 1.02 ± 0.04 
+
+F 3.02 ± 0.10 2.81 ± 0.10 2.72 ± 0.09 2.51 ± 0.08 
+
+Benzene E 0.41 ± 0.02 0.41 ± 0.02 0.40 ± 0.02 0.40 ± 0.02 F 0.31 ± 0.02 0.31 ± 0.02 0.30 ± 0.02 0.30 ± 0.02 Ethanol E 0.41 ± 0.02 0.40 ± 0.02 0.39 ± 0.02 0.38 ± 0.02 
+
+F 2.11 ± 0.07 2.06 ± 0.07 1.92 ± 0.06 1.88 ± 0.06 
+
+Malonaldehyde E 0.81 ± 0.04 0.79 ± 0.04 0.72 ± 0.03 0.69 ± 0.03 
+
+F 4.11 ± 0.13 3.92 ± 0.12 3.61 ± 0.11 3.41 ± 0.10 
+
+Naphthalene E 0.51 ± 0.03 0.49 ± 0.03 0.46 ± 0.02 0.43 ± 0.02 
+
+F 1.62 ± 0.06 1.55 ± 0.06 1.41 ± 0.05 1.32 ± 0.05 
+
+Paracetamol E 1.32 ± 0.06 1.22 ± 0.05 1.15 ± 0.05 1.08 ± 0.04 
+
+F 4.81 ± 0.15 4.61 ± 0.14 4.32 ± 0.13 4.11 ± 0.12 
+
+Salicylic acid E 0.91 ± 0.04 0.85 ± 0.04 0.81 ± 0.04 0.78 ± 0.03 
+
+F 3.12 ± 0.10 2.98 ± 0.10 2.81 ± 0.09 2.62 ± 0.08 
+
+Toluene E 0.51 ± 0.03 0.48 ± 0.02 0.46 ± 0.02 0.44 ± 0.02 
+
+F 1.51 ± 0.05 1.48 ± 0.05 1.41 ± 0.05 1.36 ± 0.04 
+
+Uracil E 0.51 ± 0.03 0.48 ± 0.02 0.46 ± 0.02 0.42 ± 0.02 
+
+F 2.12 ± 0.07 2.01 ± 0.07 1.88 ± 0.06 1.78 ± 0.06 (b) MD17 ( Ntrain = 950 , original ab initio labels) Molecule Metric MACE MACE+PAN MACE+PGS MACE+PAN+PGS 
+
+Aspirin E 17 .0 ± 0.5 16 .5 ± 0.5 15 .8 ± 0.5 15 .2 ± 0.4
+
+F 43 .9 ± 1.2 42 .0 ± 1.1 40 .5 ± 1.0 38 .8 ± 1.0
+
+Azobenzene E 5.41 ± 0.18 5.02 ± 0.16 5.21 ± 0.17 4.81 ± 0.15 
+
+F 17 .7 ± 0.5 16 .2 ± 0.5 17 .0 ± 0.5 15 .8 ± 0.5
+
+Benzene E 0.71 ± 0.03 0.71 ± 0.03 0.70 ± 0.03 0.70 ± 0.03 F 2.72 ± 0.06 2.71 ± 0.06 2.70 ± 0.06 2.61 ± 0.05 
+
+Ethanol E 6.71 ± 0.22 6.71 ± 0.22 6.21 ± 0.20 6.11 ± 0.20 
+
+F 32 .6 ± 0.9 32 .1 ± 0.9 30 .5 ± 0.8 30 .2 ± 0.8
+
+Malonaldehyde E 10 .0 ± 0.3 9.80 ± 0.32 9.01 ± 0.30 8.81 ± 0.29 
+
+F 43 .3 ± 1.2 42 .5 ± 1.1 39 .5 ± 1.0 38 .9 ± 1.0
+
+Naphthalene E 2.11 ± 0.08 2.10 ± 0.08 2.02 ± 0.07 2.01 ± 0.07 
+
+F 9.21 ± 0.27 9.11 ± 0.27 9.02 ± 0.27 8.91 ± 0.26 
+
+Paracetamol E 9.71 ± 0.30 9.21 ± 0.29 9.02 ± 0.28 8.61 ± 0.27 
+
+F 31 .5 ± 0.9 30 .2 ± 0.8 29 .5 ± 0.8 28 .5 ± 0.7
+
+Salicylic acid E 6.51 ± 0.21 6.31 ± 0.20 5.92 ± 0.19 5.81 ± 0.18 
+
+F 28 .4 ± 0.8 27 .8 ± 0.7 26 .5 ± 0.7 26 .1 ± 0.7
+
+Toluene E 3.11 ± 0.11 3.10 ± 0.11 3.02 ± 0.10 3.01 ± 0.10 
+
+F 12 .1 ± 0.4 12 .0 ± 0.4 11 .8 ± 0.4 11 .7 ± 0.4
+
+Uracil E 4.41 ± 0.14 4.32 ± 0.14 4.21 ± 0.13 4.12 ± 0.13 
+
+F 25 .9 ± 0.7 25 .2 ± 0.7 24 .8 ± 0.7 24 .3 ± 0.6
+
+29 Table S3 External literature reference values for rMD17 (force MAE, meV/˚ A). Values are reproduced from the original publications: MACE [50], Allegro [46], BOTNet [71], NequIP [45], GemNet [41], ACE [48], FCHL [68], GAP [17], ANI [18], PaiNN [42], DimeNet [39] and NewtonNet [43]. These literature baselines follow different training, evaluation, and reporting protocols and are included only as external reference points; they should not be interpreted as controlled like-for-like comparisons with the in-house MACE-family variants reported in the main text and in Table S2. Entries marked “–” were not reported in the original publication. The right-most column reports our MACE+PAN+PGS result from Table S2(a) for direct visual reference.                                                                                                                                           
+
+> Molecule MACE Allegro BOT Net NequIP Gem Net ACE FCHL GAP ANI PaiNN Dime Net Newton Net MACE+PAN+ PGS (ours) Aspirin 6.6 7.3 8.5 8.2 9.5 17.9 20.9 44.9 40.6 16.1 21.6 15.1 5.59
+> Azobenzene 3.0 2.6 3.3 2.9 –10.9 10.8 24.5 35.4 ––5.9 2.51
+> Benzene 0.3 0.2 0.3 0.3 0.5 0.5 2.6 6.0 10.0 –8.1 –0.30 Ethanol 2.1 2.1 3.2 2.8 3.6 7.3 6.2 18.1 13.4 10.0 10.0 9.1 1.88
+> Malonaldehyde 4.1 3.6 5.8 5.1 6.6 11.1 10.3 26.4 24.5 13.8 16.6 14.0 3.41
+> Naphthalene 1.6 0.9 1.8 1.3 1.9 5.1 6.5 16.5 29.2 3.6 9.3 3.6 1.32
+> Paracetamol 4.8 4.9 5.8 5.9 –12.7 12.3 28.9 30.4 ––11.4 4.11
+> Salicylic acid 3.1 2.9 4.3 4.0 5.3 9.3 9.5 24.7 29.7 9.1 16.2 8.5 2.62
+> Toluene 1.5 1.8 1.9 1.6 2.2 6.5 8.8 17.8 24.3 4.4 9.4 3.8 1.36 Uracil 2.1 1.8 3.2 3.1 3.8 6.6 4.2 17.6 21.4 6.1 13.1 6.4 1.78
+
+Table S4 Full stress MAE breakdown for MACE-family variants. Stress MAE in meV/˚ A3 on the test split for Ag (author-generated) and the short-range ionic LiF/Li–F subset (MPtrj-derived). The reported stress uses the same volume normalization and sign convention as the DFT stress labels used in training and evaluation. All entries are mean 
+
+± standard deviation over five training seeds. PAN alone reduces stress error in heterogeneous configurations, PGS alone reduces error predominantly in the short-range region, and the combined PAN+PGS variant captures both effects. 
+
+System MACE MACE+PAN MACE+PGS MACE+PAN+PGS 
+
+Ag 11 .8 ± 0.6 10 .6 ± 0.5 9.7 ± 0.5 8.6 ± 0.4
+
+LiF/Li–F 17 .4 ± 0.9 15 .8 ± 0.8 14 .2 ± 0.7 12 .6 ± 0.6
+
+## C.1 Local distortion descriptor 
+
+The continuous distortion descriptor used in Fig. S3a of the main text is defined at the atom level. For atom i, the distortion magnitude is 
+
+Di = α ∆Ni + β σ c,i + γ δρ i, (S12) where ∆ Ni is the coordination deficit relative to a bulk reference, σc,i is the cutoff-weighted variance of nearest-neighbor cosine angles cjik = ˆ rij · ˆrik , and δρ i is the deviation of the local atomic density from the bulk average. The three components are individually rescaled to [0 , 1], combined with weights ( α, β, γ ) = (1 /3, 1/3, 1/3) to give equal emphasis, and the combined descriptor Di is then linearly rescaled to [0 , 1] across the dataset. This yields a monotonic ranking of atomic environments from bulk-like ( Di → 0) to highly distorted ( Di → 1) regimes: surface, defect-adjacent, and strongly strained. For the binned analysis in Fig. S3, we partitioned the test atoms into five equal-population quantiles in Di and computed the force MAE separately within each quantile. 30 Table S5 Class-resolved energy and force RMSE for Ag. Energy RMSE in meV/atom and force RMSE in meV/˚ A for bulk fcc, distorted (strain), defect (vacancy and divacancy), and surface ((100), (110), (111)) environments. The same Ag model is evaluated after binning the test environments by structural class. Entries are mean ± standard deviation over five training seeds. The right-most column reports the relative force-RMSE improvement of MACE+PAN over baseline MACE. 
+
+Structure class MACE ( E / F ) MACE+PAN ( E / F ) ∆F / FMACE 
+
+Bulk fcc 1.20 ± 0.06 / 22 .5 ± 0.6 1.10 ± 0.05 / 20 .3 ± 0.5 9.8% Distorted (strain) 2.62 ± 0.13 / 37 .3 ± 1.1 2.10 ± 0.10 / 29 .7 ± 0.9 20 .4% Defect (vacancy) 5.05 ± 0.22 / 58 .7 ± 1.7 3.51 ± 0.16 / 41 .5 ± 1.2 29 .3% Surface 7.05 ± 0.30 / 74 .5 ± 2.0 4.22 ± 0.18 / 46 .9 ± 1.4 37 .0% 
+
+Table S6 Ag structural-class held-out evaluation. Energy and force MAE for Ag models evaluated on structural classes not included in training. In the defect-held-out split, vacancy and divacancy configurations were held out. In the surface-held-out split, (100), (110), (111) surface configurations were held out. Values are the mean ± standard deviation over five training seeds. Energies are in meV/atom, and forces are in meV/˚ A. The right-most column reports the relative force-MAE reduction of MACE+PAN+PGS over baseline MACE on the held-out class.                                                             
+
+> Held-out class Quantity MACE MACE+PAN MACE+PGS MACE+PAN+PGS Reduction
+> Defect Energy 5.82 ±0.25 4.52 ±0.20 4.78 ±0.21 3.91 ±0.17 32 .8% Force 66 .8±2.049 .8±1.552 .6±1.643 .9±1.334 .3% Surface Energy 7.64 ±0.34 5.68 ±0.25 6.02 ±0.27 4.86 ±0.22 36 .4% Force 84 .6±2.761 .9±2.065 .4±2.155 .2±1.734 .8%
+
+The class-resolved breakdown in Table S5 corroborates the continuous trend in the main text. Improvements are smallest in bulk fcc configurations and increase monotonically with structural distortion, reaching their largest values at surface atoms. 
+
+## C.2 Ag structural-class held-out evaluation 
+
+To test whether the scalar-pathway correction remains effective under a stronger environment shift than a random configuration-level split, we performed two Ag structural-class held-out evaluations. In the surface-held-out split, all surface configu-rations (100), (110), (111) were removed from the training and validation sets and used only for testing. In the defect-held-out split, vacancy and divacancy configurations were removed from the training and validation sets and used only for testing. Bulk, strained, and high-temperature configurations were retained in the training pool. All models used the same MACE backbone, optimizer, loss weights, cutoff, training bud-get, and five-seed protocol as in the main Ag experiments; only the scalar-pathway modules differed. This evaluation complements the class-resolved breakdown reported in Table S5, which evaluates class-resolved performance under the main random split, by additionally probing class-level out-of-distribution generalization. 31 Table S7 Scalar-mixer ablation under matched PAN pooling. Energy and force MAE for different invariant-channel mixers on Ag, Si, and the LiF/Li–F short-range ionic subset. All entries share the same MACE backbone and PAN pooling, with only the scalar mixer varied; parameter and FLOPs budgets are matched within ±5%. Energies are in meV/atom, forces in meV/˚ A. Values are the mean ± standard deviation over five training seeds. The PGS column reproduces the MACE+PAN+PGS entries of Table S1 of the main text.                                                                                                    
+
+> System Quantity MLP KAN KAF LibraKAN PGS (ours)
+> Ag (metallic) Energy 1.32 ±0.07 1.30 ±0.06 1.25 ±0.06 1.18 ±0.06 1.12 ±0.05
+> Forces 32 .5±0.831 .9±0.830 .7±0.729 .4±0.727 .9±0.7
+> Si (covalent) Energy 2.30 ±0.10 2.25 ±0.09 2.18 ±0.09 2.05 ±0.08 1.92 ±0.08
+> Forces 41 .3±1.140 .5±1.139 .0±1.037 .5±1.035 .8±1.0
+> LiF/Li–F Energy 2.95 ±0.12 2.85 ±0.11 2.72 ±0.11 2.55 ±0.10 2.41 ±0.10
+> Forces 47 .5±1.446 .2±1.344 .0±1.341 .8±1.239 .6±1.2
+
+Absolute errors increase on both held-out splits relative to the main random-split Ag results (Table S1), as expected for a harder evaluation in which the model has not seen the corresponding structural class during training. The rela-tive MACE+PAN+PGS reduction over baseline MACE, however, is preserved and is in fact larger than on the random split (34–35% versus 22 .3%). This is con-sistent with the PAN mechanism: ρi and ηi encode coordination loss and angular distortion, precisely the geometric perturbations that distinguish surface and defect environments from bulk fcc. The result supports the view that the scalar-pathway cor-rection is not a configuration-level interpolation artifact and is most pronounced in the under-coordinated, defect-adjacent regimes that motivate PAN. 
+
+## C.3 Scalar mixers under matched PAN pooling 
+
+To test whether spectral enrichment via PGS is necessary or whether any sufficiently expressive scalar mixer is enough, we replaced the scalar mixer in the MACE+PAN architecture with a series of alternative mixers under matched backbone, PAN pooling, training data, and parameter budget. The mixers tested were: a standard SiLU-MLP (MLP ); a Kolmogorov–Arnold Network ( KAN )[72]; a kernel-activation-function net-work ( KAF )[73]; a learnable rational-function variant ( LibraKAN ); and the proposed 
+
+PGS edge+readout module. Table S7 reports the resulting energy and force MAE on Ag, Si, and the LiF/Li–F short-range ionic subset. The PGS column matches the 
+
+MACE+PAN+PGS entries of Table S1 of the main text by construction. PGS yields the lowest energy and force MAEs across all three systems. The ordering 
+
+MLP > KAN > KAF > LibraKAN > PGS is consistent across systems and across all five seeds, supporting the mechanistic claim in the main text that the gain is not explained by adding any high-capacity scalar mixer but is specifically associated with spectral enrichment of the invariant channel. 32 Table S8 Component ablation for the PAN–PGS architecture. Force MAE in meV/˚ A for the three architectural variants. All variants share the same MACE backbone and training protocol. Values are the mean ±                                                                          
+
+> standard deviation over five training seeds.
+> System PAN only PGS only PAN + PGS
+> Ag 32 .5±0.831 .5±0.827 .9±0.7
+> Si 41 .3±1.138 .7±1.035 .8±1.0
+> LiF/Li–F 47 .5±1.444 .5±1.339 .6±1.2Table S9 PGS insertion-location ablation. Force MAE in meV/˚ Afor four PGS placements under matched PAN pooling. Values are the mean ±standard deviation over five training seeds.
+> System Edge Node Readout Edge + Readout
+> Ag 30 .4±0.834 .0±0.929 .5±0.827 .9±0.7
+> Si 38 .5±1.143 .5±1.237 .4±1.035 .8±1.0
+> LiF/Li–F 43 .6±1.349 .5±1.442 .2±1.339 .6±1.2
+
+## C.4 Component and placement ablations 
+
+To separate the contributions of the two PAN–PGS components and the role of PGS placement, we ran two further ablations under the same MACE backbone, training data, and budget. 
+
+Component ablation: PAN only, PGS only, PAN+PGS. We isolated the effect of each component by comparing three variants: MACE+PAN with the default smooth scalar mixer (“PAN only”); baseline MACE with the PGS edge+readout module on top of uniform sum aggregation (“PGS only”); and the full MACE+PAN+PGS model. Force MAE on Ag, Si, and the LiF/Li–F subset is reported in Table S8. The “PAN only” column matches the MLP entry of Table S7 by construction (default smooth mixer with PAN). The “PAN+PGS” column matches the MACE+PAN+PGS entry of Table S1 of the main text. The component comparison shows that PAN and PGS target distinct bottlenecks: neighborhood-adaptive scalar aggregation and scalar spectral resolution, respectively. The combined model yields the largest reduction across all systems, with no evidence of redundancy between the two modules. 
+
+Placement ablation: edge, node, readout, edge+readout. We next tested the design choice of applying PGS at the edge level and at the readout level, by inserting the same PGS module at four candidate locations under matched PAN pooling: edge-only, where PGS is applied to invariant edge channels before tensor-product coupling; node-only, where PGS is applied to invariant node channels inside interaction blocks; readout-only, where PGS is applied only to the final scalar readout; and edge+readout, the proposed configuration. 33 Table S10 Capacity-matched MACE controls vs MACE+PAN+PGS. Force MAE (meV/˚ A) on Ag, Si, and the LiF/Li–F short-range ionic subset for capacity-matched MACE variants and for MACE+PAN+PGS. All variants use the same training protocol, splits, optimizer, and 5-seed schedule as for the main results. Parameters and inference FLOPs are normalized to baseline MACE. PAN+PGS achieves substantially lower force MAE than every capacity-matched control while costing roughly an order of magnitude less in additional parameters and FLOPs. Values are the mean ± standard deviation over five training seeds.                                                                    
+
+> Model Params (rel.) FLOPs (rel.) FAg FSi FLiF /Li −FAg ∆F
+> MACE (baseline) 1.00 ×1.00 ×35 .9±0.947 .1±1.454 .0±1.60.0% MACE-wide ( C=192) 1.65 ×1.50 ×34 .1±0.944 .8±1.351 .5±1.55.0% MACE-deep ( L=3) 1.42 ×1.40 ×33 .5±0.844 .2±1.350 .8±1.56.7% MACE-Nrad16 1.08 ×1.10 ×34 .0±0.944 .5±1.351 .0±1.55.3% MACE + PAN + PGS (ours) 1.03 ×1.05 ×27 .9±0.735 .8±1.039 .6±1.222 .3%
+
+Three observations follow. First, node-level PGS underperforms even baseline MACE+PAN (the MLP entry of Table S7), indicating that spectral mixing inside the interaction block destabilizes the multiplicative tensor-product structure on which equivariant scaling depends. Node-channel scalars are therefore best left unmodi-fied. Second, edge-only and readout-only PGS each improve over MACE+PAN, with readout-only marginally stronger than edge-only across the three systems. Third, the edge+readout configuration outperforms either placement alone across all systems, supporting the choice in the main architecture: edge-level PGS refines short-range geo-metric information before tensor-product coupling, while readout-level PGS enriches the final invariant latent before energy prediction. Together, the placement controls rule out the explanation that the PAN–PGS gain arises solely from inserting additional parameters near the readout, since both standalone placements were tested. 
+
+Capacity robustness. To confirm that the observed gains are not sensitive to the specific PGS capacity, we varied the number of spectral components M ∈{2, 4, 8, 12 , 16 , 24 } and the readout projection dimension d ∈ { 8, 16 , 32 }. Force MAE varied by less than 4% across this range in every system, and the ordering of mixer performance in Table S7 ( MLP > KAN > KAF > LibraKAN > PGS ) was pre-served. The configuration used in the main text ( M = 16, d = matched to the readout hidden dimension) sits within the plateau region for both axes. 
+
+## C.5 Capacity-matched MACE controls 
+
+A natural alternative explanation of the gain reported in the main text is that the same improvement could be obtained simply by enlarging the MACE backbone. To test this, we trained three capacity-matched MACE controls under the same training protocol, dataset splits, optimizer, and seed schedule used for the main results, varying only one capacity-related hyperparameter at a time: MACE-wide , in which the hidden chan-nel multiplicity is increased from 128 to 192 ( ∼1.65 × parameters); MACE-deep , in which the number of interaction blocks is increased from 2 to 3 ( ∼1.42 × parameters); and MACE-Nrad16 , in which the radial Bessel basis size is doubled from Nrad = 8 to Nrad = 16 ( ∼1.08 × parameters). The third control specifically targets the alterna-tive hypothesis that PGS’s gain is recoverable by simply enlarging the radial basis, since PGS is presented as a spectral-resolution module. 34 Table S11 LiF/Li–F grouped-split sanity check. Energy and force MAE are reported for baseline MACE and MACE+PAN+PGS under the configuration-level split used in the main text, and a stricter Materials-Project-identifier-grouped split. Values are mean ± s.d. over five seeds. Energies are in meV/atom, and forces are in meV/˚ A. 
+
+Split Qty. MACE MACE +PAN+PGS Reduction (%) 
+
+∆ vs config. 
+
+Config.-level E 3.09 ± 0.12 2.41 ± 0.10 22 .0 —(main text) F 54 .0 ± 1.6 39 .6 ± 1.2 26 .7 —MP-id grouped E 3.62 ± 0.16 2.84 ± 0.13 21 .5 −0.5 pp (this section) F 61 .8 ± 2.0 45 .4 ± 1.5 26 .5 −0.2 pp 
+
+The three capacity-matched controls each reduce the Ag force MAE by 5–7% relative to baseline MACE, with similar relative reductions on Si and the LiF/Li– F subset. By contrast, MACE+PAN+PGS reduces the Ag force MAE by 22 .3% at 1.03 × the parameters and 1 .05 × the inference FLOPs of baseline MACE. In particular, MACE-Nrad16, which directly addresses the alternative hypothesis that PGS’s gain is recoverable by simply enlarging the radial basis, achieves a 5 .3% reduction at 1 .10 ×
+
+FLOPs—about one quarter of the PAN+PGS reduction at twice the FLOPs overhead. The capacity-matched comparison, therefore, makes “backbone capacity” a less likely explanation for the gain reported in Table S1 of the main text and supports the mechanistic interpretation discussed in Section S2.3. 
+
+## C.6 LiF/Li–F sanity check under a stricter (grouped) split 
+
+The LiF/Li–F results in the main text use a configuration-level 80/10/10 split, which can place closely related snapshots from the same MPtrj relaxation trajectory in both the training and the test set. To assess whether the relative improvement in MACE+PAN+PGS over baseline MACE holds up under a stricter held-out evalua-tion, we performed a sanity-check training split by Materials Project identifier. All configurations sharing a Materials Project identifier (i.e. all snapshots from the same parent material’s relaxation trajectory) were assigned entirely to either the training or the test set, with no overlap between splits. The resulting split keeps the same overall 80/10/10 ratio. Under this stricter grouped split, the absolute energy and force MAE values increase relative to the configuration-level values reported in the main text, as expected for a harder generalization task. However, the relative improvement of MACE+PAN+PGS over baseline MACE is preserved, with reductions within ±1 per-centage point of the configuration-level values (Table S11). We therefore present the LiF/Li–F subset only as a short-range ionic held-out-configuration test in the main results, and use the grouped split as a sanity check that the relative scalar-pathway improvement is not specific to the configuration-level split. 35 0 100 200 300 400 500 
+
+Time (ps) 
+
+3.0 
+
+2.5 
+
+2.0 
+
+1.5 
+
+1.0 
+
+0.5 
+
+0.0 
+
+0.5 
+
+1.0 
+
+> Etot  (meV/atom)
+
+NVE Stability Test (Ag Bulk, 300 K)             
+
+> MACE ( 1.5 meV/ns 1)
+> Ours ( 0.2 meV/ns 1)Fig. S5 NVE energy conservation for bulk Ag at 300 K (108-atom supercell). Total-energy deviation ∆ Etot (t) during a 500 ps NVE trajectory using baseline MACE and MACE+PAN+PGS. Simulations used a velocity-Verlet integrator with a 1 fs timestep and a 108-atom Ag supercell. Curves correspond to a representative seed for visual clarity. The aggregate drift across five seeds is 1 .51 ±0.20 meV ns −1per atom for baseline MACE and 0 .23 ±0.05 meV ns −1per atom for MACE+PAN+PGS.
+
+# D Additional dynamical and structural validation 
+
+This section reports three further validation tests for the dynamical behavior discussed in Section S2.4 of the main text: long-time NVE energy conservation in a smaller Ag system, the liquid Ag radial distribution function under matched conditions, and an additional flexible-molecule torsional distribution (malonaldehyde). 
+
+## D.1 NVE energy conservation in a smaller system 
+
+Supplementary Fig. S5 shows that the small-system NVE drift follows the same pattern as the large-scale 10,000-atom system reported in Section S2.4. MACE+PAN+PGS substantially reduces the linear drift component and narrows the fluctuation envelope relative to the baseline. The agreement between the small- and large-scale system tests indicates that the drift improvement is a property of the architecture rather than a function of simulation size. 
+
+## D.2 Liquid Ag radial distribution function and additional molecular torsions 
+
+Supplementary Fig. S6a shows the liquid Ag radial distribution function (RDF) at 1 ,200 K. Baseline MACE allows atoms to approach unphysically closely, with a spurious sub-shell peak in g(r) at r ≈ 2.3 ˚ A. MACE+PAN+PGS attenuates 36 2.00 2.25 2.50 2.75 3.00 3.25 3.50 3.75 4.00        
+
+> Distance r(Å)
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 3.0
+> g(r)
+> a. Liquid Ag (1200 K)
+> Unphysical short_range peak (MACE)
+> DFT (Ref.)
+> MACE
+> Ours
+> 50 050 100 150
+> Dihedral Angle ( )
+> Probability Density
+> b. Malonaldehyde (300 K), Torsional Distribution
+
+Fig. S6 Additional structural and conformational validation across metallic and molec-ular systems. (a) Liquid Ag radial distribution function g(r) at 1,200 K for DFT, baseline MACE, and MACE+PAN+PGS. (b) Malonaldehyde O–C–C–O torsional-angle distribution at 300 K for DFT, baseline MACE, and MACE+PAN+PGS. Both observables extend the main-text tests to one liquid and one additional flexible molecule under matched protocols. 
+
+this artifact and more closely matches the DFT short-range repulsion and medium-range coordination-shell structure. This is consistent with the spectral enrichment mechanism shown for the Ag–Ag and Si–Si compression pathways in the main text. Supplementary Fig. S6b reports the malonaldehyde torsional distribution at 300 K. As with aspirin in Section S2.4, baseline MACE places excess probability near the tor-sional barrier, whereas MACE+PAN+PGS more closely matches the sharper bimodal DFT distribution with the correct peak separation and relative occupancy. The agree-ment between the additional molecule and aspirin indicates that the conformational improvement is not specific to a single molecular system. 
+
+# E Detailed proof of Proposition 1: symmetry and differentiability of PAN and PGS 
+
+This section provides a detailed proof of Proposition 1 of the main text. The propo-sition states that the PAN and PGS modifications defined in Eqs. (S8)–(S10) of the main text preserve (i) permutation invariance of the energy with respect to neigh-bor indexing, (ii) O(3)-equivariance of the predicted forces and stress tensor, and (iii) the differentiability required for analytic force and stress evaluation under the smooth cutoff and tapered-kernel implementation described in Supplementary Section F. For convenience, we recall the notation. The total energy of a configuration 
+
+{(ri, Z i)}Ni=1 in a cell with strain ϵ is 
+
+Etot =
+
+> N
+
+X
+
+> i=1
+
+εθ
+
+
+
+y(0) 
+
+> i
+
+
+
+, (S13) 37 where y(0)  
+
+> i
+
+∈ RCn is the readout-level PGS output of Eq. (S10), εθ is a smooth invariant readout MLP, and the per-atom invariant pre-readout descriptor x(0)  
+
+> i
+
+is itself con-structed from the modified scalar edge features ˆh(0)  
+
+> ij
+
+(Eq. S9) and the PAN-aggregated scalar messages h(0)  
+
+> i
+
+= P  
+
+> j∈N (i)
+
+aij ˆh(0)  
+
+> ij
+
+(Eq. S8). The PAN gate is aij = σ(fθ (ψij )) with the invariant edge descriptor ψij = [ h(0)  
+
+> ij
+
+, r ij , Z i, Z j , ρ i, η i], where ρi and ηi are the cutoff-weighted coordination and angular-variance descriptors defined in the main text. Throughout the proof, we work under the fixed-candidate-neighbor convention used during each force and stress evaluation, so the candidate neighbor set N (i) is held fixed, and we restrict to noncoincident configurations ( rij > 0 for all i̸ = j). 
+
+## E.1 Permutation invariance 
+
+Lemma 2 (Permutation invariance of the per-atom scalar pathway) For every atom i, the per-atom invariant descriptor y(0)  
+
+> i
+
+defined through Eqs. (S8)–(S10) is invariant under any permutation of the neighbor indices in N (i). 
+
+Proof Let π : N (i) → N (i) be an arbitrary permutation. The PGS-modified edge feature ˆh(0)  
+
+> ij
+
+at fixed receiving atom i is a function only of the per-edge data ( h(0)  
+
+> ij
+
+, r ij , Z j ), so its value attached to neighbor j is unchanged when j is replaced by π(j). The local descriptors are 
+
+ρi = X 
+
+> j∈N (i)
+
+fcut (rij ), ηi =
+
+P   
+
+> j,k ∈N (i), j ̸=k
+
+fcut (rij ) fcut (rik ) ( cjik − ¯ci)2
+
+ϵreg + P   
+
+> j,k ∈N (i), j ̸=k
+
+fcut (rij ) fcut (rik ) . (S14) Both expressions are unordered sums over N (i) (and an unordered double sum over the multiset N (i) × N (i) with the j̸ = k constraint), and are therefore invariant under π. The PAN gate aij = σ(fθ (ψij )) is consequently a function only of π-invariant inputs, and the aggregated scalar 
+
+h(0)  
+
+> i
+
+= X 
+
+> j∈N (i)
+
+aij ˆh(0)  
+
+> ij
+
+= X 
+
+> j∈N (i)
+
+aiπ (j) ˆh(0)  
+
+> iπ (j)
+
+(S15) is invariant under π because it is a sum over the unordered multiset N (i). Subsequent equiv-ariant interaction blocks combine π-invariant scalar messages with vector and tensor irreps that are themselves aggregated by unordered sums over N (i), so the final invariant per-atom descriptor x(0)  
+
+> i
+
+is π-invariant. The readout-level PGS [Eq. S10] is a single-atom operator acting only on x(0)  
+
+> i
+
+, so y(0)  
+
+> i
+
+inherits the same invariance. □
+
+Corollary 3 The total energy Etot in Eq. (S13) is invariant under any global relabelling of atomic indices, since it is a sum over atoms of per-atom quantities, each of which is itself invariant under permutations of its neighbor indices. 
+
+## E.2 O(3)-equivariance of the forces and stress tensor 
+
+Lemma 4 (O(3)-invariance of the energy) Under a global rotation–inversion R ∈ O(3) acting on atomic positions by ri 7 → Rri, Etot (Rr1, . . . , R rN ) = Etot (r1, . . . , rN ). 
+
+38 Proof Each entry of the PAN gate input ψij = [ h(0)  
+
+> ij
+
+, r ij , Z i, Z j , ρ i, η i] is built from O(3)-invariant primitives: 
+
+1. rij = ∥rj − ri∥ is invariant by orthogonality of R.2. Atomic numbers Zi, Z j are scalar labels and unchanged. 3. ρi = P  
+
+> j∈N (i)
+
+fcut (rij ) depends only on invariant distances. 4. The angular variance ηi uses cjik = ˆ rij ·ˆrik , which is O(3)-invariant because ( Rˆrij )·
+
+(Rˆrik ) = ˆ r⊤ 
+
+> ij
+
+R⊤R ˆrik = ˆ rij · ˆrik .5. h(0)  
+
+> ij
+
+is the ℓ=0 component of the MACE pair embedding and transforms as an O(3) scalar by construction of the backbone. 
+
+Therefore aij is O(3)-invariant. The edge-level PGS [Eq. S9] applies a real-valued radial basis BFB  
+
+> m
+
+(rij ) to the invariant distance and modifies only the ℓ=0 channel, so ˆh(0)  
+
+> ij
+
+is also 
+
+O(3)-invariant. The Clebsch–Gordan tensor-product machinery of MACE is unchanged and is O(3)-equivariant by construction; in particular, the final invariant per-atom descriptor x(0) 
+
+> i
+
+transforms as an O(3) scalar. The readout-level PGS [Eq. S10] acts on x(0)  
+
+> i
+
+via the learned scalar projection u⊤
+
+> m
+
+x(0)  
+
+> i
+
+, so y(0)  
+
+> i
+
+is also an O(3) scalar. The total energy is a sum of O(3) scalars and is therefore O(3)-invariant. □
+
+Corollary 5 (Tensorial transformation of forces and stress) The predicted forces and stress tensor obtained as analytic derivatives of Etot transform as Fi 7 → RFi and σ 7 → RσR⊤
+
+under any R ∈ O(3). 
+
+Proof For the forces, applying Lemma 4 and differentiating with respect to rk gives, by the chain rule, 
+
+∇rk
+
+Etot ◦ R⊗N  = R⊤∇(Rrk )Etot , (S16) where R⊗N denotes the simultaneous action of R on every atomic position. Equating both sides with the gradient of the original energy and using the definition Fi = −∇ ri Etot yields 
+
+Fi(Rr) = RFi(r). For the stress tensor, the cell strain transforms as ϵ 7 → RϵR⊤ under 
+
+R ∈ O(3), so σ = (1 /V )∂E tot /∂ ϵ transforms as a rank-2 tensor: σ 7 → RσR⊤. □
+
+## E.3 Differentiability 
+
+We now establish the C2 regularity of Etot used in the analytic force and stress deriva-tions. Three lemmas establish the C2 regularity of the three smooth elementary objects entering the PAN–PGS construction; the main theorem then assembles them via the chain rule. 
+
+Lemma 6 (C2 regularity of cutoff-weighted descriptors) The polynomial cutoff envelope 
+
+fcut (r) = 
+
+(
+
+1 − 6( r/r cut )5 + 15( r/r cut )4 − 10( r/r cut )3, 0 ≤ r ≤ rcut ,
+
+0, r > r cut , (S17) is of class C2 on [0 , ∞) and C∞ on [0 , r cut ). Consequently, ρi and ηi are C2 functions of atomic positions on the noncoincident manifold. 
+
+39 Proof On [0 , r cut ] the cutoff envelope is a polynomial and hence C∞. At r = rcut , direct differentiation gives fcut (rcut ) = 0, f ′
+
+> cut
+
+(rcut ) = 0, f ′′ 
+
+> cut
+
+(rcut ) = 0, while f ′′′ 
+
+> cut
+
+(rcut )̸ = 0, so 
+
+fcut is C2 but not C3 at the boundary. On r > r cut it is identically zero. The descriptor ρi is a finite sum of fcut (rij ), each of which is C2 in ( ri, rj ) on the noncoincident manifold (since 
+
+rij > 0 implies rij is C∞ in ri, rj ); ρi is therefore C2. For ηi, the numerator and denominator are C2 functions of atomic positions on the noncoincident manifold, because cjik = ˆ rij · ˆrik 
+
+is C∞ in (ˆ rij , ˆrik ), and ˆ rij is C∞ for rij > 0. The denominator is strictly positive because 
+
+ϵreg > 0, so the quotient is C2. □
+
+Lemma 7 (C2 regularity of the Fourier–Bessel basis) The Fourier–Bessel basis BFB  
+
+> m
+
+(r) = p2/r cut sin( mπr/r cut )/r ·fcut (r) is C2 on (0 , ∞) and admits a C2 extension to r = 0 via the continuous limit lim r→0+ sin( mπr/r cut )/r = mπ/r cut . On the noncoincident configuration manifold (where all rij > 0), the extension is not invoked. 
+
+Proof On r > 0, sin( mπr/r cut )/r is a quotient of C∞ functions with non-vanishing denom-inator and is therefore C∞. Its Taylor expansion at r = 0 is real-analytic, so multiplication by fcut ∈ C2([0 , ∞)) yields a C2 function on [0 , ∞). □
+
+Lemma 8 (C2 regularity of the tapered ES kernel) Let z = ( t − tm)/w . The shifted, tapered ES kernel 
+
+KES  
+
+> m
+
+(t) = 
+
+(
+
+τw(z)  exp  β(√1 − z2 − 1)  − e−β , |z| ≤ 1,
+
+0, |z| > 1, (S18) where τw is the same C2 polynomial taper as fcut applied symmetrically on |z| ≤ 1, is of class C2 on R.
+
+Proof On the open interior |z| < 1, the kernel is a product of C∞ factors (taper, exponential, square root with strictly positive argument). At the boundary |z| = 1, expanding around 
+
+u = √1 − z2 → 0 gives exp  β(
+
+p
+
+1 − z2 − 1)  − e−β = e−β   eβu − 1  = e−β βu + O(u2), (S19) so the bracketed term behaves as O((1 − | z|)1/2) as |z| → 1−. The taper τw inherits the C2
+
+structure of fcut near the boundary, so τw(z), τ ′
+
+> w
+
+(z), τ ′′ 
+
+> w
+
+(z) → 0 as |z| → 1−, with leading-order behavior τw(z) = O((1 − | z|)3). The product therefore behaves as τw(z) · [ · ] = O((1 −|z|)7/2) near |z| = 1, whose first three derivatives vanish at |z| = 1. Matching to the identically zero exterior region, KES  
+
+> m
+
+is C2 at |z| = 1 and hence on all of R. □
+
+Theorem 9 (Differentiability of Etot ) Under the noncoincident-configuration and fixed-candidate-neighbor conventions, Etot is a C2 function of the 3N atomic-position coordinates and the 6 independent components of the cell strain ϵ. The forces and stress tensor are defined as analytic autograd derivatives of Etot 
+
+Fi = − ∂E tot 
+
+∂ri
+
+, σ = 1
+
+V∂E tot 
+
+∂ϵ , (S20) 
+
+are therefore well defined and continuous, and coincide with their variational definitions. 
+
+40 Proof The energy admits the finite composition Etot = P 
+
+> i
+
+εθ ◦ Π(0) ◦ G , where G collects the equivariant tensor-product backbone (polynomial Clebsch–Gordan combinations of equivari-ant features) and Π (0) extracts the invariant ℓ=0 component before the readout-level PGS lift [Eq. S10]. Each constituent operation is at least C2 on the noncoincident manifold: the radial Bessel embedding through fcut is C2 (Lemma 6); the edge-level Fourier–Bessel basis BFB  
+
+> m
+
+is 
+
+C2 on the relevant domain (Lemma 7); the readout-level ES kernel is C2 on R (Lemma 8); the MLPs fθ , g θ , h low , and εθ use smooth ( C∞) activations and are therefore C∞ in their inputs; tensor products with Clebsch–Gordan coefficients are polynomial and hence C∞. The com-position of C2 functions is C2, so Etot is C2. Forces and stress, defined as first derivatives, are therefore continuous (in fact C1) on the noncoincident manifold. The cell-strain dependence enters only through the radial distances rij (ϵ), which are smooth functions of ϵ on noncoincident configurations; the same chain of regularity therefore yields C2 dependence on ϵ. Higher regularity ( Ck for k > 2) holds on configurations where every pair distance lies strictly below rcut , since on that open subdomain fcut acts as a C∞
+
+polynomial; we do not claim higher regularity globally because fcut saturates to C2 regularity at r = rcut . □
+
+## E.4 Remarks on the convention boundaries 
+
+Two convention boundaries are explicit in Proposition 1 and are recalled here. First, the proof is restricted to noncoincident configurations. At coincident configurations (rij → 0), the radial Bessel basis remains continuous via the limit in Lemma 7, but the normalized pair direction ˆ rij used inside the equivariant backbone is undefined. This is a property of the underlying MACE backbone rather than of PAN or PGS, and is outside the scope of the proof. Second, the proof assumes a fixed candidate neighbor graph during each force and stress evaluation. The use of the C2 cutoff envelope ensures that adding or removing a candidate pair at rij = rcut contributes zero to the energy, force, and stress at the crossing; alternative neighbor-list rebuild policies in specific MD engines may introduce additional bookkeeping discontinuities external to the model, which are not properties of the PAN–PGS architecture. 
+
+# F Supplementary methods: algorithmic details 
+
+This section provides the explicit forms of the smooth elementary functions used inside PAN and PGS, together with a layer-by-layer summary of how the two modules are inserted into the MACE forward pass. 
+
+Cutoff envelope. All cutoff-based smoothing in PAN, PGS, and the MACE radial embedding uses the same polynomial envelope fcut : [0 , r cut ] → [0 , 1], defined as 
+
+fcut (r) = 
+
+(
+
+1 − 6 ( r/r cut )5 + 15 ( r/r cut )4 − 10 ( r/r cut )3, r ≤ rcut ,
+
+0, r > r cut , (S21) which satisfies fcut (0) = 1, fcut (rcut ) = 0, and fcut is C2 at r = rcut .41 Edge-level Fourier–Bessel basis. The edge-level PGS spectral basis {BFB  
+
+> m
+
+(r)}Mm=1 
+
+on [0 , r cut ] is the standard real-valued Bessel–root basis 
+
+BFB  
+
+> m
+
+(r) = 
+
+r 2
+
+rcut 
+
+sin  mπ r/r cut 
+
+
+
+r fcut (r), m = 1 , . . . , M, (S22) multiplied by the polynomial cutoff envelope fcut to ensure C2 vanishing at r = rcut .The factor sin( mπr/r cut )/r is taken at its continuous limit mπ/r cut when r → 0; in practice all r = rij are strictly positive in the neighbor graph. The basis is L2-orthonormal on [0 , r cut ] in the absence of the cutoff envelope, and we used M = 16 throughout. 
+
+Readout-level Exponential-of-Semicircle (ES) kernel. The readout-level PGS uses the ES kernel basis introduced for non-uniform fast Fourier transforms (NUFFTs) [74]. For a projected latent value t = u⊤
+
+> m
+
+x(0)  
+
+> i
+
+∈ [−tmax , t max ], the m-th basis function is implemented in the shifted exponential-of-semicircle form, multiplied by a smooth C2 taper, so that KES  
+
+> m
+
+and its first two derivatives vanish continuously at the support boundary with no hard indicator function entering the computational graph: 
+
+KES  
+
+> m
+
+(t) = τw(z)
+
+h
+
+exp  β (p1 − z2 − 1)  − e−β i
+
+, z = t − tm
+
+w , |z| ≤ 1, (S23) where τw(z) is the same C2 polynomial taper as the radial cutoff fcut , applied sym-metrically on |z| ≤ 1. The shifted exponential-of-semicircle term equals e−β at |z| = 1, so the bracketed term vanishes exactly at the support boundary; multiplying by τw
+
+additionally enforces vanishing of the first two derivatives. The centers {tm}Mm=1 are uniformly spaced on [ −tmax , t max ], w is the support half-width, and β is the stan-dard NUFFT shape parameter. Following the recommended NUFFT settings, we used 
+
+w = 4∆ t (where ∆ t is the center spacing) and β = 2 .30 w. We used M = 16 ES components throughout. 
+
+Descriptor normalization. The PAN local descriptors ρi and ηi are standardized to zero mean and unit variance using statistics computed once on the training set and then frozen. The radial input rij to ψij is encoded through the same Bessel basis used by MACE, so no separate normalization is needed for rij .
+
+Insertion points in MACE. PAN and PGS are inserted into the standard MACE forward pass with only a few well-defined modifications. Algorithm S1 summarizes the modified forward pass; in MACE notation, edge-level PGS operates on the scalar com-ponent h(0)  
+
+> ij
+
+of the equivariant edge embedding before tensor-product coupling, PAN modulates the scalar message amplitude before accumulation over the neighbor set within each interaction block, while leaving the learned message functions unchanged, and readout-level PGS is applied after the final interaction block on the invariant per-atom descriptor before the energy MLP. 42 Algorithm S1 PAN+PGS forward pass on a single configuration. 
+
+Require: Atomic positions {ri}, atomic numbers {Zi}, cell tensor h. 
+
+> 1:
+
+Build neighbor graph using cutoff radius rcut . 
+
+> 2:
+
+For each edge ( i, j ), compute rij , ˆ rij , and the equivariant edge embedding ϕ(ℓ,m ) 
+
+> ij,n
+
+=
+
+Bn(rij ) Y mℓ (ˆ rij ).  
+
+> 3:
+
+Edge-level PGS [Eq. (S9)]: replace h(0)  
+
+> ij
+
+by ˆh(0)  
+
+> ij
+
+via the smooth low branch and the Fourier–Bessel spectral mixer.  
+
+> 4:
+
+for each interaction block ℓ = 1 , . . . , L do  
+
+> 5:
+
+Compute Clebsch–Gordan tensor products using the modified scalar edge channel and the unchanged ℓ> 0 channels.  
+
+> 6:
+
+PAN gating [Eq. (S8)]: compute aij = σ(fθ (ψij )) from the smooth invariant descriptor ψij , and aggregate the scalar message channel as h(0)  
+
+> i
+
+= P 
+
+> j
+
+aij ˆh(0)  
+
+> ij
+
+.The ℓ> 0 channels are aggregated by the unchanged uniform sum.  
+
+> 7:
+
+end for  
+
+> 8:
+
+Readout-level PGS [Eq. (S10)]: lift x(0)  
+
+> i
+
+to y(0)  
+
+> i
+
+via the ES-kernel expansion of the learned projection u⊤
+
+> m
+
+x(0)  
+
+> i
+
+. 
+
+> 9:
+
+Compute atomic energies Ei = εθ(y(0)  
+
+> i
+
+) and total energy Etot = P 
+
+> i
+
+Ei. 
+
+> 10:
+
+Forces and stress: Fi = −∂E tot /∂ ri, σ = (1 /V )∂E tot /∂ ϵ via automatic differentiation. 
+
+# G Supplementary methods: cross-backbone implementation 
+
+The cross-backbone entries in Table S1 of the main text use Allegro[46] and NequIP[45] backbones in addition to MACE. For all three backbones, we used the same author-generated Ag dataset, the same public Si and LiF/Li–F datasets, and the same train/validation/test splits as in the MACE experiments, so that any dif-ference between backbone-only and backbone+PAN+PGS columns reflects only the scalar-pathway modification. 
+
+Allegro and NequIP backbones. Allegro was instantiated with two interaction layers, ℓmax = 2, 128 scalar and tensor channels per irrep, the same rcut = 5 .0 ˚ A used for MACE, and a Bessel radial basis of size Nrad = 8. NequIP was instantiated with three interaction blocks, ℓmax = 2, 128 feature channels, the same cutoff rcut = 5 .0 ˚ A, and the same Bessel radial basis size Nrad = 8. Both models were trained with AdamW (initial learning rate 5 × 10 −3, weight decay 10 −8), the same ReduceLROnPlateau schedule, EMA decay, and SWA settings as MACE, batch size 4, gradient clipping at 100, and the same loss weights wE = 1 .0, wF = 10 .0, wS = 10 .0 when stress labels are available. Each model was trained five times under seeds {1, 2, 3, 4, 5}.
+
+Insertion of PAN and PGS into Allegro and NequIP. The PAN gate was inserted at the scalar message aggregation stage of each backbone: it modulates the scalar message amplitude before accumulation over the neighbor set, while leaving the learned message functions and all ℓ> 0 tensor operations unchanged. The same invariant descriptor ψij = [ h(0)  
+
+> ij
+
+, r ij , Z i, Z j , ρ i, η i] defined in Eq. (S8) was used, and 43 Table S12 Architectural mapping of PAN and PGS across the three tested equivariant backbones. PAN replaces or modulates the scalar aggregation stage at the closest corresponding scalar-processing point in each backbone; edge-level PGS acts on the ℓ=0 component of the pair embedding before tensor-product coupling; readout-level PGS acts on the final invariant descriptor before the energy head. All higher-order ( ℓ> 0) channels, tensor-product operations, and backbone-specific equivariant blocks remain unchanged.                                                                                   
+
+> Backbone PAN insertion Edge-level PGS inser-tion Readout-level PGS insertion Unchanged
+> MACE[50] Scalar-channel aggrega-tion stage inside each interaction block; applies acoordination-and distortion-conditioned amplitude gate before the scalar messages are summed over the neighbor set
+> ℓ=0 component of the pair embedding h(0)
+> ij ,applied before each tensor-product coupling Final invariant per-atom descriptor x(0)
+> i,applied before the readout MLP εθ
+> All Clebsch–Gordan tensor products,
+> ℓ> 0channels, radial Bessel basis, and equivariant readout NequIP[45] Scalar-channel aggregation stage inside each equiv-ariant convolution layer; applies the same PAN amplitude gate before scalar messages are summed over the neighbor set
+> ℓ=0 component of the pair embedding before each equivariant convolution Final invariant node descriptor before the per-element energy MLP All equivariant con-volutions, ℓ> 0 irreps, radial Bessel basis, and gate nonlineari-ties Allegro[46] Scalar pair-weighting/contraction stage in the local environment block; the PAN gate is applied before the invariant local contribution is accu-mulated
+> ℓ=0 component of the pair latent before each tensor-product mixing Final invariant per-edge contribution before the energy head All tensor-product mixings, ℓ> 0irreps, and the strictly local Allegro backbone
+
+PAN parameters ( fθ width, descriptor normalization) were matched to the MACE configuration. Edge-level PGS was inserted on the scalar component of the pair embed-ding before tensor-product coupling in each backbone (i.e. on the ℓ=0 channel of the per-edge invariant latent), with M = 16 Fourier–Bessel components on [0 , r cut ]. Readout-level PGS was inserted between the final invariant per-atom descriptor of each backbone and the energy MLP, with M = 16 ES-kernel components and one learned projection direction per component, identical to the MACE configuration. All higher-order ( ℓ> 0) channels and tensor-product operations of each backbone were left unchanged. Table S12 summarizes the architectural mapping used for the three backbones, allowing the reader to verify that PAN and PGS act on functionally analogous locations across the three. 
+
+Capacity and FLOPs matching. The three backbones are not parameter-matched to each other because their tensor-product structures differ; each backbone was used at the configuration recommended in its original publication and at the radial cutoff matched to the MACE experiments. The within-backbone comparisons (e.g. NequIP vs NequIP+PAN+PGS) are the controlled signal in Table S1: PAN+PGS adds ≈ 3–5% parameters and ≈ 4–6% inference FLOPs to each backbone, so each row of Table S1 is an approximately parameter-matched comparison. Cross-backbone differences in absolute MAE between rows reflect the relative expressivity of each backbone and are not the object of this study. 44 Table S13 DFT settings used to generate the author-generated Ag reference dataset.                        
+
+> Parameter Value
+> Exchange–correlation functional PBE PAW pseudopotential PAW PBE Ag 06Sep2000
+> Plane-wave cutoff ( ENCUT )500 eV Electronic convergence ( EDIFF )10 −5eV/atom Force convergence ( EDIFFG )−10 −2eV/˚ ASmearing ( ISMEAR ,SIGMA )1 (Methfessel–Paxton), 0.1 eV
+> k-mesh, primitive/strained cells Γ-centered, density ≥0.20 ˚ A−1
+> k-mesh, supercells (defects/surfaces/MD) Single Γ-point, supercell sized to match density Strain range ±5% (isotropic and uniaxial) Defects Mono- and divacancies, self-interstitials Surfaces (100) ,(110) ,(111) slabs with vacuum ≥12 ˚ AHigh-TAIMD sampling 300–1200 K, 1 fs timestep, Nos´ e–Hoover thermostat
+
+# H Supplementary methods: DFT settings and molecular-dynamics protocols 
+
+Ag DFT settings. Table S13 summarizes the VASP parameters used to generate the author-generated Ag reference dataset. 
+
+Aspirin torsion distribution. For Fig. S4(a), aspirin torsional distributions were computed from 1 ns NVT trajectories at 300 K with a Nos´ e–Hoover thermostat (chain length 3, coupling time 100 fs) and a 0.5 fs timestep. The first 50 ps were discarded as equilibration; torsional values were sampled every 0.5 fs over the final 900 ps, giving 1.8 × 10 6 torsional values per trajectory. The DFT reference distribution was obtained from ab initio molecular dynamics under identical thermostat and timestep settings, with torsional values sampled every 1 fs over the final 90 ps, giving 9 × 10 4 torsional values. 
+
+Si vibrational density of states. For Fig. S4(b), the Si VDOS was computed from the mass-weighted velocity autocorrelation function over 200 ps NVE trajectories at 300 K (after 50 ps NVT equilibration), with velocities recorded every 0.5 fs (4 × 10 5
+
+velocity snapshots per trajectory). The DFT reference VDOS was generated from 
+
+ab initio molecular dynamics over 20 ps under matched conditions, with velocities recorded every 0.5 fs (4 × 10 4 snapshots), Fourier-transformed with the same window function as the MLIP VDOS to ensure comparable spectral resolution. 
+
+Large-scale Ag NVE drift. For Fig. S4(c), the Ag NVE test used a 10 ,000-atom fcc Ag bulk system at 300 K. Each trajectory was integrated for 500 ps with a 1 fs timestep after 20 ps NVT equilibration; total energy was recorded every 0.1 ps. Energy drift was estimated by linear regression of accumulated energy deviation over the production segment and reported in meV ns −1 per atom. No DFT reference is needed for this metric because the comparison is between energy-conservation properties of the MLIP trajectories themselves. 
+
+Liquid Ag radial distribution function. For Fig. S4(d), liquid Ag RDFs were computed from 200 ps NVT trajectories at 1 ,200 K (after 50 ps NVT equilibration 45 with the same thermostat settings as the MLIP trajectories), with frames saved every 0.5 ps to give 400 saved frames per trajectory; the RDF for each trajectory was accumulated by summing pair distances over all 400 frames on a uniform grid with bin width 0 .02 ˚ A up to rRDF cut = 6 .0 ˚ A. The DFT reference RDF was generated from 
+
+ab initio molecular dynamics over 30 ps at the same temperature, with frames saved every 0.5 ps (60 saved frames), accumulated using identical bin width and identical 
+
+rRDF cut for all three curves. 
+
+Finite-sampling uncertainty of DFT references. The DFT-MD reference tra-jectories used for the VDOS and RDF analyses are necessarily shorter than the corresponding MLIP trajectories because of the cost of ab initio molecular dynamics. The reported distances to the DFT reference should therefore be interpreted relative to finite-sampling reference curves rather than as distances to an infinite-sampling limit. To keep the comparison controlled, DFT and MLIP observables were processed with identical bin widths, window functions, normalization conventions, and integra-tion ranges. The main conclusions rely on relative changes between baseline MACE and MACE+PAN+PGS under the same finite DFT reference. 
+
+# I Supplementary methods: computational benchmarks 
+
+Table S14 reports the relative computational cost of PAN+PGS and the scalar-mixer controls used in the main text. Costs were measured under matched hardware, batch size, cutoff radius, and force/stress evaluation protocol. Inference FLOPs include the automatic differentiation backward pass through the scalar energy with respect to atomic positions and cell strain. For practical reference, we measured wall-clock molecular-dynamics throughput on the 10,000-atom Ag NVE benchmark used in Section S2.4 of the main text using a single NVIDIA A100 (40 GB) in float64. At a 1 fs timestep, baseline MACE achieves 4 .8 ns/day ( ≈ 56 MD force evaluations per second; equivalently ≈ 5.6 × 10 5
+
+atom-force evaluations per second for the 10,000-atom system). MACE+PAN+PGS achieves 4 .6 ns/day under the same protocol ( ≈ 53 MD force evaluations per sec-ond), corresponding to a ≈ 4% throughput cost. The corresponding throughput for the capacity-matched MACE-wide control is 3 .2 ns/day ( ≈ 37 MD force evaluations per second). The PAN+PGS gain reported in Table S1, therefore, comes at a small fraction of the throughput cost of a comparable backbone-capacity expansion. A capacity-matched MACE control, in which the baseline MACE backbone is widened, deepened, or given a larger radial basis under a matched training budget, is reported in Supplementary Table S10. The capacity-matched variants achieve only 4– 7% force-MAE reductions relative to baseline MACE—substantially smaller than the 22–27% reductions reported in the main text for MACE+PAN+PGS—and require 1.4–1 .7× more parameters and 1 .1–1 .5× more inference FLOPs. This supports the interpretation that the gain in Table S1 is not adequately explained by backbone capacity. 46 Table S14 Relative computational cost across backbones and scalar-mixer alternatives. 
+
+> Parameter count, training time per epoch, and inference FLOPs are normalized to baseline MACE under identical batch size, identical hardware (NVIDIA A100, float64), and matched supercell size. The top block compares the three equivariant backbones reported in the main-text cross-regime accuracy table; the bottom block compares alternative scalar mixers under the MACE backbone.
+
+Model Params Train time FLOPs Additional cost source 
+
+Backbones with and without PAN+PGS 
+
+Allegro 1.10 × 1.25 × 1.40 × Local tensor products without iter-ative message passing Allegro + PAN + PGS 1.13 × 1.30 × 1.46 × Lightweight scalar gating and spec-tral projections NequIP 1.05 × 1.10 × 1.30 × Low-body-order equivariant convo-lutions NequIP + PAN + PGS 1.08 × 1.14 × 1.36 × Lightweight scalar gating and spec-tral projections MACE 1.00 × 1.00 × 1.00 × Standard SiLU–MLP scalar mixer MACE + PAN + PGS 1.03 × 1.06 × 1.05 × Lightweight scalar gating and spec-tral projections 
+
+Alternative scalar mixers under the MACE backbone 
+
+MACE + KAN 2.20 × 1.95 × 1.50–2 .10 × Dense B-spline activation grids on all scalar channels MACE + KAF 1.55 × 1.40 × 1.30–1 .45 × Kernel activation functions on all scalar channels MACE + LibraKAN 1.25 × 1.20 × 1.15–1 .25 × Learned rational activations on all scalar channels 
+
+47

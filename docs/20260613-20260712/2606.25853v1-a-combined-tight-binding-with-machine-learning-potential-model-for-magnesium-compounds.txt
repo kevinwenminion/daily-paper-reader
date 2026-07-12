@@ -1,0 +1,487 @@
+Title: A Combined Tight Binding with Machine Learning Potential Model for Magnesium Compounds
+
+URL Source: https://arxiv.org/pdf/2606.25853v1
+
+Published Time: Thu, 25 Jun 2026 01:12:56 GMT
+
+Number of Pages: 33
+
+Markdown Content:
+# A Combined Tight Binding with Machine Learning Potential Model for Magnesium Compounds 
+
+## Jiwen Yu, Arash A. Mostofi, ∗ and Andrew Horsfield ∗
+
+Department of Materials and Thomas Young Centre, Imperial College London, South Kensington Campus, London SW7 2AZ, United Kingdom 
+
+E-mail: a.mostofi@imperial.ac.uk; a.horsfield@imperial.ac.uk 
+
+Abstract 
+
+We present a model for magnesium-based systems that combines density func-tional tight binding (DFTB) with MACE, a machine learning interatomic potential (DFTB+MACE). In this model, the conventional repulsive potential, pair potential, is replaced by a many-body MACE potential. The MACE component of the model is trained on the difference between density functional theory (DFT) energies and forces and the corresponding DFTB values, but neglecting the pair potential contribution. Using this model we performed structural relaxation of MgO-CO 2 adsorption systems, molecular dynamics calculations of water clusters and phonon spectrum calculations of stable fcc-MgO and metastable bcc-MgO structures. We compare the performance of our model with a pure MACE model and with DFT. We demonstrate that the DFTB+MACE model achieves improved accuracy relative to DFTB with a pair poten-tial, in many cases with only a moderate increase in computational cost. In addition, it can provide electronic structures that most of the machine learning potentials can-not. The training dataset, originally developed for MACE, may not fully represent all 
+
+1
+
+> arXiv:2606.25853v1 [cond-mat.mtrl-sci] 24 Jun 2026 regions of the potential surface we may encounter during simulations. Expanding the dataset for a wider potential surface is expected to further enhance predictive accuracy of DFTB+MACE model. Overall, the resulting DFTB+MACE framework enables sim-ulations at length and time scales beyond the reach of first-principles methods while retaining an explicit description of electronic structures, making it particularly attrac-tive for studying charge-transfer in materials.
+
+# Introduction 
+
+Density functional tight binding (DFTB) 1 2 is an approximate method derived from density functional theory (DFT). 3 It can provide approximate electronic structures as it is a quan-tum method, while calculations are significantly more computationally efficient than DFT, making it suitable for static and dynamical simulations at large length-scales and time-scales. In our previous work, 4 we developed a DFTB parameter set for magnesium-based com-pounds and introduced the electron localisation function (ELF) and used it to study the adsorption of CO 2 and H 2O on MgO and Mg(OH) 2 surfaces. Whilst our DFTB model was able to provide a satisfactory description of structural and electronic properties, it still exhibits limitations, which we elaborate below. In a conventional DFTB parameterisation, 5–11 atomic orbitals are typically generated from isolated single atom calculations with an additional confinement potential. The differ-ence between the DFT reference energies and the DFTB electronic energy is incorporated into a repulsive potential, which is usually represented as a pairwise function represented by a cubic spline interpolation. However, this approach has several limitations: (i) oscillations may arise in the fitted function, (ii ) the form of the function is often too rigid, (iii ) overfitting may occur, and (iv ) the limited transferability restricts its applicability to only a subset of structures. Kandy et al . developed curvature constrained splines to solve this problem. 12 
+
+They tried to fit the curvature rather than the value of function itself. They found that a pair potential cannot be “one-fits-all” because it cannot simultaneously describe different 2coordination environments. This work indicates an important limitation of the accuracy of DFTB and the repulsive term is missing many-body terms. Machine learning many body potentials may be a good solution to this problem. Machine learning interatomic potentials (MLIPs) for constructing accurate potential en-ergy surfaces have been developed at a remarkable speed in recent decades. At their core, MLIPs typically consist of two parts: a descriptor and a machine learning algorithm. 13 The descriptor can range from simple atomic position information to a complex basis set to describe the atomic environment. 14–16 The machine learning algorithms include non-neural network methods, 15 simple feedforward neural networks and more complex neural networks such as E(3)-equivariant graph neural networks (e3nn). 17–19 Several studies have explored the integration of machine learning methods with DFTB to improve the accuracy of the latter. The repulsive term or the difference between DFT and DFTB is either described by MLIPs, or is defined as the error and obtained by ∆−learning. For example, Martin et al .20 
+
+introduced SchNET neural networks to DFTB to improve the geometry structure of organic molecules. Goldman et al .21,22 introduced a MLIP called ChiMES 23 as the many-body re-pulsive potential and applied it to silicon polymorphs, TiH 2 and the organic molecules that only contains H, C, N and O. ChiMES provides a systematically improvable framework, but with the number of parameters growing rapidly with the number of elements and polyno-mial order, leading to increased complexity of models and difficulty in reaching convergence during training without regularisation or active learning strategies. Recently, e3nn models have been introduced into DFTB frameworks. 24 The authors considered three different e3nn methods including SpookyNet, 25 Allegro 26 and MACE 17,27 for large organic molecules: they found that MACE performs the best However, their research does not cover periodic systems and has not been applied to condensed matter. In this work, we develop a DFTB+MACE framework for periodic materials by combining the explicit electronic description of self-consistent DFTB with the flexibility of equivariant machine learning potentials. Using MgO and Mg(OH) 2 based systems as representative 3examples, we demonstrate that the proposed approach substantially improves the accuracy of DFTB while retaining its ability to describe charge redistribution. The resulting model achieves near-DFT accuracy for energies and forces at a computational cost suitable for large-scale atomistic simulations. These results highlight the potential of DFTB+MACE as an efficient route towards modeling complex materials processes that require both long spatiotemporal scales and an explicit treatment of electronic effects. 
+
+# Theory and Computational Method 
+
+## DFTB theory 
+
+The total energy of DFTB can be derived from a Taylor expansion of the DFT total energy around a chosen reference density n(0) (⃗r). The difference between the actual density n(⃗r)
+
+and the reference density is the density fluctuation term q(⃗r), where n(⃗r) = n (0) (⃗r) + q(⃗r).The reference density is normally the sum of single atomic charge density and is isotropic. Therefore, the DFTB energy expanded to the second order term around the reference density is: 
+
+EDFTB [n(0) (⃗r) + q(⃗r)] = E[n (0) ]
+
+| {z } 
+
+> E(0)
+
++
+
+Z δE δn (⃗r) n(0) 
+
+q(⃗r)d⃗ r
+
+| {z }
+
+> E(1)
+
++ 12
+
+Z Z δ2Eδn (⃗r)δn (⃗r ′) n(0) 
+
+q(⃗r)q(⃗r ′)d⃗ rd⃗ r ′
+
+| {z }
+
+> E(2)
+
++ ... 
+
+=E(0) + E(1) + E(2) + ... (1) To define expressions for E(1) and E(2) we introduce a basis set in terms of which we can expand molecular orbitals. The theory is based on the ansatz of a linear combination of 4atomic orbitals φαi (LCAO) for the molecular orbitals ψn
+
+ψn = X
+
+> αi
+
+cαi,n φαi 
+
+where cαi,n is an expansion coefficient of molecular orbital n for atom α’s orbital i. The formulas for these three terms then are: 
+
+
+
+E(0) = X
+
+> α
+
+Eatom  
+
+> α
+
++ 12
+
+X
+
+> α̸=β
+
+Vαβ (Rαβ ) + EMB XC [n(0) ]
+
+E(1) = X
+
+> n
+
+fnϵ(0) 
+
+> n
+
+| {z }
+
+> band energy
+
+− X
+
+> αi
+
+fαi H(0) 
+
+> αi,αi
+
+| {z }
+
+> atomic term
+
+E(2) = 12
+
+X
+
+> αlm
+
+X
+
+> βl ′m′
+
+Qαlm Qβl ′m′ Bαβlml ′m′ (⃗ Rαβ )
+
+(2) (3) (4) 
+
+E(0) contains isolated atomic contributions P 
+
+> α
+
+Eatom α , electrostatic attraction and repul-sion between atoms 12
+
+P 
+
+> α̸=β
+
+Vαβ (Rαβ ) and a many-body exchange-correlation term EM B XC .The combination E(1) + E(2) we call the electronic energy. E(1) contains the band energy and an atomic term. fn and fαi are the molecular occupation number and atomic orbital occupation number respectively. ϵ(0)  
+
+> n
+
+is the energy for molecular orbital n, and it depends on the onsite energy, hopping integral and overlap integral. H(0)  
+
+> αi,αi
+
+is the onsite energy for orbital i in atom α. E(2) corresponds to electrostatic interactions between perturbed atoms. The quantity Qlm is a charge density moment and Bαβlml ′m′ is the Madelung structure con-stant, which is a function of atomic separation ⃗ Rαβ . Detailed derivations can be found in our previous work. 4 28 
+
+Normally, the many-body contribution from exchange and correlation in E(0) is neglected, letting E(0) be short range and pairwise, and so is often referred to as the pair potential term. However, this simplification does not consider the chemical environment of a bond. For example, consider compressing the carbon-carbon bond in ethane, and stretching the 5carbon-carbon bond in ethene, to make them the same length. The E(0) for the carbon-carbon part for these two systems would be the same, which need not be the case in more accurate calculations. For a large system, the errors may accumulate. In this paper, the pair potential approximation for E(0) is relaxed, and we use a many-body representation (MACE) instead. Since the total energy is expressed as a sum of independent contributions ( E(0) , E(1) and 
+
+E(2) ), the contribution to the total energy, E(0) , forces F (0) and stresses σ(0) carried by the MACE potential are then given by 
+
+
+
+E(0) = EDFT − (E(1) + E(2) )
+
+F (0) = F DFT − (F (1) + F (2) )
+
+σ(0) = σDFT − (σ(1) + σ(2) )
+
+(5) (6) (7) where E(1) , F (1) , σ(1) , E(2) , F (2) and σ(2) are computed using the DFTB model: see Eqs. 3 and 4. 
+
+## MACE 
+
+For a system with N atoms, the energy of this system can be represented as a sum of individual atomic energies: 
+
+E = X
+
+> α
+
+Eα (8) The energy of atom i depends on its local atomic environment and can be written as: 
+
+Eα(⃗σ) = E α(⃗r 1α,⃗ r 2α, ...,⃗ r N α ) (9) where ⃗σ represents a set of displacement vectors ⃗r ji . MACE combines the ACE descriptor with an E(3)-equivariant message passing neural network (E(3)-MPNN). The use of an E(3)-6equivariant neural network (E3NN) enforces E(3)-equivariance with respect to rotations, translations and inversions. Atomic features are represented as irreducible representations (irreps) of the O(3) group and transformed according to their angular momentum order, also known as irreps order. There are three main stages in MACE, which are embedding ,
+
+interaction and product . See 17 for full details. In the embedding stage, there is an initialization of node features hαkl 1m1 , where k is the channel index, l1 is the angular momentum index and m1 is the magnetic quantum number index or the components of the lth irrep. The size of the node features are controlled by the hyperparameters num_channels and max_L , which are the number of channels for each irrep type and the highest order of irrpes in the node features. In the first step, the atomic number is used as the feature for each node, so there is only hαk 00 in the node feature at the start. There is also an angular embedding to generate spherical harmonic functions Yl2m2 (ˆ rαβ ),where l2 and m2 are angular momentum and magnetic quantum numbers, ˆrαβ is the unit vector connecting atom α to atom β. The maximum order of the spherical harmonic term is controlled by hyperparameter max_ell . There is another embedding called radial embed-ding to form a series of basis sets { j0(rαβ ) }. The influence of neighbours will decay as their separations becomes larger, and the output of the radial embedding can act as the basis of radial functions which will appear in the next stage. The functions form which the basis set can be constructed include Bessel functions, Chebyshev polynomials and so on. In the interaction stage, an intermediate feature ˆh(t) 
+
+> αkl 1m1
+
+is formed from a linear combi-nation of node features. The intermediate feature are coupled with spherical harmonics by equivariant tensor product h(s) 
+
+> αkl 1m1
+
+⊗ Yl2m2 and forms an output irreps with order l3. The radial functions are generated by a multi-layer perceptron (MLP), and the number of radial functions that we need should be equal to the number of output irreps. Now let us select a central atom α, with the neighbours of it being β. We can then build 7our one-particle basis: 
+
+ϕ(t) 
+
+> βkl 3m3
+
+= X
+
+> l1l2m1m2
+
+Cl3m3 
+
+> l1m1l2m2
+
+R(t) 
+
+> kl 1l2l3
+
+(rβα )ˆh(t) 
+
+> βkl 1m1
+
+Yl2m2 (ˆ rβα ) (10) where Cl3m3 
+
+> l1m1l2m2
+
+are Clebsch-Gordan coefficients. Then the atom base for atom α is built as a linear combination of all one-particle basis. 
+
+A(t) 
+
+> αkl 3m3
+
+= X
+
+> k′
+
+X
+
+> β
+
+W (t,l 3) 
+
+> kk ′αβ
+
+ϕ(t) 
+
+> βk ′l3m3
+
+(11) In the product stage, the atom base will be further coupled together through equivariant tensor products. Through setting the hyperparameter correlation , which controls the maximum body order of the interaction, Al1m1 (two-body interaction), Al1m1 ⊗ Al2m2 (three-body interaction) ... until Al1m1 ⊗ Al2m2 ⊗ ... ⊗ Alν mν (ν + 1 -body interaction) can be obtained. After the coupling, the output will be used to generate the cluster basis as a linear combination. 
+
+B(t) 
+
+> αkLM
+
+= X  
+
+> {lνmν}
+
+CLM   
+
+> {lνmν}
+
+X
+
+> k′
+> ν
+
+Y
+
+> ζ=1
+
+W (t,l ζ ) 
+
+> kk ′
+
+A(t)  
+
+> αk ′lζmζ
+
+(12) where B(s) 
+
+> αkLM
+
+is an element of cluster basis, ζ is an index to distinguish l in different atom base. CLM    
+
+> {lνmν}
+
+is a Clebsch-Gordan coefficient. It should be also pointed that the tensor product with irreps order higher than the maximum allowed angular momentum for features will be ignored. The "message" is defined as a linear combination of cluster basis, and the features can be updated as a linear combination of the message and previous features: 
+
+m(t) 
+
+> αkLM
+
+= X
+
+> k′
+
+W (t,L ) 
+
+> kk ′
+
+B(t) 
+
+> αkLM
+
+(13) 8h(t+1)  
+
+> αkLM
+
+= X
+
+> k′
+
+W (t,h ) 
+
+> kk ′
+
+h(t) 
+
+> αk ′LM
+
++ X
+
+> k′
+
+W (t,m ) 
+
+> kk ′
+
+m(t) 
+
+> αk ′LM
+
+(14) This L and M will become l1 and m1 again in the next layer. In the traditional E3NN method, higher-order many-body correlations are built progressively through multiple inter-action layers. In contrast, the descriptor in MACE enables the model to capture many-body interactions in the first layer. The number of MPNN layers is controlled by the hyperparam-eter num_interactions .Because the energy is rotational invariant, in the last layer the energy can be obtained by 
+
+E = MLP (h(t)
+
+> αk 00
+
+) (15) The forces are generated by direct differentiation of the energy rather than being gener-ated from a multilayer perceptron to ensure consistency. In summary, five hyperparameters mentioned in theory are summarised in tabel 1, and the symbol to represent those hyperpa-rameters will be used below. Table 1: The symbols, meaning and their name in the MACE code for 5 different hyperpa-rameters studied in this work. Symbol Meaning Name in MACE version 0.3.13 
+
+k Number of channels num_channels 
+
+T Number of MPNN layers num_interactions 
+
+ν Up to ( ν + 1 )-body interactions included correlation 
+
+Lmax Highest-order of equivariant features max_L 
+
+lmax Maximum angular momentum of spherical harmonics max_ell 
+
+9Calculation Details 
+
+The PLATO package 29 was used to generate atomic orbitals, the hopping and overlap integral tables and the Hubbard parameters. The Perdew-Burke-Ernzerhof (PBE) functional 30 was used to describe the electronic exchange and correlation behaviour, and separable dual-space Gaussian pseudo-potentials 31–33 were used to describe the electron-nucleus interactions. The radii of the atomic orbitals ( r0) were set to twice an element’s covalent radius. 1
+
+After the DFTB parameters were obtained, they were used to calculate the electronic energy for the machine learning datasets. The datasets include the xyz snapshots that only contain Mg, C, O and H from the MPtrj dataset, 34 which is the dataset used for MACE foundation model, 17,27,35 the xyz snapshots that only contain H, C, N, O, F, Mg, Al, Si, P, S, Cl, Cu and Br from the MatPES dataset, 36 and some other self-generated xyz structures for MgO and Mg(OH) 2. The self-generated xyz structures include fcc-MgO and bcc-MgO supercells with random displacements applied to the atoms, as well as CO 2 and H 2O adsorbed on MgO and Mg(OH) 2 clusters. There are 15,396 structures in total. In addition, the forces and energies were recalculated by Quantum ESPRESSO 37 using the PBE functional and projector augmented-wave (PAW) pseudopotentials. 38 
+
+MACE version 0.3.13 17,27 was adopted for MACE model training. Five different hyper-parameters were studied as shown in table 1. The parameter k was set to values from 8 to 64 with an interval of 8, the parameter T was set to values from 1 to 4, the parameter ν was set to values from 1 to 5, the parameter L was set to values between 0 and 1 and the parameter 
+
+l was set to values from 1 to 5. The same random seed was used to split the dataset into 13861 configurations as a training set and 1535 configurations as a validation set for each combinations of hyperparameters. The role of validation is to evaluate the transferability of this model and prevent the model from overfitting. The dataset was not explicitly divided into a separate test set. Instead, the calculation cases, including bulk, surface, adsorption static and dynamical calculations, were used as test set to evaluate the model performance. The training was run on a Quardro RTX6000 GPU performed with 32-bit floating point 10 arithmetic. The generated models were used for static relaxation, molecular dynamics and phonon spectrum calculations. All molecular dynamics simulations were carried out at 300 K with the NVT ensemble and a temperature rescaling thermostat. A finite difference method was used for phonon spectrum calculations. A supercell with lattice constant larger than 10 Å was created to minimize the interactions between periodic images. A displacement of 
+
+± 0.01 Å is applied in three Cartesian directions. The code used for the finite difference method of phonon spectrum calculations can be found through the GitHub link provided in the Data and Code Availability section. In this work, the non-analytical correction (NAC) 39 
+
+was not added. All simulations were carried out using an Intel Core i5-12500 without GPU acceleration. 
+
+# Results and Discussion 
+
+## Accuracy and complexity analysis 
+
+The MACE model was trained on DFT total energies and forces, while the MACE correction in the DFTB+MACE model was trained on the difference between the DFT total energies and forces and the DFTB electronic energies and forces (see equation 5-7). To distinguish our MACE model trained with a limited training set from the standard MACE model, we refer to this model as the restricted MACE model (denoted as MACE R) throughout the remainder of this paper. In the final evaluation the DFTB+MACE predictions are constructed as the sum of the DFTB electronic term and the MACE correction, and are compared directly with the DFT reference. We evaluate model accuracy using the mean absolute error (MAE). We tested 419 different hyperparameter settings and detailed information for each hyperparameter setting can be found in the Supporting Information. Due to the large amount of data required to explore completely five different variable hyperparameters, we simplify the analysis by considering only three representative categories: simple ( T =1, k=8, Lmax =0, ν=1, lmax =1), 11 moderate( T =2, k=32, Lmax =1, ν=2, lmax = 2), and complex ( T =4, k=64, Lmax =1, ν=3, 
+
+lmax = 3) models. Figure 1 shows the comparison between the DFTB+MACE model and the MACE R model with different hyperparameter settings. Figure 2 shows the plot of mean absolute error of forces and training time against different hyperparameter settings. It is found that for a DFTB+MACE model a simple MACE contribution achieves better performance (MAE_F = 275.9 meV/Å) than a MACE R model (MAE_F = 338.5 meV/Å), and the correlation plot also shows the model is more reliable. One reason is that atomic reference density is isotropic, which implies that l = 0 is sufficient to describe the repulsive term of the system. Higher order l terms contribute mainly to correct errors arising from the approximations in DFTB, including the exchange and correlation term in E(0) , the errors in E(1) and E(2) and the neglected higher order terms. In comparison, the MACE R model cannot capture any information with higher order irreps. That partly explains why the DFTB+MACE model can perform better than a MACE R model with relatively modest hyperparameter settings. For a moderate model and a complex model, the MAE_F for the DFTB+MACE model can reach 82.0 meV/Å and 66.7 meV/Å respectively, while the values of MAE_F for a MACE R model are 83.0 meV/Å and 51.9 respectively. Thus, for more complex hyperparameter settings, the MACE R model performs comparably well or even slightly better than the DFTB+MACE model. When a more complex set of hyperparameters is used, the error in the DFTB electronic term begins to be apparent. In our previous work it was shown that the DFTB width of the valence band is smaller than that of the DFT reference, and the gap between valence band and lower valence band is larger than DFT reference due to the limited basis set selected in DFTB. The DFTB+MACE model accuracy may be further improved by introducing crystal field and three-centre integral corrections to generate a high quality parameter set, as well as expanding the basis set. While only the simple, moderate, and complex categories are shown here for clarity, the complete analysis covering all five hyperparameters yields the same overall trend. The 12 (a1) (a2) 
+
+(b1) (b2) 
+
+(c1) (c2) 
+
+Figure 1: The predicted force values for the Mg-C-O-H system against the reference values for the DFTB+MACE model (left column) and MACE R model (right column) with (a) simple models, (b) moderate models and (c) complex models. 13 computational cost increases rapidly and non-linearly with increasing l: see figures 5-a1 and 5-a2 in the SI. For many-body interactions, which are related to the hyperparameter ν, both models show a clear improvement in accuracy on going from two-body to three body terms, while further increases in body order lead to only marginal improvements. In contrast, increasing the body order leads to a significant increase in computational cost: see figures 5-b1 and 5-b2 in the SI. The MAE decreases approximately exponentially with increasing number of MPNN layers ( T ) and the number of channels ( k): see figure 5-c1, 5-c2, 5-d1 and 5-d2 in the SI. In principle, the computational cost is expected to increase linearly with both hyperparameters. However, for small channel sizes, the increase is not clear, which may relate to GPU utilization, bandwidth limitation, package framework and so on. 
+
+Figure 2: The mean absolute error of forces and normalized calculation time for the Mg-c-O-H system against different hyperparameter settings. The time for the simple model is set to be 1, and other values are expressed as multiples of that time. 
+
+## Static Calculations 
+
+To further assess the accuracy and transferability of our models, the static properties of MgO, including cohesive energy as a function of lattice constant, phonon spectrum, surface 14 energy and adsorption problems, were studied by the moderate model. Figure 3 shows the cohesive energy curve of fcc and bcc MgO for different models or parameter sets. The lattice constant (a 0) and bulk modulus (B 0) are labelled on the plot. It can be seen that there is a large improvement in both the lattice constant and the shape of the binding energy curve compared with DFTB. However, while the model curves agree well with the DFT data where the training dataset covers the relevant atomic configurations, the behavior outside this data range is less certain. The details of the atomic configurations in the dataset can be found by following the github link and from figures 1-4 in the Support Information .For fcc-MgO, the overall trend from the DFTB+MACE model is better than for the MACE R model. However, around the equilibrium point they are quite similar. One reason could be that the training data set does not cover configurations with non-equilibrium lat-tice constants, in which case and model has to make an estimate. In addition, there is a more negative contribution from the electronic energy from tight binding model when the lattice constant becomes smaller, which becomes increasingly difficult for the MACE part to compensate. The same issues are apparent for bcc-MgO. The MACE R model exhibits a similar be-haviour: in regions with a small lattice parameter not covered by the training data the energy rises too rapidly. For the DFTB+MACE model, the appearance of the electronic part makes the gradient similar to that of the PBE-DFT reference. Even after adding configurations generated by random perturbations to the equilibrium lattice, this issue was not fully resolved. Although lattice constants far from the equilibrium value are not particularly important for simulations at relatively low temperatures, they become essential for high-temperature MD simulations. Therefore, the training dataset that includes configurations with a range of lattice constants is necessary for high temperature MD simulations. From the energy-lattice constant curve we can obtain the equilibrium lattice constant 15 (a) (b) 
+
+Figure 3: The cohesive energy of (a) fcc-MgO and (b) bcc-MgO against the lattice constant. The curve is fitted by a third-order Birch-Murnaghan Equation of State. 16 and bulk modulus, which characterize the structural stability. However, this only considers isotropic compression and expansion, and now we further analyse the dynamical stability by looking at the phonon spectrum, which is related to the full set of second-order derivatives of the energies with respect to atomic displacement. Figure 4 shows the phonon spectra and Projected Density of States (PDoS) for phonons of fcc-MgO, and figure 5 shows the phonon spectra and PDoS of bcc-MgO calculated by PBE-DFT, DFTB+MACE, MACE R and DFTB. Introducing MACE model to DFTB again leads to significant improvement in the phonon spectrum compared with DFTB only. For fcc-MgO, the DFTB+MACE model performs better than MACE R for the acoustic phonons, as can be seen by comparing the band width of the phonon spectrum and the position where the phonon PDoS increases rapidly. This improvement behaves in the same way as for the bulk modulus. In the higher frequency region, DFTB+MACE still differs from the DFT reference and MACE R, especially along the L-U-W-L-K path. The limitations of DFTB alone are clearly shown throughout the phonon spectrum. The gradient of the acoustic branch is much higher than for PBE-DFT, indicating that there may be over-binding between Mg and O. The optical frequencies are also much higher than found by PBE-DFT, indicating that the bond stiffness is much higher than the PBE-DFT reference. For bcc-MgO, the problems found for DFTB are the same. Even though it can correctly predict that the Γ point is stable, the over-stiffness problem causes the optical branch fre-quency to be higher than the PBE-DFT reference. In addition, Mg contributes to the imag-inary part of the phonon PDoS. Although there is still a gap between the DFTB+MACE model and the PBE-DFT reference, it still shows the contributions of both Mg and O to the imaginary part and performs at a similar level as MACE R. It should also be pointed that if we choose a small model, the DFTB+MACE model will still perform at a relatively acceptable level. In contrast, if the MACE R model loses the information with high irreps order, the resulting predictions can be catastrophic. See figure 6 in the SI. 17 (a) 
+
+(b) 
+
+(c) 
+
+(d) 
+
+Figure 4: Phonon spectrum of fcc-MgO calculated by (a) PBE-DFT, (b) DFTB+MACE, (c) MACE R and (d) DFTB. Note that the scale for DFTB is different from the scale of other two methods as the spectrum is much wider. 18 (a) 
+
+(b) 
+
+(c) 
+
+(d) 
+
+Figure 5: Phonon spectrum of bcc-MgO calculated by (a) PBE-DFT, (b) DFTB+MACE, (c) MACE R and (d) DFTB. Note that the scale for DFTB is different from the scale of the other two methods. 19 Having shown the DFTB+MACE model performs well for bulk MgO, we now move to surface and adsorption analysis. The (100) and (110) surfaces of MgO and CO 2 adsorption on these surfaces, are now studied. In traditional DFTB it is challenging to describe the surface energy accurately. For example, when the surface is created, the electronic term is less stable or less negative than the bulk. However, the reduced coordination number caused by the surface also leads to a decrease in the number of pair potential contributions to the 
+
+E(0) term. As a results, the parameterisation faces an inconsistency: it may be adjusted to reproduce bulk energies, but it may then incorrectly stabilize surface atoms. This reflects a fundamental limitation of environment-independent pair potentials in capturing both bulk and surface energies in the DFTB model. Table 2 shows, using the different models, the surface energies for the (100) and (110) surfaces of MgO, the adsorption energy E of CO 2
+
+on these two surfaces, the bond length between C and O in CO 2 and in MgO, and the bond angle of CO 2. Here a MACE foundation model (MACE-MP-0a) 35 result is also shown for comparison. Figure 6 shows the structure of CO 2 adsorbed on the (100) and (110) surfaces of MgO calculated using the DFTB+MACE model. It should be pointed that there is no periodic system with a surface in the training set: all surface information is from MgO clusters, and the CO 2-MgO(110) adsorption structure is not included in training set. It can be seen that introducing MACE successfully resolves the apparent inconsistency and the surface energy is much more accurate compared with DFTB. The predicted value from the DFTB+MACE model for the (100) surface is larger than the PBE-DFT reference while for the (110) surface it is smaller. Both surface energies predicted by the MACE R model are smaller than PBE-DFT reference. The reason for the difference between DFTB+MACE and PBE-dFT is not that the non-periodic training set leads to an averaging effect in the learned model, because this does not happen in the MACE R model. The reason may be similar to what happened in bulk MgO, where MgO clusters do not cover all the chemical environments so the potential energy surface in the intermediate region is estimated. How-ever, the result is still acceptable, and we note that the surface energy of the (110) surface 20 happens to be closer to the experimental value 1.04 Jm −2 40 than the DFT value, though this is accidental. For adsorption problem, all methods can predict a relatively correct structure compared with the PBE-DFT reference. Unexpectedly, the MACE R model gave two posi-tive predictions for adsorption energies, and the predictions of the DFTB+MACE model are about 1 eV more negative than the PBE-DFT reference. This clearly demonstrates the effect of estimating the potential energy surface in the intermediate region resulting from insuffi-cient training data coverage, and the model needs to be fine-tuned for certain calculation. In addition, even though the standard MACE model provides high accuracy results for the MgO’s (100) surface calculation, it is less accurate when predicting the MgO’s (110) surface energy, and predicts an extremely repulsive adsorption energy and long C-O bond length, which implies there are not configurations with the required chemical environment even in the full training set. Although the DFTB+MACE model cannot completely eliminate this issue, it can significantly mitigate it, as the underlying electronic structure already provides a substantial amount of physical information. Given that the training set does not include different surface and adsorption configurations and MACE R model provides an opposite prediction, this result partly demonstrates the transferability of the DFTB+MACE model. However, higher accuracy will require more diverse surface and adsorption configurations be included in the training set. 
+
+## Molecular dynamics 
+
+We now carry out molecular dynamics simulations of bulk water and water on the (0001) surface of Mg(OH) 2 to investigate finite temperature effects. It is hard to reproduce the correct structure of bulk water with a short ranged pair potential, therefore in traditional DFTB an iterative Boltzmann inversion (IBI) method (also known as reverse Monte Carlo) is usually adopted. 41–44 It introduces a correction in the long range region so that the pair potential exhibits alternating attractive and repulsive oscillations, rather than a monotoni-cally decaying behaviour. Figure 7 (a) shows the initial geometry of water bulk, figure 7 (b) 21 Table 2: The surface energy γ(Jm -2 ), the adsorption energy ECO 2−MgO (in eV), the bond length between C in CO 2 and O in CO 2 and MgO (Å), and the bond angle of CO 2 (°)calculated by different models (see main text for details). Note that MACE-MP-0a is a foundation model. 35 
+
+PBE-DFT MACE-MP-0a DFTB+MACE MACE R DFTB 
+
+γMgO (100) 0.88 0.87 1.03 0.79 5.98 
+
+ECO 2−MgO (100) -0.07 -0.39 -1.43 1.99 -5.62 
+
+C − O(CO 2)MgO (100) 1.25 1.25 1.25 1.26 1.25 
+
+C − O(MgO )MgO (100) 1.49 1.48 1.45 1.45 1.32 ̸
+
+OCO MgO (100)  
+
+> CO 2
+
+135 136 132 136 128 
+
+γMgO (110) 2.14 7.05 1.80 1.64 6.37 
+
+ECO 2−MgO (110) -2.59 -2.89 -3.34 2.19 -1.54 
+
+C − O(CO 2)MgO (110) 1.28 1.21 1.27 1.25 1.25 
+
+C − O(MgO )MgO (110) 1.34 1.66 1.33 1.48 1.33 ̸
+
+OCO MgO (110)  
+
+> CO 2
+
+129 144 129 129 131 
+
+(a) (b) 
+
+Figure 6: The structure for the adsorption of CO 2 on the (a) MgO (100) surface and (b) MgO (110) surface calculated by the DFTB+MACE model. The coral balls represent Mg atoms, the blue ball represents the C atom and the red balls represent O atoms. 22 shows the atomic forces from different models compared with PBE-DFT reference forces and figure 7 (c) and (d) show the radial distribution function (RDF) of OH and OO generated by different methods. The DFTB+MACE model reaches an accuracy of 116.0 meV/Å, which is similar to that of MACE R. The force accuracy of DFTB with IBI corrections is higher than DFTB without IBI corrections, but the MAE still remains at a high level. It can be found that all methods, except DFTB without any corrections, show good agreement with the PBE-DFT reference rdf: it can clearly describe the correct position of the first OH peak around 1.8 Å, the second OH peak around 3.2 Å and the first OO peak around 2.8 Å. In our previous study, 4 it has been proven that after around 4 to 5 iterations of the IBI method, the RDF curve calculated by DFTB with the IBI correction can be almost exactly the same as the reference data. However, even though the IBI method can provide an even better RDF curve than the DFTB+MACE model, different from what had been expected, there is no dramatic improvement in the forces of DFTB with IBI correction (from 421.5 meV/Å to 366.2 meV/Å) compared with DFTB without the IBI correction. The RDF can provide structural information but it cannot determine the forces which are related more to atomic vibrations and diffusion. With a simple MACE R model it is hard to provide the correct second OO peak. This may reflect the intrinsic limitation of a simple MACE model, as it has been reported that MACE, or other MLIPs, are struggling to accurately describe long-range interactions. 45,46 Ideally, the long-range interaction generated from tight binding can compensate for this error, which requires a more precise parameterisation for the electronic part. The computational cost for ab initio Molecular Dynamics (MD) of water bulk on the (0001) surface of Mg(OH) 2 is extremely high because of the large number of atoms: for example, around 4 hours are required for one step using a 64 core Intel Xeon Platinum 8358. Thus, we randomly selected five snapshots, recalculate under DFT and compare the results of DFTB, MACE R, DFTB+MACE with PBE-DFT reference. Figure 8 shows the (a) initial structure of a water bulk on a (0001) surface of Mg(OH) 2 and (b) the comparison 23 (a) (b) 
+
+(c) 
+
+(d) 
+
+Figure 7: (a) The initial geometry of a water bulk, (b) the predicted force value against the reference value for different models (note that the scale is different from the scale in figure 1). The radial distribution function (RDF) of (c) OH and (d) OO produced by different models. 24 between the DFTB+MACE results and PBE-DFT reference. The MAE of forces is only 96.2 meV/Å, which is even surprisingly better than the validation MAE. This is a dramatic improvement compared with traditional DFTB, which has a force MAE of 542.1 meV/Å. For bulk water on a brucite surface, the DFTB+MACE model is much better than DFTB: the IBI method may have adverse effects here because the chemical environment around the surface is extremely different from that in pure bulk water. It should also be noted that, for the DFTB+MACE model, the structure may be trapped in a local minimum that depends on the initial structure, and the final structure can depend on the initial configuration. A possible reason is that the current training set was originally constructed for a standard MACE model rather than specifically for the DFTB+MACE framework. The training data are concentrated around equilibrium structures because the global minimum of the potential energy surface corresponds to the physical equilibrium con-figuration. In contrast, the DFTB+MACE model learns a correction to the DFTB repulsive term. The minimum of the repulsive potential does not coincide with the equilibrium struc-ture because the electronic contribution varies monotonically with bond length or lattice constant. In our previous work, the minima of the pairwise repulsive potentials were found at 1.28 Å for O–O, 0.77 Å for H–H, and 1.06 Å for O–H interactions. However, configurations near these distances occur only rarely in molecular or crystalline equilibrium structures and therefore are poorly represented in the current training set (see Supporting Information fig-ure 2-4). As a result, the model receives limited information in regions that are particularly important for describing the repulsive potential. This may become trapped in local minima during geometry optimization that does not happen in the PBE-DFT reference. Future work should therefore focus on constructing training datasets specifically for the DFTB+MACE framework. Such datasets should not be restricted to equilibrium configurations but should provide broader coverage of the potential energy surface, particularly in the vicinity of the repulsive-potential minima and other short-range interaction regions. 25 (a) (b) 
+
+Figure 8: (a) the initial geometry of a water bulk on (0001) surface of Mg(OH) 2. (b) the predicted force value against the reference value for different models. Note that the scale is different from the scale in figure 1. 
+
+# Conclusions 
+
+In conclusion, we integrate the MACE potential into the DFTB framework by replacing the traditional pairwise repulsive term with a MACE potential. This model balances the computational costs, accuracy, and is able to provide electronic structure. The presence of the electronic term ( E(1) and E(2) ), together with the isotropic atomic reference density 
+
+n(0)  
+
+> α
+
+assumption for E(0) , enables the DFTB+MACE model to achieve high accuracy with reduced MACE model complexity compared to MACE R model. Only in more complex models does MACE R model slightly outperform DFTB+MACE model in accuracy. The possible reasons include that the model has reached its limitation, the errors in DFTB electronic terms are difficult for MACE to reproduce, and the training set does not cover enough potential surface. There is no training set currently designed for a DFTB+MACE model. Improving the quality of DFTB parameters related to the electronic structure for the magnesium study will be part of our future work. The trained models were applied to structural relaxation, phonon calculations and molec-ular dynamics calculations. The DFTB+MACE model consistently showed improved accu-26 racy with a moderate hyperparameter setting in the MACE potential compared with existing DFTB parameter sets. For structures with complex chemical environments, such as adsorp-tion problems, DFTB+MACE delivers better trends, transferability and numerical results compared with traditional DFTB, but there still remains a gap in numerical accuracy com-pared with the DFT reference. During the molecular dynamics calculations, there is a large improvement for the DFTB+MACE model compared with traditional DFTB. Not only the structure, but also the force, which is more important for other studies such as atomic vibration and diffusion, show encouraging results. Future work will focus on two main directions. A dedicated training dataset should be developed for the DFTB+MACE framework, with broader coverage of the potential sur-face. Second, the quality of the underlying electronic structure description will be further improved to provide more accurate energies and forces. Overall, for solid-state systems, the DFTB+MACE approach significantly improves the accuracy of energies and forces while in-troducing only a modest computational overhead. At the same time, it retains the electronic information available in the DFTB framework, making it a promising method for large-scale atomistic simulations. 
+
+# Supporting Information 
+
+The supporting Information is available at link .
+
+# Data and Code Availability 
+
+The DFTB+MACE models and the training set for both DFTB+MACE and MACE model are available via link . Other data can be made available on request to the authors. 27 Acknowledgement 
+
+This research was funded by the Department of Materials, Imperial College London. The DFT calculations of training set and machine learning calculations were supported by the Imperial College Research Computing Service, DOI: 10.14469/hpc/2232. 
+
+# References 
+
+(1) Porezag, D.; Frauenheim, T.; Köhler, T.; Seifert, G.; Kaschner, R. Construction of tight-binding-like potentials on the basis of density-functional theory: Application to carbon. Physical Review B 1995 , 51 , 12947. (2) Seifert, G.; Porezag, D.; Frauenheim, T. Calculations of molecules, clusters, and solids with a simplified LCAO-DFT-LDA scheme. International journal of quantum chemistry 
+
+1996 , 58 , 185–192. (3) Kohn, W.; Sham, L. J. Self-consistent equations including exchange and correlation effects. Physical review 1965 , 140 , A1133. (4) Yu, J.; Horsfield, A. Tight Binding Simulation of the MgO and Mg (OH) 2 Hydration and Carbonation Processes. Journal of Chemical Theory and Computation 2025 , 21 ,1961–1977. (5) Wahiduzzaman, M.; Oliveira, A. F.; Philipsen, P.; Zhechkov, L.; Van Lenthe, E.; Witek, H. A.; Heine, T. DFTB parameters for the periodic table: Part 1, electronic structure. Journal of chemical theory and computation 2013 , 9, 4006–4017. (6) Oliveira, A. F.; Philipsen, P.; Heine, T. DFTB parameters for the periodic table, part 2: Energies and energy gradients from hydrogen to calcium. Journal of chemical theory and computation 2015 , 11 , 5209–5218. 28 (7) Knaup, J. M.; Hourahine, B.; Frauenheim, T. Initial Steps toward Automating the Fitting of DFTB E rep (r). The Journal of Physical Chemistry A 2007 , 111 , 5637– 5641. (8) Van den Bossche, M.; Gronbeck, H.; Hammer, B. Tight-binding approximation-enhanced global optimization. Journal of chemical theory and computation 2018 , 14 ,2797–2807. (9) Bodrog, Z.; Aradi, B.; Frauenheim, T. Automated repulsive parametrization for the DFTB method. Journal of chemical theory and computation 2011 , 7, 2654–2664. (10) Hellström, M.; Jorner, K.; Bryngelsson, M.; Huber, S. E.; Kullgren, J.; Frauenheim, T.; Broqvist, P. An SCC-DFTB repulsive potential for various ZnO polymorphs and the ZnO–water system. The Journal of Physical Chemistry C 2013 , 117 , 17004–17015. (11) Hourahine, B.; Berdakin, M.; Bich, J.; Bonafé, F.; Camacho, C.; Cui, Q.; Deshaye, M.; Díaz Mirón, G.; Ehlert, S.; Elstner, M.; others Recent developments in dftb+, a software package for efficient atomistic quantum mechanical simulations. The Journal of Physical Chemistry A 2025 , 129 , 5373–5390. (12) Ammothum Kandy, A. K.; Wadbro, E.; Aradi, B.; Broqvist, P.; Kullgren, J. Curvature constrained splines for DFTB repulsive potential parametrization. Journal of Chemical Theory and Computation 2021 , 17 , 1771–1781. (13) Pinheiro, M.; Ge, F.; Ferré, N.; Dral, P. O.; Barbatti, M. Choosing the right molecular machine learning potential. Chemical Science 2021 , 12 , 14396–14413. (14) Behler, J.; Parrinello, M. Generalized neural-network representation of high-dimensional potential-energy surfaces. Physical review letters 2007 , 98 , 146401. (15) Bartók, A. P.; Payne, M. C.; Kondor, R.; Csányi, G. Gaussian approximation potentials: 29 The accuracy of quantum mechanics, without the electrons. Physical review letters 
+
+2010 , 104 , 136403. (16) Drautz, R. Atomic cluster expansion for accurate and transferable interatomic poten-tials. Physical Review B 2019 , 99 , 014104. (17) Batatia, I.; Kovacs, D. P.; Simm, G.; Ortner, C.; Csányi, G. MACE: Higher order equivariant message passing neural networks for fast and accurate force fields. Advances in neural information processing systems 2022 , 35 , 11423–11436. (18) Csanyi, G. The Design Space of E (3)-Equivariant Atom-Centered Interatomic Poten-tials. 2025 ,(19) Geiger, M.; Smidt, T. e3nn: Euclidean neural networks. arXiv preprint arXiv:2207.09453 2022 ,(20) Stöhr, M.; Medrano Sandonas, L.; Tkatchenko, A. Accurate many-body repulsive po-tentials for density-functional tight binding from deep tensor neural networks. The Journal of Physical Chemistry Letters 2020 , 11 , 6835–6843. (21) Goldman, N.; Kweon, K. E.; Sadigh, B.; Heo, T. W.; Lindsey, R. K.; Pham, C. H.; Fried, L. E.; Aradi, B.; Holliday, K.; Jeffries, J. R.; others Semi-automated creation of density functional tight binding models through leveraging Chebyshev polynomial-based force fields. Journal of Chemical Theory and Computation 2021 , 17 , 4435–4448. (22) Goldman, N.; Fried, L. E.; Lindsey, R. K.; Pham, C. H.; Dettori, R. Enhancing the accuracy of density functional tight binding models through ChIMES many-body in-teraction potentials. The Journal of Chemical Physics 2023 , 158 .(23) Lindsey, R. K.; Fried, L. E.; Goldman, N. Chimes: A force matched potential with explicit three-body interactions for molten carbon. Journal of chemical theory and com-putation 2017 , 13 , 6222–6229. 30 (24) Sandonas, L. M.; Puleva, M.; Erarslan, Z.; Payano, R. P.; Stoehr, M.; Cuniberti, G.; Tkatchenko, A. Advancing Density Functional Tight-Binding method for Large Organic Molecules through Equivariant Neural Networks. Physical Chemistry Chemical Physics 
+
+2026 ,(25) Unke, O. T.; Chmiela, S.; Gastegger, M.; Schütt, K. T.; Sauceda, H. E.; Müller, K.-R. SpookyNet: Learning force fields with electronic degrees of freedom and nonlocal effects. Nature communications 2021 , 12 , 7273. (26) Musaelian, A.; Batzner, S.; Johansson, A.; Sun, L.; Owen, C. J.; Kornbluth, M.; Kozin-sky, B. Learning local equivariant representations for large-scale atomistic dynamics. 
+
+Nature Communications 2023 , 14 , 579. (27) Batatia, I.; Batzner, S.; Kovács, D. P.; Musaelian, A.; Simm, G. N. C.; Drautz, R.; Ortner, C.; Kozinsky, B.; Csányi, G. The Design Space of E(3)-Equivariant Atom-Centered Interatomic Potentials. 2022. (28) Boleininger, M.; Guilbert, A. A.; Horsfield, A. P. Gaussian polarizable-ion tight binding. 
+
+The Journal of Chemical Physics 2016 , 145 .(29) Soin, P.; Horsfield, A. P.; Nguyen-Manh, D. Efficient self-consistency for magnetic tight binding. Computer Physics Communications 2011 , 182 , 1350–1360. (30) Perdew, J. P.; Burke, K.; Ernzerhof, M. Generalized gradient approximation made simple. Physical review letters 1996 , 77 , 3865. (31) Goedecker, S.; Teter, M.; Hutter, J. Separable dual-space Gaussian pseudopotentials. 
+
+Physical Review B 1996 , 54 , 1703. (32) Hartwigsen, C.; Gœdecker, S.; Hutter, J. Relativistic separable dual-space Gaussian pseudopotentials from H to Rn. Physical Review B 1998 , 58 , 3641. 31 (33) Krack, M. Pseudopotentials for H to Kr optimized for gradient-corrected exchange-correlation functionals. Theoretical Chemistry Accounts 2005 , 114 , 145–152. (34) Deng, B.; Peichen, Z.; Jun, K.; Janosh, R.; Han, K.; Bartel, C.; Gerbrand, C. Materi-als project trajectory (MPtrj) dataset. Figshare. https://doi. org/10.6084/m9. figshare 
+
+2023 , 23713842 , v2. (35) Batatia, I.; Benner, P.; Chiang, Y.; Elena, A. M.; Kovács, D. P.; Riebesell, J.; Advin-cula, X. R.; Asta, M.; Avaylon, M.; Baldwin, W. J.; others A foundation model for atomistic materials chemistry. The Journal of chemical physics 2025 , 163 .(36) Kaplan, A. D.; Liu, R.; Qi, J.; Ko, T. W.; Deng, B.; Riebesell, J.; Ceder, G.; Pers-son, K. A.; Ong, S. P. A foundational potential energy surface dataset for materials. 
+
+arXiv preprint arXiv:2503.04070 2025 ,(37) Giannozzi, P.; Baroni, S.; Bonini, N.; Calandra, M.; Car, R.; Cavazzoni, C.; Ceresoli, D.; Chiarotti, G. L.; Cococcioni, M.; Dabo, I.; others QUANTUM ESPRESSO: a modu-lar and open-source software project for quantumsimulations of materials. Journal of physics: Condensed matter 2009 , 21 , 395502. (38) Kresse, G.; Joubert, D. From ultrasoft pseudopotentials to the projector augmented-wave method. Physical review b 1999 , 59 , 1758. (39) Pick, R. M.; Cohen, M. H.; Martin, R. M. Microscopic theory of force constants in the adiabatic approximation. Physical Review B 1970 , 1, 910. (40) Jura, G.; Garland, C. W. The experimental determination of the surface tension of magnesium oxide. Journal of the American Chemical Society 1952 , 74 , 6033–6034. (41) Lyubartsev, A. P.; Laaksonen, A. Calculation of effective interaction potentials from radial distribution functions: A reverse Monte Carlo approach. Physical review E 1995 ,
+
+52 , 3730. 32 (42) Doemer, M.; Liberatore, E.; Knaup, J. M.; Tavernelli, I.; Rothlisberger, U. In situ parameterisation of SCC-DFTB repulsive potentials by iterative Boltzmann inversion. 
+
+Molecular Physics 2013 , 111 , 3595–3607. (43) Goyal, P.; Qian, H.-J.; Irle, S.; Lu, X.; Roston, D.; Mori, T.; Elstner, M.; Cui, Q. Molecular simulation of water and hydration effects in different environments: Chal-lenges and developments for DFTB based models. The Journal of Physical Chemistry B 2014 , 118 , 11007–11027. (44) Lourenco, M. P.; Dos Santos, E. C.; Pettersson, L. G.; Duarte, H. A. Accurate SCC-DFTB parametrization for bulk water. Journal of Chemical Theory and Computation 
+
+2020 , 16 , 1768–1778. (45) King, D. S.; Kim, D.; Zhong, P.; Cheng, B. Machine learning of charges and long-range interactions from energies and forces. Nature Communications 2025 , 16 , 8763. (46) Gao, R.; Yam, C.; Mao, J.; Chen, S.; Chen, G.; Hu, Z. A foundation machine learn-ing potential with polarizable long-range interactions for materials modelling. Nature Communications 2025 , 16 , 10484. 33

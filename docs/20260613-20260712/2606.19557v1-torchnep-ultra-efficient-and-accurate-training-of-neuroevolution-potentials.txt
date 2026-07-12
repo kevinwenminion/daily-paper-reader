@@ -1,0 +1,734 @@
+Title: TorchNEP: Ultra-Efficient and Accurate Training of Neuroevolution Potentials
+
+URL Source: https://arxiv.org/pdf/2606.19557v1
+
+Published Time: Fri, 19 Jun 2026 00:15:39 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+# TorchNEP: Ultra-Efficient and Accurate Training of Neuroevolution Potentials 
+
+Yong-Chao Wu, 1, ∗ Xiaoya Chang, 2 Tero Mäkinen, 1 Amin Esfandiarpour, 3
+
+Jian-Li Shao, 4 Tapio Ala-Nissila, 2, 5 Zheyong Fan, 6, † and Mikko Alava 1, ‡
+
+> 1
+
+CSM group, Department of Applied Physics, Aalto University, P.O. Box 15600, 00076 Aalto, Espoo, Finland 
+
+> 2
+
+MSP group, Department of Applied Physics, Aalto University, P.O. Box 15600, 00076 Aalto, Espoo, Finland 
+
+> 3
+
+NOMATEN Centre of Excellence, National Center for Nuclear Research, A. Soltana 7 St., 05-400 Otwock, Poland 
+
+> 4
+
+State Key Laboratory of Explosion Science and Safety Protection, Beijing Institute of Technology, Beijing, 100081, China 
+
+> 5
+
+Interdisciplinary Centre for Mathematical Modelling and Department of Mathematical Sciences, Loughborough University, Loughborough, Leicestershire LE11 3TU, United Kingdom 
+
+> 6
+
+College of Physical Science and Technology, Bohai University, Jinzhou, China 
+
+(Dated: June 19, 2026) Neuroevolution Potential (NEP) is one of the most efficient machine-learned interatomic potential frameworks for large-scale atomistic simulations. However, its original training strategy remains computationally demanding, limiting systematic exploration of model architectures and training protocols. Here, we present TorchNEP, a PyTorch-based implementation of NEP that combines analytically derived gradients, adaptive optimization, and a two-stage training strategy. TorchNEP accelerates training by more than two orders of magnitude while maintaining full compatibility with existing NEP models. We further show that the improvement in predictive accuracy primarily originates from the two-stage training protocol rather than the optimization algorithm itself. Across diverse benchmark datasets, TorchNEP consistently improves force and stress predictions while maintaining comparable or improved energy accuracy. Benchmark evaluations on elemental and alloy systems demonstrate enhanced predictive performance for both atomic configurations and key materials properties. Furthermore, we show that increasing model complexity does not necessarily improve predictive performance despite reducing training errors. Overall, TorchNEP provides an efficient and flexible training framework for developing more accurate and robust machine-learned interatomic potentials. 
+
+I. INTRODUCTION 
+
+Machine-learned interatomic potentials (MLIPs) have transformed atomistic simulations by bridging the accuracy of first-principles calculations and the length and time scales accessible to molecular dynamics (MD) simulations [1]. By learning the potential-energy surface directly from electronic-structure data, MLIPs enable simulations with near density-functional-theory (DFT) accuracy at a computational cost several orders of magnitude lower than direct quantum-mechanical calculations. Over the past decade, numerous MLIP frameworks have been developed, includ-ing Gaussian approximation potential (GAP) [2], moment tensor potential (MTP) [3, 4], atomic cluster expansion (ACE) [5], MACE [6], deep potential (DP) [7], and neuroevolution potential (NEP) [8]. Among these approaches, NEP occupies a unique position by combining compact physically motivated descriptors with a lightweight neural-network architecture, thereby achieving an exceptional balance between predictive accuracy and computational efficiency. Im-plemented within the GPUMD package [9], NEP has been successfully applied to a broad range of materials, including elemental solids, low-dimensional materials, interfaces, alloys, liquids, and complex disordered systems [10]. More im-portantly, its highly optimized implementation enables simulations at scales that remain challenging for many other MLIP frameworks. Recent work by Song et al. [11] demonstrated NEP-based MD simulations of metallic systems containing more than 10 8 atoms using only eight NVIDIA A100 GPUs, highlighting its potential as a practical tool for extreme-scale atomistic simulations. As MLIPs continue to grow in complexity and scope, the demand for efficient model training has become increasingly important. Modern MLIP development is no longer limited to fitting a single potential [12]. Instead, it increasingly    
+
+> ∗yongchao.wu@aalto.fi
+> †brucenju@gmail.com
+> ‡mikko.alava@aalto.fi
+> arXiv:2606.19557v1 [physics.comp-ph] 17 Jun 2026
+
+2relies on iterative workflows such as active learning [4], committee-model uncertainty estimation [13], automated dataset expansion [14], and systematic exploration of model architectures and hyperparameters [15]. These tasks often require training tens to hundreds of candidate models, making training efficiency a critical factor in practical MLIP development. Consequently, the computational cost of model construction is emerging as a serious bottleneck, particularly for large and chemically complex datasets. While NEP has achieved remarkable success as an efficient simulation engine, comparatively little attention has been devoted to improving the efficiency of its training workflow. In addition, the effects of optimization algorithms, training protocols, and model complexity influence predictive performance remain insufficiently explored. Most modern MLIP frameworks, including DP [7], NequIP [16], and MACE [6], employ gradient-based optimization together with mini-batch training, adaptive learning-rate scheduling, and dynamically adjusted loss weights. In contrast, the original NEP implementation relies on the separable natural evolution strategy (SNES) [17], a gradient-free population-based optimizer. Although SNES is robust and has played an important role in the success of NEP, it generally requires a large number of model evaluations and can become computationally expensive when repeatedly training models during active-learning cycles or hyperparameter exploration. Recently, preliminary studies have explored gradient-based optimization for NEP training [18], suggesting a possible alternative to evolutionary optimization. However, it remains unclear whether gradient-based approaches can fully exploit the NEP framework and, more importantly, how optimization algorithms and training protocols affect both computational efficiency and predictive performance. Addressing this question is particularly important because improvements in training efficiency do not necessarily translate into better predictive accuracy or transferability. In this work, we present TorchNEP, a PyTorch-based implementation of the NEP framework that preserves the original descriptor formalism and neural-network architecture while replacing evolutionary optimization with ana-lytical gradients and the Adam optimizer. While TorchNEP adopts gradient-based training in place of the original evolutionary algorithm, we preserve the “NEP” suffix to maintain continuity with our prior work and to acknowledge the conceptual origin of the potential form. We benchmark TorchNEP on a diverse collection of datasets spanning elemental systems, molecular and condensed-phase materials, interfaces, and multicomponent alloys. Compared with the original NEP implementation, TorchNEP achieves more than two orders of magnitude acceleration in training while maintaining full compatibility with existing NEP models. We further investigate the respective roles of opti-mization algorithms, training protocols, and model complexity through extensive benchmarks on multiple datasets and a comprehensive 16-element test suite. Together, these studies provide both an efficient training framework and practical insights into the development of accurate and robust NEP models.   
+
+> II. RESULTS A. TorchNEP framework and optimization strategy
+
+TorchNEP implements the neuroevolution potential (NEP) framework within a gradient-based training scheme. Following the original NEP formulation [8, 11, 19], the total potential energy of a structure containing N atoms is decomposed into atomic contributions, 
+
+E =
+
+> N
+
+X
+
+> i=1
+
+Ei, (1) where each atomic energy Ei is predicted from a local descriptor vector qi that encodes the atomic environment of atom i within finite radial and angular cutoff radii. Before entering the neural network, each descriptor component is normalized using the corresponding minimum and maximum values evaluated over the training set, 
+
+˜q iν = qiν
+
+qmax  
+
+> ν
+
+− qmin 
+
+> ν
+
+, (2) where ν denotes the descriptor component. These normalization factors are computed once before training and kept fixed throughout optimization. The atomic energy is represented by a single-hidden-layer feed-forward neural network, 
+
+Ei =
+
+> Nneu
+
+X
+
+> μ=1
+
+w(1)  
+
+> ti,μ
+
+tanh 
+
+"Ndes X
+
+> ν=1
+
+w(0)  
+
+> ti,μν
+
+˜q iν − b(0) 
+
+> ti,μ
+
+#
+
+− b(1) , (3) 3where ti is the chemical species of atom i, Nneu is the number of hidden neurons, and Ndes is the descriptor dimension. The weights w(0)  
+
+> ti
+
+and w(1)  
+
+> ti
+
+, as well as the hidden-layer bias b(0)  
+
+> ti
+
+, are species dependent, whereas the output bias b(1) is shared by all species. The descriptor vector qi contains radial and angular components constructed from Chebyshev radial basis functions and spherical harmonics, and more details can be found in the Methods section. The training objective combines energy, force, and virial losses, 
+
+L = λE ∆E + λF ∆F + λV ∆V , (4) with 
+
+∆E = 1
+
+Ns
+
+X
+
+> s
+
+ˆEs − Es
+
+N s
+
+> a
+
+!2
+
+, (5) 
+
+∆F = 13Na
+
+X
+
+> i
+
+ˆFi − Fi
+
+> 2
+
+, (6) 
+
+∆V = 19Ns
+
+X
+
+> s
+
+ˆWs − Ws
+
+N s
+
+> a
+> 2
+
+. (7) Here, hats denote model predictions, Ns and Na are the number of structures and the total number of atoms in the batch, respectively. N s 
+
+> a
+
+is the number of atoms in structure s.TorchNEP directly optimizes the parameter vector θ, including both descriptor coefficients and neural-network parameters, using analytical gradients and the Adam optimizer [20] with the AMSGrad variant [21], which adapts the per-parameter learning rate from the first- and second-order moments of the gradient. At training step t, that is, the t-th parameter update on a mini-batch, the gradient reads 
+
+gt = ∇θ L(θt−1). (8) The biased first- and second-moment estimates are updated as 
+
+mt = β1mt−1 + (1 − β1) gt, (9) 
+
+vt = β2vt−1 + (1 − β2) g2 
+
+> t
+
+, (10) where β1 and β2 are the exponential decay rates for the first and second moments, and g2 
+
+> t
+
+denotes the element-wise square. After bias correction, 
+
+ˆmt = mt
+
+1 − β t
+
+> 1
+
+, ˆvt = vt
+
+1 − β t
+
+> 2
+
+, (11) where the superscript t on β t 
+
+> 1
+
+and β t 
+
+> 2
+
+denotes the t-th power, the AMSGrad variant maintains the running maximum of the second moment, 
+
+ˆvmax  
+
+> t
+
+= max  ˆvmax  
+
+> t−1
+
+, ˆvt
+
+ , (12) and updates the parameters according to 
+
+θt = θt−1 − ηt
+
+ˆmt
+
+pˆvmax  
+
+> t
+
++ ϵ , (13) where ηt is the learning rate at step t and ϵ is a small constant for numerical stability. We use the default values 
+
+β1 = 0 .9, β2 = 0 .999 , and ϵ = 10 −8. The overall TorchNEP training workflow is illustrated in Fig. 1a. To improve optimization efficiency, we employ a two-stage training strategy, as shown in Fig. 1b. In Stage 1, a relatively large force weight λF is used to prioritize force accuracy and capture the local shape of the potential-energy surface. In Stage 2, the energy weight λE is increased while the force weight λF and the learning rate are reduced, allowing the model to refine absolute energies without sacrificing force accuracy. Within each stage, the learning rate ηt is adjusted dynamically using a plateau-based scheduler ( ReduceLROnPlateau ; Fig. 1c) that operates at the epoch level: it is held fixed across all optimization steps within an epoch and updated only at epoch boundaries. Denoting by ηe
+
+the learning rate used throughout epoch e, the epoch-averaged training loss L is monitored, and the learning rate is reduced by a factor γ ∈ (0 , 1) whenever this loss fails to improve for p consecutive epochs: 
+
+ηe+1 = max( γ η e, η min ) , (14) 4where ηmin denotes the minimum allowed learning rate, so that ηt = ηe for every step t belonging to epoch e. This strategy enables large parameter updates during the early stages of training while progressively refining the model as optimization approaches convergence. Such two-stage training protocols and adaptive learning-rate schedules have been employed in modern deep-learning-based interatomic potential frameworks to improve optimization stability and convergence [6, 22]. A comparison of the optimization strategies used in the original NEP and TorchNEP frameworks is shown in Fig. 1d. The original NEP implementation updates model parameters using the SNES [17], while TorchNEP computes ana-lytical gradients explicitly and performs mini-batch optimization using Adam. As a result, TorchNEP substantially reduces the computational cost of training while preserving the original NEP model formulation. To ensure compat-ibility with existing NEP workflows, the TorchNEP input format remains largely unchanged from the original NEP implementation, requiring only a few additional parameters associated with the PyTorch framework. Table I shows a representative input file for the carbon dataset. All model-architecture parameters are inherited directly from the orig-inal NEP format, allowing existing NEP input files to be adapted with minimal modification. Additionally, consistent with the original NEP framework [23], TorchNEP fully supports the Ziegler–Biersack–Littmark (ZBL) potential [24] as a short-range correction (Figure S1).      
+
+> FIG. 1. TorchNEP training strategy. (a) Overall TorchNEP training workflow. (b) Two-stage training strategy consisting of force-prioritized training and energy refinement stages. (c) Plateau-based learning-rate decay schedule used during optimiza-tion. (d) Comparison of the optimization strategies employed in the original NEP and TorchNEP frameworks. Components introduced in TorchNEP are highlighted in orange.
+> B. Training efficiency and predictive accuracy across diverse atomistic datasets
+
+We first investigate the effects of optimization algorithms and training strategies on the efficiency and accuracy of TorchNEP. Figure 2a compares the training time per epoch of TorchNEP using autograd and analytically derived force gradients on the carbon [25] and PdCuNiP alloy [26] datasets. Several implementation-level optimizations accelerate 5                     
+
+> TABLE I. Example TorchNEP input file. Category Parameter Value Model type 1 C version 4cutoff 4.2 3.7 n_max 10 8 basis_size 10 8 l_max 4 2 1 neuron 100 Stage I epoch 600 lr 5e-3 lambda_e 1.0 lambda_f 100.0 lambda_v 1.0 batch 16 scheduler_patience 15 scheduler_factor 0.5 Stage II stage2 1start_stage2 300 stage2_lr 5e-4 stage2_lambda_e 100.0 stage2_lambda_f 5.0 stage2_lambda_v 30.0
+
+both schemes. Neighbor lists, interatomic displacement vectors, and descriptor-related quantities are constructed once and retained on the GPU. With these optimizations, the autograd implementation requires approximately 11 s and 18 s per epoch for the carbon and PdCuNiP datasets, respectively. The analytical-gradient implementation further improves efficiency by replacing automatic differentiation of forces with closed-form expressions derived from the descriptor–coordinate Jacobian and neural-network gradients. This eliminates the costly second-order backward pass required by autograd-based force training and enables additional optimizations, including precomputation and caching of geometry-dependent basis functions on the GPU. Conse-quently, the training time is reduced to 7 s and 13 s per epoch for the two datasets. Furthermore, the analytical formulation is compatible with torch.compile , which generates fused Triton GPU kernels and substantially reduces kernel-launch overhead and memory traffic. This optimization further decreases the training time to 3.2 s and 4.7 s per epoch. Overall, the analytical-gradient implementation achieves speedups of 3.4 × and 3.8 × relative to the already optimized autograd baseline. We next investigate the origin of the accuracy improvements observed in TorchNEP. Figure 2b compares different training protocols on the carbon dataset. All published NEP models considered in this work employ a conventional single-stage training procedure with fixed loss weights throughout optimization. Increasing the energy weight from 50 to 800 while keeping the force and virial weights fixed at 100 and 10 reduces the energy RMSE from 52.9 to 40.4 meV/atom. Meanwhile, the force RMSE remains nearly unchanged, whereas the virial RMSE exhibits noticeable fluctuations due to its relatively small weight and the limited number of virial data in the training set. Increasing the virial weight further (800–100–100) improves the virial accuracy, yielding RMSEs of 40.3 meV/atom, 647.6 meV/Å, and 17.0 meV for energy, force, and virial predictions, respectively, which are already comparable to those obtained using the original SNES training strategy [19] (40.9 meV/atom, 684.6 meV/Å, and 18.7 meV). These results suggest that, under appropriately chosen loss weights, gradient-based and SNES-based optimization achieve a similar level of training accuracy. In contrast, the two-stage training protocol simultaneously improves all three metrics, achieving RMSEs of 36.5 meV/atom, 630.7 meV/Å, and 13.9 meV. Therefore, the primary improvement in training accuracy originates from the training protocol rather than from the optimization algorithm itself. The mechanism underlying this improvement is illustrated in Fig. 2c, which compares the evolution of training losses for SNES-NEP and TorchNEP. During Stage 1, the large force weight rapidly reduces the force loss and enables the model to learn the overall shape of the potential-energy surface. In Stage 2, the energy and virial weights are increased while the force weight is reduced, allowing the model to refine local energetic details. As a result, both energy and virial losses exhibit a pronounced decrease after the transition to Stage 2, and the model reaches convergence within 600 epochs. By contrast, the SNES optimizer converges substantially more slowly and typically requires several hundred thousand optimization steps to achieve a comparable level of accuracy. Based on these observations, all subsequent TorchNEP models in this work employ analytical gradients together with graph-level compilation and the two-stage 6training protocol to achieve the best balance between efficiency and accuracy. Carbon PdCuNiP 
+
+0
+
+5
+
+10 
+
+15 
+
+20 
+
+25 
+
+> Training time per epoch (s)
+
+11.1 
+
+6.8 
+
+3.2 
+
+17.6 
+
+12.7 
+
+4.7 
+
+# a Autograd 
+
+Analytical gradients 
+
+Analytical gradients with compile 
+
+50-100-10 
+
+100-100-10 
+
+400-100-10 
+
+800-100-10 
+
+800-100-100 
+
+Two-stage 
+
+0
+
+1
+
+2
+
+3
+
+> Normalized RMSE
+
+TorchNEP 
+
+# b Energy 
+
+Force 
+
+Virial 
+
+10 0 10 1 10 2 10 3 10 4 10 5
+
+Number of epochs 
+
+10 2
+
+10 1
+
+10 0
+
+> Loss
+
+# c
+
+> SNES-NEP Energy
+> SNES-NEP Force
+> SNES-NEP Virial
+> TorchNEP Energy
+> TorchNEP Force
+> TorchNEP Virial
+
+FIG. 2. Effects of optimization algorithms and training strategies on efficiency and accuracy. (a) Training time per epoch on the carbon [19, 25] and PdCuNiP alloy [26] datasets using TorchNEP with autograd, analytically derived gradients, and the compiled analytical-gradient implementation. (b) Normalized RMSEs relative to the published NEP model for TorchNEP models trained using different single-stage weight combinations and the two-stage training strategy on the carbon dataset. Labels such as 50–100–10 denote the weights assigned to energy, force, and virial losses, respectively. (c) Evolution of energy, force, and virial training losses for SNES-NEP and TorchNEP on the carbon dataset. The black dashed line at epoch 300 marks the transition from Stage 1 to Stage 2 in the two-stage training protocol. All calculations were performed on a single NVIDIA V100 GPU. 
+
+To assess the robustness of TorchNEP across different application domains, we benchmark it against carefully optimized published NEP models on a diverse collection of datasets, including carbon [19, 25], LiH [27], water [28, 29], Al/graphene (Al/Gra) [30], CrCoNi [31], PdCuNiP alloys [26], and BN/SiC/Cu interfaces [32]. These datasets span a broad range of material classes, including elemental systems, molecular systems, metallic alloys, and heterogeneous interfaces, covering both solid and liquid phases. Unless otherwise specified, all TorchNEP models were trained for 600 epochs using the same model architecture as the corresponding published NEP models. For the original SNES-NEP implementation, training times were estimated from the first 100 epochs of the published input files, since the computational cost per epoch remains nearly constant during training. To ensure a fair comparison, only SNES-NEP runs originally configured with more than 300,000 epochs were truncated to 300,000 epochs, while all other runs retained their original settings. As shown in Fig. 3a, the combination of mini-batch training, gradient-based optimization, and compiler-assisted acceleration dramatically improves training efficiency compared with the SNES optimizer. On a single NVIDIA V100 GPU, TorchNEP reduces the training time from hundreds of hours to less than one hour for all tested datasets, 7corresponding to speedups of more than two orders of magnitude, with an average acceleration factor of approximately 628 ×. The most striking example is the water dataset (1388 structures, 5.3 × 10 5 atoms), where the training time decreases from 544 hours for SNES-NEP to only 0.3 hours for TorchNEP. Carbon LiH Water Al/Gra CrCoNi PdCuNiP BN/SiC/Cu 
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+> Training time (h)
+
+271 143 
+
+544 
+
+132 
+
+570 
+
+222 263 
+
+0.6 
+
+0.2 0.3 
+
+0.9 0.8 0.8 0.8 
+
+# a SNES-NEP TorchNEP 
+
+Carbon LiH Water Al/Gra CrCoNi PdCuNiP BN/SiC/Cu 
+
+40 
+
+30 
+
+20 
+
+10 
+
+0
+
+10 
+
+> RMSE (%)
+
+Worse 
+
+Better 
+
+# b   
+
+> Train Energy
+> Train Force
+> Train Stress
+> Test Energy
+> Test Force
+> Test Stress
+> FIG. 3. Training efficiency and predictive accuracy across diverse datasets. (a) Comparison of training time between the original NEP implementation and TorchNEP. (b) Relative changes in RMSE ( ∆RMSE) for energy, force, and stress obtained by TorchNEP with respect to the original NEP on both the training and test datasets. Benchmarks are performed on a diverse set of systems, including carbon [19, 25], LiH [27], water [28, 29], Al/graphene [30], CrCoNi [31], PdCuNiP alloys [26], and BN/SiC/Cu interfaces [32]. Positive values in (b) indicate higher RMSEs than those of the original NEP (worse predictive performance), whereas negative values indicate lower RMSEs (better predictive performance).
+
+We next compare the predictive accuracy of two-stage TorchNEP training and single-stage SNES-NEP training. Figure 3b presents the relative changes in RMSE ( ∆RMSE) for energy, force, and stress with respect to the cor-responding NEP models. Consistent with the observations in Fig. 2, TorchNEP systematically improves force and stress accuracy on both the training and test datasets. The largest improvements are observed for the Al/graphene dataset, where the force and stress RMSEs are reduced by more than 30% on the training set and more than 20% on the test set. For energy predictions, TorchNEP improves both training and test accuracy in five of the eight datasets. In the remaining cases, the differences are extremely small and unlikely to be practically significant. For example, the test-set energy RMSE of the Al/graphene model changes only from 59.0 to 60.0 meV/atom, while the training-set energy RMSE of the CrCoNi model changes from 2.45 to 2.50 meV/atom. The largest relative increase is observed for the LiH dataset; however, because the absolute errors are already extremely small, the change corresponds to only 0.096 to 0.103 meV/atom on the training set and 0.088 to 0.094 meV/atom on the test set. These variations are negligible compared with the overall accuracy of the models. The complete RMSE statistics are provided in Table S1. Overall, these benchmarks demonstrate that TorchNEP consistently delivers substantial gains in training efficiency while maintaining or improving predictive accuracy across a wide variety of material systems. Combined with the analysis in Fig. 2, the results indicate that gradient-based optimization is primarily responsible for the dramatic acceleration in training, whereas the improved predictive accuracy mainly originates from the two-stage training protocol. The two-stage training protocol is expected to improve the training accuracy of the SNES-NEP approach as well, but this has not been systematically explored yet. 8 
+
+> C. Parameter optimization and physical property prediction on 16 elemental systems
+
+While RMSE-based metrics provide a useful measure of fitting accuracy, they are often insufficient for assessing the transferability and physical fidelity of MLIPs, particularly for complex material systems. Moreover, understanding how training parameters and model complexity affect predictive accuracy and physical performance requires extensive benchmarking, which is readily enabled by the exceptional training efficiency of TorchNEP. To this end, we further evaluate TorchNEP on a comprehensive benchmark introduced by Song et al. [11], which contains 16 metallic elements (Ag, Al, Au, Cr, Cu, Mg, Mo, Ni, Pb, Pd, Pt, Ta, Ti, V, W, and Zr) and 105,464 DFT configurations with a total of 6.9 million atoms. The dataset covers a broad range of thermodynamic and mechanical conditions, with atomic forces ranging from -73 to 77 eV/Å. Among the various hyperparameters in the NEP framework, the numbers of radial ( nR
+
+> max
+
+) and angular ( nA
+
+> max
+
+)descriptor components are key factors governing descriptor resolution and model expressivity. The original NEP model (denoted as NEPOri) trained by Song et al. [11] employs nR 
+
+> max
+
+= 4 and nA 
+
+> max
+
+= 4 . To investigate the influence of descriptor complexity on predictive accuracy and physical performance, three additional TorchNEP models with progressively increased descriptor sizes, namely NEP44, NEP66, and NEP88, were trained and benchmarked, as summarized in Table II. Increasing both nR 
+
+> max
+
+and nA 
+
+> max
+
+from 4 to 8 substantially enlarges the model capacity, resulting in an increase in the number of trainable parameters from 70,401 to 124,673. Nevertheless, all TorchNEP models complete training in approximately 2.8 hours on a single NVIDIA H200 GPU, whereas the original NEP implementation requires about 132 hours, corresponding to a more than 40-fold reduction in training time. In terms of training accuracy, the training-set RMSEs decrease monotonically with increasing model size. Relative to NEPOri, NEP44 reduces the training RMSEs of energy, force, and stress by 12.3%, 12.2%, and 40.7%, respectively. Notably, NEP44 employs exactly the same model architecture and number of trainable parameters as NEPOri. Therefore, these accuracy improvements can be attributed entirely to the training framework, in particular the two-stage training strategy discussed above. Further increasing the descriptor size yields additional reductions, with NEP88 achieving overall improvements of 30.8%, 19.3%, and 49.2% for energy, force, and stress. These results indicate that larger models can substantially reduce training errors.                                      
+
+> TABLE II. Training parameters and performance of different NEP models on the 16-element dataset. Label nR
+> max nA
+> max
+> Trainable Parameter Implementation Training Time a
+> (hours)
+> Etrain
+> (meV/atom)
+> Ftrain
+> (meV/Å)
+> Strain
+> (GPa) NEPOri 4470,401 SNES-NEP 132 17.13 171.90 1.18 NEP44 4470,401 TorchNEP 2.8 15.03 151.02 0.70 NEP66 6697,537 TorchNEP 2.9 12.72 142.91 0.62 NEP88 88124,673 TorchNEP 2.9 11.85 138.75 0.60
+> aThe wall-clock time for NEP was estimated based on 300,000 generations, while that for TorchNEP was measured from actual 600-epoch training runs. All results were obtained on a single NVIDIA H200 GPU.
+
+We next evaluate the predictive performance of the four models on a diverse benchmark, as shown in Fig. 4. Notably, while the training set contains only elemental and binary systems, the benchmark includes 14 subsets covering elemental systems, binary alloys, metallic glasses, and high-entropy alloys, thereby providing a stringent assessment of model transferability. Figure 4a takes the AlCu alloy as an example, comparing the predictions of the four models for the equation of state (EOS) and the equilibrium energies under varying temperatures, compressive strains, and tensile strains. These configurations sample a broad range of thermodynamic and mechanical conditions, including heating from 300 to 4000 K, compression up to 40% strain, tension up to 60% strain, and static EOS calculations. Additional details of the benchmark construction can be found in Ref. [11]. The test-set results reveal a more nuanced trend than that observed for the training errors. As shown in Fig. 4b–d, NEP44 consistently improves force and stress predictions across all benchmark systems, reducing the overall force and stress RMSEs by approximately 10.7% and 26.0%, respectively, relative to NEPOri. NEP66 further reduces the overall force and stress RMSEs; however, the improvement is not uniform across all subsets. For example, its stress prediction for the PdPtCu system is worse than that of NEPOri (Fig. 4d). NEP88 achieves the lowest overall stress RMSE, but its force RMSE is slightly larger than those of NEP44 and NEP66. The behavior of the energy predictions differs from that of force and stress. While NEP44 reduces the overall energy RMSE by 23.5% relative to NEPOri, the overall energy RMSE increases by 39.3% and 19.1% for NEP66 and NEP88, respectively. At the level of individual systems, the variation is even more pronounced. For example, NEP66 exhibits substantially larger energy errors for PdPtCu and Cu 43 Zr 43 Al 7Ag 7, while NEP88 produces a significantly larger error 9for Cu 60 Zr 20 Ti 20 . These results indicate that reductions in training error do not necessarily translate into uniform improvements across unseen systems. The complete test-set RMSE statistics are provided in Table S2. 10 12 14 16 18 
+
+> Volume (Å 3/atom)
+> 3.8
+> 3.6
+> 3.4
+> Energy (eV/atom)
+
+## a EOS          
+
+> 300 1000 2000 3000 4000
+> Temperature (K)
+> 3.8
+> 3.6
+> 3.4
+> 3.2
+> Heating
+> 0.0 0.2 0.4
+> Compressive strain
+> 3.84
+> 3.82
+> 3.80
+> 3.78
+> Compression
+> 0.0 0.2 0.4 0.6
+> Tensile strain
+> 3.8
+> 3.7
+> 3.6 Tension
+> DFT
+> NEPOri
+> NEP44
+> NEP66
+> NEP88
+> 100
+> 50
+> 0
+> 50
+> 100
+> Energy RMSE (%)
+
+Worse 
+
+Better 
+
+## b  
+
+> NEP44 NEP66 NEP88
+> 20
+> 0
+> Force RMSE (%)
+
+Worse 
+
+Better 
+
+## c
+
+> Al
+> Ti
+> Ta
+> AlCu
+> MoW
+> TiZr
+> Cu 47.5 Zr 45.1 Al 7.4
+> Cu 60 Zr 20 Ti 20
+> PdPtCu
+> Cu 43 Zr 43 Al 7Ag 7
+> AuPdCuNi
+> MoWVTa
+> AlCrCuNiV
+> AuCuNiPdPt
+> Overall
+> 50
+> 0
+> Stress RMSE (%)
+
+Worse 
+
+Better 
+
+## d
+
+FIG. 4. Prediction performance on diverse test datasets. (a) Representative AlCu test dataset illustrating the benchmark protocol, including equation-of-state (EOS), heating, compression, and tension simulations. The heating, compression, and tension tests are included for all benchmark systems, while equation-of-state tests are included for alloy systems. The DFT reference values are taken from Ref. [11]. Relative changes in RMSE ( ∆RMSE) with respect to NEPOri for (b) energy, (c) force, and (d) stress predictions across test datasets spanning elemental systems, binary alloys, metallic glasses, and high-entropy alloys. Negative values of ∆RMSE indicate improved accuracy relative to NEPOri, whereas positive values indicate degraded performance. 
+
+To further evaluate whether the trends observed in the configuration-level benchmark translate into practical materials predictions, we compare the four models on a diverse set of physical properties derived from molecular dynamics simulations. Figure 5 summarizes the prediction accuracy for elastic constants ( Cij ), vacancy formation energies ( Ev ), surface energies ( γ), melting temperatures ( Tm), and phonon frequencies ( ω) across the 16 elemental systems. Figures 5a–d show parity plots for Cij , Ev , γ, and Tm. All four models reproduce the overall trends well, yielding coefficients of determination ( R2) greater than 0.9 for all properties considered. 10 To facilitate quantitative comparison, Fig. 5e summarizes the RMSE values of all five properties. Consistent with the configuration-level benchmark shown in Fig. 4, NEP44 systematically improves the prediction of all DFT-derived properties relative to NEPOri. The RMSE of elastic constants decreases from 17.1 to 12.1 GPa, while the RMSEs of vacancy formation energies, surface energies, and phonon frequencies decrease from 0.233 to 0.212 eV, from 0.131 to 0.116 J/m 2, and from 0.523 to 0.485 THz, respectively. Detailed DFT reference values for Cij , Ev , and γ [11, 33, 34], together with the corresponding predictions of the four NEP models for all 16 elements, are provided in Table S3–S6. Complete phonon dispersion comparisons are also presented in Fig. S2–S4. These results indicate that the accuracy gains introduced by the two-stage training strategy are not limited to fitting metrics but also translate into improved predictive performance for practical physical properties. 0 200 400 600 
+
+> DFT values (GPa)
+> 0
+> 200
+> 400
+> 600
+> MD values (GPa)
+
+# a Elastic constants C ij     
+
+> NEPOri R 2=0.977
+> NEP44 R 2=0.988
+> NEP66 R 2=0.987
+> NEP88 R 2=0.984
+> 01234
+> DFT values (eV)
+> 0
+> 1
+> 2
+> 3
+> 4
+> MD values (eV)
+
+# b Vacancy formation energy E v     
+
+> NEPOri R 2=0.936
+> NEP44 R 2=0.947
+> NEP66 R 2=0.922
+> NEP88 R 2=0.929
+> 012345
+> DFT values (J/m 2)
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> MD values (J/m 2)
+
+# c Surface formation energy    
+
+> NEPOri R 2=0.982
+> NEP44 R 2=0.986
+> NEP66 R 2=0.987
+> NEP88 R 2=0.986
+> 1000 2000 3000 4000
+> Experimental values (K)
+> 1000
+> 2000
+> 3000
+> 4000
+> MD values (K)
+
+# d Melting temperature T m            
+
+> NEPOri R 2=0.928
+> NEP44 R 2=0.916
+> NEP66 R 2=0.913
+> NEP88 R 2=0.908
+> Cij (GPa) Ev(eV) (J/m 2)Tm(K) (THz)
+> RMSE
+> 17 0.23 0.13 223 0.52
+> 12
+> 0.21 0.12
+> 241
+> 0.48
+> 13
+> 0.26
+> 0.11
+> 245
+> 0.46 14
+> 0.25
+> 0.11
+> 252
+> 0.47
+
+# e NEPOri NEP44 NEP66 NEP88 
+
+FIG. 5. Predictive performance on physical material properties. Parity plots comparing reference values and MD-predicted values for (a) elastic constants Cij , (b) vacancy formation energies Ev , (c) surface energies γ, and (d) melting temperatures Tm across 16 elemental systems (Ag, Al, Au, Cr, Cu, Mg, Mo, Ni, Pb, Pd, Pt, Ta, Ti, V, W, and Zr). Reference values for Cij , Ev , and γ are obtained from DFT calculations[11, 33, 34], whereas Tm is compared against experimental measurements [35]. Corresponding R2 (coefficient of determination) values are provided in each panel. (e) Comparison of RMSE values for Cij , Ev , γ, Tm, and phonon frequencies ω obtained using the four models. For each property, bar heights are normalized by the corresponding RMSE of NEPOri, while the numerical labels indicate the absolute RMSE values. Complete phonon dispersion comparisons for all elemental systems are provided in Fig. S2–S4. 
+
+Further increasing the descriptor size produces mixed outcomes. NEP66 achieves the lowest RMSEs for surface energies and phonon frequencies, suggesting that larger descriptors can improve certain energetic and vibrational prop-erties. However, the accuracy of elastic constants deteriorates relative to NEP44, and the vacancy formation energy RMSE increases to 0.26 eV, exceeding even that of NEPOri. Similar behavior is observed for NEP88, which further improves the prediction of phonon frequencies and surface energies but exhibits worse performance for both elastic constants and vacancy formation energies compared with NEP44. These observations indicate that improvements in individual properties do not necessarily translate into systematic improvements across all physical properties. A different trend is observed for melting temperatures. The RMSE increases moderately from 223 K for NEPOri to 241 K, 245 K, and 252 K for NEP44, NEP66, and NEP88, respectively. The corresponding experimental reference values and model predictions are summarized in Table S7. Unlike the other properties considered here, melting temperatures are compared against experimental measurements rather than DFT calculations. Consequently, these variations should not be interpreted as a direct measure of the intrinsic accuracy of the potentials and are likely influenced by both experimental uncertainty and approximations in the atomistic simulations. Combining the results of Figs. 4 and 5, a consistent picture emerges. The accuracy improvements introduced by the 11 two-stage training strategy are reflected not only in lower training errors but also in improved predictions for unseen configurations and DFT-derived physical properties. By contrast, although increasing descriptor size continuously reduces the training errors, the resulting gains do not systematically transfer to test-set performance or physical-property predictions. Among the models considered here, NEP44 provides the most balanced performance across training accuracy, predictive accuracy, and physical-property evaluation.  
+
+> III. CONCLUSION
+
+In this work, we developed TorchNEP, a PyTorch-based implementation of the neuroevolution potential (NEP) framework. By combining analytical gradients, mini-batch training, adaptive optimization, and compiler-assisted acceleration, TorchNEP maintains full compatibility with existing NEP models while reducing training times by more than two orders of magnitude compared with the original SNES-based implementation. Beyond efficiency, we system-atically analyzed the origin of the accuracy improvements achieved by TorchNEP. Our results show that gradient-based optimization alone yields training accuracy comparable to that of the original NEP implementation, whereas the pri-mary accuracy gain originates from the two-stage training strategy. Across a diverse collection of benchmark datasets, TorchNEP consistently improves force and stress predictions while maintaining comparable or improved energy ac-curacy. The significantly improved training efficiency of TorchNEP further enables practical exploration of model complexity. Using a comprehensive 16-element benchmark, we show that larger descriptor sizes can further reduce training errors but do not necessarily improve predictive performance on unseen configurations and physical prop-erties. These results highlight the importance of evaluating machine-learned interatomic potentials beyond training metrics alone. Overall, TorchNEP provides an efficient and flexible training framework for NEP models and makes systematic hyperparameter exploration computationally practical. We expect it to facilitate the development of more accurate and transferable machine-learned interatomic potentials for large-scale atomistic simulations.   
+
+> IV. METHODS
+> 1. NEP descriptors
+
+The NEP descriptor vector qi consists of radial (two-body) and angular (three- and higher-body) components. Two independent cutoff radii are used: the radial cutoff rR 
+
+> c
+
+and the angular cutoff rA 
+
+> c
+
+. For each radial channel 
+
+n = 0 , . . . , n Rmax , the radial descriptor is defined as 
+
+qin = X 
+
+> j̸=i
+
+gn(rij ), (15) where 
+
+gn(rij ) =  
+
+> NRbas
+
+X
+
+> k=0
+
+c titj 
+
+> nk
+
+fk(rij ). (16) Here, rij = |rj − ri|, and c titj 
+
+> nk
+
+are trainable coefficients associated with the species pair (ti, t j ). The basis functions are constructed from Chebyshev polynomials multiplied by a smooth cutoff function, 
+
+fk(r) = 12 Tk
+
+"
+
+2
+
+ rrc
+
+− 1
+
+2
+
+− 1
+
+#
+
++ 1 
+
+!
+
+fc(r), (17) where the cutoff function is defined as 
+
+fc(r) = 
+
+( 12 [cos( πr/r c) + 1] , r ≤ rc,
+
+0, r > r c. (18) Both fk(r) and its first derivative vanish continuously at r = rc.12 Angular information is represented through expansion moments of the neighbor density, 
+
+Ainlm = X 
+
+> j̸=i
+
+gA 
+
+> n
+
+(rij )Ylm (ˆ rij ), (19) where ˆrij is the unit bond vector, Ylm denotes the spherical harmonic of angular order l = 1 , . . . , l max , and gA 
+
+> n
+
+adopts the same Chebyshev expansion form as the radial basis but uses the angular cutoff and an independent set of trainable coefficients. The three-body descriptor is obtained from the rotationally invariant quadratic contraction 
+
+qinl =
+
+> l
+
+X
+
+> m=−l
+
+Ainlm  
+
+> 2
+
+. (20) Higher-body descriptors are constructed from higher-order contractions of the expansion moments, and their explicit forms can be found in Refs. [19]. By combining all radial, three-body, and higher-body components, the complete descriptor vector qi ∈ RNdes is obtained. By construction, the NEP descriptor is invariant under translation, rotation, and permutation of identical atoms. Translational invariance follows because the descriptor depends on the atomic positions only through the relative vectors rij = rj − ri. Rotational invariance holds because the radial part depends only on the distances dij = ∥rij ∥, while the angular part is built from rotationally invariant contractions of the bond directions. Permutational invariance arises because each component sums over neighbors within the cutoff, which is independent of their ordering. Consequently, the predicted energy is invariant, and the derived forces and virials transform covariantly, under these operations.  
+
+> 2. Evaluations of basic physical properties
+
+To assess the transferability of the trained models beyond fitting errors, we evaluated a series of static and dynamic material properties, including elastic constants, vacancy formation energies, surface energies, melting temperatures, and phonon dispersions, as summarized in Fig. 5. Elastic constants were obtained using the stress–strain method. Starting from fully relaxed equilibrium structures, small Lagrangian strains were applied along independent defor-mation modes, followed by relaxation of the internal atomic coordinates. The resulting Cauchy stress tensor was evaluated and the elastic constants were extracted from the linear stress–strain relationship. Melting temperatures of the 16 elemental systems were determined using the solid–liquid coexistence method. For each element, a two-phase supercell with a length of approximately 70 Å along the x direction and 36 Å along the remaining directions was constructed. One half of the simulation cell was retained in the crystalline state, while the other half was melted using a Langevin thermostat at 2Tguess , where Tguess denotes the current estimate of the melting temperature. After generating a stable solid–liquid interface, the system was evolved in the isobaric– isoenthalpic (NPH) ensemble at zero pressure for 400 ps. The evolution of the interface was then used to determine whether the trial temperature was above or below the melting point. If the liquid region gradually solidified, Tguess 
+
+was increased; conversely, if the solid phase melted completely, Tguess was decreased. This procedure was repeated iteratively until a stable coexistence between the solid and liquid phases was maintained throughout the simulation. The melting temperature was subsequently obtained by averaging the instantaneous temperature over the final 100 ps of the coexistence simulation . All structure generation, property calculations, and post-processing analyses were performed using the MDAPY package [36]. Phonon dispersions were calculated through the PHONOPY package [37] using the MDAPY [36] interface. All melting simulations were carried out using LAMMPS [38].  
+
+> V. DATA AVAILABILITY
+
+All trained models and input files used in this work will be made publicly available upon acceptance of the manuscript. The training and test datasets are publicly available from previously published studies. 13  
+
+> VI. CODE AVAILABILITY
+
+The source code for MDAPY is available at the GitHub repository: https://github.com/mushroomfire/mdapy. The source code for LAMMPS is available at the GitHub repository: https://github.com/lammps/lammps. The source code for GPUMD is available at the GitHub repository: https://github.com/brucefan1983/GPUMD. The source code for TorchNEP will be made publicly available upon acceptance of the manuscript.  
+
+> VII. AUTHOR CONTRIBUTIONS STATEMENT
+
+Y.-C.W. developed the code, performed the simulations, analyzed the data, visualized the results, and contributed to writing the manuscript. X.C. contributed to data visualization and manuscript preparation. T.M., A.E., J.-L.S. and T.A.-N. contributed to results analysis and manuscript preparation. Z.F. contributed to the theoretical framework, data analysis and manuscript preparation. M.A. conceived and supervised the project and contributed to manuscript preparation. All authors reviewed and approved the final manuscript. 
+
+> ACKNOWLEDGMENTS
+
+Y.-C. W., T. M. and M. A. acknowledge the support from FinnCERES flagship (grant no. 151830423), Business Finland (grant nos. 211835, 211909, and 211989), the Research Council of Finland (grant no. 13361245), and the Future Makers program. M. A. acknowledges support from the Academy of Finland Center of Excellence program (program nos. 278367 and 317464), as well as the Finnish Cultural Foundation. A. E. acknowledges support from the European Union Horizon 2020 research and innovation program under Grant Agreement No. 857470, from the European Regional Development Fund under the Foundation for Polish Science International Research Agenda PLUS program (Grant No. MAB PLUS/2018/8), and from the initiative of the Ministry of Science and Higher Education “Support for the activities of Centers of Excellence established in Poland under the Horizon 2020 program” (Agreement No. MEiN/2023/DIR/3795). T.A-N. and X. C. have been supported in part by the Academy of Finland grants nos. 370057 and 373647. Z.F was supported by the Advanced Materials-National Science and Technology Major Project (No. 2024ZD0606900). The authors acknowledge the computational resources provided by the Aalto University School of Science “Science-IT” project, as well as by CSC (Finland) via the project 2015437.          
+
+> [1] Y. Mishin, Machine-learning interatomic potentials for materials science, Acta Materialia 214 , 116980 (2021). [2] S. Klawohn, J. P. Darby, J. R. Kermode, G. Csányi, M. A. Caro, and A. P. Bartók, Gaussian approximation potentials: Theory, software implementation and application examples, The Journal of Chemical Physics 159 , 174108 (2023). [3] I. Novikov, B. Grabowski, F. Körmann, and A. Shapeev, Magnetic moment tensor potentials for collinear spin-polarized materials reproduce different magnetic states of bcc Fe, npj Computational Materials 8, 13 (2022). [4] E. Podryabinkin, K. Garifullin, A. Shapeev, and I. Novikov, MLIP-3: Active learning on atomic environments with moment tensor potentials, The Journal of Chemical Physics 159 , 084112 (2023). [5] R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Physical Review B 99 , 014104 (2019). [6] I. Batatia, D. P. Kovacs, G. N. C. Simm, C. Ortner, and G. Csanyi, MACE: Higher order equivariant message passing neural networks for fast and accurate force fields, in Advances in Neural Information Processing Systems , edited by A. H. Oh, A. Agarwal, D. Belgrave, and K. Cho (2022). [7] J. Zeng, D. Zhang, D. Lu, P. Mo, Z. Li, Y. Chen, M. Rynik, L. Huang, Z. Li, S. Shi, Y. Wang, H. Ye, P. Tuo, J. Yang, Y. Ding, Y. Li, D. Tisi, Q. Zeng, H. Bao, Y. Xia, J. Huang, K. Muraoka, Y. Wang, J. Chang, F. Yuan, S. L. Bore, C. Cai, Y. Lin, B. Wang, J. Xu, J.-X. Zhu, C. Luo, Y. Zhang, R. E. A. Goodall, W. Liang, A. K. Singh, S. Yao, J. Zhang, R. Wentzcovitch, J. Han, J. Liu, W. Jia, D. M. York, W. E, R. Car, L. Zhang, and H. Wang, Deepmd-kit v2: A software package for deep potential models, The Journal of Chemical Physics 159 , 054801 (2023). [8] Z. Fan, Z. Zeng, C. Zhang, Y. Wang, K. Song, H. Dong, Y. Chen, and T. Ala-Nissila, Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport, Physical Review B 104 , 104309 (2021).
+
+14 
+
+[9] K. Xu, H. Bu, S. Pan, E. Lindgren, Y. Wu, Y. Wang, J. Liu, K. Song, B. Xu, Y. Li, T. Hainer, L. Svensson, J. Wiktor, R. Zhao, H. Huang, C. Qian, S. Zhang, Z. Zeng, B. Zhang, B. Tang, Y. Xiao, Z. Yan, J. Shi, Z. Liang, J. Wang, T. Liang, S. Cao, Y. Wang, P. Ying, N. Xu, C. Chen, Y. Zhang, Z. Chen, X. Wu, W. Jiang, E. Berger, Y. Li, S. Chen, A. J. Gabourie, H. Dong, S. Xiong, N. Wei, Y. Chen, J. Xu, F. Ding, Z. Sun, T. Ala-Nissila, A. Harju, J. Zheng, P. Guan, P. Erhart, J. Sun, W. Ouyang, Y. Su, and Z. Fan, GPUMD 4.0: A high-performance molecular dynamics package for versatile materials simulations with machine-learned potentials, Materials Genome Engineering Advances 3, e70028 (2025). [10] P. Ying, C. Qian, R. Zhao, Y. Wang, K. Xu, F. Ding, S. Chen, and Z. Fan, Advances in modeling complex materials: The rise of neuroevolution potentials, Chemical Physics Reviews 6, 011310 (2025). [11] K. Song, R. Zhao, J. Liu, Y. Wang, E. Lindgren, Y. Wang, S. Chen, K. Xu, T. Liang, P. Ying, et al. , General-purpose machine-learned potential for 16 elemental metals and their alloys, Nature Communications 15 , 10208 (2024). [12] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kovács, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, F. Bigi, S. M. Blau, V. Cărare, M. Ceriotti, S. Chong, J. P. Darby, S. De, F. Della Pia, V. L. Deringer, R. Elijošius, Z. El-Machachi, E. Fako, F. Falcioni, A. C. Ferrari, J. L. A. Gardner, M. J. Gawkowski, A. Genreith-Schriever, J. George, R. E. A. Goodall, J. Grandel, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. H. Ho, S. Hofmann, C. Holm, J. Jaafar, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, P. Kourtis, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuoniute, C. Lin, J. T. Margraf, I.-B. Magdău, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. A. M. Rosset, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, C. Sutton, V. Svahn, T. D. Swinburne, J. Tilly, C. van der Oord, S. Vargas, E. Varga-Umbrich, T. Vegge, M. Vondrák, Y. Wang, W. C. Witt, T. Wolf, F. Zills, and G. Csányi, A foundation model for atomistic materials chemistry, The Journal of Chemical Physics 163 , 184110 (2025). [13] Y. Zhang, H. Wang, W. Chen, J. Zeng, L. Zhang, H. Wang, and W. E, Dp-gen: A concurrent learning platform for the generation of reliable deep learning based potential energy models, Computer Physics Communications 253 , 107206 (2020). [14] C. Chen, Y. Li, R. Zhao, Z. Liu, Z. Fan, G. Tang, and Z. Wang, Neptrain and neptrainkit: Automated active learning and visualization toolkit for neuroevolution potentials, Computer Physics Communications 317 , 109859 (2025). [15] T. Akiba, S. Sano, T. Yanase, T. Ohta, and M. Koyama, Optuna: A next-generation hyperparameter optimization frame-work, in Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining , KDD ’19 (Association for Computing Machinery, New York, NY, USA, 2019) p. 2623–2631. [16] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials, Nature Communications 13 ,2453 (2022). [17] T. Schaul, T. Glasmachers, and J. Schmidhuber, High dimensions and heavy tails for natural evolution strategies, in 
+
+Proceedings of the 13th annual conference on Genetic and evolutionary computation (2011) pp. 845–852. [18] H. Huang, J. Peng, K. Li, J. Zhou, and Z. Sun, Efficient gpu-accelerated training of a neuroevolution potential with analytical gradients, Computer Physics Communications 320 , 109994 (2026). [19] Z. Fan, Y. Wang, P. Ying, K. Song, J. Wang, Y. Wang, Z. Zeng, K. Xu, E. Lindgren, J. M. Rahm, A. J. Gabourie, J. Liu, H. Dong, J. Wu, Y. Chen, Z. Zhong, J. Sun, P. Erhart, Y. Su, and T. Ala-Nissila, GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations, The Journal of Chemical Physics 
+
+157 , 114801 (2022). [20] D. P. Kingma and J. Ba, Adam: A method for stochastic optimization, in International Conference on Learning Repre-sentations (ICLR) (2015). [21] S. J. Reddi, S. Kale, and S. Kumar, On the convergence of adam and beyond, in International Conference on Learning Representations (2018). [22] X. Fu, B. M. Wood, L. Barroso-Luque, D. S. Levine, M. Gao, M. Dzamba, and C. L. Zitnick, Learning smooth and expressive interatomic potentials for physical property prediction, in Proceedings of the 42nd International Conference on Machine Learning , ICML’25 (JMLR.org, 2025). [23] J. Liu, J. Byggmästar, Z. Fan, P. Qian, and Y. Su, Large-scale machine-learning molecular dynamics simulation of primary radiation damage in tungsten, Physical Review B 108 , 054312 (2023). [24] J. F. Ziegler and J. P. Biersack, The stopping and range of ions in matter, in Treatise on Heavy-Ion Science: Volume 6: Astrophysics, Chemistry, and Condensed Matter , edited by D. A. Bromley (Springer US, Boston, MA, 1985) pp. 93–129. [25] V. L. Deringer and G. Csányi, Machine learning based interatomic potential for amorphous carbon, Physical Review B 95 ,094203 (2017). [26] R. Zhao, S. Wang, Z. Kong, Y. Xu, K. Fu, P. Peng, and C. Wu, Development of a neuroevolution machine learning potential of Pd-Cu-Ni-P alloys, Materials & Design 231 , 112012 (2023). [27] P. Ying, W. Zhou, L. Svensson, E. Berger, E. Fransson, F. Eriksson, K. Xu, T. Liang, J. Xu, B. Song, S. Chen, P. Erhart, and Z. Fan, Highly efficient path-integral molecular dynamics simulations with GPUMD using neuroevolution potentials: case studies on thermal properties of materials, The Journal of Chemical Physics 162 , 064109 (2025). [28] L. Zhang, H. Wang, R. Car, and W. E, Phase diagram of a deep potential water model, Physical Review Letters 126 ,236001 (2021). [29] K. Xu, Y. Hao, T. Liang, P. Ying, J. Xu, J. Wu, and Z. Fan, Accurate prediction of heat conductivity of water by a neuroevolution potential, The Journal of Chemical Physics 158 , 204114 (2023). [30] Y.-C. Wu, X. Chang, Z. G. Yu, Y.-W. Zhang, and J.-L. Shao, Revealing the role of Al 4C3 in the mechanical behavior of aluminum/graphene composites through machine learning potential-driven atomistic simulations, Mechanics of Materials 
+
+209 , 105428 (2025). 15 
+
+[31] Y.-C. Wu, T. Mäkinen, M. Alava, and A. Esfandiarpour, General-purpose machine-learned potential for CrCoNi alloys enabling large-scale atomistic simulations with first-principles accuracy (2026), arXiv:2603.25616 [cond-mat.mtrl-sci]. [32] A. Hashemi, N. G. Cherati, S. Ghaderzadeh, Y. Wang, M. Ghorbani-Asl, and T. Ala-Nissila, Stabilization of hBN/SiC heterostructures with vacancies and transition-metal atoms, Physical Review Materials 10 , 045801 (2026). [33] M. De Jong, W. Chen, T. Angsten, A. Jain, R. Notestine, A. Gamst, M. Sluiter, C. Krishna Ande, S. Van Der Zwaag, J. J. Plata, et al. , Charting the complete elastic properties of inorganic crystalline compounds, Scientific Data 2, 150009 (2015). [34] R. Tran, Z. Xu, B. Radhakrishnan, D. Winston, W. Sun, K. A. Persson, and S. P. Ong, Surface energies of elemental crystals, Scientific Data 3, 160080 (2016). [35] W. M. Haynes, CRC handbook of chemistry and physics (CRC press, 2016). [36] Y.-C. Wu and J.-L. Shao, mdapy: A flexible and efficient analysis software for molecular dynamics simulations, Computer Physics Communications 290 , 108764 (2023). [37] A. Togo, L. Chaput, T. Tadano, and I. Tanaka, Implementation strategies in phonopy and phono3py, Journal of Physics: Condensed Matter 35 , 353001 (2023). [38] A. P. Thompson, H. M. Aktulga, R. Berger, D. S. Bolintineanu, W. M. Brown, P. S. Crozier, P. J. in ’t Veld, A. Kohlmeyer, S. G. Moore, T. D. Nguyen, R. Shan, M. J. Stevens, J. Tranchida, C. Trott, and S. J. Plimpton, LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales, Computer Physics Com-munications 271 , 108171 (2022).

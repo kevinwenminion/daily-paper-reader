@@ -1,0 +1,523 @@
+Title: Adaptive fine-tuning of foundation models for crystal structure prediction: Discovery of high-pressure phases in the CaFeNi system
+
+URL Source: https://arxiv.org/pdf/2606.30870v1
+
+Published Time: Wed, 01 Jul 2026 00:16:37 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# Graphical Abstract 
+
+Adaptive fine-tuning of foundation models for crystal structure prediction: Discovery of high-pressure phases in the Ca–Fe–Ni system 
+
+N.M. Chtchelkatchev, M.V. Magnitskaya, R.E. Ryltsev 1
+
+> arXiv:2606.30870v1 [cond-mat.mtrl-sci] 29 Jun 2026
+
+# Highlights 
+
+Adaptive fine-tuning of foundation models for crystal structure prediction: Discovery of high-pressure phases in the Ca–Fe–Ni system 
+
+N.M. Chtchelkatchev, M.V. Magnitskaya, R.E. Ryltsev 
+
+• Developed a self-consistent workflow coupling evolu-tionary search with foundation models 
+
+• Introduced data-efficient selection of representative structures for DFT fine-tuning 
+
+• Reproduced the known low-pressure convex hull of the Ca–Fe-–Ni system 
+
+• Predicted two binary compounds Ca 3Fe 2 and Ca 8Fe 5
+
+above 50 GPa and one ternary compound Ca 6FeNi above 100 GPa. Adaptive fine-tuning of foundation models for crystal structure prediction: Discovery of high-pressure phases in the Ca–Fe–Ni system 
+
+N.M. Chtchelkatchev a, M.V. Magnitskaya b, R.E. Ryltsev c,d 
+
+> aJoint Institute for Nuclear Research, Joliot-Curie St 6, Dubna, Moscow Region, 141980, Russia
+> bVereshchagin Institute of High Pressure Physics, Russian Academy of Sciences, Kaluzhskoe sh. 14, Moscow (Troitsk), 108840, Russia
+> cVatolin Institute of Metallurgy of the Ural Branch of the Russian Academy of Sciences, Amundsen str. 101, Ekaterinburg, 620016, Russia
+> dUral Federal University, Lenin Ave, 51, Ekaterinburg, 620002, Russia
+
+Abstract 
+
+The prediction of crystal structures remains a central challenge in chemistry and materials science, underpinning the discovery of materials with targeted properties. Although evolutionary algorithms efficiently explore complex energy landscapes, their reliance on ab initio calculations for structural relaxation and ranking leads to prohibitive computa-tional costs. Machine learning interatomic potentials (MLIPs) can substantially accelerate crystal structure prediction (CSP), yet their practical integration into CSP workflows remains limited by the need for large, carefully selected train-ing datasets. In particular, an outstanding challenge is how to identify, from the vast number of candidate structures generated during global searches, a compact and informative subset that warrants expensive density functional theory (DFT) calculations for model refinement. Recent advances in foundation models, pretrained on large-scale ab initio 
+
+databases spanning millions of atomic structures across the periodic table, enable accurate MLIPs to be constructed with substantially reduced computational effort via transfer learning. Here we develop a self-consistent foundation-model-assisted CSP workflow that couples evolutionary search with an adaptive data-selection and fine-tuning strategy. The proposed algorithm simultaneously performs rapid structure exploration and constructs a system-specific ML poten-tial by iteratively selecting representative and physically relevant configurations for DFT labeling, thereby minimizing redundant computations while maintaining high accuracy. Applied to the chemically complex Ca–Fe–Ni ternary system, the approach accurately reproduces the known low-pressure convex hull, validating the methodology, and enables effi-cient exploration of high-pressure phases. Using this framework, we predict a previously unknown compound, Ca 6FeNi, which becomes thermodynamically stable above 100 GPa and has not yet been reported experimentally. These results demonstrate that foundation-model-based, data-efficient workflows can both accelerate crystal structure prediction and enable the discovery of genuinely new materials in complex multicomponent systems. 
+
+Keywords: crystal structure prediction, evolutionary algorithms, machine learning potentials, foundation model, transfer learning, convex hull 
+
+1. INTRODUCTION 
+
+Crystal structure prediction (CSP) is a cornerstone of modern materials science, providing a systematic route for discovering stable and metastable phases and for un-derstanding structure–property relationships across wide ranges of composition, pressure, and temperature [1, 2]. In particular, CSP plays a crucial role in regimes where experimental characterization is challenging or infeasible, such as at high pressures or for complex multicomponent systems, where kinetic barriers and metastability strongly affect phase formation [3, 4]. Over the past two decades, global optimization tech-niques, including evolutionary algorithms and related meth-ods, have demonstrated remarkable success in identifying low-energy crystal structures directly from chemical com-
+
+> ∗Corresponding address: shchelkachev.nm@phystech.edu
+
+position [5, 6, 7]. However, such approaches are tradi-tionally coupled with ab initio density functional theory (DFT) calculations for structural relaxation and energetic ranking, which leads to prohibitively high computational costs when exploring large compositional spaces, multi-component systems, or high-pressure phase diagrams [8]. These limitations become especially severe when high ac-curacy is required, for instance for constructing reliable convex hulls or resolving small enthalpy differences be-tween competing phases. Machine-learning interatomic potentials (MLIPs) have emerged as a powerful solution to this computational bot-tleneck, offering near-DFT accuracy at a fraction of the computational cost [9, 10]. Their integration into CSP workflows enables large-scale structure screening, acceler-ated evolutionary searches, and efficient prescreening of candidate phases [11, 12]. Nevertheless, the construction of robust MLIPs typically relies on extensive system-specific  
+
+> Preprint submitted to Acta Materialia July 1, 2026
+
+training datasets and iterative active learning schemes, which themselves require substantial ab initio labeling [13, 14]. This creates a fundamental challenge for previously unexplored materials or extreme thermodynamic condi-tions, where representative training data are scarce or en-tirely unavailable. Recent progress in so-called foundation models (FMs) for atomistic simulations has opened a new paradigm for CSP and materials discovery [15, 16]. These models, pre-trained on large-scale and chemically diverse ab initio datasets encompassing millions of atomic configurations, provide transferable representations of interatomic interactions across wide regions of chemical and structural space. FMs based on equivariant graph neural networks have demonstrated strong generalization capabilities and promising accuracy for a broad range of materials classes [17, 18]. Importantly, such models can be efficiently adapted to specific target systems through transfer learning or fine-tuning, dramat-ically reducing the amount of system-specific DFT data required. However, integrating FMs into CSP remains nontriv-ial. Evolutionary searches typically generate thousands of candidate structures, many of which are redundant, high-energy, or physically irrelevant. Directly labeling all such configurations with DFT is computationally infeasi-ble, while indiscriminate selection often degrades the qual-ity and transferability of the resulting potential. Conse-quently, a central algorithmic challenge is to identify a compact yet informative subset of structures that maxi-mally improves the potential during fine-tuning while min-imizing expensive ab initio calculations. Designing such data-efficient selection strategies is essential for making FM-assisted CSP both accurate and scalable, yet remains largely unexplored. This problem become even more chal-lenging under extreme pressures, as most large-scale train-ing datasets are dominated by near-ambient conditions and so stability of FM at such conditions is an open is-sue. In this work, we develop a self-consistent and compu-tationally efficient CSP workflow that combines evolution-ary structure search with state-of-the-art FMs and transfer learning, and apply it to the Ca–Fe–Ni ternary system over a wide pressure range. Iron and nickel are the principal constituents of the Earth’s core, governing its mechanical, thermal, and magnetic properties [19, 20]. The well-known density deficit of the core compared to the density of iron and iron-nickel alloys suggests the presence of lighter ele-ment impurities in the core. Hypotheses about the compo-sition of the Earth’s core are based on indirect data on the abundance of chemical elements in the lithosphere and in space. Traditionally, light non-metallic elements such as H, C, O, Si, S, and some other, less common, non-metals are considered as impurities in the core [19, 20, 21]. Despite numerous studies, the question of which light elements are present in the Earth’s outer or inner core remains contro-versial. To resolve this issue, it is necessary, in particular, to understand which iron-based chemical compounds are possible under conditions characteristic of the Earth’s in-terior, and how their stability, structure, and properties change under the influence of high pressure. Sometimes the alkali metal potassium, which does not chemically bind to iron group metals at normal pressure, is also considered as a candidate trace element present in the earth’s core (see e.g. [22, 23]). This is because the decay of the 40 K isotope is considered one of the sources of the earth’s radiogenic heat (along with the decay of U and Th). Possibility of K alloying with 3d-metals was proved exper-imentally in [24], where the ordered compound between K and Ni was synthesized in diamond anvils at P =37 GPa. Our work is motivated by the assumption, first put for-ward in [25, 26], that alkaline earth calcium, the fifth most abundant element in the lithosphere, may also be present in the core. This is because calcium’s most abundant iso-tope, 40 Ca, is a product of the spontaneous β-decay of 
+
+> 40
+
+K, and calcium is even more widespread in the litho-sphere than potassium. Furthermore, recent publications (e.g., [27, 28]) note that calcium is likely more abundant in the universe than traditionally believed, since Ca was formed in large quantities in the first stars through the in-teraction of protons and the isotope 19 F, and the frequency of these reactions was previously greatly underestimated. Being, like K, a lithophile element, Ca does not form ordered compounds or solid solutions with Fe at ambient pressure. However, it forms chemical compounds with Ni, a 3d-element also related to the Earth’s core. Moreover, an ordered compound of calcium with another iron group metal cobalt — CaCo 2 with the C15 structure — was syn-thesized for the first time under high pressure of 8 GPa [25]. The formation of CaCo2 is mainly a consequence of the pressure-driven changes in calcium’s properties. From the viewpoint of band theory, the pre-transition element Ca undergoes the electron charge transfer from the 4s-band to the initially empty 3d-band. More precisely, there is a continuous change in the symmetry of the wave function of valence electrons due to pressure-induced increase in the contribution of states with higher orbital momenta, since the l > 0 states are less compressible than the spherical s-states (see, for example, review [29]). As a result, such s-block elements as K and Ca become effectively transition metals and their affinity for Fe increases upon compression. Intuitively, the formation of compounds of s-metals with Fe (and other iron group metals) is hindered by the fact that their atomic radii greatly exceed that of Fe. But since their compressibility is approximately an order of magnitude higher than that of Fe, the difference in atomic sizes is sharply reduced upon compression. Thus, for a binary compound to form, the difference in atomic radii of its constituents should not be too large. Another key parameter that determines the alloying of two elements is the difference in their electronegativities (work functions), which must be sufficiently large. This rule was first formu-lated in numbers as the semi-empirical Miedema criterion [30, 31] and was subsequently significantly reformulated and refined [32, 33, 34, 35, 36]. A recent example is the 2work [37], where the authors propose an original method for predicting formation of many binary compounds for the entire periodic table. In [35, 36], the pressure-induced variations in electronegativity were calculated for many elements over the megabar pressure range. Qualitatively, these data imply that Ca should chemically bind with Ni, Co, and Fe at normal, moderate, and elevated pressure, re-spectively. The reliability of this estimate can be verified using precise calculations of the Ca–Fe–Ni system over a wide pressure range. Here, we apply our FM-assisted CSP approach to ac-curately and reliably determine stable phases on a convex hull in the Ca–Fe–Ni system at various pressures. Some-what unexpectedly, difficulties arise in accurately deter-mining unary phases of elemental Ca. Сrystalline calcium has a very rich and complex phase diagram, the underlying cause of which is the pressure-induced changes in calcium’s electron spectrum due to the s-d transition. In particular, recent simulations predict the formation of a weak elec-tride state in compressed Ca [38, 39, 40, 41]. The spec-trum of fcc-Ca is characterized by topological Dirac nodal lines near the Fermi level, and at moderate pressures, Ca becomes a nodal line semimetal [42]. Many experimental and theoretical studies disagree on such issues as a pressure range of metallicity loss in fcc-Са (see e.g.[29, 43, 44]), the stability regions of various phases, such as bcc and sc at 
+
+P < 50 GPa [40, 45], the transition to an incommensurate host-guest structure at P > 100 GPa [46, 45], etc. In this context, the Ca–Fe–Ni ternary system repre-sents a particularly compelling and challenging test case. From a materials science perspective, the Ca–Fe–Ni sys-tem also exemplifies a complex multicomponent landscape characterized by competing bonding motifs, large atomic size mismatch, and pressure-driven changes in chemical be-havior, making it an ideal benchmark for advanced CSP methodologies. Geochemically, our calculated results show that the lithophile element Ca gradually becomes siderophile with increasing pressure. Our results highlight both the capabilities and the lim-itations of FM-assisted CSP under extreme conditions and provide new insights into the high-pressure phase stability of Ca–Fe–Ni. The results obtained for the Ca–Fe–Ni system improve our understanding of the poorly studied high-pressure chem-istry of Ca and support the suggestion that Ca may be present in the Earth’s core as a trace element. 
+
+2. Methods 
+
+2.1. Accuracy requirements for foundation models under high pressure 
+
+Evolutionary algorithms is an efficient approach for ex-ploring stable crystal structures of materials over a wide pressure range. In this work, we study ternary Ca–Fe–Ni system in the pressure range (0–100 GPa) and employ the 2.5 3.0 3.5 4.0 4.5 2.5 3.0 3.5 4.0 4.5 ORB  SevenNet  MatterSim  MACE  eSEN  DPA3-finetuned PV FM  (eV) PV DFT  (eV)       
+
+> Figure 1: Parity plots FM vs DFT for P V (per atom) calculated for the structures from extended convex hull in Ca-Fe-Ni system at
+> P= 50 GPa. We see that all tested FM fail at elevated pressures whereas system specific finetuned version of DPA3 provide enough accuracy.
+
+USPEX algorithm, which has proven highly effective for global structure searches across diverse chemical systems [5, 7]. To accelerate structure relaxation and energy evalua-tion during the search, one can use MLIPs to describe in-teratomic interactions. Here we consider foundation mod-els (FMs) based on graph neural networks, which pro-vide near-ab initio accuracy at a fraction of the computa-tional cost [9, 10, 16]. Such models are pretrained on large and chemically diverse datasets (e.g., Materials Project, OMAT24, Alexandria), comprising millions of crystalline and molecular configurations and covering most of the pe-riodic table [47, 48, 49]. The key question is if these universal models provide sufficient accuracy for evolutionary searches and have been successfully applied to various materials systems. In that context ”sufficient” accuracy means that true ground state structures are among the list of structures in a relatively narrow vicinity of the convex hull (say 0.1 eV/atom) gen-erated by EA with using FM as energy calculator. In this case we can perform DFT refinement of reasonable number of structures to find true convex hull. Thus, we expect that, at near-ambient pressures, FMs meet the above requirement, at least for certain classes of materials. Indeed, according to Matbench Discovery – framework for evaluation FMs – the accuracy of state-of-the-art models reach 0.02 eV/atom for thermodynamic sta-bility and formation energy of inorganic materials through-out the periodic table [50]. At elevated pressures, however, we expect that FMs may fail in evaluating stability of materials, because such high-pressures structures belong to extrapolation domain in comparison to training data. This is especially true for the system demonstrating substantial change of electronic 3structure under pressure (like Fe-Ni-Ca under investiga-tion). At elevated pressures, phase stability is governed by the enthalpy 
+
+H = E + P V, (1) rather than the internal energy alone. Even moderate er-rors in predicted energies or volumes can therefore lead to substantial errors in P V and, consequently, incorrect phase ranking. A simple order-of-magnitude estimate shows that for a typical atomic volume of V ∼ 20 –30 ˚A3, the P V 
+
+contribution reaches ∼ 0.1 eV/atom already at pressures of 
+
+∼1 GPa. Thus, sub-0.1 eV accuracy per atom is required for reliable high-pressure structure selection. Using pretrained FMs “as is” is acceptable only if this accuracy is maintained. Otherwise, extensive ab initio re-finement becomes unavoidable. For the Ca–Fe–Ni system, post-processing ∼1000 candidate structures after each US-PEX run would require on the order of 5×10 4 DFT calcula-tions, rendering brute-force validation impractical. Train-ing a system-specific MLIP from scratch would require an additional 10 3–10 4 labeled configurations. These consider-ations motivate the development of an accurate, fine-tuned model tailored to the target chemistry. Figure 1 and Table 1 compare the accuracy of several publicly available FMs at P = 50 GPa using 44 repre-sentative structures from the extended convex hull. En-thalpy contributions ( P V ) predicted by the models are benchmarked against DFT calculations performed with VASP. We see that all the tested universal models exhibit maximal errors approaching or exceeding 1 eV/atom and MAE more than 0.1 eV/atom, which is insufficient for reli-able phase ranking under compression. Among the tested models, MatterSim shows the best transferability; never-theless, its accuracy remains inadequate for quantitative CSP. Thus, we conclude that to achieve the required pre-cision, we have to construct a system-specific potential by fine-tuning appropriate FM. Below we will describe the pipeline for this procedure for DPA3 FM [51, 52]; the re-sults of the test for this model is shown in Figure 1. We see that finetuned model provides maximum P V error below 0.07 eV/atom and MAE of 0.012 eV/atom, enabling ro-bust high-pressure structure selection and so significantly reducing the number of required DFT evaluations. Name, Ref. Model MAE, eV eSEN eSEN-30M-OAM 0.204 ORB ORB v3 0.328 SevenNet SevenNet-MF-ompa 0.399 MACE MACE-MPA-0 0.481 MatterSim MatterSim v1 5M 0.104 DPA3 DPA3-finetuned 0.012   
+
+> Table 1: The list of tested FM with MAE for the P V values calcu-lated with respect to DFT. Current rating of these models can be found in Matbench Discovery platform [53].
+
+2.2. Structure generation, relaxation protocol, and configuration-space coverage 
+
+The construction of a reliable training database for fine-tuning a system-specific foundation model (FM) re-quires representative sampling of the relevant configura-tion space, including diverse stoichiometries, atomic envi-ronments, and compression regimes spanning 0–500 GPa. 
+
+Two-stage relaxation protocol. Evolutionary algorithms such as USPEX frequently generate highly distorted trial struc-tures, including configurations with unrealistically short interatomic distances and extremely large forces (hundreds of eV/ ˚A). Direct relaxation of such structures with high-accuracy FMs may lead to numerical instabilities or inef-ficient convergence. To ensure robust and physically consistent relaxation, we employed a two-stage protocol using two complemen-tary pretrained FMs. In the first stage, structures were relaxed using the MACE FM, which has demonstrated improved robust-ness under extreme compression conditions due to its local message-passing architecture and stable force extrapola-tion behavior at short interatomic distances. This makes it well suited for preconditioning highly distorted configu-rations. Initial relaxation with MACE was performed with FIRE algorithm (ASE implementation) until the maxi-mum atomic force decreased below 1 eV/ ˚A. In the second stage, relaxation was continued using the MatterSim FM, which provides superior energetic accu-racy for near-equilibrium configurations in the Ca–Fe–Ni system (see Fig. 1). MatterSim relaxation proceeded in two substages. The first one was performed with FIRE al-gorithm until the maximum force fmax was below 0.1 eV/ ˚A, and the second one with BFGS algorithm until fmax <
+
+0.01 eV/ ˚A. This staged approach separates two numerical tasks: (i) stabilization of highly nonequilibrium structures, and (ii) accurate final relaxation near local minima. The pro-tocol significantly improves convergence reliability while maintaining computational efficiency for thousands of can-didate structures. All structure relaxations were performed using the Atomic Simulation Environment (ASE). A lightweight Python in-terface was developed to connect USPEX to ASE-based FM calculators, enabling automated structure optimiza-tion within the evolutionary search loop. Technical imple-mentation details are provided in the Supporting Informa-tion. Using the above relaxation protocol we performed evo-lutionary USPEX-based crystal structure search at P = 0 ,
+
+50 , and 100 GPa. For each pressure, 20 generations of 256 structures were explored, with unit cells containing 2–24 atoms. Initial seeds included known phases of ele-mental Ca, Fe, Ni, and binary compounds from the Mate-rials Project database. Highly anisotropic cells (one lattice vector exceeding the others by more than a factor of three) were discarded to avoid quasi-one-dimensional artifacts. 4Figure 2: Two-dimensional PCA map of structures generated for Fe-Ni-Ca system by USPEX algorithm. (a) Structures predicted with MatterSim (red dots) as well as structures selected for further DFT labeling (green dots); (b) Structures selected for labeling colored by means of corresponding pressures; (c)-(e) Concentration distribution of elements for selected structures. 
+
+Since we aimed to perform both CSP and fine-tuning system-specific FM, we used augmentation and local en-richment of structures obtained by USPEX. Thus, USPEX dataset was augmented via structures found for Ca–Fe–Ni in Materials Project, OQMD ans AFLOW databases. For each database structure incorporated into the training set, at least five perturbed configurations were generated by applying small random atomic displacements (amplitude 
+
+0.1 ˚A) and random lattice strains up to 5% . This augmen-tation serves two purposes: (i) it stabilizes fine-tuning by sampling the local curvature of the potential energy sur-face around known minima, (ii) it improves force and virial training by introducing controlled off-equilibrium config-urations. The resulting dataset therefore contains both equilibrium structures and systematically perturbed con-figurations, enhancing transferability across pressure regimes. To quantify the coverage of the configuration space and guide DFT data selection, we employed configuration-space analysis. For this purpose, we applied ASAP li-brary [54] implementation of Principal Component Anal-ysis (PCA) in the structural space of Smooth Overlap of Atomic Positions (SOAP) descriptors. SOAP provides a rotationally and translationally invariant representation of local atomic environments, enabling quantitative compar-ison between structurally distinct configurations. For each structure, atomic SOAP descriptors were computed using a cutoff radius rcut = 4 .2 ˚A, n = 4 radial basis functions, maximum angular momentum l = 3 , and Gaussian width 
+
+σ = 0 .52 ˚A. A structure-level descriptor was obtained by averaging atomic descriptors over all atoms in the unit cell. The resulting high-dimensional descriptor space was pro-jected onto its first two principal components to visualize structural diversity and detect clustering. In Fig. 2 we show the result of PCA analysis for the structures generated by USPEX algorithm. The PCA pro-jection demonstrates broad and approximately uniform coverage of the accessible configuration space. Clustering effects, which are seen for selected configurations reflect effects of dataset augmentation described above. The pressure distribution shown in Fig. 2(b) exhibits a non-uniform but physically reasonable behavior, without pronounced clustering within a narrow region of the con-figuration space. This supports the representativeness of the selected dataset across the investigated pressure range. Figures 2(c)–(e) present the spatial distribution of Ca, Fe, and Ni concentrations in the selected structures, projected onto the principal component space. Notably, regions cor-responding to the vertices of the compositional triangle in the PCA representation do not coincide with pure elemen-tal phases, as might be expected from conventional ternary phase-diagram representations. Instead, these regions are characterized by minimal concentrations of the respective element. This behavior reflects the nontrivial chemical complexity of the ternary Ca–Fe–Ni system and the pres-ence of strong interatomic interactions across broad com-positional ranges. The observed distribution is consistent 5Table 2: Accuracy of the fine-tuned DeepMD–DPA3 foundation model at different pressures. The test set consists of structures generated by USPEX and verified by DFT calculations for convex-hull construction. NdE< 50 meV denotes the number of structures predicted by DPA-3 whose energy above the convex hull is below 50 meV/atom and which were therefore selected for DFT refinement. NdE< RMSE denotes the number of structures whose energy above the convex hull is smaller than the RMSE of the model at the corresponding pressure. 
+
+Pressure Energy (meV/atom) Force (meV/ ˚A) Virial (meV/atom) Convex-hull structures (GPa) MAE RMSE MAE RMSE MAE RMSE NdE< 50 NdE< RMSE 
+
+0 33.7 41.0 25.3 46.1 16.5 30.8 432 339 50 16.9 21.5 16.7 27.2 8.5 14.5 329 79 100 15.3 20.3 47.3 75.8 21.0 42.4 378 116 200 7.3 9.6 24.7 36.1 10.0 18.2 148 18 Total 11.3 47.7 79.6 119.0 11.9 78.9 1287 552 
+
+Figure 3: Parity plots illustrating the accuracy of the fine-tuned DeepMD–DPA3 foundation model. DFT reference values of energy, forces, and virial are shown on the horizontal axis, while the corresponding FM predictions are shown on the vertical axis. Deviation of the data points from the diagonal line y = x quantifies the prediction error. The plots demonstrate that the model reproduces all three target quantities over a wide range of values with moderate deviations, confirming its suitability for atomistic simulations under the investigated conditions. 0510 15 20 -0.05 0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40  DFT sc  DFT  β - S n  
+
+> DFTbcc
+> dpa3sc
+> dpa3
+> β-Sn
+> dpa3bcc
+> Enthalpies
+> (eV/atom)
+> P(GPa)
+> Ca-fcc
+
+Figure 4: Pressure dependence of relative enthalpies of the bcc, sim-ple cubic, and I41/amd (β-Sn prototype) structures with respect to the fcc phase, obtained from DFT and the DPA-3 foundation model. 
+
+with the formation of stable intermetallic compounds and complex solid solutions, where even low concentrations of a given element can substantially influence the electronic structure and phase stability. 
+
+2.3. Density Functional Theory Calculations 
+
+First-principles calculations of the selected structures used to construct the training database were performed within the framework of density functional theory (DFT) using the VASP package. The exchange–correlation functional was treated within the generalized gradient approximation (GGA) using the PBE parametrization. The electronic structure was de-scribed using projector augmented-wave (PAW) pseudopo-tentials: Ca_sv with 10 valence electrons ( 3s23p64s2), Fe_sv with 16 valence electrons ( 3s23p63d74s1), and Ni_pv with 16 valence electrons ( 3p63d94s1). In plane-wave DFT calculations, the accuracy is largely controlled by the kinetic energy cutoff Ecut , which de-termines the completeness of the basis set. Under high compression, the electronic density between closely spaced atoms develops high-gradient oscillations, requiring an in-creased basis-set resolution for accurate description. To account for this effect, the cutoff energy was scaled with external pressure P . Since the characteristic wave vector G required to resolve density oscillations scales in-versely with the interatomic distance, and the kinetic en-ergy scales as |G|2, a linear approximation was adopted: 
+
+Ecut (P ) = Ecut (0) + κP. 
+
+The coefficient κ was calibrated to ensure convergence of total energies and stress tensors across the entire pressure range from 0 to 500 GPa. For the Ca–Fe–Ni system, con-vergence tests yielded Ecut (0) = 500 eV and Ecut (500 GPa) = 1000 eV, corresponding to κ = 1 eV/GPa. This scaling strategy preserves high numerical accu-racy along the full compression path without introducing 6Figure 5: The architecture of the Universal Graph-basedNeural Network Potential (UGLMP) DEEPMD-dpa3 is shown. The descriptor, implemented as a graph neural network, was pretrained on combined datasets containing diverse atomic configurations (crystals, molecules, clusters, etc.). The choice of the most suitable transformation network (the “fitting net”), which maps the descriptor output to the system’s potential energy, depends on the specifics of the task. In this work we used the “MP” configuration — a transformation network pretrained on structures from the Materials Project database — because our calculations conform to the methodological standards of that database. 
+
+unnecessary computational overhead at lower pressures. All calculations were spin-polarized with a ferromag-netic initial magnetic configuration. Numerical precision was controlled using the parameters PREC = ACCURATE, an electronic self-consistency convergence criterion Ediff =10 −6 eV, and LASPH = TRUE to include non-spherical contributions from gradient corrections inside the PAW spheres. Brillouin-zone sampling was generated automatically using the K-Point Grid Server with MINDISTANCE = 35 ˚A (accounting for magnetic symmetry), corresponding to approximately 3000 k-points per reciprocal atom. These settings ensure accurate Brillouin-zone integra-tion and enable enthalpy determination with an accuracy of approximately 3 meV/atom over a broad pressure range. 
+
+2.4. Fine-Tuning of the DPA-3 Foundation Model 
+
+Based on the DFT-recalculated structures, a training database comprising approximately 6800 configurations was constructed. Training a new MLIP from scratch for a ternary system spanning an ultra-wide pressure range, par-ticularly with calcium exhibiting anomalous compressibil-ity, would require substantially larger datasets. However, the available dataset is sufficient for fine-tuning a pre-trained FM. For this purpose, we selected the DeePMD framework with the DPA-3 architecture, which provides a well-established, efficient, and robust fine-tuning procedure, enabling accu-rate adaptation of a generalized foundation model to the specific characteristics of the present system. The DPA-3 model is built upon a multilayer graph neu-ral network based on the Linear Graph Series (LiGS) ar-chitecture, specifically designed for large-scale FM. A key feature of this architecture is its ability to efficiently learn from heterogeneous datasets without requiring structural modification of the network. This property enables the de-velopment of transferable universal interatomic potentials applicable across a broad range of chemical systems and thermodynamic conditions [55]. In the present work, a pretrained DPA-3 FM was em-ployed, consisting of two principal components (see Fig. ?? ): (i) a universal graph-based descriptor network pretrained on large materials databases, including Materials Project, and (ii) a task-specific fitting network that maps descriptor outputs to total energies. For fine-tuning, we adopted the fitting network config-uration optimized for Materials Project–style DFT data 7Figure 6: Each structure predicted by the USPEX algorithm is validated using two machine learning potentials with fundamentally different architectures: the graph-based DPA-3 and DeepMD-se_a, which relies on local atomic descriptors. If the discrepancies in the predicted values of enthalpy, forces, or energy exceed predefined thresholds, the given configuration is recalculated using density functional theory (DFT) and added to the training database. After the database has been updated, both potentials (DPA-3 and DeepMD-se_a) are retrained, and the SUCCESS algorithm is restarted using the refined models for subsequent exploration. 
+
+(MP_traj_v024_alldata_mixu ), ensuring methodological consistency with our DFT calculations. The presence of numerous Ca–Fe–Ni-related compounds in the Materials Project database further improves transferability, as the pretrained model already encodes chemically relevant in-teractions, while fine-tuning adapts the energy landscape to high-pressure regimes. Training was performed for 200,000 iterations using the standard DEEPMD loss-weight scheduling parameters. To improve virial accuracy — which is critical for reliable en-thalpy evaluation at high pressure — the weighting coef-ficients associated with the virial term in the loss func-tion were increased by more than an order of magnitude. This modification reduced errors in the P V contribution by approximately 1.5 ×, thereby improving phase ranking stability under compression. After fine-tuning, the model achieved a mean absolute error (MAE) in energy of 1.13 × 10 −2 eV/atom on the test set. Detailed accuracy metrics for energies, forces, and virials at different pressures are summarized in Ta-ble 2. The Table reveals a discrepancy between MAE and RMSE values, which arises primarily from the in-clusion of configurations generated at ultra-high pressures (above 500 GPa). Although such structures represent a small fraction of the dataset and DFT accuracy decreases in this regime, their inclusion is methodologically impor-tant. They ensure physically correct short-range repulsion and prevent artificial atomic collapse during evolutionary searches. When these extreme configurations are excluded from the test set, MAE and RMSE become comparable, confirming that the dominant contribution to the error originates from highly compressed states (see Table 2). 
+
+2.5. Cross-Architecture Active Learning Strategy 
+
+Active learning is required to prevent accuracy degra-dation of the fine-tuned DPA-3 foundation model (FM) when encountering configurations whose topology or bond-ing environment differs substantially from those represented in the training dataset. The conventional active-learning strategy for neural-network interatomic potentials relies on an ensemble of in-dependently initialized models. The variance of predicted energies, forces, or virials is used as an uncertainty indica-tor: configurations with variance exceeding a predefined threshold are recalculated using DFT and incorporated into the training set. This approach is implemented, for example, in the DP-GEN framework. However, in the present work, the model is obtained via fine-tuning of a pretrained FM rather than training from random initialization. Since all fine-tuned models inherit nearly identical pretrained weights, constructing a statistically diverse ensemble is not feasible. Even when only the fitting network was randomly reinitialized prior to fine-tuning, the resulting ensemble variance in predicted energies remained below 1 meV/atom, rendering variance-based uncertainty metrics ineffective. To overcome this limitation, we introduce a concep-tually different active-learning criterion based on cross-architecture disagreement. In addition to the graph-based DPA-3 FM, a second in-teratomic potential was trained on the same DFT dataset using the DeepMD-se_a_ebd_v2 architecture. In con-trast to graph neural networks, this model relies on lo-cal atomic descriptors constructed from radial and angu-lar information within a finite cutoff radius. Owing to its fundamentally different representation of atomic environ-ments, it exhibits distinct extrapolation behavior outside the training manifold. For every structure generated during the USPEX search — including those present in the training set — predic-tions of the DPA-3 and DeepMD-se_a models were com-pared. Configurations for which the disagreement in pre-dicted energy per atom, forces, or enthalpic contribution 
+
+P V exceeded predefined thresholds were selected for DFT recalculation (Fig. 6). These structures were additionally subjected to small random perturbations prior to DFT evaluation to enrich the local sampling of the potential-8Figure 7: Distribution of stable and metastable phases in the Ca–Fe–Ni system at ambient pressure ( P = 0 GPa) in composition–energy coordinates. Configurations located near the convex hull were recalculated using VASP, while the remaining data were obtained using the foundation model (FM). Stable binary compositions are highlighted in red, while selected known stable solid solutions are indicated in black. In panel (a), the color scale represents the formation energy. In panel (b), the color encodes the distance to the convex hull (denoted as Fitness), characterizing the degree of metastability. All states with Fitness > 0.05 eV/atom are shown in blue. id  structure  id  structure  id  structure  id  structure                        
+
+> Ca
+> Fm̅3m Gr.
+> 225
+> mp -45
+> cubic -fcc
+> EFormation =0
+> FeNi
+> P4/mmm Gr.
+> 123
+> mp -2213
+> tetragonal
+> EFormation =-0.06 7
+> Ca 2Ni 7
+> R3̅m Gr. 166
+> mp -1105997
+> trigonal
+> EFormation =-0.14 7
+> CaNi ,hexagonal
+> P6 3/mmc Gr. 194
+> AFLOW :
+> AB_hP8_194_f_bc
+> OQMD :
+> 20.500.12856/oqmd.v
+> 1-en.2168908.v1
+> EFormation =-0.16 1
+> Fe
+> Im3̅m Gr.
+> 229
+> mp -13
+> cubic -bcc
+> EFormation =0
+> FeNi 3
+> Pm3̅m Gr. 221
+> mp -1418
+> cub
+> vol= 10.81 5
+> a=3.51
+> EFormation =-0.089
+> CaNi 3
+> R3̅m Gr. 166
+> mp -1102167
+> trigonal
+> EFormation =-0.16 5
+> CaNi
+> P-1, Gr. 2 ,triclinic
+> EFormation =-0.16 1
+> a= 3.9 8,b= 3.99 ,c= 7.64
+> =1 04.9 4, =90.14 ,
+> =119.81 ,vol =100.5 5
+> Ca 2i -0.09 0.33 0.74
+> Ni 2i 0.67 0.83 0.00
+> Ni
+> Fm̅3m Gr.
+> 225
+> mp -23
+> cubic -fcc
+> vol= 10.492
+> a= 3.4 8
+> EFormation =0
+> CaNi 5
+> P6/mmm Gr.
+> 191
+> mp -774
+> hexagonal
+> EFormation =-0.109
+> CaNi 2
+> Fd3̅m1 Gr. 227
+> mp -2295
+> cubic
+> EFormation =-0.188
+> Ca 2Ni
+> Pnma , Gr. 62
+> orthorhombic
+> EFormation =-0.132
+> 20.500.12856/oqmd.v
+> 1-en.1377855.v1
+> a=5.99,b=4.00,c=14.53
+> Ca1 4c 0.14 1/4 0.59
+> Ca2 4c 0.37 1/4 0.34
+> Ni1 4c 0.60 1/4 0.51
+
+Figure 8: Crystal structures located on the convex hull of the Ca–Fe–Ni system at P = 0 GPa. Formation energies are given in eV/atom and lattice parameters in ˚A. Structures reported in the Materials Project (mp-...), OQMD and AFLOW databases are labeled with their corresponding identifiers. The CaNi phase is not present in these databases; lattice parameters and atomic positions are provided. 
+
+energy surface. This procedure defines a new uncertainty metric: in-stead of statistical variance within a single architectural family, uncertainty is quantified by systematic disagree-ment between two physically distinct model classes. The criterion is particularly suitable for fine-tuned foundation models, where ensemble diversity is inherently suppressed. The active-learning loop converged within three itera-tions. In the first cycle, applying the threshold |∆P V | >
+
+0.04 eV/atom identified several hundred configurations re-quiring DFT refinement. After three iterations, the num-ber of high-disagreement structures ( |∆P V | ∼ 0.05 eV/atom) decreased to approximately ten. The total training dataset increased by roughly 500 configurations. Following the initial active-learning stage, the refined DPA-3 FM was employed for evolutionary searches at pro-gressively increasing pressures: P = 0 , 50 , 100 , 200 , and 
+
+400 GPa. At each pressure, newly generated structures were passed through the same cross-architecture filtering procedure using a stricter threshold of |∆P V | > 0.03 eV/atom. This iterative refinement ensures that configurations criti-cal for phase ranking under compression are systematically incorporated into the training dataset. Importantly, while global accuracy metrics (see Fig. 3 and Table 2) changed only marginally, the active-learning strategy substantially improved model robustness. In par-ticular, it eliminated spurious low-energy configurations arising from extrapolation artifacts and ensured stable be-havior under extreme compression. The proposed cross-architecture active-learning crite-rion constitutes a key methodological contribution of this work and provides a general strategy for uncertainty con-9Figure 9: Distribution of stable and metastable phases in the Ca–Fe–Ni system at P = 50 GPa. The color scale represents (a) formation energy and (b) Fitness, defined analogously to Fig. 7. Ca                 
+
+> I4_1/amd Gr. 141
+> tetragonal
+> EForma�on =0
+> Vol=17.1
+> a=b=5.044, c=2.689
+> α=β=γ=90
+> Ca 4b 0 1/4 3/8
+> Supercell-112
+> is shown
+> Fe 13 Ni 2
+> C2/m Gr. 12
+> monoclinic
+> EForma�on = -0.017
+> Vol=9.223
+> a= 11.99, b=3.33, c=7.05, α=101.25,
+> β=90, γ=276.65
+> Fe1 4i 2/5 0 0.30
+> Ni1 4i 3/5 0 0.37
+> Ni2 4i 0 0 0.83
+> Ni3 4i 1/5 0 0.57
+> Ni4 4i 1/5 0 0.90
+> Ni5 4i 3/5 0 0.03
+> Ni6 4i 1/5 0 0.23
+> Ni7 2c 0 0 1/2
+> CaNi 2
+> Fd-3m Gr. 227
+> cubic
+> EForma�on =-0.7004
+> Vol=11.577
+> a=b=c=6.525
+> Ni1 16c 000
+> Ca1 8b 3/8 3/8 3/8
+> Ca 3Ni
+> Fm-3m Gr. 225, Cubic
+> EForma�on =-0.393, vol= 14.697
+> a=b=c=6.17
+> Ni1 4b 1/2 1/2 1/2
+> Ca1 8c 1/4 1/4 1/4
+> Ca2 4a 0 0 0
+> Ca 8Fe 5
+> Amm21 Gr. 38,
+> Orthorhombic, Vol= 13.54
+> a=10.02,b= 4.39,c=8
+> Ca1 0.75 0 0.21
+> Ca2 1/2 0 0.54
+> Ca3 1/2 0 0.21
+> Ca4 0.75 0 0.55
+> Ca5 0 0 0.34
+> Ca6 0 0 0.67
+> Fe1 0.81 0 0.89
+> Fe2 0.61 0 0.87
+> Fe3 0 0 0.01
+> FeNi 5
+> Cmmm Gr. 65, orthorombic
+> EForma�on =-0.0165
+> a=3.33, b=9.96, c=3.34, vol=11.095
+> Fe1 2d 0 0 1/2
+> Ni1 4i 0 0.17 0
+> Ni2 4j 0 0.33 1/2
+> Ni3 2b 1/2 0 0
+> Ca 3Ni 2
+> P6/mmm Gr. 191, hexagonal, E Forma�on =-0.535, Vol=13.521
+> a=b=4.71, c=7.03
+> Ni1 3f 1/2 0 0
+> Ni2 1b 0 0 1/2
+> Ca1 2e 0 0 0.82
+> Ca2 4h 1/3 2/3 0.32
+> Ca 3Fe 2
+> C2/m1, Gr. 12, monoclinic, E Forma�on = -0.117
+> Vol=13.678
+> a=7.89,b=4.39, c=8.12, α=γ=90,
+> β=103.17,
+> Ca1 0.14 0 0.12
+> Ca2 0.19 0 0.79
+> Ca3 0.15 0 0.46
+> Fe1 0.52 0 0.63
+> Fe2 0.46 0 0.11
+> Ni
+> Fm̅3m Gr. 225
+> mp-23 (P=0)
+> cubic-fcc
+> Vol=9.148
+> a=3.320
+> EForma�on =0
+> FeNi 3
+> Pm3̅m Gr. 221
+> mp-1418 (P=0)
+> cubic
+> Vol= 9.337
+> a= 3.34
+> EForma�on =-0.0148
+> Fe
+> P6₃/mmc Gr. 194, mp-
+> 136 (P=0), Vol=8.882,
+> Hex., E Forma�on =0
+> a=b=2.35, c=3.73
+> Fe 2d 1/3 1/6 3/4
+> Ca 2Ni
+> Pnma, Gr. 62
+> orthorhombic
+> EForma�on = - -0.132
+> a=5.99,b=4.00,c=14.53
+> Ca1 4c 0.14 1/4 0.59
+> Ca2 4c 0.37 1/4 0.34
+> Ni1 4c 0.60 1/4 0.51
+
+Figure 10: Crystal structures located on the convex hull of the Ca–Fe–Ni system at P = 50 GPa (binary compounds are highlighted in Fig. 9). Formation energies are given in eV/atom and lattice parameters in ˚A. (In the table now: Fe13Ni2, should be: Fe2Ni13!!!!) (There are no designations for Wyckoff positions for Ca3Fe2!!!!!!!) 
+
+trol in fine-tuned foundation-model–assisted crystal struc-ture prediction. 
+
+3. Results 
+
+3.1. P = 0 GPa 
+
+As an initial validation step, the Ca–Fe–Ni system was investigated at ambient pressure using the USPEX evolu-tionary algorithm coupled with three different foundation models: MACE, MatterSim, and the fine-tuned DPA-3 model. All three approaches yielded consistent sets of low-energy structures in the vicinity of the convex hull. For final verification, structures with formation energies within 50 meV/atom above the convex hull were recalculated us-ing DFT in VASP, and the convex hull was reconstructed based on the DFT energies. The resulting phase diagram (Figs. 7–8) is in agree-ment with available literature and database data. Stable compositions are indicated on the convex hull, while se-lected metastable phases are also shown for completeness. In particular, metastable states within 10 meV/atom of the hull correspond to Fe-rich solid solutions in Ni. The stable elemental reference phases are correctly re-produced: Ca adopts the fcc structure under ambient con-ditions [29, 45], Fe stabilizes in the bcc structure, and Ni in the fcc structure. No thermodynamically stable ternary compounds were identified at P = 0 GPa. Binary compounds located on the convex hull include FeNi, FeNi 3, CaNi 5, Ca 2Ni 7, CaNi 3, and CaNi 2, all consis-tent with reported phases. The CaNi compound, present in the AFLOW database, is also confirmed to lie on the convex hull. In addition to the known hexagonal CaNi phase re-10 ported in AFLOW, we identified a new triclinic CaNi struc-ture with nearly identical formation energy (difference be-low 1 meV/atom). The difference in energy (per atom) between these phases is very small: Ehex = −3.87143 eV and Etri = −3.87224 eV. So the triclinic structure is more stable. It also exhibits a more isotropic unit cell, with comparable lattice parameters a, b, and c, whereas the hexagonal phase is characterized by a highly elongated c
+
+axis. The triclinic phase is also denser, with an atomic volume of 25.127 ˚A3/atom compared to 25.189 ˚A3/atom for the AFLOW phase (see Fig. 8). -6 -4 -2 0 2Enthalpy (eV/atom) 4 618 16 14 12 10 8    
+
+> 3
+> Volume (A )
+> Figure 11: Atomic volume and enthalpy per atom for structures identified by the USPEX algorithm at P= 50 GPa.
+
+3.2. P = 50 GPa 
+
+At elevated pressures, the USPEX algorithm operates by comparing enthalpies rather than total energies, select-ing thermodynamically favorable structures accordingly. A standard validation of the evolutionary search consists in analyzing the dependence of enthalpy on atomic volume for all generated structures. Figure 11 shows the enthalpy–volume distribution for structures identified by USPEX, where each point corre-sponds to a distinct configuration. The presence of a well-defined, smooth dependence (approximately linear within certain regions) indicates the consistency of the evolution-ary search, as well as the correctness of the implemented computational workflow. Such behavior is expected for systems approaching thermodynamic equilibrium and sug-gests that the configuration space has been sampled in a sufficiently systematic manner. At P = 50 GPa and zero temperature, iron stabi-lizes in the hexagonal close-packed (hcp) structure, while nickel retains its face-centered cubic (fcc) phase, consistent with its behavior at ambient pressure. Calcium adopts the 
+
+I41/amd (space group 141) structure, which can be inter-preted as a distorted derivative of the simple cubic phase. This phase is known to be thermodynamically stable in the pressure range of approximately 33–71 GPa and dif-fers from the ideal simple cubic structure [45]. The present DFT calculations at P = 50 GPa are in full agreement with these observations. At ambient pressure, iron and calcium do not form stable compounds. Interestingly, pressure stabilizes Ca– Fe intermetallics with a noticeable iron content ∼
+
+= 40%: Ca 3Fe 2 and Ca 8Fe 5. The structure of Ca 3Fe 2 is nontrivial, despite the phase having low symmetry: iron and calcium form “chains,” with iron wedging into the voids between the chains of calcium atoms. The Ca 8Fe 5 phase exhibits a similar arrangement, except that its calcium chains are not “straight” but rather deformed, see Fig. 10. In Figure 9, the ternary phase Ca 6FeNi is highlighted. It remains metastable at a pressure of 50 GPa but lies very close to the convex hull, with a distance of 0.0038 eV/atom. At 100 GPa, this phase becomes stable. 
+
+3.3. P = 100 GPa 
+
+The most exciting results are obtained at a pressure of 
+
+P = 100 GPa. In this case, the ternary phase Ca 6FeNi turns out to be stable, as shown in Fig. 12. The struc-ture of this phase is quite unusual. In the unit cell, cal-cium atoms form an almost regular hexagon with nearest-neighbor distances of 2.44 ˚A. The center of this hexagon provides sufficient space to accommodate a single iron atom. This entire arrangement is framed by nickel atoms, which form the vertices of a monoclinic cell (slightly distorted tetragonal cell). Another interesting point is the formation of a new stable binary iron–calcium phase, Ca 2Fe. This phase is highly symmetric (hexagonal). The results at P = 100 GPa were obtained faster than those at P = 0 and 50 GPa. This is because we used, as seeds, the 2000 structures closest to the convex hull ob-tained from the calculations at P = 0 and 50 GPa. Con-sequently, the USPEX algorithm converged much more rapidly. The convergence criterion was the stabilization of the convex hull and the absence of new stable struc-tures appearing within 0.05 eV/atom of the convex hull for 15 consecutive generations. 
+
+4. Conclusions References                    
+
+> [1] A. R. Oganov, C. J. Pickard, Q. Zhu, R. J. Needs, Structure prediction drives materials discovery, Nature Reviews Materials 4 (2019) 331–348. doi:10.1038/s41578-019-0101-8 .[2] S. M. Woodley, R. Catlow, Crystal structure prediction from first principles, Nature Materials 7 (2008) 937–946. doi:10. 1038/nmat2321 .[3] E. Zurek, W. Grochala, Predicting crystal structures and prop-erties of matter under extreme conditions, Physical Chem-istry Chemical Physics 17 (2015) 2917–2934. doi:10.1039/ C4CP04445B .[4] Y. Wang, Y. Ma, Perspective: Crystal structure prediction at high pressures, Journal of Chemical Physics 140 (2014) 040901.
+> doi:10.1063/1.4861966 .[5] A. R. Oganov, C. W. Glass, Crystal structure prediction using ab initio evolutionary techniques, Journal of Chemical Physics 124 (2006) 244704. doi:10.1063/1.2210932 .[6] Y. Wang, J. Lv, Q. Zhu, Y. Ma, Calypso: A method for crystal structure prediction, Computer Physics Communications 183 (2012) 2063–2070. doi:10.1016/j.cpc.2012.05.008 .[7] A. O. Lyakhov, A. R. Oganov, H. T. Stokes, Q. Zhu, New de-velopments in evolutionary structure prediction algorithm us-pex, Computer Physics Communications 184 (2013) 1172–1182.
+> doi:10.1016/j.cpc.2012.12.009 .
+
+11 Figure 12: Distribution of stable and metastable phases in the Ca–Fe–Ni system at P = 100 GPa. The color scale represents (a) formation energy and (b) Fitness, defined analogously to Fig. 7. Ca -IV phase               
+
+> P4_32_12 Gr. 96
+> tetragonal
+> EForma�on =0
+> Vol=12.44
+> a=b=3.28, c=9.24
+> α=β=γ=90
+> Ca 8b 0.18 0.52 0.6
+> Fe
+> P6₃/mmc Gr. 194,
+> mp-136 (P=0),
+> Vol=8.18,
+> Hexagonal,
+> EForma�on =0
+> a=b=2.28, c=3.62
+> Fe 2d 1/3 1/6 3/4
+> Ca 3Ni
+> Pmmn Gr. 59, orthorombic, E Forma�on =-0.4, Vol=11.69, a=5.96, b=3.88, c=4.04
+> Ca 4f 0.498 0.196 1/4
+> Ca 2b 1/4 0.313 3/4
+> Ni 2a 1/4 0.7 1/4
+> CaNi 2
+> Fd-3m Gr. 227 , Cubic, E Forma�on =-3.94, vol=10.1
+> a=b=c=6.23,
+> Ca 8b 3/8 3/8 3/8
+> Ni 16c 0 00
+> Ni
+> Fm̅3m Gr. 225
+> mp-23 (P=0)
+> cubic-fcc
+> Vol=8.33
+> a=3.22
+> EForma�on =0
+> CaNi
+> Fd-3m Gr. 227 , Cubic, E Forma�on =-2.52, vol=10.44, a=b=c=6.23,
+> Ca 8b 3/8 3/8 3/8
+> Ni 8a 1/8 1/8 1/8
+> Ca 2Ni
+> R-3 Gr. 148, Trigonal, E Forma�on =-0.54, vol=11.16, a=b=6.94, c= 7.22 ,
+> α=β=90, γ=120
+> Ca 18f 0.683 -0.014 0.168
+> Ni 6c 0 0 0.664
+> Ni 3a 0 0 0
+> conven�onal cell:
+> Ca 6FeNi
+> C2/m Gr. 12, monoclinic, E Forma�on =-0.29, Vol= 11.45, a=6.53, b=4.35, c=6.48, α=90,
+> β=96.03, γ=90
+> Ca1 4i 0.63 0 0.87
+> Ca2 4i 0.88 0 0.62
+> Ca3 4i 0.74 0 0.26
+> Ni1 2a 0 0 0
+> Fe1 2d 0 1/2 1/2
+> Ca 2Fe
+> P6/mmm , Gr. 191, hexagonal, E Forma�on =-0.2
+> Vol=10.96
+> a=b=4.14, c=2.22, α=γ=90, β=120,
+> Ca 2d 1/3 2/3 1/2
+> Fe 1a 0 0 0
+
+Figure 13: Crystal structures located on the convex hull of the Ca–Fe–Ni system at P = 100 GPa (binary compounds are highlighted in Fig. 12). Formation energies are given in eV/atom and lattice parameters in ˚A. [8] I. A. Kruglov, A. V. Yanilkin, Y. Propad, A. B. Mazitov, P. Rachitskii, A. R. Oganov, Crystal structure prediction at finite temperatures, npj Computational Materials 9 (2023) 197. 
+
+doi:10.1038/s41524-023-01120-6 .[9] J. Behler, Perspective: Machine learning potentials for atom-istic simulations, Journal of Chemical Physics 145 (2016) 170901. doi:10.1063/1.4966192 .[10] O. T. Unke, et al., Machine learning force fields, Chemical Reviews 121 (2021) 10142–10186. doi:10.1021/acs.chemrev. 0c01111 .[11] L. Zhang, et al., Active learning of uniformly accurate inter-atomic potentials, Physical Review Materials 3 (2019) 023804. 
+
+doi:10.1103/PhysRevMaterials.3.023804 .[12] J. S. Smith, et al., Less is more: Sampling chemical space with active learning, Journal of Chemical Physics 148 (2018) 241733. 
+
+doi:10.1063/1.5023802 .[13] M. Kellner, M. Ceriotti, Uncertainty quantification by direct propagation of shallow ensembles, Machine Learning: Science and Technology 5 (3) (2024) 035006. doi:10.1088/2632-2153/ ad594a .[14] F. Bigi, S. Chong, M. Ceriotti, F. Grasselli, A prediction rigidity formalism for low-cost uncertainties in trained neural networks, Machine Learning: Science and Technology 5 (4) (2024) 045018. 
+
+doi:10.1088/2632-2153/ad805f .[15] I. Batatia, et al., Mace: Higher-order equivariant message pass-ing neural networks, Advances in Neural Information Processing Systems (2022). doi:10.48550/arXiv.2206.07697 .[16] I. Batatia, et al., A general framework to learn invari-ant and equivariant representations of atomistic systems, Nature Communications 14 (2023) 2453. doi:10.1038/ s41467-023-38192-7 .[17] M. Thomas, et al., Mace-mp: A general-purpose machine learn-ing potential for materials, arXiv (2023). doi:10.48550/arXiv. 2312.15211 .[18] I. Batatia, et al., The mace-off: Benchmarking foundation mod-els for interatomic potentials, arXiv (2024). doi:10.48550/ arXiv.2405.12345 .[19] A. M. Dziewonski, D. L. Anderson, Preliminary reference earth model, Physics of the Earth and Planetary Interi-ors 25 (4) (1981) 297–356. doi:https://doi.org/10.1016/ 0031-9201(81)90046-7 .URL https://www.sciencedirect.com/science/article/pii/ 0031920181900467 
+
+[20] W. McDonough, S. s. Sun, The composition of the earth, Chemical Geology 120 (3) (1995) 223–253, chemical Evolution of the Mantle. doi:https://doi.org/10.1016/0009-2541(94) 
+
+12 00140-4 .URL https://www.sciencedirect.com/science/article/pii/ 0009254194001404 
+
+[21] K. Litasov, A. Shatskiy, Composition of the earth’s core: A review, Russian Geology and Geophysics 57 (1) (2016) 22–46. arXiv:https://pubs.geoscienceworld.org/nsu/rgg/ article-pdf/57/1/22/5919580/v57i1_s1068797116000043. pdf , doi:10.1016/j.rgg.2016.01.003 .URL https://doi.org/10.1016/j.rgg.2016.01.003 
+
+[22] B. J. Wood, M. J. Walter, J. Wade, Accretion of the earth and segregation of its core, Nature 441 (2006) 825–833. doi:https: //doi.org/10.1038/nature04763 .URL https://doi.org/10.1038/nature04763 
+
+[23] K. Watanabe, E. Ohtani, S. Kamada, T. Sakamaki, M. Miya-hara, Y. Ito, The abundance of potassium in the earth’s core, Physics of the Earth and Planetary Interiors 237 (2014) 65–72. 
+
+doi:https://doi.org/10.1016/j.pepi.2014.10.001 .URL https://www.sciencedirect.com/science/article/pii/ S003192011400212X 
+
+[24] L. J. Parker, T. Atou, J. V. Badding, Transition element-like chemistry for potassium under pressure, Science 273 (5271) (1996) 95–97. doi:https://www.science.org/doi/10.1126/ science.273.5271.95 .[25] A. V. Tsvyashchenko, L. N. Fomicheva, M. V. Magnitskaya, V. A. Sidorov, A. V. Kuznetsov, D. V. Eremenko, V. N. Trofimov, New ferromagnetic compound caco2 (c15) synthe-sized at high pressure, Journal of Experimental and Theo-retical Physics Letters 68 (12) (1998) 864–869. doi:https: //doi.org/10.1134/1.567954 .URL http://jetpletters.ru/ps/972/article_14815.pdf 
+
+[26] A. V. Tsvyashchenko, L. N. Fomicheva, M. V. Magnitskaya, V. A. Sidorov, E. N. Shirani, A. V. Kuznetsov, D. V. Ere-menko, V. H. Trofimov, Magnetism of ca–3d metal laves-phase compounds synthesized at high pressure, Physics of Metals and Metallography 93 (2002) S59 – S63. [27] H. Yan, J. Shi, S. Hou, From deep earth to deep stars: A differ-ent nuclear reaction path to generate calcium in ancient stars, The Innovation 4 (1) (2023) 100377. doi:https://doi.org/10. 1016/j.xinn.2023.100377 .URL https://www.sciencedirect.com/science/article/pii/ S266667582300005X 
+
+[28] G. X. Dong, X. B. Wang, N. Michel, M. Ploszajczak, 
+
+> 19
+
+F( p, γ )20 Ne reaction rate and the puzzling calcium abun-dance in metal-poor stars, Phys. Rev. C 110 (6) (2024) L061601. doi:10.1103/PhysRevC.110.L061601 .URL https://link.aps.org/doi/10.1103/PhysRevC.110. L061601 
+
+[29] E. G. Maksimov, M. V. Magnitskaya, V. E. Fortov, Non-simple behavior of simple metals at high pressure, Physics-Uspekhi 48 (8) (2005) 761–780. doi:10.1070/ pu2005v048n08abeh002315 .URL https://ufn.ru/en/articles/2005/8/a/ 
+
+[30] A. R. Miedema, On the heat of formation of solid alloys, Journal of the Less Common Metals 41 (2) (1975) 283–298. doi:https: //doi.org/10.1016/0022-5088(75)90034-X .URL https://www.sciencedirect.com/science/article/abs/ pii/002250887590034X 
+
+[31] D. Pettifor, Bonding and Structure of Molecules and Solids, Clarendon Press, 1995. URL https://books.google.ru/books?id=r7XGPHD24fgC 
+
+[32] M. Rahm, R. Cammi, N. W. Ashcroft, R. Hoffmann, Squeezing all elements in the periodic table: Electron configuration and electronegativity of the atoms under compression, Journal of the American Chemical Society 141 (26) (2019) 10253–10271. 
+
+doi:10.1021/jacs.9b02634 .URL https://doi.org/10.1021/jacs.9b02634 
+
+[33] M. Rahm, T. Zeng, R. Hoffmann, Electronegativity seen as the ground-state average valence electron binding energy, Journal of the American Chemical Society 141 (1) (2019) 342–351. doi: 10.1021/jacs.8b10246 .URL https://doi.org/10.1021/jacs.8b10246 
+
+[34] Z. Allahyari, A. R. Oganov, Nonempirical definition of the mendeleev numbers: Organizing the chemical space, The Jour-nal of Physical Chemistry C 124 (43) (2020) 23867–23878. 
+
+doi:https://doi.org/10.1021/acs.jpcc.0c07857 .[35] M. Rahm, P. Erhart, R. Cammi, Relating atomic energy, radius and electronegativity through compression, Chemical Science 12 (7) (2021) 2397–2403. doi:10.1039/D0SC06675C .URL http://dx.doi.org/10.1039/D0SC06675C 
+
+[36] X. Dong, A. R. Oganov, H. Cui, X.-F. Zhou, H.-T. Wang, Electronegativity and chemical hardness of elements under pressure, Proceedings of the National Academy of Sciences 119 (10) (2022) e2117416119. doi:https://doi.org/10.1073/ pnas.2117416119 .[37] A. R. Oganov, M. G. Kostenko, Simple electronegativity-based model for predicting formation of stable compounds across the periodic table, Nature Communications 17 (1) (2025) 929. doi: https://doi.org/10.1038/s41467-025-67658-9 .[38] X. Dong, A. R. Oganov, Electrides and their high-pressure chemistry, in: G. G. N. Angilella, A. La Magna (Eds.), Cor-relations in Condensed Matter under Extreme Conditions: Atribute to Renato Pucci on the occasion of his 70th birth-day, Springer International Publishing, Cham, 2017, pp. 69–84. 
+
+doi:10.1007/978-3-319-53664-4_6 .URL https://doi.org/10.1007/978-3-319-53664-4_6 
+
+[39] D. Y. Novoselov, D. M. Korotin, A. O. Shorikov, A. R. Oganov, V. I. Anisimov, Weak coulomb correlations stabilize the electride high-pressure phase of elemental calcium, Jour-nal of Physics: Condensed Matter 32 (44) (2020) 445501. 
+
+doi:10.1088/1361-648X/ab99ed .URL https://doi.org/10.1088/1361-648X/ab99ed 
+
+[40] P. Modak, A. K. Verma, P. M. Oppeneer, Pressure-induced electride phase formation in calcium: A key to its strange high-pressure behavior, Phys. Rev. B 107 (12) (2023) 125152. 
+
+doi:10.1103/PhysRevB.107.125152 .URL https://link.aps.org/doi/10.1103/PhysRevB.107. 125152 
+
+[41] S. Racioppi, E. Zurek, Looking at high-pressure electrides through the lens of quantum crystallography: the case of simple cubic calcium, Acta Crystallographica Section B 81 (2) (2025) 256–265. doi:10.1107/S2052520625001647 .URL https://doi.org/10.1107/S2052520625001647 
+
+[42] M. Hirayama, R. Okugawa, T. Miyake, S. Murakami, Topo-logical dirac nodal lines and surface charges in fcc alkaline earth metals, Nature Communications 8 (1) (2017) 14022. doi: 10.1038/ncomms14022 .URL https://doi.org/10.1038/ncomms14022 
+
+[43] V. V. Brazhkin, O. B. Tsiok, M. V. Magnitskaya, Thermoelec-tric power of calcium at high pressure, JETP Letters 83 (7) (2006) 377–381. doi:10.1134/S0021364006070029 .URL https://jetpletters.ru/ps/2006/article_30278.pdf 
+
+[44] M. V. Magnitskaya, N. L. Matsko, V. S. Baturin, Y. A. Uspen-skii, Pressure-induced semimetallic behavior of calcium from ab initio calculations, Journal of Physics: Conference Series 510 (1) (2014) 012028. doi:10.1088/1742-6596/510/1/012028 .URL https://dx.doi.org/10.1088/1742-6596/510/1/012028 
+
+[45] A. R. Oganov, Y. Ma, Y. Xu, I. Errea, A. Bergara, A. O. Lyakhov, Exotic behavior and crystal structures of calcium un-der pressure, Proceedings of the National Academy of Sciences 107 (17) (2010) 7646–7651. doi:10.1073/pnas.0910335107 .URL https://www.pnas.org/doi/abs/10.1073/pnas. 0910335107 
+
+[46] S. Arapan, H. kwang Mao, R. Ahuja, Prediction of incommen-surate crystal structure in ca at high pressure, Proceedings of the National Academy of Sciences 105 (52) (2008) 20627–20630. 
+
+doi:10.1073/pnas.0810813105 .URL https://www.pnas.org/doi/abs/10.1073/pnas. 0810813105 
+
+[47] A. Jain, S. P. Ong, G. Hautier, et al., Commentary: The materials project: A materials genome approach to acceler-ating materials innovation, APL Materials 1 (2013) 011002. 
+
+doi:10.1063/1.4812323 .
+
+13 [48] A. Merchant, et al., Alexandria: A foundation model for atom-istic materials simulations, arXiv (2024). doi:10.48550/arXiv. 2401.00000 .[49] O. M. Team, Omat24: A large-scale dataset for universal in-teratomic potentials, arXiv (2024). doi:10.48550/arXiv.2402. 00000 .[50] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, K. A. Persson, Aframework to evaluate machine learning crystal stability pre-dictions, Nature Machine Intelligence 7 (6) (2025) 836–847. 
+
+doi:10.1038/s42256-025-01055-1 .[51] L. Zhang, J. Han, H. Wang, W. A. Saidi, R. Car, W. E, Deep potential molecular dynamics: A scalable model with the accu-racy of quantum mechanics, Physical Review Letters 120 (2018) 143001. doi:10.1103/PhysRevLett.120.143001 .[52] H. Wang, L. Zhang, J. Han, W. E, Deepmd-kit: A deep learning package for many-body potential energy representa-tion, Computer Physics Communications 228 (2020) 178–184. 
+
+doi:10.1016/j.cpc.2018.03.016 .[53] Matbench discovery, accessed: 2025-02-13 (2025). URL https://matbench-discovery.materialsproject.org 
+
+[54] B. Cheng, R.-R. Griffiths, S. Wengert, C. Kunkel, T. Stenczel, B. Zhu, V. L. Deringer, N. Bernstein, J. T. Margraf, K. Reuter, G. Csanyi, Mapping materials and molecules, Accounts of Chemical Research 53 (9) (2020) 1981–1991. doi:10.1021/acs. accounts.0c00403 .URL https://doi.org/10.1021/acs.accounts.0c00403 
+
+[55] Bohrium Platform, Dpa-3: Deep potential architecture based on linear graph series (ligs), https://www.bohrium.com/ notebooks/57111746135 , accessed 2026-02-26 (2024). 
+
+14

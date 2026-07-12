@@ -1,0 +1,448 @@
+Title: Machine learning insights into band gap properties in halide-based perovskites
+
+URL Source: https://arxiv.org/pdf/2606.17186v1
+
+Published Time: Wed, 17 Jun 2026 00:06:10 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# Machine learning insights into band gap properties in halide-based perovskites 
+
+Chadawan Khamdang 1 and Mengen Wang 2, ∗
+
+> 1
+
+Department of Electrical and Computer Engineering, State University of New York at Binghamton, Binghamton, NY 13902, USA 
+
+> 2
+
+Department of Physics and Astronomy, University of North Carolina at Chapel Hill, Chapel Hill, NC 27599, USA 
+
+Halide perovskites show great promise for applications in optoelectronic devices. The lead-free perovskites are attracting increasing interest due to their low toxicity and motivate the exploration of alternative compositions and structures, including A 2BX 6, A 2BB ′X6, A 3B2X9, and A 4BX 6. Ac-curate predictions of a wide range of band gap energies are important for designing new materials. It is also desired to generate a direct relationship between the structural and elemental descriptors and the band gap energies. In this work, we develop machine learning models to predict band gap energies across various types of halide perovskites based on atomic and structural properties. Algo-rithms including ensemble tree-based methods, random forest regression (RFR), gradient boosted regression trees (GBRT), and extreme gradient boosting (XGB) showed strong predictive accuracy. We also analyzed feature importance to identify key descriptors, including B-site and X-site elemen-tal properties, as well as the number of A- and B-site atoms, as primary factors influencing band gap energies. These results improve our understanding of the ML models and provide guidance for designing new halide perovskite materials. 
+
+I. INTRODUCTION 
+
+Halide perovskites have attracted significant atten-tion as promising materials for next-generation optoelec-tronic applications, including solar cells, 1–4 light-emitting diodes (LEDs), 5–9 and photodetectors. 10–13 Their ap-pealing combination of properties, such as tunable band gaps, 14–16 high optical absorption, and long carrier dif-fusion lengths, 17,18 has driven significant interest in the field. In particular, perovskite solar cells (PSCs) based on lead halide ABX 3 structures have achieved remark-able power conversion efficiencies (PCEs), now surpass-ing 26.64%. 19,20 
+
+While lead halide perovskites have shown great promise, challenges related to the toxicity of Pb have motivated the search for alternative Pb-free perovskites. 21–23 Beyond the conventional ABX 3 frame-work, where A is a monovalent cation, B is a divalent metal, and X is a halide, several other families such as A2BX 6, A 2BB ′X6, A 3B2X9, and A 4BX 6 have garnered increasing interest. These non-ABX 3 structures result from variations in the connectivity of [BX 6] octahedra and the presence of ordered cation or anion vacancies, which lead to diverse structures and a wide range of tun-able band gaps. 24,25 For example, A 2BX 6 is a vacancy-ordered double perovskite derived from ABX 3 by system-atically removing half of the B-site cations. 26,27 Similarly, A2BB ′X6 incorporates two distinct B-site cations ar-ranged in a double perovskite configuration, which allows greater control over the electronic properties depending on the choice of B (B +1 ) and B ′ (B 3+ ) elements. 28 These alternative structures offer promising directions toward more stable and lead-free perovskites. Accurately predicting band gap energies across this di-verse chemical and structural space is critical for identify-ing suitable candidates for device applications. However, experimental synthesis and characterization of all pos-sible compositions are impractical because of the large number of possible material combinations. First prin-ciples calculations, such as density functional theory (DFT), provide a powerful alternative, but they can be-come computationally demanding, especially when hy-brid functionals are required for accurate predictions. 29,30 
+
+Machine learning (ML) has recently gained popularity in the materials science community as a data-driven ap-proach to accelerate materials discovery and property prediction. By learning patterns from existing data, ML models can rapidly predict key properties, such as band gap, 31,32 defect formation energy, 33,34 and phase stability, 35 with reduced computational cost. Several studies have successfully applied ML to model the band gaps of perovskites and other semiconductors using fea-tures derived from atomic and structural descriptors. For instance, models trained on ABX 336 and ABO 3
+
+perovskites 37 have shown promising accuracy, and some efforts have extended to double perovskites 38 and per-ovskite oxides. 39 
+
+Most of these studies have focused on a single per-ovskite family or a narrow compositional range, which limits their generalizability. To date, few ML models have been developed to accommodate mixed A-site com-positions or the broader chemical diversity observed in halide perovskites. 31 The application of ML across multi-ple halide perovskite families, such as A 2BX 6, A 2BB ′X6,A3B2X9, and A 4BX 6, remains largely unexplored. In this work, we address this gap by developing machine learning regression models to predict the band gap ener-gies of a wide range of halide perovskite structures, in-cluding ABX 3, A 2BX 6, A 2BB ′X6, A 3B2X9, and A 4BX 6.Our dataset combines the band gap values from literature and new DFT data, particularly for A 2BX 6 compounds, where both cubic and rhombohedral structures are con-sidered. We construct input features based on elemental and structural properties, which are used to train four re-gression models: kernel ridge regression (KRR), random forest regression (RFR), gradient boosted regression trees 
+
+> arXiv:2606.17186v1 [cond-mat.mtrl-sci] 15 Jun 2026
+
+2(GBRT), and extreme gradient boosting (XGB). In ad-dition to evaluating predictive performance, we perform feature importance analysis to gain insights into the fac-tors that influence band gap variation. This analysis not only improves the interpretability of the ML models but also provides guidance for future compositional design by identifying the key descriptors that control band gap behavior.  
+
+> II. COMPUTATIONAL DETAILS
+
+To build the dataset, we collected data on halide per-ovskite structures, including ABX 3, A 2BX 6, A 2BB ′X6,A3B2X9, and A4BX 6, from previous hybrid DFT calculations. 40 The initial dataset consisted of 214 mate-rials with non-zero band gaps. Crystal symmetries were examined using the Pymatgen package. 41 The crystal structures and symmetries of the halide perovskite fami-lies included in this study are shown in Fig. 1. These include cubic ABX 3, cubic A 2BX 6, face centered cu-bic A 2BB ′X6, rhombohedral A 2BX 6, hexagonal A 3B2X9,and trigonal A 4BX 6 structures. Band gap energies were calculated using density functional theory (DFT) as implemented in the Vi-enna Ab initio Simulation Package (VASP). 42 Projector-augmented wave (PAW) pseudopotentials 43 were used with a plane-wave energy cutoff of 500 eV. The HSE06 hybrid functional 44 was employed with a mixing param-eter of 0.25. We considered A 2BX 6 structures with both a checkerboard-like pattern of vacancies (cubic phase) and isolated [MX 6] octahedra, which are referred to as quasi-zero-dimensional perovskites. 45–50 The cubic A2BX 6 structures were derived from 2 ×2×2 supercells of cubic ABX 3, which provide periodically ordered vacan-cies, while the isolated [MX 6] octahedra were modeled using a rhombohedral structure. The Brillouin zone was sampled using a Γ-centered 2 × 2 × 2 k-point mesh. All structures were fully relaxed until the atomic forces were less than 0.01 eV/˚ A.   
+
+> III. RESULTS AND DISCUSSIONS A. Effect of crystal structure and composition on band gap energy
+
+To understand the influence of crystal structure and chemical composition on the electronic properties of halide perovskites, we first analyzed the distribution of band gap energies across various material families, as shown in the violin plots in Fig. 2. Fig. 2(a) summarizes the band gap distributions in dif-ferent crystal structures. In cubic ABX 3 perovskites, the median band gap is 1.26 eV, which falls within the ideal range for single-junction solar cells (1.00–1.50 eV). 51 This family also exhibits a broad band gap distribution, span-ning from approximately 0.1 eV to over 7.0 eV, reflecting  
+
+> FIG. 1. Crystal structures of the halide perovskite families in-vestigated in this study, including cubic ABX 3, cubic A 2BX 6,face-centered cubic A 2BB ′X6, rhombohedral A 2BX 6, hexag-onal A 3B2X9, and trigonal A 4BX 6structures.
+
+its wide-ranging compositional space and inherent tun-ability. Cubic A 2BX 6 compounds, including Cs 2BX 6 (B = Ti, Sn, Te, Zr, and Hf; X = Cl, Br, and I), show band gaps ranging from 1.68 to 5.68 eV, which is consistent with previous DFT studies using PBEsol that reported values between 0.75 and 4.14 eV. 52 The median band gap of the cubic A 2BX 6 structure is 3.35 eV. A 2BB ′X6 double perovskites exhibit band gaps ranging from 0.57 to 5.31 eV, making them suitable for a wide range of optoelec-tronic applications. 40 The A 3B2X9 family predominantly shows band gaps between 1.63 and 2.77 eV (interquar-tile range), representing a relatively narrow distribution that agrees well with previous reports (0.80–3.30 eV). 53 
+
+Among all structural families, A 4BX 6 compounds exhibit the highest average band gap, with a median value of 4.10 eV. Fig. 2(b) categorizes the perovskites by A-site, and the band gap generally increases with the atomic number of the A-site element. For instance, the median band gap for K-containing compounds is 1.17 eV, rising to 1.74 eV for Rb and 2.99 eV for Cs. This trend aligns with previous reports, such as CsPbI 3 (1.59 eV) > RbPbI 3
+
+(1.57 eV) > KPbI 3 (1.54 eV). 54 Larger A-site cations lead to less octahedral tilting, subtly modifying bond lengths and angles, and hence the band structure. 55 Note that Na-containing compounds exhibit a higher average band gap compared to those containing K. This is mainly because Na appears exclusively in the A 3B2X9 family within our dataset, whereas other A–site cations, such as K, are present across multiple structural types. Fig. 2(c) shows the effects of the B-site. Alkaline metals (AM) and alkaline earth metals (AE) tend to ex-hibit higher median band gaps (AM: 4.17 eV, AE: 5.14 eV) compared to transition metals (TM: 2.60 eV), post-transition metals (PT: 1.56 eV), and metalloids (MT: 1.85 eV). This trend is primarily attributed to the elec-tronegativity (EN) of the B-site elements. A lower EN leads to weaker hybridization between B and X orbitals, 3   
+
+> FIG. 2. Violin plots showing the distribution of calculated band gap energies for halide perovskites across different cat-egories: (a) structural families, (b) A-site cations, (c) B-site cations, and (d) X-site halides. Each violin plot represents the probability density of the data. The box represents the interquartile range (25% to 75%), the central line marks the median, and the vertical lines extend from the box, typically indicating the range of non-outlier data. The top and bottom ends of the plot represent the maximum and minimum band gap values.
+
+resulting in a wider band gap. 14,56 For example, the band gap increases from CsSnCl 3 (1.08 eV) to CsCdCl 3 (3.14 eV) to CsMgCl 3 (5.55 eV), consistent with increasing EN: Mg (1.31) < Cd (1.69) < Sn (1.96). Similarly, Cs 2KInCl 6
+
+(5.07 eV) exhibits a higher band gap than Cs 2NaInCl 6
+
+(4.49 eV), in line with K (0.82) having a lower EN than Na (0.93). This pattern is also supported by previous findings, such as K 2InAlCl 6 (2.66 eV) > K2AgAlCl 6 (2.19 eV), reflecting the lower EN of In (1.78) compared to Ag (1.93). 38 Post-transition metals also exhibit the narrow-est band gap distributions, highlighting their promise for photovoltaic applications. Considering the X-site effects shown in Fig. 2(d), the band gap consistently decreases with increasing halogen atomic size. Median values are highest for Cl (3.14 eV), followed by Br (2.37 eV), and lowest for I (1.73 eV). This trend is attributed to the dominant contribution of halo-gen p-orbitals to the valence band maximum (VBM). The trend also aligns with the electronegativity order Cl >
+
+Br > I, where higher EN corresponds to lower-lying p-orbitals and a wider band gap. Our dataset reflects this trend clearly: CsPbCl 3 (1.78 eV) > CsPbBr 3 (1.26 eV) 
+
+> CsPbI 3 (0.78 eV), consistent with previous studies. 57  
+
+> B. Features for machine learning regression models
+
+We initially selected 44 features representing the atomic and structural properties of the constituent el-ements at the A, B, and X-sites. Atomic features in-cluded atomic weight (W), electronegativity (EN), elec-tron affinity (EA), ionization energy (IE) (including 1st, 2nd, and 3rd), atomic radius (AR), covalent radius (CR), Shannon’s ionic radius (IR), 58 density (D), specific heat capacity (S), and heat of vaporization (HV). The struc-tural features included the number of A, B, and X-site atoms (# of A, # of B, and # of X), the Goldschmidt tolerance factor t(AR), and the octahedral factor u(IR), defined as 59,60 
+
+t(AR) = rA + rX
+
+√2( rB + rX) (1) 
+
+u(IR) = rB
+
+rX
+
+(2) where rA, rB, and rX are the atomic radii of the A, B, and X-site atoms, respectively. For the tolerance fac-tor t(AR), r values correspond to atomic radii, while for the octahedral factor u(IR), r values represent Shannon’s ionic radii. For A 2BB ′X6 compounds, B-site properties were averaged over B and B ′ atoms. To reduce feature redundancy and select the most in-formative descriptors, we employed correlation analysis. We assessed linearity and monotonicity using Pearson, 61 
+
+Spearman, 62 and Kendall’s correlation coefficients, 63 as shown in Fig. S1. Among these, the Pearson correlation consistently provided the clearest and most direct mea-sure of linear relationships with the band gap, compared to Spearman and Kendall. Exceptions were observed for the # of A and the 3rd IE B feature, where Spearman correlation showed higher values (0.33 for # of A and 0.30 for 3IE B) than Pearson correlation (0.31 and 0.21, respectively), while Kendall’s correlation exhibited lower coefficients for all features. However, Pearson generally yielded higher coefficients for the remaining features and was therefore considered the most suitable metric for our regression models. If two features had a high absolute correlation ( |p| > 0.85), we retained the one with stronger correlation to the target property. This filtering was ap-plied independently to the A, B, and X-site features. As a result, 16 features were selected for machine learning model training. The correlations between the selected features and the band gap energy are shown in Fig. 3. Elemental proper-ties of the B-site and X-site, as well as structural descrip-tors, show the strongest correlations with the band gap. Elemental features of the B-site exhibit the strongest cor-relation with the band gap. In particular, EN B (elec-tronegativity of the B-site) shows the strongest negative correlation ( p = -0.58), consistent with the trends dis-cussed in Section III A, where lower B-site electronega-tivity is associated with wider band gaps. In addition, 4
+
+> FIG. 3. Pearson correlation matrix showing pairwise correla-tions between features and the band gap target property (E g). The down-selected features are listed along the diagonal. The upper and lower triangles present the same correlation data using two complementary visualization schemes. Features are arranged from strong negative to strong positive correlation (left to right or top to bottom).
+
+D B ( p = -0.35) and 3IE B ( p = 0.21) also show strong correlations with the band gap. Among the X-site fea-tures, W X (atomic weight of the X-site) exhibits a mod-erate negative correlation ( p = -0.34) and was selected for its simplicity and consistency with related descrip-tors such as EN X and IE X. These features collectively capture the general trend of decreasing band gap with in-creasing halogen atomic number and size. For structural features, the number of A-site atoms (# of A) shows a positive correlation with the band gap ( p = 0.31), reflect-ing the trend of increasing band gap with higher A-site content. Both t(AR) and u(IR) also exhibit correlations of p = -0.25 and p = 0.39, respectively. In particular, 
+
+u(IR) shows the strongest positive correlation with the band gap among the structural descriptors. This can be attributed to the B–X bonding. 64–66 These correlation trends are also consistent with those observed for rhom-bohedral A 2BX 6 compounds, as shown in Fig. S1. We then trained four machine learning (ML) mod-els, including kernel ridge regression (KRR), random for-est regression (RFR), gradient-boosted regression trees (GBRT), and extreme gradient boosting (XGB) as im-plemented in the scikit-learn package, 67 to predict the band gap energy using the selected features. These mod-els were chosen to represent a diverse set of regression algorithms, balancing interpretability with the ability to capture complex, non-linear relationships inherent in ma-terials data. This selection was also informed by findings from previous studies, which indicate that linear regres-sion models often fail to capture the nonlinear relation-ships inherent in materials data. 34,38 
+
+Model evaluation was performed using Leave-One-Out Cross Validation (LOOCV). Hyperparameters were optimized using a grid search strategy, with five-fold cross-validation used within the grid search to prevent overfitting. 68,69 Model performance was evaluated using three metrics, including coefficient of determination ( R2), root mean square error (RMSE), and mean absolute er-ror (MAE). R2 quantifies the proportion of variance in the target explained by the model, with values closer to 1 indicating better performance. RMSE measures the stan-dard deviation of the prediction errors, providing a sense of the typical error magnitude, while MAE represents the average absolute error, offering a robust measure less sensitive to outliers. The formulas for these metrics are 
+
+R2 = 1 −
+
+Pni=1 (yi − ˆyi)2
+
+Pni=1 (yi − ¯y)2 (3) RMSE = 
+
+vuut 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+(yi − ˆyi)2 (4) MAE = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+|yi − ˆyi| (5) where yi is the true value, ˆ yi is the predicted value, and n
+
+denotes the number of samples in the dataset. The term ¯y is the average of the actual values across all samples in the dataset. Additionally, we evaluated feature importance derived from the trained models and systematically compared these results with the Pearson correlation coefficients to extract deeper physical insights into the band gap driv-ing forces and improve the overall interpretability of our models.  
+
+> C. Training machine learning models
+
+Kernel ridge regression (KRR) is a nonlinear extension of ridge regression that uses kernel functions to capture complex patterns in the data. 70 Both linear and radial ba-sis function (RBF) kernels were evaluated to determine the best fit for our dataset. 71 Random forest regression (RFR) is an ensemble learning method that constructs multiple decision trees and aggregates their predictions to improve accuracy and reduce overfitting. 72 Model perfor-mance was optimized by tuning key hyperparameters, in-cluding the number of estimators (trees), maximum tree depth, number of leaf nodes, and the maximum number of features considered at each split. Gradient-boosted regression trees (GBRT) are another tree-based ensemble method that builds trees sequen-tially, with each tree learning to correct the errors of its 5    
+
+> FIG. 4. Parity plots from random forest regression (RFR), extreme gradient boosting (XGB), and gradient boosted regression trees (GBRT) for (a) reference data of A 2BX 6in the cubic phase and (b) DFT calculated data of A 2BX 6in the rhombohedral phase. (c) Feature importance for the three regression models. The colors in the parity plots distinguish between different halide perovskite types, and the shaded purple region in the feature importance plots highlights the top five most important features.
+
+predecessors. Key hyperparameters include the learning rate (which controls the contribution of each tree), the number of trees, and their maximum depth. 73 Extreme gradient boosting (XGB) is an optimized implementation of gradient boosting known for its high performance and computational efficiency. XGB incorporates regulariza-tion techniques (L1 and L2), efficient tree pruning, and parallel processing to enhance generalization and miti-gate overfitting. 74 
+
+Among the evaluated regression models, RFR, GBRT, and XGB demonstrate stronger predictive performance. The corresponding parity plots are shown in Fig. 4(a). The RFR model achieves R2/RMSE/MAE of 0.84/0.64/0.45 eV. Further improvement is observed for GBRT and XGB, with R2/RMSE/MAE values of 0.88/0.57/0.38 eV and 0.89/0.55/0.36 eV, respectively. The parity plots for the KRR model across all datasets are shown in Fig. S2. The KRR model yields an R26of 0.72, an RMSE of 0.86 eV, and an MAE of 0.67 eV, indicating relatively lower predictive accuracy compared to the other models. For the three models trained on the reference dataset, A2BX 6 compounds are observed to deviate from the di-agonal parity line. To investigate this behavior, we gen-erated A 2BX 6 structures using two approaches and cal-culated the band gap values using the HSE06 functional as described in the computational details. First, cubic A2BX 6 structures were generated from a 2 × 2 × 2 cubic ABX 3 supercell by removing selected B-site cations to create an ordered vacancy arrangement. Second, rhom-bohedral A 2BX 6 structures were obtained directly from the rhombohedral crystal phase, in which the vacancy or-dering is already incorporated into the crystallographic framework. In the original dataset, all A 2BX 6 com-pounds were reported in the cubic Fm¯ 3m phase. The energies per atom, together with the calculated and ex-perimental band gap energies of cubic and rhombohedral A2BX 6, are summarized in Table S1. Our DFT calculations for A 2BX 6 in the cubic phase (Fig. S3) and the rhombohedral phase (Fig. 4(b)) result in slightly improved predictive performance for all three models (RFR, GBRT, and XGB). This improvement is due to the existence of multiple structural representations of A 2BX 6, resulting in a distribution of band gap values. Cs 2TeI 6 and Cs 2GeBr 6 have smaller band gap energies in the reference dataset (1.68 eV and 1.71 eV), whereas our calculated band gaps are higher, 2.17/2.20 eV for the cu-bic phase and 2.29/2.23 eV for the rhombohedral phase, bringing these data points closer to the diagonal parity line. On the other hand, Cs 2TiCl 6 has a larger band gap of 4.45 eV in the original dataset, while our calculations yield smaller band gaps for both the cubic and rhombo-hedral phases and closer to experimental values (Table S1). Overall, model performance improves progressively from KRR to RFR, GBRT, and XGB, and the incorpo-ration of our calculated cubic and rhombohedral A 2BX 6
+
+band gaps further enhances predictive performance, par-ticularly for the rhombohedral phase. During the training of the RFR, GBRT, and XGB models, we evaluated feature importance for band gap prediction. The top five most important features across these models are shown in Fig. 4(c). For both RFR and GBRT, the top five features are EN B, # of A, 2IE B, W X, and u(IR). These features are consistent with the highly correlated descriptors identified earlier, such as EN B ( p = -0.58) and W X ( p = -0.34), which show the strongest negative correlations with band gap, while # of A ( p = 0.31) and u(IR) ( p = 0.39) are the most positively correlated. These findings align with previous studies highlighting the role of EN B in A 2BB ′X6 compounds. 38 
+
+Although 2IE B has only a moderate correlation ( p =-0.14), it is still one of the top-ranked features, show-ing that moderate correlations can still be important for prediction. In contrast, the top five features for XGB are EN B, 2IE B, 3IE B, D B, and # of A. Importantly, all top features in XGB are B-site properties. Among these, EN B ( p = -0.58), D B ( p = -0.35), and 3IE B (p = 0.21) exhibit strong correlations, while 2IE B ( p =-0.14) and # of B ( p = -0.16) show moderate correla-tions. We note that the feature importance in Fig. 4(c) is derived from the original dataset, and the top five im-portant features remain the same for the rhombohedral structures (Fig. S4) and are similar to those from the cu-bic A 2BX 6 calculations (Fig. S3). Overall, the analysis suggests that descriptors from the B and X-site elements, as well as structural properties such as the number of A and B-site atoms and u(IR), play a crucial role in deter-mining band gap energies. Although the performances of RFR, GBRT, and XGB are similar, the top features consistently correspond to those with higher correlations EN B, D B, W X, 3IE B, # of A, and u(IR). These re-sults confirm that the top features are consistent with the strongly correlated descriptors and highlight the signif-icance of B-site elemental properties in predicting band gap energies across various halide perovskite families, in-cluding ABX 3, A 2BX 6, A 2BB ′X6, A 3B2X9, and A 4BX 6. 
+
+> IV. CONCLUSION
+
+In conclusion, we present a machine learning ap-proach for predicting band gap energies across various halide perovskite structures, including ABX 3, A 2BX 6,A2BB ′X6, A 3B2X9, and A 4BX 6. Analysis of band gap distributions across different structural families and ele-mental sites provided key insights into the factors govern-ing electronic properties. We observed that the number of A-site and B-site atoms influences the band gap, with B-site elements from the alkaline and alkaline earth met-als exhibiting significantly higher band gaps compared to other groups, highlighting the importance of B-site properties such as electronegativity and ionization en-ergy. Additionally, the X-site trend shows a consistent decrease in band gap with increasing halogen atomic size. To build predictive models, we selected 16 atomic and structural features using Pearson correlation, effectively capturing linear relationships with band gap energy. The ML models considered include kernel ridge regres-sion (KRR), random forest regression (RFR), gradient-boosted regression trees (GBRT), and extreme gradient boosting (XGB). Among these, the ensemble tree-based models (RFR, GBRT, XGB) consistently outperformed KRR, achieving higher R2 scores and lower RMSE and MAE values. Beyond prediction, feature importance analysis identified key elemental and structural descrip-tors for band gap prediction, including EN B, D B, W X, 3IE B, 2IE B, # of B, # of A, and u(IR). The strong alignment between these top features and their Pear-son correlations, combined with the ability of tree-based models to capture nonlinear effects, provides a predictive framework for estimating band gap energies in halide per-ovskite families. 7
+
+DATA AND CODE AVAILABILITY 
+
+Supporting information and data will be available after publication. 
+
+ACKNOWLEDGMENTS 
+
+This work was supported by the new faculty start-up grant from UNC-Chapel Hill. This work used Bridges-2 at Pittsburgh Supercomputing Center through allo-cation MAT230043 from the Advanced Cyberinfrastruc-ture Coordination Ecosystem: Services & Support (AC-CESS) program, which is supported by National Sci-ence Foundation grants #2138259, #2138286, #2138307, #2137603, and #2138296.  
+
+> ∗
+
+mewang@unc.edu  
+
+> 1
+
+F. Xu, M. Zhang, Z. Li, X. Yang, and R. Zhu, Advanced Energy Materials 13 , 2203911 (2023).  
+
+> 2
+
+A. J. Ramadan, R. D. Oliver, M. B. Johnston, and H. J. Snaith, Nature Reviews Materials 8, 822 (2023).  
+
+> 3
+
+Z. Cui, Q. Zhang, Y. Bai, and Q. Chen, Materials Chem-istry Frontiers 7, 1896 (2023).  
+
+> 4
+
+J. Tong, Q. Jiang, F. Zhang, S. B. Kang, D. H. Kim, and K. Zhu, ACS Energy Letters 6, 232 (2020).  
+
+> 5
+
+L. N. Quan, F. P. Garc´ ıa de Arquer, R. P. Sabatini, and E. H. Sargent, Advanced Materials 30 , 1801996 (2018).  
+
+> 6
+
+X.-K. Liu, W. Xu, S. Bai, Y. Jin, J. Wang, R. H. Friend, and F. Gao, Nature Materials 20 , 10 (2021).  
+
+> 7
+
+A. Fakharuddin, M. K. Gangishetty, M. Abdi-Jalebi, S.-H. Chin, A. R. bin Mohd Yusoff, D. N. Congreve, W. Tress, F. Deschler, M. Vasilopoulou, and H. J. Bolink, Nature Electronics 5, 203 (2022).  
+
+> 8
+
+L. Cheng, T. Jiang, Y. Cao, C. Yi, N. Wang, W. Huang, and J. Wang, Advanced Materials 32 , 1904163 (2020).  
+
+> 9
+
+K. Zhang, N. Zhu, M. Zhang, L. Wang, and J. Xing, Journal of Materials Chemistry C 9, 3795 (2021).  
+
+> 10
+
+F. Wang, X. Zou, M. Xu, H. Wang, H. Wang, H. Guo, J. Guo, P. Wang, M. Peng, Z. Wang, et al. , Advanced Science 8, 2100569 (2021).  
+
+> 11
+
+X. Zhou, Z. Lu, L. Zhang, and Q. Ke, Nano Energy 117 ,108908 (2023).  
+
+> 12
+
+J. Miao and F. Zhang, Journal of Materials Chemistry C 
+
+7, 1741 (2019).  
+
+> 13
+
+Y. Wang, D. Li, L. Chao, T. Niu, Y. Chen, and W. Huang, Applied Materials Today 28 , 101509 (2022).  
+
+> 14
+
+A. Walsh, The Journal of Physical Chemistry C 119 , 5755 (2015).  
+
+> 15
+
+L. Kong, G. Liu, J. Gong, Q. Hu, R. D. Schaller, P. Dera, D. Zhang, Z. Liu, W. Yang, K. Zhu, et al. , Proceedings of the National Academy of Sciences 113 , 8910 (2016).  
+
+> 16
+
+R. Ouyang, Chemistry of Materials 32 , 595 (2019).  
+
+> 17
+
+S. Shrestha, X. Li, H. Tsai, C.-H. Hou, H.-H. Huang, D. Ghosh, J.-J. Shyue, L. Wang, S. Tretiak, X. Ma, et al. ,Chem 8, 1107 (2022).  
+
+> 18
+
+S. Akel, A. Kulkarni, U. Rau, and T. Kirchartz, Prx En-ergy 2, 013004 (2023).  
+
+> 19
+
+S. Li, Y. Jiang, J. Xu, D. Wang, Z. Ding, T. Zhu, B. Chen, Y. Yang, M. Wei, R. Guo, et al. , Nature 635 , 82 (2024).  
+
+> 20
+
+J. Wen, Y. Zhao, P. Wu, Y. Liu, X. Zheng, R. Lin, S. Wan, K. Li, H. Luo, Y. Tian, et al. , Nature communications 14 ,7118 (2023).  
+
+> 21
+
+S. Soltani, M. Hjiri, N. I. A. Ahmed, A. Jbeli, A. M. Al-dukhayel, and N. A. Althumairi, RSC advances 15 , 21811 (2025).  
+
+> 22
+
+M. H. Miah, M. U. Khandaker, M. J. Hossen, N. E. Ashrafi, I. Jahan, M. Shahinuzzaman, M. Nur-E-Alam, M. Y. Hanfi, M. H. Ullah, and M. A. Islam, Materials Advances (2025).  
+
+> 23
+
+X. Zhang, M. E. Turiansky, J.-X. Shen, and C. G. Van de Walle, Journal of Applied Physics 131 (2022).  
+
+> 24
+
+C. Yi, J. Luo, S. Meloni, A. Boziki, N. Ashari-Astani, C. Gr¨ atzel, S. M. Zakeeruddin, U. R¨ othlisberger, and M. Gr¨ atzel, Energy & Environmental Science 9, 656 (2016).  
+
+> 25
+
+M. Saliba, T. Matsui, J.-Y. Seo, K. Domanski, J.-P. Correa-Baena, M. K. Nazeeruddin, S. M. Zakeeruddin, W. Tress, A. Abate, A. Hagfeldt, et al. , Energy & envi-ronmental science 9, 1989 (2016).  
+
+> 26
+
+W. Rahim, A. Cheng, C. Lyu, T. Shi, Z. Wang, D. O. Scanlon, and R. G. Palgrave, Chemistry of Materials 32 ,9573 (2020).  
+
+> 27
+
+Y. Cai, W. Xie, H. Ding, Y. Chen, K. Thirumal, L. H. Wong, N. Mathews, S. G. Mhaisalkar, M. Sherburne, and M. Asta, Chemistry of Materials 29 , 7740 (2017).  
+
+> 28
+
+H. Lei, D. Hardy, and F. Gao, Advanced Functional Ma-terials 31 , 2105898 (2021).  
+
+> 29
+
+T. Das, G. Di Liberto, and G. Pacchioni, The Journal of Physical Chemistry C 126 , 2184 (2022).  
+
+> 30
+
+B. G. Janesko, Chemical Society Reviews 50 , 8470 (2021).  
+
+> 31
+
+F. Gou, Z. Ma, Q. Yang, H. Du, Y. Li, Q. Zhang, W. You, Y. Chen, Z. Du, J. Yang, et al. , ACS Applied Materials & Interfaces 17 , 18383 (2025).  
+
+> 32
+
+Y. Li, Y. Lu, X. Huo, D. Wei, J. Meng, J. Dong, B. Qiao, S. Zhao, Z. Xu, and D. Song, RSC advances 11 , 15688 (2021).  
+
+> 33
+
+X. Zhai, F. Ding, Z. Zhao, A. Santomauro, F. Luo, and J. Tong, Communications Materials 3, 42 (2022).  
+
+> 34
+
+C. Khamdang and M. Wang, Journal of Materials Chem-istry C 13 , 7550 (2025).  
+
+> 35
+
+A. Talapatra, B. P. Uberuaga, C. R. Stanek, and G. Pila-nia, Chemistry of materials 33 , 845 (2021).  
+
+> 36
+
+V. Gladkikh, D. Y. Kim, A. Hajibabaei, A. Jana, C. W. Myung, and K. S. Kim, The Journal of Physical Chemistry C 124 , 8905 (2020).  
+
+> 37
+
+C. Li, H. Hao, B. Xu, G. Zhao, L. Chen, S. Zhang, and H. Liu, Journal of Materials Chemistry C 8, 3127 (2020).  
+
+> 38
+
+J. Lan, S. Yuan, H. Zheng, W. Yang, W. Li, and J. Fan, The Journal of Physical Chemistry C 127 , 23412 (2023).  
+
+> 39
+
+A. Talapatra, B. P. Uberuaga, C. R. Stanek, and G. Pila-nia, Communications Materials 4, 46 (2023). 8 
+
+> 40
+
+J.-S. Park, J. Jung, and S. Lee, The Journal of Physical Chemistry Letters 12 , 7885 (2021).  
+
+> 41
+
+S. P. Ong, W. D. Richards, A. Jain, G. Hautier, M. Kocher, S. Cholia, D. Gunter, V. L. Chevrier, K. A. Persson, and G. Ceder, Computational Materials Science 68 , 314 (2013).  
+
+> 42
+
+G. Kresse and J. Furthm¨ uller, Physical Review B 54 , 11169 (1996).  
+
+> 43
+
+P. E. Bl¨ ochl, Physical Review B 50 , 17953 (1994).  
+
+> 44
+
+J. Heyd, G. E. Scuseria, and M. Ernzerhof, The Journal of Chemical Physics 118 , 8207 (2003).  
+
+> 45
+
+A. E. Maughan, A. M. Ganose, D. O. Scanlon, and J. R. Neilson, Chemistry of Materials 31 , 1184 (2019).  
+
+> 46
+
+M. Jin, W. Zheng, Z. Gong, P. Huang, R. Li, J. Xu, X. Cheng, W. Zhang, and X. Chen, Nano Research 15 ,6422 (2022).  
+
+> 47
+
+Y. Xu, B. Jiao, T.-B. Song, C. C. Stoumpos, Y. He, I. Hadar, W. Lin, W. Jie, and M. G. Kanatzidis, Acs Photonics 6, 196 (2018).  
+
+> 48
+
+H. Liu and S. Bansal, EcoMat 6, e12492 (2024).  
+
+> 49
+
+Z. Wang, D. Huang, Y. Liu, H. Lin, Z. Zhang, A. Ablez, T. Zhuang, K. Du, J. Li, and X. Huang, Angewandte Chemie International Edition 63 , e202412346 (2024).  
+
+> 50
+
+K. Zheng, B. Chen, L. Xie, X. Li, B. Lu, M. Wang, Y. Wu, T. Jiang, F. Zhang, X. Li, et al. , Advanced Optical Mate-rials 10 , 2101661 (2022).  
+
+> 51
+
+W. Shockley and H. Queisser, in Renewable energy (Rout-ledge, 2018) pp. Vol2 35–Vol2 54.  
+
+> 52
+
+F. Zhang, L. Fu, W. Gao, P. Zhang, and J. Zhao, npj Computational Materials 11 , 175 (2025).  
+
+> 53
+
+Q. Luo, L. Su, Y. Lu, L. Fang, H. Shu, D. Cao, and X. Chen, Advanced Theory and Simulations 7, 2300988 (2024).  
+
+> 54
+
+B. Ghosh, D. J. J. Tay, M. B. Roeffaers, and N. Mathews, Applied Physics Reviews 10 (2023).  
+
+> 55
+
+M. P. Hautzinger, W. Mihalyi-Koch, and S. Jin, Chem-istry of Materials 36 , 10408 (2024).  
+
+> 56
+
+Y. Yuan, R. Xu, H.-T. Xu, F. Hong, F. Xu, and L.-J. Wang, Chinese Physics B 24 , 116302 (2015).  
+
+> 57
+
+S. Tao, I. Schmidt, G. Brocks, J. Jiang, I. Tranca, K. Meer-holz, and S. Olthof, Nature communications 10 , 2560 (2019).  
+
+> 58
+
+R. D. Shannon, Foundations of Crystallography 32 , 751 (1976).  
+
+> 59
+
+V. M. Goldschmidt, Naturwissenschaften 14 , 477 (1926).  
+
+> 60
+
+C. Li, X. Lu, W. Ding, L. Feng, Y. Gao, and Z. Guo, Acta Crystallographica Section B: Structural Science 64 ,702 (2008).  
+
+> 61
+
+I. Cohen, Y. Huang, J. Chen, J. Benesty, J. Benesty, J. Chen, Y. Huang, and I. Cohen, Noise Reduction in Speech Processing , 1 (2009).  
+
+> 62
+
+C. Spearman, The American journal of psychology 100 ,441 (1987).  
+
+> 63
+
+M. G. Kendall, Biometrika 30 , 81 (1938).  
+
+> 64
+
+P. M. Woodward, Structural Science 53 , 44 (1997).  
+
+> 65
+
+A. Amat, E. Mosconi, E. Ronca, C. Quarti, P. Umari, M. K. Nazeeruddin, M. Gratzel, and F. De Angelis, Nano letters 14 , 3608 (2014).  
+
+> 66
+
+M. R. Filip, G. E. Eperon, H. J. Snaith, and F. Giustino, Nature communications 5, 5757 (2014).  
+
+> 67
+
+F. Pedregosa, Journal of Machine Learning Research 12 ,2825 (2011).  
+
+> 68
+
+A. Mannodi-Kanakkithodi and M. K. Chan, Journal of Materials Science 57 , 10736 (2022).  
+
+> 69
+
+V. Sharma, P. Kumar, P. Dev, and G. Pilania, Journal of Applied Physics 128 , 034902 (2020).  
+
+> 70
+
+V. Vovk, in Empirical inference: Festschrift in honor of vladimir n. vapnik (Springer, 2013) pp. 105–116.  
+
+> 71
+
+D. Duvenaud, Automatic model construction with Gaus-sian processes , Phd thesis, University of Cambridge (2014), available at https://www.repository.cam.ac.uk/items/ a54f0711-f777-4ee1-a685-3b76dae5ad91 . 
+
+> 72
+
+L. Breiman, Machine Learning 45 , 5 (2001).  
+
+> 73
+
+A. Natekin and A. Knoll, Frontiers in neurorobotics 7, 21 (2013).  
+
+> 74
+
+T. Chen, T. He, M. Benesty, V. Khotilovich, Y. Tang, H. Cho, K. Chen, R. Mitchell, I. Cano, T. Zhou, et al. , R package version 0.4-2 1, 1 (2015).

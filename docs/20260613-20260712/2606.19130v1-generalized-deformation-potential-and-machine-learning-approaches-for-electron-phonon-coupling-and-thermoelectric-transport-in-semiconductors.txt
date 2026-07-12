@@ -1,0 +1,523 @@
+Title: Generalized deformation potential and machine-learning approaches for electron-phonon coupling and thermoelectric transport in semiconductors
+
+URL Source: https://arxiv.org/pdf/2606.19130v1
+
+Published Time: Thu, 18 Jun 2026 01:04:18 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# Generalized deformation potential and machine-learning approaches for electron-phonon coupling and thermoelectric transport in semiconductors 
+
+Ransell D’Souza 1, ∗ and Ivana Savi´ c2, †
+
+> 1
+
+Scuola Internazionale Superiore di Studi Avanzati (SISSA), I-34136 Trieste, Italy 
+
+> 2
+
+Department of Physics, King’s College London, The Strand, London WC2R 2LS, United Kingdom 
+
+(Dated: June 18, 2026) The ability to compute electron-phonon coupling from first principles, using density functional perturbation theory and interpolation techniques, has enabled predictive calculations of electronic transport coefficients in crystalline materials. However, these methods are still computationally expensive. Here we present two inexpensive methods to obtain thermoelectric transport proper-ties of semiconductors using a small number of electron-phonon matrix elements calculated from first principles. The first method combines models for coupling of electrons with different phonon modes whose parameters are obtained from ∼ 10 matrix elements per electronic band and phonon mode calculated from first principles. Within this method, we formulate the acoustic deformation potential model for arbitrary crystal symmetries and band extrema locations. The second method uses machine learning to interpolate ∼ 100 electron-phonon matrix elements per electronic band and phonon mode on dense reciprocal space grids in the parts of the Brillouin zone relevant for transport. We apply both methods to two-dimensional MoS 2 and show very good agreement with the state-of-the-art method. The calculated thermoelectric properties also agree well with experiments. We find that the machine-learning method is more accurate and straightforward to implement compared to the model approach. 
+
+I. INTRODUCTION 
+
+There has been significant recent progress in the de-velopment of methods and codes to calculate electron-phonon interactions and intrinsic electronic transport properties of bulk and two-dimensional (2D) materials from first principles [1–9]. These methods combine the Boltzmann transport equation (BTE) with approaches based on density functional theory (DFT) to compute the electronic and phonon band structure and the electron-phonon (el-ph) matrix elements on a reciprocal space grid. In the case of semiconductors, these grids need to be very dense as the charge carriers contributing to transport occupy a narrow energy range near the Fermi level and, consequently, a small portion of the first Bril-louin zone. Calculations on dense grids (of the order of 100 points per direction in reciprocal space, both for electrons and phonons) are particularly costly for el-ph matrix elements. To overcome this problem, they are usually computed on a small grid using density func-tional perturbation theory (DFPT) [10, 11] (of the or-der of 10 points per direction in reciprocal space, both for electrons and phonons) and then interpolated to a much denser grid using the Wannier [12] or Fourier [13] interpolation. Nevertheless, this approach is still compu-tationally intensive, particularly when used for screening of materials with desired transport properties or predict-ing transport properties of materials with large unit cells (e.g. heterostructures).   
+
+> ∗rdsouza@sissa.it
+> †ivana.savic@kcl.ac.uk
+
+One approach to reduce the cost of ab-initio el-ph cal-culations in semiconductors is to use models for el-ph coupling based on the type of phonons participating in the interaction (e.g. the deformation potential models for acoustic, non-polar optical and zone-edge phonons or the Fr¨ ohlich model for polar optical phonons) [14]. The parameters of those models can be calculated us-ing a small set of el-ph matrix elements (of the order of 10 matrix elements per electronic band and phonon mode) obtained from the DFPT approach or its alterna-tives (e.g. the DFT-based frozen phonon approach) [15– 20]. However, an accurate formulation of such models can be challenging, which is why they are often oversim-plified. For example, the acoustic deformation model is frequently used by accounting for only one deformation potential parameter [21–23], although there can be up to six independent parameters describing the deforma-tion potential tensor depending on crystal symmetry and band extrema location. Herring and Vogt [24] formulated a more general acoustic deformation potential approach for cubic semiconductors with band extrema along sev-eral high-symmetry lines, which uses two or three in-dependent deformation potential parameters. In spite of the successful applications of the Herring and Vogt model to cubic semiconductors [15, 17, 18, 25–27], the acoustic deformation potential model has not been laid out in suf-ficient detail for arbitrary crystal symmetries and band extrema locations. Machine-learning techniques could provide another route to faster simulations of el-ph coupling and elec-tronic transport in bulk and 2D semiconductors. There have been several reports of using machine learning (ML) to predict physical properties determined by el-ph cou-pling, such as zero-point renormalization [28], thermo-
+
+> arXiv:2606.19130v1 [cond-mat.mtrl-sci] 17 Jun 2026
+
+2electric figure of merit [29–34] and superconducting tran-sition temperature [35–38], but without predicting el-ph matrix elements. One of the approaches to obtain el-ph matrix elements using machine learning uses deep neu-ral networks to learn the key quantity of DFPT i.e. the change of the Kohn-Sham potential due to atomic and other perturbations [39]. Another approach uses deep neural networks to construct atomic orbital-based Hamil-tonian matrices and gradients due to atomic displace-ments trained on first-principles calculations, from which el-ph matrix elements are obtained [40]. A recent work proposed a method to learn el-ph matrix elements from finite difference first-principles calculations using neural networks [41]. Another relevant work used the Gaus-sian process regression to average over different momen-tum directions and obtain average el-ph matrix elements to speed up the calculations of thermoelectric transport properties [42]. However, other ML approaches to calcu-late el-ph matrix elements may be possible. For exam-ple, relatively small sets of calculated el-ph matrix ele-ments for each phonon mode could be used as the train-ing dataset to predict the el-ph matrix elements on very dense grids in relevant parts of the Brillouin zone, but this has not been attempted in the literature so far. In this paper, we present computationally efficient first-principles based model and machine-learning ap-proaches to electron-phonon scattering in semiconduc-tors, which rely on explicit calculations of much smaller sets of electron-phonon matrix elements compared to the DFPT+Wannier approach. We use these methods to compute electronic thermoelectric transport properties of single layer MoS 2, which exhibits large thermoelectric power factors near 300 K. Within the model approach, we generalize the Herring and Vogt acoustic deformation po-tential approach [24] for any crystal symmetry and band extrema location. We derive explicit formulas for hexago-nal symmetry with conduction band valleys located along the Γ-K line in the Brilloin zone. We combine this model with the model of the Fr¨ ohlich interaction for polar opti-cal phonons in 2D semiconductors [43, 44] and the defor-mation potential models for other relevant phonons [14] to obtain el-ph scattering rates and thermoelectric trans-port properties of 2D MoS 2. Within this framework, the electron–phonon interaction is described by a com-pact set of physically transparent parameters that can be reused in subsequent studies without repeating the full first-principles workflow e.g. for device modeling. We also develop a machine-learning approach that uses regression methods to predict el-ph matrix elements on very dense grids in regions of the Brillouin zone that contribute to electronic transport using a small training set of el-ph matrix elements calculated ab-initio (of the order of 100 matrix elements per electronic band and phonon mode). The formulation of the machine-learning method is very general and can be straightforwardly applied to materials of any symmetry. Both approaches are in good agreement with the full first-principles (DFPT+Wannier) approach and experimental data for 2D MoS 2.  
+
+> II. METHODOLOGY A. Thermoelectric transport properties and electron-phonon coupling
+
+The thermoelectric transport coefficients are calcu-lated using the Boltzmann transport theory within the momentum relaxation time approximation. The thermo-electric transport kernel function ( Lβ ), with β denoting the order of the transport moment, can be expressed as [45] 
+
+Lβ = 2e2−β
+
+V
+
+X
+
+> n, k
+
+
+
+− ∂f 0
+
+> nk
+
+∂E nk
+
+
+
+τnkv2
+
+> nk
+
+(Enk − EF )β , (1) where e is the electronic charge, V is the crystal volume, 
+
+Enk is the energy of an electronic state with band in-dex n and crystal momentum k, vnk is its average group velocity, τnk is the momentum relaxation time, and EF
+
+is the Fermi energy. The electrical conductivity σ, the Seebeck coefficient S and the power factor PF can then be written as 
+
+σ = L0, (2) 
+
+S = L1
+
+T L 0
+
+, (3) 
+
+P F = S2σ. (4) The electron drift mobility μ (also referred to as the elec-tron mobility from here on) is obtained from μ = σ/ (en c), where nc is the carrier concentration. The momentum relaxation times caused by electron-phonon interaction are calculated using Fermi’s golden rule [46, 47] 
+
+τ −1 
+
+> nk
+
+= 2π
+
+ℏ
+
+X
+
+> ±
+
+X
+
+> k′,n ′
+
+X
+
+> λ, q
+
+|gn′k′ 
+
+> nk,λ q
+
+|2 1 − cos θkk ′
+
+ (5) 
+
+×
+
+
+
+n(ωλq ) + 12 ∓ 12
+
+ 1 − f 0(En′k′ )1 − f 0(Enk)
+
+× δk′,k±q δ(En′k′ − Enk ∓ ℏωλq ),
+
+where ℏ is the Planck constant and gn′k′ 
+
+> nkλq
+
+is the el-ph matrix element between electronic states nk and n′k′
+
+for a phonon mode λ with the wave vector q and the phonon frequency ωλq . The angle between the wave vec-tors k and k′ is denoted by θkk ′ , f 0(Enk) is the Fermi-Dirac distribution, and n(ωλq ) is the Bose-Einstein dis-tribution. The Kronecker symbol δk′,k±q represents the crystal momentum conservation. The absorption (emis-sion) of a phonon is represented by the upper (lower) sign. The scattering rate for the electronic state nk
+
+can be obtained by excluding the terms 1 − cos θkk ′ and [1 − f 0(En′k′ )] /[1 − f 0(Enk)] in Eq. (5). Details of the computational implementation of this approach can be found in Ref. [18]. 3 
+
+> B. Model approach
+
+To develop an accurate model of electronic and ther-moelectric transport in a material of interest, we need to analyze its electronic and phonon band structure. Mono-layer MoS 2 has a hexagonal symmetry and is a semicon-ductor with a direct band gap located at the K and K ′
+
+points of the Brillouin zone (see Fig. 1). The electronic band structure of monolayer MoS 2 is shown in Supple-mentary Material [48] . The higher conduction band min-ima (CBM) are at least 300 meV above the lowest CBM at K and K ′, so the transport properties of n-type MoS 2
+
+are governed only by the lowest conduction band states near K and K ′. The energy dispersion near the CBM at K and K ′ is nearly parabolic (Fig. 1) and can be de-scribed using the Kane model [50]. Since the lowest CBM are located at K and K ′, we consider intravalley scatter-ing mechanisms (within the K and K ′ valleys) originating from the phonon modes near Γ and intervalley scattering mechanisms (between the K and K ′ valleys) originating from the phonon modes near K. The phonon band structure of 2D MoS 2 is shown in Fig. 2. The acoustic phonon branches are in-plane longi-tudinal (LA), in-plane transverse (TA) and out-of-plane (ZA). The optical modes are two in-plane longitudinal (LO) modes, two in-plane transverse (TO) modes, and two out-of-plane (ZO) modes. All the modes with the wave vectors corresponding to the Γ point are either odd or even with respect to the in-plane mirror plane con-taining Mo atoms. The el-ph matrix elements corre-sponding to the intravalley scattering of the electronic states at K and K ′ due to mirror-odd ZA, LO 1, TO 1,and ZO 2 modes at Γ are zero by symmetry. Odd par-ity phonons can couple only electronic states of opposite parity since el-ph matrix elements are invariant under symmetry operations [51]. The el-ph matrix elements due to the mirror-odd phonons at Γ vanish exactly at the K and K ′
+
+points since the initial and final electronic states are of the same parity. We therefore account for only mirror-even LA, TA, LO 2, TO 2, and ZO 1 modes in our treatment of intravalley scattering. We describe the intravalley interaction of the electronic states near K and K ′ with LA and TA modes using the acoustic deformation potential approach [24], which we generalize to arbitrary crystal symmetries and band ex-trema locations. The intravalley scattering with the non-polar optical mode (TO 2 near Γ) and the intervalley scat-tering with zone-edge phonons near K are described us-ing the non-polar optical/intervalley deformation poten-tial approach [14]. The non-polar optical deformation potential approach was modified to empirically include the effect of long-range interactions on the intravalley scattering with homopolar optical modes (ZO 1 near Γ). We use the Fr¨ ohlich-like model of the long-range dipole-dipole interaction to describe scattering due to the polar optical mode (LO 2 near Γ) [43, 44]. We do not account for the the long-range piezoelectric interaction associated with acoustic phonons which is limited to low tempera-       
+
+> FIG. 1. (Top left) Top view of the hexagonal unit cell of monolayer MoS 2.(Top right) Atomic structure of a MoS 2
+> sheet. (Lower left) The energy dispersion of the lowest con-duction band of MoS 2, calculated using density functional theory (DFT) in the vicinity of the K and K ′points in the hexagonal Brillouin zone. (Lower right) The black curve is the dispersion of the conduction band obtained using the Kane model fitted to DFT results, shown in color.
+> FIG. 2. The phonon dispersion of single layer MoS 2cal-culated using density functional perturbation theory, repre-sented with solid lines. The experimental data taken from Ref. [52] are shown with circles [53]. The acoustic phonon branches are in-plane longitudinal (LA), in-plane transverse (TA) and out-of-plane (ZA). The optical modes are two in-plane longitudinal (LO) modes, two in-plane transverse (TO) modes, and two out-of-plane (ZO) modes.
+
+tures [54]. Charge screening effects on electron-phonon interaction are also not included in our analysis.  
+
+> 1. Intravalley acoustic scattering: Generalized deformation potential model
+
+The interaction between electrons and acoustic phonons in the long-wavelength limit is characterized by a slowly varying potential, which can be expressed as 4[14, 24, 55] 
+
+Hep = X
+
+> αβ
+
+Ξαβ ϵαβ , (6) where Ξ is the deformation potential (DP) tensor, ϵ is the strain tensor, and α and β are the Cartesian coor-dinates. A second-rank symmetric tensor has a maxi-mum of six independent components. However, depend-ing on the material’s symmetry and the position of the electronic band extrema in the Brillouin zone, symmetry constraints reduce the number of independent compo-nents in the DP tensor. In Supplementary Material [48], we outline a procedure to obtain the number of indepen-dent DP components for a crystal of any symmetry and any position of the electronic band extrema. Our method represents a generalization of the Herring and Vogt DP approach for cubic crystals whose band extrema lie along the Γ-L, Γ-X and Γ-K directions [24]. 
+
+TABLE I. Expressions for the six components of the deforma-tion potential tensor for a bulk crystal with hexagonal sym-metry and band extrema along the Γ-K direction. Valley direction Γ-K Ξ1 = Ξ xx Ξd + Ξ u
+
+Ξ2 = Ξ yy Ξd + Ξ u - Ξ p
+
+Ξ3 = Ξ zz Ξd - Ξ u + Ξ p
+
+Ξ4 = Ξ yz = Ξ zy 0Ξ5 = Ξ xz = Ξ zx 0Ξ6 = Ξ xy = Ξ yx 0
+
+For a three-dimensional (3D) unit cell with hexago-nal symmetry, symmetry constrains dictate that the DP tensor elements can be characterized in terms of three in-dependent components when the band extrema are along the Γ-K direction (see Supplementary Material [48]). These components have direct physical interpretation. Using the Herring and Vogt definitions of volume dila-tion (Ξ d), uniaxial stress (Ξ u) and shear (Ξ p) [48], we can express the DP tensor for a 3D material with hexagonal symmetry and band extrema along the Γ-K direction as shown in Table I. In the case of a 2D hexagonal crystal, the Ξ 3 component of the DP tensor is zero, and the num-ber of independent components reduces to two (Ξ d + Ξ u
+
+and Ξ p). The procedure to calculate these deformation potentials is outlined in Sec. III A and Appendix A. We obtain electron-phonon matrix elements due to scattering with long-wavelength in-plane acoustic modes using the DP tensor described above. Since the acous-tic phonon frequencies near the zone center are small, we use n(ωλq ) ≈ kB T 
+
+> ℏωλq
+
+for both absorption and emission processes, where kB is the Boltzmann constant, T is the temperature, and |q| → 0. At room temperature, the equipartition between absorption and emission processes holds, i.e. n(ωλ, q ) ≫ 1/2. Therefore, if we neglect acous-tic phonon energies when calculating the scattering rate given by Eq. (5), the scattering rates due to emission and absorption are approximately the same. If we as-sume that phonon frequencies change linearly with q in the long-wavelength limit, we obtain [18, 24] 
+
+|Mλq |2≡| gλq |2 × 2n(ωλq )= kB T I 2(k, k ′)
+
+A
+
+P 
+
+> ij
+
+ΞiΞj fifj
+
+P 
+
+> ij
+
+cij fifj
+
+. (7) Here gλq is the el-ph matrix element between the lowest conduction band states with wave vectors k and k′ and 
+
+I(k, k′) is the overlap integral between the two Bloch states with the wave vectors k and k′. A is the unit cell area, cij are the components of the 6 × 6 elastic constant tensor, and fi are the components of the 3 ×3 polarization tensor given as 
+
+fi = aiqi, i = 1 , 2, 3,f4 = a2q3 + a3q2,f5 = a1q3 + a3q1,f6 = a1q2 + a2q1,
+
+(8) where a is the atomic displacement for an acoustic phonon with wave vector q. We calculate the polariza-tion vectors by solving the generalized equation of motion for the atomic displacement in a hexagonal crystal [14] 
+
+
+
+c11 α2 + c11 −c12  
+
+> 2
+
+β2 + c44 γ2 − ρv 2  
+
+> sc11 +c12
+> 2
+
+αβ (c13 + c44 )αγ  
+
+> c11 +c12
+> 2
+
+αβ c11 β2 + c11 −c12  
+
+> 2
+
+α2 + c44 γ2 − ρv 2 
+
+> s
+
+(c13 + c44 )βγ 
+
+(c13 + c44 )αγ (c13 + c44 )βγ c44 (α2 + β2) + c33 γ2 − ρv 2
+
+> s
+
+a1
+
+a2
+
+a3
+
+ = 0 , (9) where ρ is the mass density, and vs is the speed of sound. The direction cosines of the wave vector q are denoted by 
+
+α, β and γ. In the case of a 2D hexagonal crystal, only 
+
+c11 and c12 are not zero. We can obtain the matrix ele-5ments for the in-plane longitudinal and transverse acous-tic branches along any q direction by substituting the polarization tensor components derived from Eq. (9) and the DP components from Table I in Eq. (7). The expres-sions for P 
+
+> ij
+
+ΞiΞj fifj / P 
+
+> ij
+
+cij fifj [see Eq. (7)] along the high symmetry directions are listed in Table II.                                              
+
+> TABLE II. Longitudinal acoustic (LA) and transverse acoustic (TA) mode contributions to the square of the electron-phonon matrix elements for the Kvalley [i.e. P
+> ij ΞiΞjfifj/P
+> ij cij fifjin Eq. (7)] along the high symme-try directions. Ξ and care the 6 ×6 deformation potential and elastic constant tensors, respectively. qis the phonon wave vector. Valley qdirection LA TA K∥to Γ-K (Ξ d+Ξ u)2
+> c11 0
+> ∥to Γ-M (Ξ d+Ξ u−14Ξp)2
+> c11
+> 3Ξ 2
+> p
+> 8( c11 −c12 )
+> 2. Intravalley non-polar optical phonon and intervalley scattering
+
+Intervalley scattering between the K and K ′ valleys occurs via phonons near the K point. Scattering via phonons near the Brillouin zone edge typically has a weak wave vector dependence [14]. The el-ph matrix element between the lowest conduction band states with wave vectors k ≈ K and k′ ≈ K′ can therefore be approxi-mated as 
+
+gλq ≈ gλQ =
+
+s
+
+ℏ
+
+2mω λQ
+
+ΞλQ, (10) where Q corresponds to the difference between the wave vectors of the K and K ′ points, m is the mass of the atoms in the unit cell and Ξ λQ is the deformation potential due to scattering between the valleys K and K ′ via the phonon mode λ. We also approximate the frequencies of zone edge phonons to be equal to ωλQ when calculating the relaxation times using Eq. (5). These approximations are also valid for intravalley scattering due to short wave vector non-polar optical phonons [14] i.e. we use Eq. (10) with Q = 0 to approximate the el-ph matrix elements with k ≈ K and k′ ≈ K. The calculation of all these deformation potentials is given in Sec. III A.  
+
+> 3. Intravalley homopolar optical phonon scattering
+
+It has been recently established that the el-ph ma-trix elements associated with the homopolar optical ZO 1
+
+mode near Γ have a small long-range contribution [2, 56, 57] Therefore, these el-ph matrix elements exhibit stronger wave vector dependence compared to the zone-center non-polar optical TO 2 mode. We parametrize the scattering due to the homopolar optical mode near Γ us-ing the following form of the deformation potential ΞZO 1 =
+
+> 4
+
+X
+
+> i=0
+
+ΞZO 1 
+
+> i
+
+qi. (11) The parameters Ξ ZO 1 
+
+> i
+
+(i = 0 , 4) are the Taylor series co-efficients of the homopolar optical deformation potential expanded in powers of the phonon wave vector magni-tude q. Sec. III A describes the procedure to calculate these coefficients.  
+
+> 4. Intravalley polar optical phonon scattering
+
+In addition to the deformation potential in the long-wavelength limit, the atomic displacements correspond-ing to the LO 2 mode of MoS 2 create long-range interac-tions between electrons and LO 2 modes. This long-range interaction can be described using the expression for the Fr¨ ohlich interaction in 2D crystals [43, 44] 
+
+gλq = i
+
+h π
+
+2
+
+e2
+
+4πε 0
+
+dA ℏωLO 2 (ϵ0 − ϵ∞)
+
+i 12
+
+×
+
+1
+
+ϵ∞
+
+2
+
+qd 
+
+h
+
+1 + ( ϵ∞qd )−1 eqd − 11 − (1 + ϵ−1 
+
+> ∞
+
+)(1 + eqd )/2
+
+i
+
+. (12) where ωLO 2 is the frequency of the LO 2 phonon at Γ, d is the effective dielectric thickness, ϵ∞ is the high-frequency dielectric constant of the monolayer, and ϵ0 is the dielec-tric constant of vacuum. The procedure to calculate these parameters is outlined in Supplementary Material [48].  
+
+> C. Machine-learning approach
+
+Our machine-learning method to compute el-ph matrix elements relevant for thermoelectric transport in semi-conductors is based on regression approaches, which are used to predict el-ph matrix elements near band extrema on a very dense grid using a relatively small training dataset calculated using the DFPT+Wannier approach. Our method is straightforward because it is possible to fairly accurately describe those el-ph matrix elements us-ing the analytical formulas of the model approach. The ML approach to calculate el-ph matrix elements near band extrema from a training dataset is carried out using the ‘ Scikit learn ’ package [58]. The training datasets can be chosen in different ways. We tested the training dataset consisting of first-principles el-ph matrix elements where the initial electronic state k is located at the K point and the phonon wave vectors q are uni-formly distributed along selected directions in the first Brillouin zone, which include high-symmetry directions 6[as sketched in the inset of Fig. 3 (a)]. We will refer to this type of training datasets as ”uniform”. We also used the training datasets consisting of k = K and randomly chosen q-points in all directions of the first Brillouin zone. In both datasets, the Γ point is included in the q-point set and the magnitude of the phonon wave vectors varies between 0 and 35% of the distance between the Γ and K points. We sample only this small part of the Brillouin zone as only the phonon wave vectors near Γ contribute significantly to intravalley scattering. We do not use ma-chine learning for intravalley non-polar and intervalley scattering since they are well described by only one el-ph matrix element (as described in Sec. II B 2). In this case, we explicitly calculate that matrix element using DFPT and then use analytical formulas of Sec. II B 2 to compute the scattering. For intravalley scattering due to acoustic modes (LA and TA), we use the “ PolynomialFeatures ” (PFR) algo-rithm to obtain el-ph matrix elements near band extrema since the acoustic deformation potential model give the polynomial (linear) dependence on the phonon wave vec-tor. The PFR approach generates a matrix consisting of all possible combinations of polynomials with degrees less than or equal to the user stated input value. The specified degree for all acoustic modes were set at 5. For intravalley scattering due to the polar and homopo-lar optical modes (LO 2 and ZO 1), the “ GaussianProcess-Regressor ” (GPR) algorithm is used to compute el-ph matrix elements near band extrema. This is done be-cause the dependence of these matrix elements on the phonon wave vector is more complicated than that for intravalley acoustic scattering, as can be seen from our model approach. GPR uses the Gaussian process for re-gression and hence a prior mean and covariance must be defined. We use the mean of the training set data as the prior mean. The prior’s covariance is obtained by imple-menting a kernel object. We implement the radial-basis function (RBF) kernel (or “squared-exponential kernel”). The RBF kernel defined on two feature vectors, labeled as x and x′, is expressed as 
+
+K(x, x ′) = exp 
+
+ −| d(x, x ′)|2
+
+2l2
+
+
+
+, (13) where the hyperparameters d(x, x ′) and l are the Eu-clidean distance and the length scale of the kernel, re-spectively. These hyperparameters are then obtained by maximizing the log-marginal likelihood. The el-ph matrix elements obtained as described above are then used in Eq. (5) to compute el-ph relaxation times and scattering rates. At present, we approximate the electronic band structure with the nearly parabolic (Kane) model [50] and treat the frequencies of the phonon modes as in our model approach (acoustic phonon fre-quencies depend linearly on q, while all other phonon frequencies are independent on the phonon wave vector and their values are taken at Γ or K). The electronic and phonon band structures could also be interpolated using a similar ML approach as described here, which may be addressed in future work.  
+
+> D. First principles calculations
+
+The DFT calculations of the electronic band structure of single layer MoS 2 are carried out using the quantum espresso code [59, 60]. We used a 24 × 24 × 1 recipro-cal space k-point grid for plane waves and the Perdew-Burke-Ernzerhof (PBE) exchange-correlation functional with spin-orbit coupling (SOC) [61]. The kinetic and charge density energy cut-off used in our DFT calcula-tions are 70 Ry and 280 Ry, respectively. We utilize the 2D Coulomb cutoff approach to avoid interaction be-tween MoS 2 layers [62]. The vacuum spacing is 22 ˚ Aalong the direction perpendicular to the plane of the MoS 2 layer. We compute the phonon dispersion of single layer MoS 2 using density functional perturbation theory (DFPT) and the quantum espresso code. An 12 ×
+
+12 × 1 phonon wave vector q-point grid is used in this calculation. The el-ph matrix elements are calculated on the coarse 24 × 24 × 1 electron wave vector k- and 12 ×
+
+12 × 1 phonon wave vector q-point grids. We then use the Wannier interpolation approach, as implemented in the EPW code [5, 63], to interpolate these matrix ele-ments onto dense 204 × 204 × 1 k- and q-point grids by contriving 22 Wannier orbitals. The initial guess are the 
+
+d orbitals for the Mo atoms and the p orbitals for the S atoms which are inclusive of both spin-up and spin-down orbitals. The values of quadripoles for the accurate treat-ment of long-range interactions are taken from Ref. [57].   
+
+> III. RESULTS AND DISCUSSION A. First-principles parameters for the model approach
+
+The energy dispersion near the CBM at K and K ′ can be expressed with the Kane Hamiltonian [50] 
+
+ℏ2k2
+
+2m∗ = E(1 + αpE), (14) where ℏ is the Planck constant, m∗ is the effective mass, 
+
+k is the magnitude of the wave vector with respect to the CBM, E is the electronic energy with respect to the CBM and αp is the measure of the deviation from the parabolic dispersion relation. The effective mass and the non-parabolic factor are calculated by fitting Eq. (14) to the conduction band energy dispersion obtained from DFT, as shown in Fig. 1. Our calculated effective masses and the non-parabolic factor are shown in Table III, along with structural parameters. The calculated lattice con-stant, the monolayer thickness and the band gap are nearly identical to those obtained in a recent study at the PBE level of theory (less than 0.1% difference) [2], while there is a 3.7% difference for the effective mass. 7To the best of our knowledge, no literature values are available for the non-parabolicity parameter αp.                         
+
+> TABLE III. Calculated lattice constant a0, the monolayer thickness hz, the band gap Eg, the effective mass m∗and the non-parabolic factor αpof monolayer MoS 2.Parameters Calculation Experiment
+> a0[˚ A] 3.188 3.16 a
+> hz[˚ A] 3.133
+> Eg[eV] 1.6 1.88 b
+> m∗[me]0.405
+> αp0.7
+> aRef. [64]
+> bRef. [65]
+
+The parameters describing el-ph coupling were ob-tained as follows. The independent components of the DP tensor for LA and TA modes were computed from the calculations of ≈ 10 el-ph matrix elements in the limit of small phonon wave vectors along selected high-symmetry lines using DFPT calculations and the Wannier interpo-lation, as described in Appendix A. Our computed values of Ξ d + Ξ u and Ξ p are given in Table IV, together with the values of elastic constants computed using DFPT and a finite-difference method. Our elastic constant values are in excellent agreement with previously reported PBE values [66]. The deformation potentials for the homopo-lar optical mode were obtained in the similar manner as acoustic deformation potentials. They were fitted along the Γ-K direction, and it was checked that the same fits were obtained along the Γ-M direction. The deforma-tion potentials for intervalley and intravalley non-polar optical phonon scattering were calculated using Eq. (10), where the el-ph matrix elements gλQ were obtained us-ing DFPT for all relevant phonons with the wave vec-tors corresponding to the Γ and K points. Their values and the corresponding phonon frequencies are listed in Supplementary Material [48]. Our deformation potential values are of the same order of magnitude as reported in Refs. [67, 68], which used the local density approximation and supercell/DFPT methods to calculate el-ph matrix elements without an accurate treatment of long-range in-teractions. Our el-ph matrix elements agree well with the state-of-the-art DFPT+Wannier results obtained us-ing PBE and accurately treating long-range interactions [2, 57]. The computational cost of extracting deforma-tion potential parameters is discussed in Supplementary Material [48]. Finally, we computed the values of the effective dielectric thickness d and the high-frequency di-electric constant ϵ∞ that quantify the 2D Fr¨ ohlich in-teraction using the capacitor stack model (see Supple-mentary Material [48]). These values are given in Table IV and are in excellent agreement with those reported in Ref. [44], with deviations of approximately 0.2% for d
+
+and 2% for ϵ∞.                              
+
+> TABLE IV. Parameters related to electron-phonon interac-tion used in our model approach (see the text for definitions), calculated from first principles. Intravalley Parameters In-plane acoustic modes Ξd+ Ξ u[eV] 7.20 Ξp[eV] 2.63
+> c11 [N/m] 132.7
+> c12 [N/m] 33 Homopolar mode
+> ωZO 1[meV] 49.17 ΞZO 1
+> 0[eV
+> ˚A
+> ]2.89 ΞZO 1
+> 1[eV] -12.58 ΞZO 1
+> 2[eV ·˚A]28.65 ΞZO 1
+> 3[eV ·˚A2]-107.61 ΞZO 1
+> 4[eV ·˚A3]184.96 Polar mode
+> ωLO 2[meV] 46.2
+> d[˚ A] 5.48
+> ϵ∞16.76
+> B. Training datasets for the machine-learning approach
+
+We verify the accuracy of the ML approach using the ”uniform” and random training datasets explained in Sec. II C. For this, we compute the coefficient of deter-mination for the el-ph matrix elements obtained from regression compared to the those obtained using the DFPT+Wannier approach and the EPW code. These matrix elements were calculated for the initial electronic state k located at K and the phonon wave vectors q lo-cated in the circle centered at the Γ point with the ra-dius of 35% of the distance between the Γ and K points. Fig. 3 (a) shows those coefficients of determination for the ”uniform” and random datasets as a function of the size of the training set. We can see that the results obtained using the random datasets have a higher accuracy for somewhat smaller datasets compared to those obtained from the ”uniform” datasets, except in the case of the polar optical phonon. Both types of training datasets yield all the coefficients of determination above 90% for the dataset sizes of ∼100. Fig. 3 (b) shows the electron drift mobility as a func-tion of temperature for the ”uniform” datasets with dif-ferent sizes, as well as that calculated using the EPW 8            
+
+> FIG. 3. (a) Coefficient of determination for phonon-mode resolved electron-phonon matrix elements as a function of the size of the training dataset. The results corresponding to the datasets consisting of 1 k-point located at K and uniformly distributed q-points along selected lines in the Brillouin zone (the ”uniform” datasets) are shown by solid lines. The results obtained from the datasets with 1 k-point located at K and randomly chosen q-points are shown by dashed lines. LA and TA correspond to longitudinal and transverse acoustic phonons, respectively. ZO 1and LO 2stand for the homopolar and polar optical phonons, respectively. Inset: Selected directions in the first Brillouin zone along which the training dataset of first-principles electron–phonon matrix elements was uniformly distributed. (b) Electron drift mobility versus temperature and (c) scattering rate versus energy with respect to the conduction band minima at K and K ′, obtained using the ”uniform” training dataset for different dataset sizes, as well as the EPW code.
+
+code, which computes the mobility using a linearized Boltzmann transport equation. This figure shows that the very accurate results for the mobility, compared to the state-of-the-art DFPT+Wannier approach, can be obtained with the ”uniform” training datasets containing more than 100 q-points and converging for the datasets containing 160 q-points. Fig. 3 (c) illustrates the same point by showing the total scattering rate as a function of the energy with respect to the CBM, obtained using our ML approach and the DFPT+Wannier approach. For the results obtained using the ML approach from now on, we use the ”uniform” training dataset with 160 q-points. The computational cost of the ML approach is discussed in Supplementary Material [48].  
+
+> C. Accuracy of the model and machine-learning approaches
+
+We first compare the el-ph matrix elements obtained using our model and ML approaches with those obtained from DFPT and the Wannier interpolation computed with the EPW code. In Figs. 4 and 5 (a)-(d), we plot the scaled el-ph matrix elements ¯ gλq = gλq /pℏ/2mω λq
+
+(for an easy extraction of deformation potentials, see Eq. (10) and Ref. [16]) arising from the interaction with LA, TA, polar optical and homopolar optical phonons, respectively, where the K point is the initial electronic state. The EPW results are shown in black in both figures, while the results from the model and ML ap-proach are shown in color. It is evident that both the model and ML el-ph matrix elements match those of the DFPT+Wannier approach well for all phonon modes. The model and ML el-ph matrix elements also accu-rately capture the phonon wave vector dependence of the el-ph matrix elements obtained using the EPW code, see Figs. 4 and 5. In all these approaches, the el-ph matrix elements corresponding to LA, LO 2 and ZO 1 phonons are isotropic, while those related to TA phonons are highly anisotropic [69]. The el-ph matrix elements due to the polar optical (LO 2) phonon mode steeply increase to-wards the Γ point, but do not diverge [43, 44]. The el-ph matrix elements due to the homopolar (ZO 1) mode exhibit a cusp near the Γ point due to the long-range interaction [56, 57]. Both the model and ML approaches correctly describe the different behavior of el-ph matrix elements with respect to the phonon wave vector for all phonon modes. Next we analyze the phonon-resolved scattering rates of single layer MoS 2 obtained from our approaches and the EPW code. In Figs. 4 and 5 (e), we plot the scattering rates as a function of the electronic energy with respect to the CBM for the phonon modes that are mirror-even at Γ (the scattering due to the phonon modes that are mirror-odd at Γ is much weaker). The circular points correspond to the EPW calculations while the solid lines correspond to our model approach [Fig. 4 (e)] and our ML approach [Fig. 5 (e)]. We can see that the ML approach is almost as accurate as the DFPT+Wannier approach, while the model becomes somewhat less accurate for the TA modes, likely due to the neglect of the piezoelectric long-range interaction, which is included in the EPW and ML calculations. All three methods used show that the largest scattering rate is due to LA phonons [Figs. 4 and 5 (e)], exhibiting a weak energy dependence in the energy interval consid-ered because it is proportional to the density of states. The scattering due to the polar optical (LO 2) mode is the second strongest scattering mechanism in the middle of the energy interval considered, with the characteristic energy dependence indicating the onset of phonon emis-sion near 50 meV. The homopolar (ZO 1) phonon has a 9  
+
+> FIG. 4. Phonon-mode resolved scaled electron-phonon matrix elements with the initial electronic state at the K point as a function of the phonon wave vector. The results shown in color are obtained using the model approach. The black curves are the results obtained using the EPW code. Panels (a), (b), (c) and (d) correspond to longitudinal acoustic (LA), transverse acoustic (TA), polar optical (LO 2) and homopolar optical (ZO 1) phonons, respectively. (e) Scattering rates versus energy with respect to the conduction band minima at K and K ′. Solid lines represent the model results, while the dots correspond to the EPW results. (f) Electron mobility versus temperature. Solid lines represent the model results, while dashed lines correspond to the EPW results.
+
+similar energy dependence compared to the polar opti-cal phonon, but it is the weakest scattering mechanism overall. The scattering rates due to TA and TO 2 modes increase with energy, with the scattering rate due to TO 2
+
+mode becoming the second strongest scattering mecha-nism at higher energies. Finally, we compare the mobility calculated using the model and ML approaches with that obtained using the DFPT+Wannier approach, see Figs. 4 and 5 (f). It is clear that the ML approach is almost as accurate as the more rigorous DFPT+Wannier approach, while the model approach is somewhat less accurate. Furthermore, the ML approach is very easy to implement, unlike the model approach, which needs to be carefully formulated and parameters calculated. The experimentally reported room-temperature mobil-ities for monolayer MoS 2 vary by an order of magnitude [between ∼ 15 and ∼ 150 cm 2/(Vs)] [70–73]. These dis-crepancies are commonly attributed to differences in the quality of samples, substrates and contacts. The room-temperature mobility obtained with our ML model and the EPW framework are 159 and 156 cm 2/(Vs), respec-tively, and are close to the maximal mobility value of 148 cm 2/(Vs) reported by Yu et al. [71]. There have been several first-principles studies of the electron mobility of 2D MoS 2 in recent years [2, 47, 54, 57, 67, 68, 74–79]. The reported first-principles values of mobility vary between ∼ 110 and ∼ 410 cm 2/(Vs). This may stem from different exchange-correlation functionals leading to different energy differences between the K/K ′
+
+and Q valleys (the Q valleys are closest in energy to the K/K ′ valleys), but also from different methods to calcu-late electron-phonon matrix elements (using supercells, linearly or Wannier interpolated DFPT). The conceptual framework to accurately include the effect of long-range interactions in 2D materials was developed and applied to MoS 2 only in Refs. [2, 57]. Ref. [2] reported a room-temperature electron drift mobility of 132 cm 2/(Vs), in good agreement with our results.   
+
+> D. Thermoelectric transport properties of 2D MoS 2at 300 K
+
+In this section, we obtain the thermoelectric trans-port coefficients of 2D MoS 2 at room temperature and compare them with available experimental data [71– 73, 80, 81]. Previous studies of thermoelectric transport in 2D MoS 2 either did not properly account for the effect of long-range interactions on el-ph scattering or employed simpler scattering models than those developed in this work [82–87]. Furthermore, no comparisons were made with experimental data on thermoelectric transport co-efficients [80, 81]. Here we will present only the ML results, as the re-sults of the model approach are very similar. Fig. 6 (a) illustrates our calculated chemical potential as a func-tion of electron concentration and shows excellent agree-ment with the experimental data [80, 81]. In Fig. 6 (b), we compare the conductivity obtained using our ML ap-proach and measured or estimated experimentally [71– 73, 80, 81]. We find the standard behavior seen in semi-10 
+
+FIG. 5. Phonon-mode resolved scaled electron-phonon matrix elements with the initial electronic state at the K point as a function of the phonon wave vector. The results shown in color are obtained using the machine-learning approach. The black curves are the results obtained using the EPW code. Panels (a), (b), (c) and (d) correspond to longitudinal acoustic (LA), transverse acoustic (TA), polar optical (LO 2) and homopolar optical (ZO 1) phonons, respectively. (e) Scattering rates versus energy with respect to the conduction band minima at K and K ′. Solid lines represent the machine-learning results, while the dots correspond to the EPW results. (f) Electron mobility versus temperature. Solid lines represent the machine-learning results, while dashed lines correspond to the EPW results. 
+
+conductors, i.e. there is an increase in conductivity due to the increase in carrier concentration. Refs. [80, 81] reported the conductivity values in the units of S/m, obtained by taking the effective monolayer thickness 
+
+heff  
+
+> z
+
+= 6 .6 ˚ A, which includes the bare S–S nuclear sep-aration ( hz = 3 .13 ˚ A) together with the finite spatial ex-tent of the sulfur electron clouds on outer surfaces of the S–Mo–S monolayer. Therefore, we use the same value of the effective monolayer thickness as Refs. [80, 81] in our conductivity calculations. Moreover, we estimated the conductivity values from Refs. [71–73] using the mea-sured mobility values, the quoted carrier concentration values and heff  
+
+> z
+
+= 6 .6 ˚ A. Similarly to the mobility values, there is almost an order of magnitude difference between the conductivity values obtained from experiments, re-flecting the sample, substrate and contact quality. Our conductivity values are in very good agreement with ex-periments for the sample with the highest mobility [71]. The discrepancy between our calculations with other experimental data can be attributed to extrinsic disor-der effects, 1 such as charged impurities and substrate-induced scattering. To assess this effect quantitatively,  
+
+> 1In principle, another potential source of discrepancy could be the use of the momentum relaxation time approximation instead of the numerical solution of the linearized BTE. The momen-tum relaxation time approximation is accurate when transport is dominated by quasi-elastic intravalley acoustic phonon scatter-ing, as is the case here. Indeed, the momentum relaxation time approximation was shown to yield mobility values nearly identi-cal to those obtained from the linearized BTE for phonon-limited
+
+we model ionized impurity scattering using a screened Coulomb potential of an impurity as a perturbation (see Supplementary Material [48]) and add it to phonon scat-tering via Matthiessen’s rule. We consider impurity den-sities up to 2 × 10 12 cm −2, which is consistent with ex-perimentally inferred values for monolayer MoS 2 [71, 89]. For impurity concentrations in this range, the calculated conductivities fall within the range of experimentally re-ported values (see Supplementary Material [48]). In Fig. 6 (c), we plot the conductivity resolved by each mirror-even phonon mode to determine the dom-inant contributions to the thermoelectric transport co-efficients. We find that the LA phonon mode has the largest contribution throughout the whole range of car-rier concentrations. At very high electron concentrations ( ∼ 5 × 10 13 cm −2), we find that the polar optical (LO 2)phonon has a comparable contribution to conductivity to that of LA phonon mode, while other modes contribute much less. These conclusions are in accordance with the plots of scattering rates shown in Figs. 4 and 5 (e), which also show that LA and, to a much lesser extent, LO 2
+
+modes are the largest contributors to transport in the range of Fermi energies corresponding to realistic carrier concentrations, see Fig. 6 (a). The absolute value of the Seebeck coefficient versus carrier concentration is illustrated in Fig. 6 (d). We find the standard semiconductor behavior of Seebeck co- 
+
+> transport in MoS 2[88].
+
+11      
+
+> FIG. 6. Thermoelectric transport properties of monolayer MoS 2at 300 K as a function of carrier concentration: (a) chemical potential, (b) electrical conductivity, (c) phonon mode-resolved conductivity, (d) Seebeck coefficient, and (e) power factor. The solid lines correspond to our results using the machine-learning approach. The squares represent the ex-perimental data taken from Ref. [80, 81]. The other symbols represent estimates of conductivity taken from Refs. [71–73].
+
+efficient, i.e. the absolute value of S decreases with in-creasing carrier concentration. For different experimen-tal samples, we find different values of the Seebeck coef-ficient. For example, the highest measured Seebeck co-efficient varies from ∼ 280 μV/K to ∼ 380 μV/K for the carrier concentrations of ∼ 10 12 cm −2 [80, 81]. Our predicted values of the Seebeck coefficient are within the experimental data for higher carrier concentrations (∼ 10 12 –10 13 cm −2), as seen in Fig. 6 (d). However, at lower carrier concentrations ( < 10 12 cm −2), our re-sults overestimate the measured Seebeck coefficient. Alikely reason for this is that our calculations consider only the lowest conduction band contribution to trans-port, whereas at such low carrier concentrations, ther-mally activated holes from the highest valence band may also contribute to transport, effectively reducing the to-tal Seebeck coefficient. Ionized impurity scattering has almost negligible effect on the calculated Seebeck coeffi-cient values. The power factor as a function of the carrier con-centration is shown in Fig. 6 (e). Ng et al. [80] mea-sured the highest power factor of S2σ|exp = 2 .0 ×10 −3
+
+W/(mK 2) with the optimal carrier concentration of n ∼
+
+1.3 ×10 13 cm −2, while Hippalgaonkar et al. [81] measured the highest power factor to be S2σ|exp = 3 .3 ×10 −3
+
+W/(mK 2). Our calculations predict the maximal power factor of 11 .6 mW K −2m−1 (for the effective thickness of heff  
+
+> z
+
+= 6 .6 ˚ A) with the optimal carrier concentration of n = 10 13 cm −2. When ionized impurity scattering is included (see Supplementary Material [48] ), with impu-rity densities up to 2 × 10 12 cm −2, the maximal power factor is achieved for carrier concentrations in the range of (1–2) × 10 13 cm −2, with peak values ranging from 2 to 11 .6 mW K −2m−1. At high impurity concentrations, the calculated power factor shows good agreement with experimentally measured values, confirming that impu-rity scattering is likely the dominant mechanism limiting thermoelectric performance in these samples (see Supple-mentary Material [48]). Importantly, the predicted phonon-limited room tem-perature power factor of single layer MoS 2 is larger than those of the commercial thermoelectric materials bismuth telluride [23, 90] and lead telluride [21, 91, 92] by a factor of ∼ 2 − 4. The large power factor can be attributed to the large effective mass of monolayer MoS 2 and its 2D density of states. Heterostructures of MoS 2 have been shown to enhance the power factor [80, 81] and reduce the lattice thermal conductivity [93], so they are promising candidates for next generation thermoelectric generators.  
+
+> IV. SUMMARY AND CONCLUSIONS
+
+We have developed computationally inexpensive model and machine-learning approaches combined with first-principles calculations that provide an accurate descrip-tion of electron-phonon interaction in semiconductors. We have applied these methods to calculate thermo-electric transport properties of two-dimensional MoS 2.The model approach includes the Fr¨ ohlich model to de-scribe polar optical modes, while the deformation poten-tial models describe electron-phonon scattering processes due to other modes. The new aspect of our model ap-proach is the generalization of the acoustic deformation potential approach for arbitrary crystal symmetries and arbitrary locations of band extrema. All the parameters for the model approach can be computed using state-of-the-art density functional perturbation theory (DFPT). In the machine-learning approach, we use regression to obtain electron-phonon matrix elements on dense wave vector grids in the regions of the Brillouin zone relevant for transport starting from relatively small wave vector grids obtained using DFPT. We have shown that both the model and machine-learning approaches show very good agreement with the DFPT+Wannier approach for dense wave vector grids. The thermoelectric transport coefficients derived from both models are also in good agreement with available experimental data and accurately capture the high ther-moelectric power factor of 2D MoS 2. We find that the dominant scattering mechanism is due to longitudinal acoustic phonon modes. 12 We highlight that both the model and machine-learning approaches can predict accurate thermoelec-tric transport coefficients for a variety of materials at a much reduced computational time compared to the standard DFPT+Wannier approach. In this work, the electron-phonon matrix elements in both model and machine learning approaches were obtained from the DFPT+Wannier calculations primarily because such a benchmark was needed for the validation of both ap-proaches. However, neither method intrinsically requires the Wannier interpolation: the relevant parameters can be extracted directly from DFPT calculations using a small number of phonon wave vectors, which can dras-tically reduce the computational cost. The ML ap-proach can be two orders of magnitude faster than the DFPT+Wannier approach and has comparable accu-racy. The ML approach is also straightforward to im-plement. The model approach is less accurate than the DFPT+Wannier and ML approaches (but still fairly ac-curate) and can be three orders of magnitude faster than the DFPT+Wannier approach. However, the model ap-proach may require considerable effort to be formulated for each material of interest. Therefore, the ML approach may be the most advantageous method among the three for screening different material systems. 
+
+> ACKNOWLEDGEMENT
+
+We thank Stephen Fahy, Samuel Ponc´ e and Yunhao Mo for helpful discussions. This project received fund-ing from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement number 713567. This work was partly supported by Science Foundation Ireland under grant numbers 15/IA/3160 and 13/RC/2077. The later grant was co-funded under the European Regional De-velopment Fund. We acknowledge the Irish Centre for High-End Computing (ICHEC) for the provision of com-putational facilities. R. D. acknowledges CSC-IT Center for Science in Finland for supporting this work with high-performance computing resources. 
+
+> Appendix A: Intravalley non-polar optical and intervalley deformation potentials
+
+To obtain the independent DP components, we adopt the method described by Murphy et al. [16] and D’Souza 
+
+et al. [18]. In this method, we relate the el-ph matrix elements obtained from DFPT and the Wannier interpo-lation with deformation potentials along high-symmetry lines using Eq. (7) and Table II. In DFPT, the el-ph matrix element from a state k and band index n to a state k + q and band index n′ is given as [94] 
+
+gn′k+q 
+
+> nk,λ q
+
+=
+
+s
+
+ℏ
+
+2ωλq
+
+X
+
+> b,i
+
+r 1
+
+mb
+
+eqλb,i 
+
+× ⟨ un′k+q | ∂b,i, q vks |unk⟩ , (A1) where unk is the lattice periodic part of the wave func-tion given as 1√Nl
+
+unkeik·r , where Nl is the number of primitive cells. eqλb,i is the ith Cartesian component of the phonon eigenvector associated with atom b of mass mb. q
+
+and λ are the wave vector and branch of the phonon with frequency ωλq that is involved in the scattering event. 
+
+∂b,i, q vks is the lattice periodic part of the first-order ex-pansion of the perturbed Kohn-Sham potential [94]. The el-ph matrix elements are calculated using DFPT and the Wannier interpolation between the electronic states at K and K+ q using Eq. (A1) as |q| → 0 along two directions, q ∥ to Γ-K and q ∥ to Γ-M. The DFPT electron-phonon matrix elements divided by the phonon amplitude pℏ/2mω λq are then plotted and fitted to a third-order polynomial, see Fig. 7. We fit the linear co-efficient terms to the expressions given by Eq. (7) and Table II using a linear regression technique and obtain the linearly independent deformation potentials for the K valley. The calculated independent components are shown in Table IV. It is clear from Fig. 7 that in the long wavelength limit ( q → 0), analytical expressions ac-curately describe the first principle matrix elements. We note that when q is parallel to Γ-K, the deformation po-tential due to the TA phonon mode vanishes. However, the non-linear coefficients of the DFPT+Wannier matrix elements do not vanish, and they are the consequence of long-range piezoelectric interaction.                            
+
+> [1] R. Claes, S. Ponc´ e, G.-M. Rignanese, and G. Hautier, “Phonon-limited electronic transport through first prin-ciples,” Nature Reviews Physics , vol. 7, pp. 73–90, 2025. [2] S. Ponc´ e, M. Royo, M. Stengel, N. Marzari, and M. Gib-ertini, “Long-range electrostatic contribution to electron-phonon couplings and mobilities of two-dimensional and bulk materials,” Phys. Rev. B , vol. 107, p. 155424, 2023. [3] S. Ponc´ e, F. Macheda, E. R. Margine, N. Marzari, N. Bonini, and F. Giustino, “First-principles predictions of hall and drift mobilities in semiconductors,” Phys. Rev. Res. , vol. 3, p. 043022, 2021. [4] M. Engel, M. Marsman, C. Franchini, and G. Kresse, “Electron-phonon interactions using the projector augmented-wave method and wannier functions,” Phys. Rev. B , vol. 101, p. 184302, 2020. [5] H. Lee, S. Ponc´ e, K. Bushick, S. Hajinazar, J. Lafuente-Bartolome, J. Leveillee, C. Lian, J.-M. Lihm, F. Macheda, H. Mori, H. Paudyal, W. H. Sio, S. Tiwari, M. Zacharias, X. Zhang, N. Bonini, E. Kioupakis, E. R. Margine, and F. Giustino, “Electron–phonon physics
+
+13 
+
+FIG. 7. Scaled electron-phonon matrix elements due to acoustic modes between the electronic states at K and K+ q
+
+as a function of the phonon wave vector q whose directions are indicated at the top of each panel. Orange and blue dots rep-resent the matrix elements calculated using density functional perturbation theory and the Wannier interpolation for trans-verse and longitudinal acoustic modes, respectively. Dashed lines are the third-order polynomial fits to those matrix ele-ments. Solid lines are obtained using the computed values of deformation potentials (DPs) given in Table II for transverse and longitudinal acoustic modes in the long-wavelength limit. from first principles using the epw code,” npj Compu-tational Materials , vol. 9, p. 156, 2023. [6] J.-J. Zhou, J. Park, I.-T. Lu, I. Maliyov, X. Tong, and M. Bernardi, “Perturbo: A software package for ab initio electron–phonon interactions, charge transport and ul-trafast dynamics,” Computer Physics Communications ,vol. 264, p. 107970, 2021. [7] A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, and B. Kozinsky, “Phoebe: a high-performance frame-work for solving phonon and electron boltzmann trans-port equations,” Journal of Physics: Materials , vol. 5, no. 3, p. 035003, 2022. [8] G. Marini, G. Marchese, G. Profeta, J. Sjakste, F. Macheda, N. Vast, F. Mauri, and M. Calandra, “Epiq: An open-source software for the calculation of electron-phonon interaction related properties,” Com-puter Physics Communications , vol. 295, p. 108950, 2024. [9] M. J. Verstraete, J. Abreu, G. E. Allemand, B. Amadon, G. Antonius, M. Azizi, L. Baguet, C. Barat, L. Bas-togne, R. B´ ejaud, J.-M. Beuken, J. Bieder, A. Blanchet, F. Bottin, J. Bouchet, J. Bouquiaux, E. Bousquet, J. Boust, F. Brieuc, V. Brousseau-Couture, N. Brouwer, F. Bruneval, A. Castellano, E. Castiel, J.-B. Charraud, J. Cl´ erouin, M. Cˆ ot´ e, C. Duval, A. Gallo, F. Gen-dron, G. Geneste, P. Ghosez, M. Giantomassi, O. Gin-gras, F. G´ omez-Ortiz, X. Gonze, F. A. Goudreault, A. Gr¨ uneis, R. Gupta, B. Guster, D. R. Hamann, X. He, O. Hellman, N. Holzwarth, F. Jollet, P. Kestener, I.-M. Lygatsika, O. Nadeau, L. MacEnulty, E. Marazzi, M. Mignolet, D. D. O’Regan, R. Outerovitch, C. Pail-lard, G. Petretto, S. Ponc´ e, F. Ricci, G.-M. Rig-nanese, M. Rodriguez-Mayorga, A. H. Romero, S. Ros-tami, M. Royo, M. Sarraute, A. Sasani, F. Soubiran, M. Stengel, C. Tantardini, M. Torrent, V. Trinquet, V. Vasilchenko, D. Waroquiers, A. Zabalo, A. Zadoks, H. Zhang, and J. Zwanziger, “Abinit 2025: New capa-bilities for the predictive modeling of solids and nano-materials,” The Journal of Chemical Physics , vol. 163, p. 164126, 10 2025. [10] X. Gonze and C. Lee, “Dynamical matrices, born effec-tive charges, dielectric permittivity tensors, and inter-atomic force constants from density-functional pertur-bation theory,” Phys. Rev. B , vol. 55, pp. 10355–10368, 1997. [11] S. Baroni, S. de Gironcoli, A. Dal Corso, and P. Giannozzi, “Phonons and related crystal properties from density-functional perturbation theory,” Rev. Mod. Phys. , vol. 73, pp. 515–562, 2001. [12] F. Giustino, M. L. Cohen, and S. G. Louie, “Electron-phonon interaction using wannier functions,” Phys. Rev. B, vol. 76, p. 165108, 2007. [13] G. Brunin, H. P. C. Miranda, M. Giantomassi, M. Royo, M. Stengel, M. J. Verstraete, X. Gonze, G.-M. Rignanese, and G. Hautier, “Phonon-limited electron mobility in si, gaas, and gap with exact treatment of dynamical quadrupoles,” Phys. Rev. B , vol. 102, p. 094308, 2020. [14] B. K. Ridley, Quantum Processes in Semiconductors ,pp. 82 – 137. Oxford, UK: Oxford University Press, fourth ed., 1999. [15] F. Murphy-Armando and S. Fahy, “First-principles cal-culation of carrier-phonon scattering in n-type si 1−xge x
+
+alloys,” Phys. Rev. B , vol. 78, p. 035202, 2008. [16] A. R. Murphy, F. Murphy-Armando, S. Fahy, and I. Savi´ c, “Acoustic deformation potentials of n-type pbte from first principles,” Phys. Rev. B , vol. 98, p. 085201, 2018. [17] J. Cao, J. D. Querales-Flores, A. R. Murphy, S. Fahy, and I. Savi´ c, “Dominant electron-phonon scattering mecha-nisms in n-type pbte from first principles,” Phys. Rev. B, vol. 98, p. 205202, 2018. [18] R. D’Souza, J. Cao, J. D. Querales-Flores, S. Fahy, and I. Savi´ c, “Electron-phonon scattering and thermoelectric transport in p-type pbte from first principles,” Phys. Rev. B, vol. 102, p. 115204, 2020. [19] A. M. Ganose, J. Park, A. Faghaninia, R. Woods-Robinson, K. A. K. A. Persson, and A. Jain, “Efficient calculation of carrier scattering rates from first princi-ples,” Nature Communications , vol. 12, p. 2222, 2021. [20] P. Graziosi, Z. Li, and N. Neophytou, “Electra code: Full-band electronic transport properties of materials,” 
+
+Computer Physics Communications , vol. 287, p. 108670, 14 
+
+2023. [21] Y. Pei, A. D. LaLonde, H. Wang, and G. J. Snyder, “Low effective mass leading to high thermoelectric per-formance,” Energy Environ. Sci. , vol. 5, pp. 7963–7969, 2012. [22] H. Wang, Y. Pei, A. D. LaLonde, and G. J. Snyder, “Weak electron–phonon coupling contributing to high thermoelectric performance in n-type pbse,” Proceedings of the National Academy of Sciences , vol. 109, no. 25, pp. 9705–9709, 2012. [23] I. T. Witting, T. C. Chasapis, F. Ricci, M. Peters, N. A. Heinz, G. Hautier, and G. J. Snyder, “The thermoelec-tric properties of bismuth telluride,” Advanced Electronic Materials , vol. 5, no. 6, p. 1800904, 2019. [24] C. Herring and E. Vogt, “Transport and deformation-potential theory for many-valley semiconductors with anisotropic scattering,” Phys. Rev. , vol. 101, pp. 944– 961, 1956. [25] M. V. Fischetti and S. E. Laux, “Band structure, de-formation potentials, and carrier mobility in strained si, ge, and sige alloys,” Journal of Applied Physics , vol. 80, no. 4, pp. 2234–2252, 1996. [26] J. Cao, J. Querales-Flores, S. Fahy, and I. Savi´ c, “Ther-mally induced band gap increase and high thermoelectric figure of merit of n-type pbte,” Materials Today Physics ,vol. 12, p. 100172, 2020. [27] R. D’Souza, J. D. Querales-Flores, J. Cao, S. Fahy, and I. Savi´ c, “Temperature induced band convergence, inter-valley scattering, and thermoelectric transport in p-type pbte,” ACS Applied Energy Materials , vol. 5, pp. 7260– 7268, 2022. [28] A. Haldar, Q. Clark, M. Zacharias, F. Giustino, and S. Sharifzadeh, “Machine learning electron-phonon in-teractions in two-dimensional semiconducting materi-als: The case of zero-point renormalization,” Phys. Rev. Mater. , vol. 8, p. L101001, 2024. [29] L. B. Oftelie, P. Rajak, R. K. Kalia, A. Nakano, F. Sha, J. Sun, D. J. Singh, M. Aykol, P. Huck, K. Persson, and P. Vashishta, “Active learning for accelerated design of layered materials,” npj Computational Materials , vol. 4, p. 74, 2018. [30] T. Wang, C. Zhang, H. Snoussi, and G. Zhang, “Ma-chine learning approaches for thermoelectric materials research,” Advanced Functional Materials , vol. 30, no. 5, p. 1906041, 2020. [31] X. Wang, Y. Sheng, J. Ning, J. Xi, L. Xi, D. Qiu, J. Yang, and X. Ke, “A critical review of machine learn-ing techniques on thermoelectric materials,” The Journal of Physical Chemistry Letters , vol. 14, pp. 1808–1822, 2023. [32] J. Qu, Y. R. Xie, K. M. Ciesielski, C. E. Porter, E. S. Toberer, and E. Ertekin, “Leveraging language represen-tation for materials exploration and discovery,” npj Com-putational Materials , vol. 10, p. 58, 2024. [33] U. S. Vaitesswar, D. Bash, T. Huang, J. Recatala-Gomez, T. Deng, S.-W. Yang, X. Wang, and K. Hippalgaonkar, “Machine learning based feature engineering for thermo-electric materials by design,” Digital Discovery , vol. 3, pp. 210–220, 2024. [34] N. K. Barua, S. Lee, A. O. Oliynyk, and H. Kleinke, “Thermoelectric material performance (zt) predictions with machine learning,” ACS Applied Materials & In-terfaces , vol. 17, p. 1662–1673, 2025. [35] V. Stanev, C. Oses, A. G. Kusne, E. Rodriguez, J. Paglione, S. Curtarolo, and I. Takeuchi, “Machine learning modeling of superconducting critical tempera-ture,” npj Computational Materials , vol. 4, p. 29, 2018. [36] S. R. Xie, Y. Quan, A. C. Hire, B. Deng, J. M. DeStefano, I. Salinas, U. S. Shah, L. Fanfarillo, J. Lim, J. Kim, G. R. Stewart, P. J. Hamlin, J. J.and Hirschfeld, and R. G. Hennig, “Machine learning of superconducting critical temperature from eliashberg theory,” npj Computational Materials , vol. 8, p. 14, 2022. [37] T. F. T. Cerqueira, Y.-W. Fang, I. Errea, A. Sanna, and M. A. L. Marques, “Searching materials space for hy-dride superconductors at ambient pressure,” Advanced Functional Materials , vol. 34, no. 40, p. 2404043, 2024. [38] T. H. B. da Silva, T. Cavignac, T. F. T. Cerqueira, H.-C. Wang, and M. A. L. Marques, “Machine-learning accel-erated prediction of two-dimensional conventional super-conductors,” Materials Horizons , vol. 12, pp. 3408–3419, 2025. [39] H. Li, Z. Tang, J. Fu, W.-H. Dong, N. Zou, X. Gong, W. Duan, and Y. Xu, “Deep-learning density func-tional perturbation theory,” Phys. Rev. Lett. , vol. 132, p. 096401, Feb 2024. [40] Y. Zhong, S. Liu, B. Zhang, Z. Tao, Y. Sun, W. Chu, X.-G. Gong, J.-H. Yang, and H. Xiang, “Accelerating the calculation of electron–phonon coupling strength with machine learning,” Nature Computational Science , vol. 4, pp. 615–625, 2024. [41] Z. Wang, W. Duan, and Z. Lin arXiv:2602.23084 .[42] D. Wee, J. Kim, S. Bang, G. Samsonidze, and B. Kozin-sky, “Quantification of uncertainties in thermoelectric properties of materials from a first-principles prediction method: An approach based on gaussian process regres-sion,” Phys. Rev. Mater. , vol. 3, p. 033803, 2019. [43] T. Sohier, M. Calandra, and F. Mauri, “Two-dimensional fr¨ ohlich interaction in transition-metal dichalcogenide monolayers: Theoretical modeling and first-principles calculations,” Phys. Rev. B , vol. 94, p. 085415, 2016. [44] W. H. Sio and F. Giustino, “Unified ab initio descrip-tion of fr¨ ohlich electron-phonon interactions in two-dimensional and three-dimensional materials,” Phys. Rev. B , vol. 105, p. 115414, 2022. [45] N. W. Ashcroft and N. D. Mermin, Solid State Physics ,pp. 250–258. New York City, USA: Harcourt College Publishers, 1st ed., 1976. [46] T. Sohier, M. Calandra, C.-H. Park, N. Bonini, N. Marzari, and F. Mauri, “Phonon-limited resistivity of graphene by first-principles calculations: Electron-phonon interactions, strain-induced gauge field, and boltzmann equation,” Phys. Rev. B , vol. 90, p. 125414, Sep 2014. [47] T. Gunst, T. Markussen, K. Stokbro, and M. Brandbyge, “First-principles method for electron-phonon coupling and electron mobility: Applications to two-dimensional materials,” Phys. Rev. B , vol. 93, p. 035414, Jan 2016. [48] See Supplemental Material at [url] for more details about the calculated electronic band structure of MoS 2, the derivation of the deformation potentials for arbitrary crystal symmetries and band extrema locations, our cal-culations of the parameters for intravalley polar and non-polar and intervalley scattering, details of our ionized im-purity scattering implementation and the computational cost of our calculations. The Supplemental Material also contains Ref. [49]. [49] T. Ando, A. B. Fowler, and F. Stern, “Electronic prop-15 
+
+erties of two-dimensional systems,” Reviews of Modern Physics , vol. 54, p. 437–672, Apr. 1982. [50] E. O. Kane, “Band structure of indium antimonide,” 
+
+Journal of Physics and Chemistry of Solids , vol. 1, no. 4, pp. 249–261, 1957. [51] M. S. Dresselhaus, G. Dresselhaus, and A. Jorio, Group Theory: Application to the Physics of Condensed Mat-ter , pp. 97, 246, 254–255. Berlin/Heidelberg, Germany: Springer-Verlag, 1st ed., 2008. [52] N. Wakabayashi, H. G. Smith, and R. M. Nicklow, “Lat-tice dynamics of hexagonal mos 2 studied by neutron scat-tering,” Phys. Rev. B , vol. 12, pp. 659–663, Jul 1975. [53] The experimental points correspond to bulk MoS 2, but only for the modes that are expected to appear in the monolayer. [54] K. Kaasbjerg, K. S. Thygesen, and A.-P. Jauho, “Acous-tic phonon limited mobility in two-dimensional semicon-ductors: Deformation potential and piezoelectric scatter-ing in monolayer mos 2 from first principles,” Phys. Rev. B, vol. 87, p. 235312, 2013. [55] P. Y. Yu and M. Cardona, Fundamentals of Semicon-ductors: Physics and Materials Properties , pp. 120–121. Heidelberg, Germany: Springer, fourth ed., 2010. [56] T. Deng, G. Wu, W. Shi, Z. M. Wong, J.-S. Wang, and S.-W. Yang, “Ab initio dipolar electron-phonon interactions in two-dimensional materials,” Phys. Rev. B , vol. 103, p. 075410, Feb 2021. [57] S. Ponc´ e, M. Royo, M. Gibertini, N. Marzari, and M. Stengel, “Accurate prediction of hall mobilities in two-dimensional materials through gauge-covariant quadrupolar contributions,” Phys. Rev. Lett. , vol. 130, p. 166301, 2023. [58] F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, J. Vanderplas, A. Passos, D. Cour-napeau, M. Brucher, M. Perrot, and E. Duchesnay, “Scikit-learn: Machine learning in Python,” Journal of Machine Learning Research , vol. 12, pp. 2825–2830, 2011. [59] P. Giannozzi, S. Baroni, N. Bonini, M. Calandra, R. Car, C. Cavazzoni, D. Ceresoli, G. L. Chiarotti, M. Cococ-cioni, I. Dabo, A. Dal Corso, S. de Gironcoli, S. Fabris, G. Fratesi, R. Gebauer, U. Gerstmann, C. Gougoussis, A. Kokalj, M. Lazzeri, L. Martin-Samos, N. Marzari, F. Mauri, R. Mazzarello, S. Paolini, A. Pasquarello, L. Paulatto, C. Sbraccia, S. Scandolo, G. Sclauzero, A. P. Seitsonen, A. Smogunov, P. Umari, and R. M. Wentz-covitch, “Quantum espresso: a modular and open-source software project for quantum simulations of materials,” 
+
+Journal of Physics: Condensed Matter , vol. 21, no. 39, p. 395502, 2009. [60] P. Giannozzi, O. Andreussi, T. Brumme, O. Bunau, M. Buongiorno Nardelli, M. Calandra, R. Car, C. Cavaz-zoni, D. Ceresoli, M. Cococcioni, N. Colonna, I. Carn-imeo, A. Dal Corso, S. de Gironcoli, P. Delugas, R. A. DiStasio, A. Ferretti, A. Floris, G. Fratesi, G. Fugallo, R. Gebauer, U. Gerstmann, F. Giustino, T. Gorni, J. Jia, M. Kawamura, H.-Y. Ko, A. Kokalj, E. K¨ u¸ c¨ ukbenli, M. Lazzeri, M. Marsili, N. Marzari, F. Mauri, N. L. Nguyen, H.-V. Nguyen, A. Otero-de-la Roza, L. Paulatto, S. Ponc´ e, D. Rocca, R. Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Thon-hauser, P. Umari, N. Vast, X. Wu, and S. Baroni, “Ad-vanced capabilities for materials modelling with quantum espresso,” Journal of Physics: Condensed Matter , vol. 29, p. 465901, oct 2017. [61] J. P. Perdew, K. Burke, and M. Ernzerhof, “Generalized gradient approximation made simple,” Phys. Rev. Lett. ,vol. 77, pp. 3865–3868, 1996. [62] T. Sohier, M. Calandra, and F. Mauri, “Density func-tional perturbation theory for gated two-dimensional het-erostructures: Theoretical developments and application to flexural phonons in graphene,” Phys. Rev. B , vol. 96, p. 075448, 2017. [63] S. Ponc´ e, E. Margine, C. Verdi, and F. Giustino, “Epw: Electron–phonon coupling, transport and superconduct-ing properties using maximally localized wannier func-tions,” Computer Physics Communications , vol. 209, pp. 116–133, 2016. [64] B. T. Blue, G. G. Jernigan, D. Le, J. J. Fonseca, S. D. Lough, J. E. Thompson, D. D. Smalley, T. S. Rahman, J. T. Robinson, and M. Ishigami, “Metallicity of 2H-MoS2 induced by au hybridization,” 2d Mater. , vol. 7, p. 025021, Feb. 2020. [65] K. F. Mak, C. Lee, J. Hone, J. Shan, and T. F. Heinz, “Atomically thin mos 2: A new direct-gap semiconduc-tor,” Phys. Rev. Lett. , vol. 105, p. 136805, 2010. [66] D. C ¸ akır, F. M. Peeters, and C. Sevik, “Mechanical and thermal properties of h-MX 2 (M=Cr, Mo, W; X=O, S, Se, Te) monolayers: A comparative study,” Applied Physics Letters , vol. 104, p. 203110, May 2014. [67] K. Kaasbjerg, K. S. Thygesen, and K. W. Jacobsen, “Phonon-limited mobility in n-type single-layer mos 2
+
+from first principles,” Phys. Rev. B , vol. 85, p. 115317, 2012. [68] Z. Jin, X. Li, J. T. Mullen, and K. W. Kim, “Intrinsic transport properties of electrons and holes in monolayer transition-metal dichalcogenides,” Phys. Rev. B , vol. 90, p. 045422, Jul 2014. [69] K. Kaasbjerg, K. S. Thygesen, and K. W. Jacobsen Phys. Rev. B , vol. 85, p. 115317, 2012. [70] B. Radisavljevic and A. Kis, “Mobility engineering and a metal–insulator transition in monolayer mos2,” Nature Materials , vol. 12, pp. 815–820, 2013. [71] Z. Yu, Z.-Y. Ong, Y. Pan, Y. Cui, R. Xin, Y. Shi, B. Wang, Y. Wu, T. Chen, Y.-W. Zhang, G. Zhang, and X. Wang, “Realization of room-temperature phonon-limited carrier transport in monolayer mos2 by dielectric and carrier screening,” Advanced Materials , vol. 28, no. 3, pp. 547–552, 2016. [72] X. Cui, G.-H. Lee, Y. D. Kim, G. Arefe, P. Y. Huang, C.-H. Lee, D. A. Chenet, X. Zhang, L. Wang, F. Ye, F. Piz-zocchero, B. S. Jessen, K. Watanabe, T. Taniguchi, D. A. Muller, T. Low, P. Kim, and J. Hone, “Multi-terminal transport measurements of mos2 using a van der waals heterostructure device platform,” Nature Nanotechnol-ogy , vol. 10, p. 534–540, Apr. 2015. [73] Y. Liu, H. Wu, H.-C. Cheng, S. Yang, E. Zhu, Q. He, M. Ding, D. Li, J. Guo, N. O. Weiss, Y. Huang, and X. Duan, “Toward barrier free contact to molybde-num disulfide using graphene electrodes,” Nano Letters ,vol. 15, p. 3030–3034, Apr. 2015. [74] X. Li, J. T. Mullen, Z. Jin, K. M. Borysenko, M. Buon-giorno Nardelli, and K. W. Kim, “Intrinsic electrical transport properties of monolayer silicene and mos 2 from first principles,” Phys. Rev. B , vol. 87, p. 115418, 2013. [75] W. Li, “Electrical transport limited by electron-phonon coupling from boltzmann transport equation: An ab ini-tio study of si, al, and mos 2,” Phys. Rev. B , vol. 92, 16 
+
+p. 075405, 2015. [76] T. Sohier, D. Campi, N. Marzari, and M. Gibertini, “Mo-bility of two-dimensional materials from first principles in an accurate and automated framework,” Phys. Rev. Mater. , vol. 2, p. 114010, Nov 2018. [77] F. Guo, Z. Liu, M. Zhu, and Y. Zheng, “Electron–phonon scattering limited hole mobility at room temperature in a mos2 monolayer: first-principles calculations,” Phys. Chem. Chem. Phys. , vol. 21, pp. 22879–22887, 2019. [78] G. Gaddemane, S. Gopalan, M. L. Van de Put, and M. V. Fischetti, “Limitations of ab initio methods to predict the electronic-transport properties of two-dimensional semi-conductors: the computational example of 2h-phase tran-sition metal dichalcogenides,” Journal of Computational Electronics , vol. 20, pp. 49–59, 2021. [79] J. Backman, Y. Lee, and M. Luisier, “Phonon-limited transport in two-dimensional materials: A unified ap-proach for ab initio mobility and current calculations,” 
+
+Phys. Rev. Appl. , vol. 21, p. 054017, May 2024. [80] H. K. Ng, D. Chi, and K. Hippalgaonkar, “Effect of dimensionality on thermoelectric powerfactor of molyb-denum disulfide,” Journal of Applied Physics , vol. 121, p. 204303, 05 2017. [81] K. Hippalgaonkar, Y. Wang, Y. Ye, D. Y. Qiu, H. Zhu, Y. Wang, J. Moore, S. G. Louie, and X. Zhang, “High thermoelectric power factor in two-dimensional crystals of Mos 2,” Phys. Rev. B , vol. 95, p. 115407, Mar 2017. [82] H. Babaei, J. M. Khodadadi, and S. Sinha, “Large the-oretical thermoelectric power factor of suspended single-layer mos2,” Applied Physics Letters , vol. 105, no. 19, p. 193901, 2014. [83] Z. Jin, Q. Liao, H. Fang, Z. Liu, W. Liu, Z. Ding, T. Luo, and N. Yang, “A revisit to high thermoelectric perfor-mance of single-layer mos2,” Scientific Reports , vol. 5, p. 18342, 2015. [84] Y. Zhao, Z. Dai, C. Zhang, C. Lian, S. Zeng, G. Li, S. Meng, and J. Ni, “Intrinsic electronic transport and thermoelectric power factor in n-type doped monolayer mos2,” New Journal of Physics , vol. 20, p. 043009, apr 2018. [85] D. I. Bilc, D. Benea, V. Pop, P. Ghosez, and M. J. Verstraete, “Electronic and thermoelectric properties of transition-metal dichalcogenides,” The Journal of Physi-cal Chemistry C , vol. 125, no. 49, pp. 27084–27097, 2021. [86] R. Wisesa, A. Azhar, and E. Suprayoga, “Thermal trans-port and thermoelectric properties of transition metal dichalcogenides mox2 from first-principles calculation,” 
+
+Physica Scripta , vol. 99, no. 3, p. 035929, 2024. [87] S. Kumari, S. Kumar, S. Pratap, and S. S. Kubakaddi, “Ab-initio transport model to study the thermoelectric performance of mos2, mose2, and ws2 monolayers by us-ing boltzmann transport equation,” Journal of Physics: Condensed Matter , vol. 36, p. 315501, may 2024. [88] W. Li Phys. Rev. B , vol. 92, p. 075405, 2015. [89] X. Liu, B. Erbas, A. Conde-Rubio, N. Rivano, Z. Wang, J. Jiang, S. Bienz, N. Kumar, T. Sohier, M. Penedo, M. Banerjee, G. Fantner, R. Zenobi, N. Marzari, A. Kis, G. Boero, and J. Brugger, “Deterministic grayscale nan-otopography to engineer mobilities in strained mos2 fets,” Nature Communications , vol. 15, Aug. 2024. [90] J. Cha, C. Zhou, S.-P. Cho, S. H. Park, and I. Chung, “Ultrahigh power factor and electron mobility in n-type bi2te3–xcu stabilized under excess te condition,” ACS Applied Materials & Interfaces , vol. 11, pp. 30999–31008, 2019. [91] C. J. Vineis, T. C. Harman, S. D. Calawa, M. P. Walsh, R. E. Reeder, R. Singh, and A. Shakouri, “Carrier con-centration and temperature dependence of the electronic transport properties of epitaxial pbte and pbte/pbse nan-odot superlattices,” Phys. Rev. B , vol. 77, p. 235202, 2008. [92] P. Jood, J. P. Male, S. Anand, Y. Matsushita, Y. Tak-agiwa, M. G. Kanatzidis, G. J. Snyder, and M. Ohta, “Na doping in pbte: Solubility, band convergence, phase boundary mapping, and thermoelectric proper-ties,” Journal of the American Chemical Society , vol. 142, pp. 15464–15475, 2020. [93] S. E. Kim, F. Mujid, A. Rai, F. Eriksson, J. Suh, P. Pod-dar, A. Ray, C. Park, E. Fransson, Y. Zhong, D. A. Muller, P. Erhart, D. G. Cahill, and J. Park, “Extremely anisotropic van der waals thermal conductors,” Nature ,vol. 597, pp. 660–665, 2021. [94] F. Giustino, “Electron-phonon interactions from first principles,” Rev. Mod. Phys. , vol. 89, p. 015003, 2017.

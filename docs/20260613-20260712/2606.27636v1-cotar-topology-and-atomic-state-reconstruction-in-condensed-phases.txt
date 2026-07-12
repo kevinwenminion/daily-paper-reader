@@ -1,0 +1,762 @@
+Title: CoTAR: Topology and Atomic State Reconstruction in Condensed Phases
+
+URL Source: https://arxiv.org/pdf/2606.27636v1
+
+Published Time: Mon, 29 Jun 2026 00:23:39 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# CoTAR: Topology and Atomic State Reconstruction in Condensed Phases 
+
+## Hodaka Mori, ∗ Yu Miyazaki, and Takechika Kikkawa 
+
+Preferred Networks, Inc., Tokyo 100-0004, Japan 
+
+E-mail: hodakamori@preferred.jp 
+
+# Abstract 
+
+Universal machine learning interatomic poten-tials (uMLIPs) enable condensed-phase molec-ular dynamics (MD) simulations with near-first-principles accuracy, but their lack of ex-plicit molecular topology limits bond-aware analysis and reconnection to classical force fields. Here, we present CoTAR, a hybrid graph neural network (GNN)–hidden Markov model (HMM) framework that reconstructs molecular topology, formal charges, and un-paired electrons from atomic species, coordi-nates, and total charge by combining message passing on a proximity graph with a van der Waals prior, chemical constraints, and temporal smoothing. Across 128 nonreactive, topology-preserving condensed-phase systems, CoTAR achieved a bond-order-weighted F1 score of 0.906 on classical-MD data; for uMLIP trajec-tories, few-shot fine-tuning improved the valid-snapshot rate from 38.6% to 84.7%. The recon-structed topologies also supported downstream classical MD simulations, and HMM smoothing improved system-level MD simulation feasibil-ity from 83.6% to 85.9%, indicating that Co-TAR provides a practical framework for bond-aware analysis of condensed-phase uMLIP tra-jectories. 
+
+# Introduction 
+
+Universal machine learning interatomic po-tentials (uMLIPs) have rendered condensed-phase molecular dynamics (MD) simulations with near-first-principles accuracy and practi-cal computational cost feasible. 1–5 This capabil-ity is important for liquids, solutions, polymers, and interfaces, where quantum chemical treat-ments are often computationally expensive and classical force fields may lack transferability. 6,7 
+
+In contrast to classical force fields, uMLIP-based simulations generally do not require ex-plicit molecular topology. 1–5 This flexibility is advantageous; however, it complicates analyses that depend on bonding information, including molecule identification, reaction tracking, and functional-group analysis. It also complicates the reconnection of selected uMLIP configura-tions or pathways to classical force fields for larger-scale or longer-timescale simulations. Distance heuristics are widely used to infer covalent bonds from coordinates; 8–10 however, condensed phases contain many short inter-molecular contacts, including hydrogen bonds, solvation-shell contacts, ion pairs, and dense packing contacts. Consequently, these methods can generate false intermolecular bonds and do not assign bond orders. Constraint-based bond-order assignment methods can recover bond orders by enforcing valence and charge con-sistency on a candidate connectivity graph. 11 
+
+However, in dense periodic systems, numerous short intermolecular contacts render the candi-date graph larger and more ambiguous, which can increase the search cost and lead to practi-cal failures. Graph neural networks (GNNs) and tempo-ral smoothing schemes such as hidden Markov models (HMMs) have been applied to bond in-1
+
+> arXiv:2606.27636v1 [cond-mat.mtrl-sci] 26 Jun 2026
+
+ference, but most reported approaches focus on isolated molecules or dilute systems. 12–15 
+
+Condensed-phase trajectories remain challeng-ing because close intermolecular contacts must be distinguished from covalent bonds under pe-riodic boundary conditions (PBCs) while pre-serving the consistency of formal charges and unpaired electrons. Here, we present CoTAR (Coordinates-to-Topology and Atom-State Reconstruction), a hybrid GNN–HMM framework for reconstruct-ing molecular topology and atom states from condensed-phase trajectories under PBCs. Co-TAR predicts pair states and atom states from atomic species, coordinates, and total charge, and combines a van der Waals (vdW) prior with valence and charge constraints to suppress spu-rious intermolecular bonds and chemically in-consistent assignments. For uMLIP trajecto-ries, we use same-system few-shot fine-tuning to address the distribution shift from classical-MD trajectories to uMLIP trajectories. This strategy provides a practical adaptation route when a limited number of target-system snap-shots can be annotated, without requiring ex-haustive reannotation of the full trajectory. We then evaluate downstream utility by recon-necting the reconstructed topologies to classi-cal MD. By integrating learned local geomet-ric context, explicit chemical constraints, atom-state prediction, and temporal smoothing, Co-TAR provides a practical framework for con-verting topology-free condensed-phase trajec-tories into chemically complete representations for bond-aware analysis and force-field recon-nection. The present study focuses on nonreac-tive, topology-preserving systems, which define the current domain of applicability. 
+
+# Methods 
+
+## Overview of the CoTAR frame-work 
+
+The goal is to infer bond topology and atom states from atomic species Zi, 3D coordi-nates ri, and, optionally, the total charge 
+
+Qtotal while satisfying valence and charge con-
+
+Figure 1: Overview of CoTAR. A proximity graph is constructed for each frame; an MPNN jointly predicts pair states and atom states; a vdW prior biases covalent versus noncova-lent assignments; and HMM smoothing en-forces temporal consistency for trajectory in-puts. During training, additional chemical-constraint losses encourage chemically consis-tent predictions. straints. In condensed phases, purely distance-based decisions are prone to false positives because of dense packing and thermal fluc-tuations. Bond order, formal charge, and unpaired-electron count are coupled through electron-count and valence rules; hence, sep-arate predictions readily produce chemically inconsistent assignments. CoTAR therefore combines (i) message-passing neural network (MPNN)-based pair-state prediction on a prox-imity graph, (ii) joint prediction of formal charges qi and unpaired electrons ui, (iii) a vdW prior and chemical constraints, and (iv) HMM-based temporal refinement for trajectories. 16,17 
+
+2The input graph G = ( V, E) is constructed by treating atoms as nodes and defining proximity pairs within a distance cutoff of rc = 3 .0 ˚ A. To distinguish the chemical bond itself from the proximity relation handled by the GNN, we first define the undirected set of proximity pairs P
+
+and then introduce a directed edge set E for computation: 
+
+V = {1, . . . , N }, (1) 
+
+P = {{ i, j } | 1 ≤ i < j ≤ N, d ij < r c} , (2) 
+
+E = {(i, j ) | i̸ = j, {i, j } ∈ P} , (3) 
+
+dij = ∥ri − rj ∥. (4) Under PBCs, dij is defined by the minimum-image distance. We denote the proximity neigh-borhood of atom i by N (i) = {j | (i, j ) ∈ E} .Pair labels are defined for undirected atom pairs and copied to both directed edges. At inference time, the outputs for ( i, j ) and ( j, i ) are aver-aged to recover a symmetric undirected predic-tion. Node features comprise only the element one-hot vector xi ∈ { 0, 1}86 , where the 86 chan-nels correspond to element types with atomic numbers Z = 1 , . . . , 86 (H through Rn). Edge features comprise only the interatomic distance 
+
+dij ∈ R. This minimal representation preserves translational and rotational invariance and ap-plies uniformly to molecules, condensed phases, and periodic systems. The state space for proximity pairs is defined as 
+
+Ccov = {Single , Double , Triple , Aromatic }, (5) 
+
+C = {∅} ∪ C cov , |C| = 5 , (6) where ∅ denotes a noncovalent state in which a pair is spatially close but does not form a co-valent bond. Treating Aromatic as an explicit class absorbs the nonuniqueness of Kekul´ e rep-resentations in aromatic rings. In what follows, we refer to these as pair states .
+
+## GNN-based pair-state prediction 
+
+Covalent bonding is not determined by pair dis-tance alone but depends on many-body con-text such as coordination number, local den-sity, neighboring element composition, and aro-maticity. CoTAR therefore uses message pass-ing to repeatedly aggregate local environmental information and infer pair states conditioned on the surrounding structure. Condensed phases often contain many neighbors within the cutoff; hence, multistep propagation is important for distinguishing close contacts from true covalent bonds. We use L = 16 message-passing lay-ers to ensure a sufficiently large receptive field. Residual connections together with LayerNorm stabilize deep training. Neighbor contributions are weighted by 4-head attention. With hidden dimension D = 128, the initial node and edge embeddings are defined by linear maps: 
+
+h(0)  
+
+> i
+
+= Wnxi, (7) 
+
+e(0)  
+
+> ij
+
+= Wedij , (8) 
+
+Wn : R86 → RD, (9) 
+
+We : R → RD. (10) At each layer l = 0 , . . . , L −1, the edge feature is first updated as 
+
+e(l+1)  
+
+> ij
+
+= e(l) 
+
+> ij
+
++ ϕe
+
+
+
+[h(l) 
+
+> i
+
+, h(l) 
+
+> j
+
+, e(l) 
+
+> ij
+
+, d ij ]
+
+
+
+. (11) The distance dij is provided explicitly at every layer to preserve geometric scale information through the depth of the network. Messages are then aggregated with 4-head attention: 
+
+α(l,h ) 
+
+> ij
+
+= softmax j∈N (i)ϕ(h)att 
+
+
+
+e(l+1) 
+
+> ij
+
+
+
+, (12) 
+
+m(l) 
+
+> i
+
+= Concat 4
+
+> h=1
+
+X 
+
+> j∈N (i)
+
+α(l,h ) 
+
+> ij
+
+W(h) 
+
+> m
+
+e(l+1)  
+
+> ij
+
+. (13) Finally, the node feature is updated as 
+
+h(l+1)  
+
+> i
+
+= h(l) 
+
+> i
+
++ ϕn
+
+
+
+[h(l) 
+
+> i
+
+, m(l) 
+
+> i
+
+]
+
+
+
+. (14) Both ϕe and ϕn are 2-layer MLPs with Layer-Norm and SiLU. The final edge representation is used to pre-3dict pair-state logits: 
+
+zij = Wpair e(L) 
+
+> ij
+
++ bpair , (15) ˆpij = softmax(˜ zij ), (16) ˆpij (c) = (ˆ pij )c, c ∈ C . (17) Here ˆ pij (c) is the predicted probability that the proximity pair {i, j } belongs to state c.At the same time, the final node representa-tion predicts formal charges qi ∈ {− 6, . . . , 6}
+
+and unpaired electrons ui ∈ { 0, 1}:
+
+zqi = ϕq(h(L) 
+
+> i
+
+), zui = ϕu(h(L) 
+
+> i
+
+). (18) As pair states and ( qi, u i) are coupled through valence constraints, joint atom-state prediction acts as a chemical regularizer that suppresses false bonds accompanied by valence violations. A physically motivated vdW prior is further incorporated into the logits. 18 Here, Ri denotes the element-specific van der Waals radius of atom i. The values used in this work were taken from the Mendeleev database. 18 Defining the distance ratio rij = dij /(Ri + Rj ), we map it into bij ∈ (0 , 1) by a sigmoid: 
+
+bij = σ(−κ(rij − f )) , κ = 20 . (19) The threshold-like parameter f (initialized to 0.6) and scale γ (initialized to 100) are learn-able. This prior acts primarily on the separa-tion between covalent states and the noncova-lent state ∅, while bond-order discrimination is left to the MPNN representation: ˜zij (c) = zij (c) + γ b ij , c ∈ C cov , (20) ˜zij (∅) = zij (∅) + γ(1 − bij ). (21) 
+
+## HMM-based temporal refinement 
+
+In MD simulations, coordinates fluctuate con-tinuously, whereas pair states usually do not change abruptly between adjacent frames. Frame-independent predictions therefore tend to contain high-frequency noise, including spike-like state flips in borderline situations. To suppress such noise while preserving mean-ingful state changes, we apply an HMM to the sequence of CoTAR output probabilities and infer the most likely hidden-state trajectory by the Viterbi algorithm. 19 No smoothing is applied for a single frame ( T = 1). For time t and proximity pair e, let the ob-servation be ˆ pt,e ∈ [0 , 1] |C| and the hidden state be zt,e ∈ { 1, . . . , |C|} . Transitions are controlled by a self-transition probability pself :
+
+Akk = pself , (22) 
+
+Akℓ = 1 − pself 
+
+|C| − 1 (ℓ̸ = k), (23) 
+
+πk = 1
+
+|C| . (24) The emission log-probability is taken directly from the CoTAR probability with numerical stabilization: log P (ot,e | zt,e = k) = log(ˆ pt,e (k) + ε) , ε = 10 −10 .
+
+(25) The most likely sequence is ˆz1: T,e = arg max 
+
+> z1: T,e
+
+"
+
+πz1,e 
+
+> T
+
+Y
+
+> t=1
+
+P (ot,e | zt,e )
+
+> T
+
+Y
+
+> t=2
+
+Azt−1,e ,z t,e 
+
+#
+
+.
+
+(26) To reduce computational cost, we fix the set of pairs to be smoothed as the union of proxim-ity pairs over representative frames rather than over the whole trajectory. If Nhmm representa-tive frames are selected, we define 
+
+Nrep = min( T, N hmm ). (27) The representative frames are chosen uniformly over the trajectory. If a pair e ∈ P hmm no longer satisfies the proximity condition at time t, its observation is imputed as a one-hot vector for the noncovalent state ∅. The same HMM pro-cedure is applied to formal charges (13 states) and unpaired electrons (2 states). In this study, we use pself = 0 .99 and Nhmm = 20. 
+
+## Loss functions and chemical con-straints 
+
+Pair-state classification is local and, by itself, does not guarantee global chemical constraints such as total-charge conservation and valence consistency. We therefore add atom-level terms 4that penalize violations of electron-count con-sistency. The total loss is 
+
+L = Lpair + Latom . (28) For each annotated snapshot ( c, t ), we define the valid directed-edge set and valid atom set as 
+
+E(c,t )valid = (i, j ) {i, j } ∈ P (t) 
+
+> c
+
+, (29) 
+
+V (c,t )valid = Vc. (30) In implementation, the loss is averaged over the union of these sets in a minibatch. Thus, the pair-state classification loss is the average cross-entropy over the valid directed edges: 
+
+Lpair = 1
+
+|E valid |
+
+X
+
+> (i,j )∈E valid
+
+CE( ℓ∗ 
+
+> ij
+
+, ˆpij ). (31) Here ℓ∗ 
+
+> ij
+
+∈ C is the reference state assigned to the corresponding undirected proximity pair and copied to both directed edges. We use standard cross-entropy rather than focal loss or explicit class weighting because the candidate restriction imposed by the cutoff, the physi-cal bias from the vdW prior, and the atom-level terms already mitigate the imbalance ef-fectively. The atom-level loss is defined as a linear com-bination of multiple constraints, regularizers, and auxiliary supervision terms: 
+
+Latom = X 
+
+> τ∈T
+
+λτ Lτ , (32) where T = {cons , Q, u, |q|, q CE , u CE }. Con-straint terms are evaluated in expectation to avoid nondifferentiability: ˆqi =
+
+> 6
+
+X
+
+> c=−6
+
+c P (qi = c), ˆui = X
+
+> u∈{ 0,1}
+
+u P (ui = u).
+
+(33) The formal-charge label space is fixed to c ∈{− 6, . . . , 6} to cover the range of charge states that may arise for the element types considered in this work ( Z = 1 , . . . , 86). The predicted valence induced by pair states is defined as the sum of expected bond orders: 
+
+vpred  
+
+> i
+
+= X 
+
+> j∈N (i)
+
+¯bij , (34) ¯bij = 1 · ˆpij (Single) + 2 · ˆpij (Double) + 3 · ˆpij (Triple) + 1 
+
+(35) The noncovalent state ∅ does not contribute to ¯bij . Valence consistency is then enforced by 
+
+veff  
+
+> i
+
+= vstd  
+
+> i
+
+− ˆqi − ˆui, (36) 
+
+Lcons = 1
+
+|Vvalid |
+
+X
+
+> i∈Vvalid
+
+
+
+vpred  
+
+> i
+
+− veff 
+
+> i
+
+2
+
+. (37) Here, vstd  
+
+> i
+
+denotes the default standard valence associated with element Zi. Representative val-ues for the principal main-group elements ap-pearing in this study are H=1, C=4, N=3, O=2, F/Cl/Br/I=1, P=3, and S=2. Total-charge consistency is imposed as abatch-level term: 
+
+LQ = 1
+
+B
+
+> B
+
+X
+
+> b=1
+
+X
+
+> i
+
+ˆqb,i − Qb
+
+!2
+
+, (38) where Qb = 0 if the total charge is unspecified. To reflect the predominance of closed-shell states in condensed phases, we impose weak penalties on radical character and excessive charge: 
+
+Lu = 1
+
+|Vvalid |
+
+X
+
+> i∈Vvalid
+
+ˆui, (39) 
+
+L|q| = 1
+
+|Vvalid |
+
+X
+
+> i∈Vvalid
+
+|ˆqi| . (40) When ground-truth formal charges and un-paired electrons are available, their cross-entropy terms are also included: 
+
+LqCE = 1
+
+|Vvalid |
+
+X
+
+> i∈Vvalid
+
+CE( zqi , q gt  
+
+> i
+
+), (41) 
+
+LuCE = 1
+
+|Vvalid |
+
+X
+
+> i∈Vvalid
+
+CE( zui , u gt  
+
+> i
+
+). (42) For formal-charge classification, the soft-max is restricted to chemically allowed charge states for each element and unpaired-5electron state, thereby preventing probabil-ity mass from being assigned to impossi-ble states. The weights are fixed through-out training at (cons , Q, u, |q|, q CE , u CE) =(0 .5, 0.1, 0.1, 0.1, 1.0, 1.0). 
+
+## Data curation and datasets 
+
+We used a classical-MD dataset for pretrain-ing and a uMLIP trajectory dataset for fine-tuning and downstream evaluation. Both datasets comprised the same 128 nonreactive, topology-preserving condensed-phase systems under PBCs, enabling us to assess transfer across trajectory sources without changing the underlying chemical set. System sizes ranged from approximately 1000 to 3000 atoms, and both classical-MD and uMLIP trajectories were generated at 300 K and 1 atm. The classical-MD dataset contained approximately 1 million frames, and the uMLIP dataset contained ap-proximately 25,000 frames. For bookkeeping, the 128 systems were grouped into four mutually exclusive categories: 109 PURELIQUID, 5 SOLUTION, 9 ION, and 5 RADICAL systems. PURELIQUID com-prised neat single-component condensed phases of neutral closed-shell molecules spanning di-verse organic chemistries. SOLUTION com-prised multicomponent solution-series systems, including water/ethanol mixtures and aque-ous biomolecular solutes; end-member com-positions in these series were retained in this category to maintain consistent dataset orga-nization. ION comprised aqueous electrolyte solutions of NaCl, CaCl 2, and NaOH at 0.1, 1, and 10 M. RADICAL comprised systems con-taining open-shell species, namely allyl, ben-zyl, phenoxyl, TEMPO, and tert-butyl radi-cals. These labels were used only for dataset summary and analysis rather than as a for-mal chemical ontology. Complete system lists, exact dataset counts, and additional method-ological details are provided in the Supporting Information. 
+
+## Reference annotation and data splits 
+
+For each system c, the reference topology is de-fined as 
+
+T ref  
+
+> c
+
+= ( Vc, Bc, β c, q c, u c), (43) where Bc is the set of undirected atom pairs that are covalently bonded, βc assigns their covalent states (Single, Double, Triple, Aromatic), and 
+
+qc and uc denote atomwise formal charges and unpaired electrons. The reference topology for each system was extracted once from the RD-Kit molecule generated from the input SMILES and shared across all frames. 11,20 Bond informa-tion was read from bond objects, whereas for-mal charges and unpaired-electron counts were read from atom attributes. The same procedure was used for both datasets. For each snapshot t, the undirected set of proximity pairs is constructed as 
+
+P(t) 
+
+> c
+
+=
+
+n
+
+{i, j } i < j, d (t) 
+
+> ij
+
+< r c
+
+o
+
+. (44) Each pair {i, j } ∈ P (t) 
+
+> c
+
+is assigned the reference state 
+
+ℓ∗(t) 
+
+> ij
+
+=
+
+(
+
+βc(i, j ), {i, j } ∈ B c,
+
+∅, {i, j } ∈ P (t) 
+
+> c
+
+\ B c. (45) Thus, a proximity pair receives a covalent state if it belongs to the reference topology; other-wise, it receives the noncovalent state ∅. Atom-wise labels are defined as 
+
+q∗(t) 
+
+> i
+
+= qc(i), u∗(t) 
+
+> i
+
+= uc(i), (46) and are inherited across frames through the conserved atom indexing. During training, each undirected pair-state label is duplicated onto the two directed edges ( i, j ) and ( j, i ) handled by the GNN. At evaluation time, the proximity-pair set is generated with the same cutoff, rc = 3 .0 ˚ A. No special handling is introduced to add back reference bonds outside this cutoff. For the classical MD dataset, training and validation were split at the frame level within 6each system (90%/10%). The same system therefore appeared in both sets, but no frame was duplicated. This design emphasizes robust-ness to thermal fluctuations and local environ-mental variation rather than extrapolation to unseen systems. For the main uMLIP transfer evaluation re-ported in Table 1B, up to 200 frames were sampled from each system; 10% were used for fine-tuning and the remaining 90% for hold-out evaluation. The evaluation therefore probes ro-bustness on unseen frames from the same sys-tems and adaptation to the uMLIP distribution rather than extrapolation to unseen systems. 
+
+## Training protocol 
+
+Training was performed in two stages to trans-fer a general condensed-phase representation from classical-MD data to uMLIP trajecto-ries. We used AdamW with a batch size of 8 throughout. 21 The model was first pretrained on the classical-MD dataset for 1 epoch with a learning rate of 2 × 10 −4. For the main transfer evaluation in Table 1B, the pretrained model was then fine-tuned on the uMLIP fine-tuning subset for 10 epochs using a learning rate of 1 × 10 −4, while all other hyperparameters were kept unchanged. For the controlled ablation study in Table 2, we used a separate low-data adaptation pro-tocol to compare model components under matched conditions. For each compound, 500 snapshots were sampled from the uMLIP tra-jectories; 90% were used for fine-tuning and 10% for evaluation, and each ablation variant was trained for 5 epochs from the same pre-trained initialization. The values in Table 2 should therefore be interpreted comparatively across rows and are not directly comparable to the full-set uMLIP results in Table 1B. 
+
+## Evaluation metrics and baselines 
+
+We evaluated topology reconstruction from three perspectives: local classification accuracy, practical completion, and snapshot-level chem-ical validity. Although CoTAR predicts pair states in the set C = {∅} ∪ C cov , the main fig-ures also report the derived metrics Bond and Bond Order for readability. 
+
+Local metrics. For each proximity pair, we define the binary reference label 
+
+a∗(t) 
+
+> ij
+
+= 1
+
+h
+
+ℓ∗(t)
+
+> ij
+
+̸ = ∅
+
+i
+
+, (47) and let the predicted pair state and binary bond label be ˆℓ(t) 
+
+> ij
+
+= arg max  
+
+> c∈C
+
+ˆp(t) 
+
+> ij
+
+(c), ˆa(t) 
+
+> ij
+
+= 1
+
+hˆℓ(t)
+
+> ij
+
+̸ = ∅
+
+i
+
+.
+
+(48) Bond is the F1 score for bonded versus non-bonded classification over undirected proximity pairs {i, j } ∈ P (t) 
+
+> c
+
+. Bond Order is the weighted F1 score over the four covalent classes, 
+
+Ccov = {Single , Double , Triple , Aromatic },
+
+restricted to pairs for which both the reference and the prediction are covalent: 
+
+P(t)BO ,c =
+
+n
+
+{i, j } ∈ P (t) 
+
+> c
+
+ℓ∗(t) 
+
+> ij
+
+∈ C cov , ˆℓ(t) 
+
+> ij
+
+∈ C cov 
+
+o
+
+.
+
+(49) Accordingly, when a true covalent bond is pre-dicted as ∅, it contributes a false negative to the Bond metric but is excluded from the Bond Order evaluation. Formal Charge (13 classes) and Unpaired Electron (2 classes) are also eval-uated by weighted F1 scores. 
+
+Snapshot-level metrics. For high-throughput use, Success is the fraction of frames for which inference completes within the prescribed time limit and a topology is returned. To assess downstream usability, we introduce two per-snapshot metrics based on RDKit chemical-sanity diagnostics. Let ˆMi denote the molec-ular object reconstructed from the prediction, and let nchem ( ˆMi) be the number of chemically problematic features reported by RDKit. If bond order, formal charge, or unpaired elec-trons remain undetermined because of failure or timeout, these unknown assignments are counted as downstream failures and added to 7the total problem count: 
+
+n(i)cp = nchem ( ˆMi) + X
+
+> t∈{ BO ,FC ,UE }
+
+n(i)unk ,t . (50) We then define Valid = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+1n(i)cp = 0  (51) as the fraction of frames with neither RDKit-detected chemical problems nor unknown as-signments, and Ave . Problems = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+n(i)cp (52) as the average number of diagnostic problems and unknown assignments per snapshot. We emphasize Valid because downstream use re-quires a topology that is chemically complete and internally consistent, not merely locally accurate on pairwise labels. As the distance heuristic does not predict formal charges or unpaired electrons, these missing values are counted as unknown assignments when comput-ing Valid. 
+
+Aggregation. For Table 1, the category-specific values of Bond, Bond Order, Formal Charge, and Unpaired Electron are computed by pooling confusion matrices over all systems within each category and recomputing the F1 scores from the pooled matrices. In contrast, Valid and Ave. problems are computed by con-catenating per-snapshot values within each cat-egory and averaging them. The Total values in Table 1 are computed over the full evaluation set and therefore are not arithmetic means of the category-specific values. 
+
+Baselines. We compared CoTAR with (i) a vdW-radius heuristic, with and without HMM smoothing, and (ii) a valence-rule-based base-line denoted RDKit. For the vdW baseline, a pair is classified as covalently bonded when 
+
+P(t)vdW =
+
+n
+
+{i, j } d(t) 
+
+> ij
+
+< f  RvdW  
+
+> i
+
++ RvdW 
+
+> j
+
+o
+
+,
+
+(53) where RvdW  
+
+> i
+
+denotes the element-specific van der Waals radius (in ˚ A) of atom i taken from the Mendeleev database. 18 For consistency with the vdW prior in Eq. (19), the scaling parameter is fixed to f = 0 .6 in this baseline. This baseline does not predict bond order, formal charge, or unpaired electrons; therefore, these quantities are treated as unknown when computing Valid. For vdW+HMM, HMM smoothing is applied to the same binary bonded/nonbonded state. All distance calculations under PBCs use the minimum-image convention. For the RDKit baseline, the built-in 
+
+DetermineBonds procedure is not directly ap-plicable because it does not support PBCs. We therefore first construct a PBC-aware candidate-neighbor set from minimum-image distances and then assign bond orders by an xyz2mol-style valence-constrained procedure. 11 
+
+The candidate set is 
+
+P(t)cand =
+
+n
+
+{i, j } d(t) 
+
+> ij
+
+< η cov 
+
+ rcov  
+
+> i
+
++ rcov 
+
+> j
+
+o
+
+, ηcov = 1 .3,
+
+(54) where rcov  
+
+> i
+
+denotes the element-specific cova-lent radius (in ˚ A) of atom i, taken from the Mendeleev database. 18 A per-snapshot time limit of τ = 5 s is imposed, and incomplete or failed assignments are treated as unknown. 
+
+Downstream validation. To test whether the predicted topologies are usable in down-stream simulations, we connected the bond graph, bond orders, and formal charges predicted by fine-tuned CoTAR to the OpenFF 2.0.0 force field and performed short classical MD simulations in OpenMM. 22,23 The main-text downstream results are reported for the full CoTAR pipeline after HMM smooth-ing. For ablation, we additionally compared the same predictions before and after HMM smoothing using frame 0 of each trajectory. This evaluation examines whether (i) the sim-ulation can be initialized and propagated with-out divergence (MD feasibility) and (ii) the 8resulting density is consistent with that ob-tained from the reference topology. The same partial-charge assignment procedure was ap-plied to both the reference and reconstructed topologies. Detailed MD settings and the ex-act dataset composition are provided in the Supporting Information. 
+
+# Results and Discussion 
+
+We first examine computational cost, then eval-uate predictive accuracy and the contribution of individual components. Finally, the usabil-ity of the reconstructed topologies in down-stream classical MD is assessed. Unless oth-erwise noted, CoTAR denotes the full pipeline with the vdW prior, chemical constraints, and HMM smoothing enabled. In Table 1, CoTAR denotes the pretrained model for the classical-MD evaluation set and the fine-tuned model for the uMLIP evaluation set. 
+
+## Basic predictive accuracy 
+
+Table 1 summarizes the category-resolved and overall results on classical-MD and uMLIP eval-uation sets. Bond connectivity was saturated or near-saturated across methods; hence, the more informative quantities are bond-order as-signment and the snapshot-level metrics. On the classical-MD evaluation set (Ta-ble 1A), CoTAR achieved an overall bond-order F1 of 0.906 and 94.0% valid snapshots. The vdW-based heuristics completed on essentially all snapshots but, by construction, did not as-sign bond order, formal charge, or unpaired electrons; this limitation translated into low snapshot validity despite complete connectiv-ity assignment. RDKit produced bond orders, but its overall bond-order F1 remained low (0.277), and incomplete or chemically problem-atic assignments led to only 21.0% valid snap-shots and 1832 average problems per snapshot. CoTAR was nearly perfect for PURELIQUID, SOLUTION, and ION systems, with category-wise valid-snapshot rates of 99.9%, 100.0%, and 99.4%, respectively. RADICAL systems re-mained the most difficult category. In this category, vdW+HMM yielded a slightly higher valid-snapshot rate than CoTAR (83.3% versus 76.5%), but CoTAR still provided considerably better bond-order assignment (0.722 versus not applicable) and substantially fewer problems per snapshot (0.68 versus 3.0). On the uMLIP evaluation set (Table 1B), Co-TAR achieved an overall bond-order F1 of 0.911 and 84.7% valid snapshots, compared with 36.6% for the vdW-based heuristics and 19.7% for RDKit. When the classical-MD-pretrained model was applied to uMLIP trajectories with-out adaptation, the valid-snapshot rate was 38.6%; few-shot fine-tuning therefore more than doubled snapshot-level usability. Performance remained strongest for PURELIQUID and SO-LUTION systems, with valid-snapshot rates of 95.1% and 96.6%, respectively, whereas ION and RADICAL systems remained more chal-lenging at 67.4% and 79.6%. Even in these more difficult categories, the average number of problems per snapshot remained low for Co-TAR (1.4 for ION and 1.8 for RADICAL) and far below those of the baselines. Taken to-gether, these results show that the fine-tuned CoTAR model preserves strong local accuracy on uMLIP trajectories while substantially im-proving snapshot-level chemical usability rela-tive to both heuristic and rule-based baselines. 
+
+## Ablation study 
+
+Table 2 summarizes the ablation study in a con-trolled low-data adaptation setting. For each compound, 500 uMLIP snapshots were sam-pled, 90% were used for fine-tuning and 10% for evaluation, and each variant was trained for 5 epochs. As this protocol differs from the full uMLIP transfer evaluation in Table 1B, Table 2 is intended to isolate relative component con-tributions rather than reproduce the absolute full-set numbers. The effect of HMM smoothing can be assessed directly by comparing the first two rows. Dis-abling HMM reduced the valid-snapshot rate only modestly, from 98.9% to 97.7%, and in-creased the average number of problems per snapshot from 0.02 to 0.04. In this setting, HMM acts primarily as a final cleanup step 9rather than as the main source of chemical con-sistency. The stronger effect came from the chemi-cal constraints. With HMM disabled, retain-ing the chemical constraints but removing the vdW prior still yielded 97.4% valid snapshots and 0.24 average problems per snapshot. By contrast, configurations without chemical con-straints showed markedly worse snapshot us-ability, with 95.0–95.3% valid snapshots and 3.07–6.23 average problems per snapshot. The formal-charge F1 scores followed the same pat-tern, decreasing from 0.9972 with chemical con-straints active to 0.9899 without them. The vdW prior had a smaller and more context-dependent effect. When chemical con-straints were active and HMM was disabled, adding the vdW prior slightly improved the valid-snapshot rate (97.4% to 97.7%) and re-duced the average number of problems per snapshot (0.24 to 0.04), while leaving the lo-cal F1 scores similar. By contrast, without chemical constraints, the vdW prior did not improve the outputs and increased the average number of problems per snapshot from 3.07 to 6.23. Overall, Table 2 indicates that the use of chemical constraints are the main source of chemically usable assignments. HMM provides an additional refinement, and the vdW prior is most useful when combined with the con-straints rather than used as a standalone cor-rection. 
+
+## Reconnection to classical MD 
+
+We finally tested whether topologies predicted by the full CoTAR pipeline could be recon-nected to a classical force field and propagated by short classical-MD runs. Across the 128 uM-LIP systems, 110 systems (85.9%) completed the downstream validation (Figure 2). The success rate was highest for SOLUTION sys-tems (5/5) and remained high for PURELIQ-UID (97/109) and RADICAL (4/5) systems, whereas ION systems were the most difficult (4/9). HMM smoothing modestly improved system-level MD simulation feasibility from 107/128 (83.6%) to 110/128 (85.9%), consis-tent with its role as a temporal cleanup step 0.50 0.75 1.00 1.25 1.50 1.75  
+
+> ρoriginal (g/mL)
+> 0.50 0.75 1.00 1.25 1.50 1.75
+> ρreconstruct  (g/mL)
+> ION (44%, 4/9) PURELIQUID (89%, 97/109) RADICAL (80%, 4/5) SOLUTION (100%, 5/5)
+
+Figure 2: Downstream classical-MD validation using topologies predicted by the full CoTAR pipeline. The horizontal axis is the density ob-tained from the reference topology, ρoriginal , and the vertical axis is the density obtained from the predicted topology, ρreconstruct . Points are colored by category, error bars denote ±1σ,and the legends report category-specific MD-feasibility rates. rather than the primary source of chemical con-sistency. For systems that completed the valida-tion, the densities obtained from CoTAR-reconstructed topologies closely tracked those obtained from the reference topologies over a broad density range and the points clustered near the identity line with no obvious system-atic bias (Figure 2). This agreement indicates that the reconstructed bond graphs, bond or-ders, and formal charges were generally suffi-ciently accurate for direct force-field assignment and short downstream simulation. The remain-ing failures were concentrated in ION systems, consistent with their lower snapshot-level accu-racy (Table 1) and the stronger sensitivity of ionic systems to small residual errors in charge or connectivity. 
+
+## Inference speed 
+
+Practical use in condensed phases requires sta-ble execution at an acceptable computational 10 10 4 10 5
+
+> Number of atoms
+> 10 −4
+> 10 −3
+> 10 −2
+> 10 −1
+> 10 0
+> 10 1
+> 10 2
+> Inference time [s]
+> vdW vdW + HMM RDKit CoTAR (no HMM) CoTAR
+
+Figure 3: Inference time per snapshot versus atom count for a separate liquid-toluene scaling test. The atom count was varied by changing the number of toluene molecules in the periodic liquid cell. The same configurations were eval-uated with all methods shown in the legend. This figure is intended only to illustrate com-putational scaling and is not part of the 128-system accuracy benchmark. cost. Figure 3 shows the inference time per snapshot as a function of atom count. The sim-ple vdW heuristic was the fastest method over the full system-size range, as expected. Co-TAR showed a smooth increase in cost with system size and remained practical for the condensed-phase systems examined. RDKit ex-hibited the steepest growth with atom count and became markedly more expensive on larger graphs. In dense periodic systems, this behav-ior is consistent with the increasing cost of rule-based bond-order assignment on large candi-date graphs. 
+
+## Interpretation, scope, and limita-tions 
+
+The present benchmark should be interpreted within a defined domain of applicability. First, the study is restricted to nonreactive, topology-preserving condensed-phase systems. Second, the classical-MD benchmark uses a frame-level split within each system, and the main uM-LIP evaluation uses same-system few-shot fine-tuning followed by hold-out evaluation on the remaining frames. The reported gains therefore establish robustness to thermal fluctuations, lo-cal environmental variation, and simulation-modality shift within the represented systems, but they do not yet establish zero-shot extrap-olation to entirely unseen chemistries or topolo-gies. The large improvement on uMLIP trajecto-ries after few-shot fine-tuning (38.6% to 84.7% valid snapshots) is nevertheless practically im-portant. It indicates that CoTAR is effective when a modest amount of adaptation data can be obtained for the target system, which is a realistic use case for production uMLIP work-flows. At the same time, the current bench-mark is dominated by PURELIQUID systems (109 of 128 systems); the ION and RADI-CAL categories each contain fewer than ten sys-tems. Hence, category-level trends in these mi-nor classes should be interpreted cautiously. The remaining failures in ION and RADICAL systems are chemically plausible. Ionic systems are more sensitive to small residual errors in charge localization and intermolecular-contact classification because such errors can propagate directly into force-field assignment, while open-shell systems impose additional consistency re-quirements on bond orders, formal charges, and unpaired-electron counts. Finally, the down-stream classical-MD validation should be in-terpreted as evidence that the reconstructed topologies are reconnectable and usable in short conventional MD runs; it does not by itself constitute a full validation of all force-field-dependent thermodynamic or kinetic proper-ties. 
+
+# Conclusions 
+
+In this study, we developed CoTAR, a hy-brid GNN–HMM framework for reconstruct-ing molecular topology and atom states from atomic coordinates in condensed phases. Across 128 nonreactive, topology-preserving 11 systems, CoTAR outperformed both distance-based and rule-based baselines on classical-MD and uMLIP evaluation sets and achieved strong bond-order accuracy together with high snapshot-level validity. The ablation study clarified the roles of the main components. Chemical constraints were the primary contributor to chemically usable assignments. HMM smoothing provided an ad-ditional improvement in consistency, and the vdW prior was most effective when used to-gether with the constraints. The large gain after uMLIP few-shot fine-tuning further indi-cates that CoTAR is particularly useful when a modest amount of same-system adaptation data can be obtained. The reconstructed topologies also supported direct reconnection to classical MD for most systems and reproduced the density trends of the reference topologies in successful runs. The present domain of applicability is non-reactive, topology-preserving condensed-phase trajectories and the chemistries represented in the current benchmark. The current bench-mark does not yet establish zero-shot extrap-olation to entirely unseen chemistries. More-over, the downstream MD tests assess recon-nectability and short-time simulation usabil-ity rather than exhaustive force-field valida-tion. The most important next steps are im-proved robustness for ionic and open-shell sys-tems, stronger evaluation on unseen chemical systems, and extension of the framework to re-active trajectories. 
+
+# Data and Software Availabil-ity 
+
+The full raw trajectories and the complete in-ternal training/evaluation pipeline used in this study are proprietary and are not publicly re-leased. To support verification and reuse of the reported methodology, a public GitHub repository will be made available at https: //github.com/pfnet-research/cotar . The repository will contain a minimal validation dataset, training scripts, trained model param-eters, inference code, configuration files, and documentation sufficient to reproduce a repre-sentative validation workflow and run CoTAR on user-provided coordinate trajectories. Addi-tional nonconfidential materials may be avail-able from the corresponding author upon rea-sonable request, subject to permission from the data owner where applicable. 12 Table 1: Comparison of baseline methods and CoTAR on classical-MD and uMLIP evaluation sets. CoTAR denotes the pretrained model in panel A and the fine-tuned model in panel B. The uMLIP results in panel B correspond to the full transfer-evaluation protocol described in Methods. Bond-connectivity F1 is omitted because it was saturated or near-saturated across methods. 
+
+Total By category 
+
+Method Total PURELIQUID SOLUTION ION RADICAL 
+
+A. Classical-MD evaluation set 
+
+Bond-order F1 (↑; vdW methods: N/A) RDKit 0.277 0.409 0.262 0.000 0.436 CoTAR 0.906 0.903 1.000 1.000 0.722 
+
+Valid snapshots (%) (↑)vdW 45.9 89.0 11.7 0.0 83.0 vdW + HMM 52.0 93.1 26.6 4.9 83.3 
+
+RDKit 21.0 30.5 20.0 0.0 33.3 CoTAR 94.0 99.9 100.0 99.4 76.5 
+
+Avg. problems/snapshot (↓)vdW 13 1.7 20 28 3.0 vdW + HMM 6 0.95 6.9 13 3.0 RDKit 1,832 1,982 2,355 2,070 923 CoTAR 0.17 < 10 −3 0 0.006 0.68 B. uMLIP evaluation set 
+
+Bond-order F1 (↑; vdW methods: N/A) RDKit 0.266 0.290 0.573 0.000 0.202 CoTAR 0.911 0.902 1.000 1.000 0.742 
+
+Valid snapshots (%) (↑)vdW 36.6 70.2 0.0 0.0 76.0 vdW + HMM 36.6 70.2 0.0 0.0 76.0 RDKit 19.7 18.8 40.0 0.0 20.0 CoTAR 84.7 95.1 96.6 67.4 79.6 
+
+Avg. problems/snapshot (↓)vdW 90 8.0 135 209 6.4 vdW + HMM 90 8.0 135 209 6.4 RDKit 2,044 2,279 1,343 2,246 2,309 CoTAR 0.86 0.19 0.034 1.4 1.8 
+
+13 Table 2: Ablation study of CoTAR in a controlled low-data adaptation setting on uMLIP trajecto-ries. For each compound, 500 snapshots were sampled; 90% were used for fine-tuning and 10% for evaluation, and each variant was fine-tuned for 5 epochs from the same pretrained model. Enabled components are indicated by checkmarks, and blank cells indicate disabled components. vdW = van der Waals prior; Chem. = chemical constraints. BO, FC, and UE denote weighted F1 scores for bond order, formal charge, and unpaired electron, respectively. Bond connectivity is omitted because it was saturated at 1.000 in all settings. The absolute values are intended for relative comparison among ablation variants and are not directly comparable to the full-set uMLIP results in Table 1B.                                         
+
+> Comp. Metrics vdW Chem. HMM BO ↑FC ↑UE ↑Valid (%) ↑Avg. prob. ↓
+> ✓✓✓0.9061 0.9966 0.9999 98.9 0.02
+> ✓✓0.9015 0.9911 0.9999 97.7 0.04
+> ✓0.9061 0.9972 1.0000 97.4 0.24
+> ✓0.9063 0.9899 0.9998 95.0 6.23 0.9062 0.9899 0.9998 95.3 3.07
+
+14 Supporting Information Avail-able 
+
+Supporting Information: complete system list for the 128 systems used in this study; system-level dataset composition; benchmark split de-sign and interpretation; controlled low-data protocol for the Table 2 ablation study; and downstream classical-MD validation settings (PDF). 
+
+Acknowledgement We thank So Takamoto (Preferred Networks, Inc.), Ryosuke Kuwabara (MITSUI & CO., LTD.), Sannohe Kunio (IBLC Co., Ltd.), and their colleagues for helpful dis-cussions and comments. 
+
+# References 
+
+(1) Batatia, I.; Kovacs, D. P.; Simm, G. N. C.; Ortner, C.; Csanyi, G. MACE: Higher Order Equivariant Message Passing Neu-ral Networks for Fast and Accurate Force Fields. Advances in Neural Information Processing Systems. 2022. (2) Batatia, I.; Batzner, S.; Kov´ acs, D. P.; Musaelian, A.; Simm, G. N. C.; Drautz, R.; Ortner, C.; Kozinsky, B.; Cs´ anyi, G. The Design Space of E(3)-Equivariant Atom-Centered Interatomic Potentials. 2022. (3) Takamoto, S. et al. Towards universal neu-ral network potential for material discov-ery applicable to arbitrary combination of 45 elements. Nat. Commun. 2022 , 13 ,2991. (4) Chen, C.; Ong, S. P. A universal graph deep learning interatomic potential for the periodic table. Nat. Comput. Sci. 2022 , 2,718–728. (5) Deng, B.; Zhong, P.; Jun, K.; Riebe-sell, J.; Han, K.; Bartel, C. J.; Ceder, G. CHGNet as a pretrained universal neu-ral network potential for charge-informed atomistic modelling. Nature Machine In-telligence 2023 , 5, 1031–1041. (6) Wood, B. M.; Dzamba, M.; Fu, X.; Gao, M.; Shuaibi, M.; Barroso-Luque, L.; Abdelmaqsoud, K.; Gharakhanyan, V.; Kitchin, J. R.; Levine, D. S.; others Uma: A family of universal models for atoms. 
+
+arXiv preprint arXiv:2506.23971 2025 ,(7) Simm, G. N.; H´ elie, J.; Schulz, H.; Chen, Y.; Simeon, G.; Kuzina, A.; Martinez-Baez, E.; Gasparotto, P.; Tocci, G.; Chen, C.; others SimPoly: Simulation of Polymers with Ma-chine Learning Force Fields Derived from First Principles. arXiv preprint arXiv:2510.13696 2025 ,(8) Humphrey, W.; Dalke, A.; Schulten, K. VMD: visual molecular dynamics. Journal of molecular graphics 1996 , 14 , 33–38. (9) Stukowski, A. Visualization and analysis of atomistic simulation data with OVITO– the Open Visualization Tool. Modelling and simulation in materials science and engineering 2010 , 18 , 015012. (10) Zhang, Q.; Zhang, W.; Li, Y.; Wang, J.; Zhang, L.; Hou, T. A rule-based algorithm for automatic bond type perception. Jour-nal of Cheminformatics 2012 , 4, 26. (11) Kim, Y.; Kim, W. Y. Universal struc-ture conversion method for organic molecules: from atomic connectivity to three-dimensional geometry. Bulletin of the Korean Chemical Society 2015 , 36 ,1769–1777. (12) Loschen, C. Perception of Chemical Bonds via Machine Learning. ChemRxiv 2018 ,
+
+2018 .(13) Zeng, J.; Cao, L.; Chin, C.-H.; Ren, H.; Zhang, J. Z.; Zhu, T. ReacNetGenerator: an automatic reaction network generator for reactive molecular dynamics simula-tions. Physical chemistry chemical physics 
+
+2020 , 22 , 683–691. (14) Magedov, S.; Koh, C.; Malone, W.; Lub-bers, N.; Nebgen, B. Bond order predic-15 tions using deep neural networks. Journal of Applied Physics 2021 , 129 .(15) Wang, J.; Dokholyan, N. V. Multimodal Bond Reconstruction toward Generative Molecular Design. Journal of Chemical In-formation and Modeling 2026 , 66 , 1003– 1012. (16) Eddy, S. R. Hidden markov models. Cur-rent opinion in structural biology 1996 , 6,361–365. (17) Gilmer, J.; Schoenholz, S. S.; Riley, P. F.; Vinyals, O.; Dahl, G. E. Message pass-ing neural networks. In Machine learning meets quantum physics ; Springer, 2020; pp 199–214. (18) Mentel, L. mendeleev: A Python re-source for properties of chemical el-ements, ions and isotopes. https:// github.com/lmmentel/mendeleev , 2014; Version 1.1.0. (19) Seshadri, N.; Sundberg, C.-E. List Viterbi decoding algorithms with applications. 
+
+IEEE transactions on communications 
+
+1994 , 42 , 313–323. (20) Landrum, G. RDKit: Open-Source Cheminformatics Software. 2016; 
+
+https://github.com/rdkit/rdkit/ releases/tag/Release_2016_09_4 .(21) Zhou, P.; Xie, X.; Lin, Z.; Yan, S. Towards understanding convergence and general-ization of AdamW. IEEE transactions on pattern analysis and machine intelligence 
+
+2024 , 46 , 6486–6493. (22) Boothroyd, S.; Behara, P. K.; Madin, O. C.; Hahn, D. F.; Jang, H.; Gapsys, V.; Wagner, J. R.; Horton, J. T.; Dotson, D. L.; Thompson, M. W.; others Development and benchmarking of open force field 2.0. 0: the sage small molecule force field. Journal of chemical theory and computation 2023 , 19 , 3251–3275. (23) Eastman, P.; Galvelis, R.; Pel´ aez, R. P.; Abreu, C. R.; Farr, S. E.; Gallicchio, E.; Gorenko, A.; Henry, M. M.; Hu, F.; Huang, J.; others OpenMM 8: molecular dynamics simulation with machine learn-ing potentials. The Journal of Physical Chemistry B 2023 , 128 , 109–116. 16 TOC Graphic

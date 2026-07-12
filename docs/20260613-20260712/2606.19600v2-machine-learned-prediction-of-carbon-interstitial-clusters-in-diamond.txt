@@ -1,0 +1,332 @@
+Title: Machine-learned prediction of carbon interstitial clusters in diamond
+
+URL Source: https://arxiv.org/pdf/2606.19600v2
+
+Published Time: Thu, 25 Jun 2026 00:14:59 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# Machine-learned prediction of carbon interstitial clusters in diamond 
+
+# Xiaoya Chang 1, Arsalan Hashemi *2,3 , Nima Ghafari Cherati 4,5 , Mikko Karttunen 2,3 , ´ Ad ´ am Gali †4,5,6 , and Tapio Ala-Nissila ‡1,7 
+
+> 1
+
+MSP Group, Department of Applied Physics, Aalto University, P.O. Box 15600, FI-00076 Aalto, Espoo, Finland 
+
+> 2
+
+European Laboratory for Learning and Intelligent Systems (ELLIS) Institute Finland, Maarintie 8, 02150 Espoo, Finland 
+
+> 3
+
+Department of Technical Physics, University of Eastern Finland, P.O. Box 1627, FI-70211 Kuopio, Finland 
+
+> 4
+
+HUN-REN Wigner Research Centre for Physics, P.O. Box 49, H-1525 Budapest, Hungary 
+
+> 5
+
+Department of Atomic Physics, Institute of Physics, Budapest University of Technology and Economics, M ˝ uegyetem rakpart 3., H-1111 Budapest, Hungary 
+
+> 6
+
+MTA–WFK Lend ¨ulet “Momentum” Semiconductor Nanostructures Research Group, P.O. Box 49, H-1525 Budapest, Hungary 
+
+> 7
+
+Interdisciplinary Centre for Mathematical Modelling and Department of Mathematical Sciences, Loughborough University, Loughborough, Leicestershire LE11 3TU, United Kingdom 
+
+# ABSTRACT 
+
+Diamond hosts optically active point defects central to quantum technologies, yet the carbon self-interstitials introduced during growth and irradiation compete with them and form new defects whose configurational landscape is poorly charted, as subtle energy differences govern the competing minima and pathways. Here we build an interstitial-focused dataset by active learning and benchmark three machine-learning interatomic potentials – GAP, NEP and the equivariant MACE – against density functional theory for energies, forces and migration barriers. MACE reproduces the reference energetics and relative stabilities, whereas the others can misorder the ground states. Annealing molecular dynamics with the validated potentials uncovers a series of previously unreported carbon interstitial clusters, from di- to octa-interstitials – several introducing in-gap states of interest as colour centres – and shows that their metastability is governed by kinetically accessible pathways rather than energetic ordering. These results chart the interstitial defect landscape and accelerate defect discovery for quantum technologies. 
+
+Diamond is one of the most remarkable materials in the world, combining exceptional mechanical strength, thermal conductivity, and optical performance 1–3 . As demand extends beyond jewelry, the synthesis of laboratory-grown 4, 5 
+
+diamonds has become a cornerstone of industrial technologies. While the synthesis routes can produce high quality diamonds, defects remain an inherent consequence of the growth process 6. For example, numerous studies have shown that increasing the CH 4 precursor concentration during chemical vapor deposition 5 markedly alters diamond morphology: at 5–10% CH 4, films develop a cauliflower-like surface, whereas at 15% CH 4 the microstructure evolves into randomly one-dimensional needle-like grains 7–9 . These observations underscore how excess carbon can fundamentally reshape defect architectures and crystallinity in diamond. Importantly, defects do not always undermine the utility of a material. In diamond, point defects can, in fact, be highly beneficial, as they introduce distinctive optoelectronic and magnetic functionalities that are attractive for quantum applications 10–12 . Among the most prominent are optically active point defects, or colour centres, such as the 
+
+> *Corresponding author: arsalan.hashemi@uef.fi
+> †Corresponding author: gali.adam@wigner.hun-ren.hu
+> ‡Corresponding author: tapio.ala-nissila@aalto.fi
+
+nitrogen-vacancy (NV) and silicon-vacancy (SiV) centres, which can serve as single-photon sources and solid-state qubits 13–15 . Yet, the controlled formation of these centres remains challenging because competing self-interstitials can form and aggregate simultaneously, thereby depleting the constituents required for the target colour centres through recombination and trapping processes 16–18 . Unlike carbon vacancies, which are often deliberately introduced, self-interstitials have received far less attention, largely because they are widely assumed to become mobile above 700 K and recombine upon thermal treatment 19, 20 . This highlights the richness and complexity of the self-interstitial defect landscape in diamonds. Self-interstitials have recently attracted renewed attention, as growing evidence suggests that interstitial-related defects can give rise to quantum sensors, including the TR12 and ST2 centres, which may offer some advantages over the NV centre 21–23 . Although their atomic structures remain unresolved, experimental signatures, including their generation by carbon implantation and electron irradiation, strongly points to interstitial-related defect complexes. Motivated by these findings, we investigated carbon interstitial complexes in computationally tractable supercells. Our previous study 24 showed that self-interstitials can host 1
+
+> arXiv:2606.19600v2 [physics.comp-ph] 23 Jun 2026
+
+intriguing quantum defects, whereas larger interstitial complexes may be energetically more stable. However, exploring defect configurational space and obtaining a detailed mechanistic understanding of associated transformations require high-fidelity machine-learned interatomic potentials (MLIPs) tailored to self-interstitial defects. To the best of our knowledge, no such potential currently exists. Existing classical potentials and MLIPs 25–27 have not been developed to accurately describe the self-interstitial defect landscape in diamond, where subtle energy differences govern local minima and transition pathways. Overcoming this bottleneck requires a new MLIP that achieves quantum-mechanical density functional theory (DFT) 28 level accuracy for energies and forces while retaining transferability across diverse defect configurations. A related study 29 has demonstrated the feasibility of this hybrid approach for simulating NV centre formation dynamics in the presence of carbon self-interstitials. Crucially, which configuration of a carbon defect is observed is frequently set by formation kinetics rather than thermodynamic stability: for the carbon-pair (G) centre in silicon, kinetic barriers prevent relaxation to the predicted ground state, so that the experimentally observed centre is a kinetically selected, metastable configuration 30 . Capturing such kinetic selection in diamond demands a potential able to follow defect formation and interconversion dynamically , not merely to rank static energies. The accuracy and transferability of an MLIP are determined by its atomic-environment descriptors and the learning architecture. Most modern frameworks employ many-body descriptors to encode atomic environments. The Gaussian approximation potential (GAP) 31 employs the smooth overlap of atomic positions (SOAP) descriptor 32 
+
+to construct a high-dimensional representation of local environments, enabling structural similarity to be quantified and subsequently learned through kernel regression. In contrast, the neuroevolution potential (NEP) 33 adopts a neural-network architecture trained using a separable natural evolution strategy, achieving high computational efficiency owing to its optimised formalism and GPU-accelerated implementation in GPUMD 34 . Unlike the above schemes, message-passing neural networks (MPNNs) represent atomic structures as graphs, with atoms as nodes and interatomic interactions as edges. By iteratively exchanging and aggregating information between neighbouring atoms, they enable each atom to encode progressively longer-range structural information. As a result, the learned representations capture chemically meaningful features beyond the local cutoff radius. In particular, within the MPNN framework, the equivariant MACE framework 35 employs higher-body-order message passing, achieving improved accuracy while remaining scalable and highly parallelizable 36 .To accurately model interstitial carbon defects in diamond, we develop a dedicated dataset and benchmark three classes of MLIPs, including GAP, NEP, and MACE, for their ability to capture the energetics and kinetics of stable and metastable defect structures. Using the optimal model, we perform high-fidelity annealing molecular dynamics (MD) simulations to resolve the point- and cluster-defect landscape of carbon interstitials in diamond, from isolated mono-interstitials to octa-interstitial complexes. Together with a comprehensive analysis of thermodynamic stability and interconversion kinetics, our results establish a unified atomistic picture of carbon interstitial cluster formation and metastability, providing fundamental insights for defect engineering in quantum technologies. 
+
+# 1 Results 
+
+1.1 MLIP development and validation 
+
+Since the current carbon MLIP datasets 26, 27 are poor in interstitial configurations, we begin by generating a diverse yet compact dataset focused on interstitials. Our initial dataset was generated by creating a local void through atom removal, followed by randomly inserting additional atoms into the vacant region to generate defect centres. This strategy deliberately samples high-energy, distorted, and non-equilibrium configurations, capturing regions far from equilibrium and preventing systematic softening of the potential 37 . During the active learning stage, distinct configurations are selected using the farthest-point sampling (FPS) method from heating trajectories of defect centres, isolated defects, and previously reported stable defects (Fig. 1a), ensuring sufficient sampling. Details of the methodology are provided in Supplementary Note 1 (Dataset construction). The resulting dataset comprises 2,140 configurations, which were randomly partitioned into training and test sets of 2,033 frames (95%) and 107 frames (5%), respectively. A validation set comprising 16 frames, derived from equilibrium defects reviewed in Ref. 24, is employed to evaluate model performance, while being completely omitted from the training data. For each frame, DFT-calculated energies, forces, and virials were evaluated for MLIP training. To systematically assess how model architecture (Fig. 1b) influences predictive accuracy, we trained the GAP, NEP, and MACE models on the dataset developed in this work. Detailed hyperparameter settings are provided in Supplementary Note 2 (Training of the MLIPs). The prediction errors are summarised in Table 1 and visualised in Figs. 1c-d. The GAP model exhibits the largest error, approximately six times higher than that of MACE, and it struggles to accurately predict interstitial configurations. This deficiency is not unique to the present study; similar behaviour has been reported previously 26 . Although their model performs well for pristine carbon materials, it shows substantial deviations for vacancy and interstitial defects in diamond, with formation energy errors ranging from 25% to 35%. In comparison, the NEP achieves a noticeable improvement in the accuracy of both energy and force predictions compared to the GAP model, consistent with the enhancements reported in Refs. 33, 
+
+> 2/9
+
+Table 1. MLIP models’ performance. Errors for total electronic energy ( E) and atomic force ( F) predicted by different MLIP models trained on comparable datasets. Energy error in meV/atom; force error in meV/Å. RMSE and MAE represent the root-mean-square error and mean absolute error, respectively, computed for the training (trn), testing (tst), and validation (val) datasets. Two published NEP models 27, 38 were additionally evaluated, each trained on distinct datasets. In Ref. 38, the NEP model was trained using the general carbon dataset developed in Ref. 26. Dataset Model Error Etrn Ftrn Etst Ftst Eval Fval       
+
+> This work GAP RMSE MAE 12.8 8.4 455.9 276.4 13.6 7.3 455.9 267.7 5.2 4.6 175.5 73.7 This work NEP RMSE MAE 4.4 3.0 225.0 111.4 6.6 3.4 222.0 106.7 2.0 1.8 69.1 27.6 This work MACE RMSE MAE 2.0 1.4 46.3 24.1 2.1 1.4 109.1 35.3 1.1 0.9 10.2 4.3 Ref. 27 NEP RMSE MAE 21.8 17.8 373.6 258.3 19.9 16.2 365.2 248.3 3.9 3.6 124.8 49.6 Ref. 26 NEP 38 RMSE MAE 13.5 10.4 263.3 156.4 11.4 9.1 259.6 151.4 2.7 2.4 89.9 31.9
+
+39. Interestingly, the state-of-the-art MACE demonstrates exceptional accuracy in energy predictions and a dramatic reduction in force errors. On the training set, the RMSE for forces is merely 46.3 meV/Å – only 20% of the NEP value and 10% of the GAP error – highlighting its remarkable performance. However, this accuracy comes at a higher computational cost, limiting the use of MACE in large-scale and high-throughput simulations. Throughout this study, the defect configuration formed by the incorporation of i interstitial atoms into diamond is denoted as C i. Each C i family may comprise multiple equilibrated configurations, which are labelled alphabetically in order of increasing energy; for example, E(Cia) < E(Cib).This naming follows the previous convention 24 . The MLIP frameworks are also assessed for their prediction of the formation energies of charged-neutral defects in the validation set (Fig. 1e). The corresponding numerical values are tabulated in Supplementary Table 4. The MAEs for GAP, NEP, and MACE are 2.37, 1.37, and 0.29 eV, respectively. Importantly, both GAP and NEP fail to reproduce the correct stability for C 2 and C 3, indicating limitations primarily in descriptor representation, whereas MACE consistently reproduces both absolute energetics and relative stability. Nudged elastic band (NEB) calculations were carried out for the mono- and di-interstitial defects (Fig. 1f). In this notation, C1a , C1b , C2a , and C2b denote the 
+
+⟨001 ⟩ split-interstitial (two atoms sharing a single lattice site), bond-centred, π-bonded, and Humble configurations, respectively. These simulations serve to verify whether the MLIP models can accurately reproduce structural transition barriers and, by extension, defect diffusion. For the C1b → C1a 
+
+transition, GAP predicts a barrierless pathway, whereas NEP and MACE yield barriers of 0.38 and 0.49 eV, respectively, in close agreement with the DFT value of 0.56 eV. For the reaction energetics, GAP gives an overestimated value of 3.63 eV, whereas NEP underestimates it to 1.32 eV. By contrast, MACE predicts 2.19 eV, in excellent agreement with the DFT value of 2.21 eV. For the more complex C2b → C2a 
+
+transformation, GAP and NEP incorrectly predict C2b to be more stable, in contrast to DFT, whereas MACE closely reproduces the DFT value. MACE predicts an activation barrier of 3.25 eV, in good agreement with the DFT value of 3.39 eV, whereas GAP and NEP substantially underestimate it to 2.59 eV and 2.68 eV, respectively. The corresponding reaction energetics are 0.73 eV for MACE and 1.16 eV for DFT, indicating a modest deviation in the MACE prediction. To demonstrate the need for the diverse dataset constructed in this work, the predictive performance of two NEP models trained on external datasets is also evaluated for energy and force predictions (Table 1 and Supplementary Figures 16 and 17) and NEB calculations (Supplementary Figure 18). Despite sharing the same framework, both models exhibit substantially larger prediction errors on our interstitial dataset and migration pathways, which are attributed to insufficient coverage of defect configurations in their training data. These highlight the importance of constructing a comprehensive interstitial dataset for reliable modelling of defect systems. 
+
+1.2 Stable structure screening 
+
+Employing validated MLIPs, we explore the defect configurational landscape across a broad range of thermodynamic conditions. To this end, annealing machine-learned molecular dynamics (MLMD) simulations were performed using the MACE and NEP models to systematically sample point- and cluster-defect structures. Although NEP is less quantitatively accurate than MACE, its substantially lower computational cost makes it well suited for efficient large-scale simulations, particularly of high-defect-density systems that would otherwise be computationally prohibitive. All MLMD simulation details are provided in Section 3.4. Initial configurations were generated by randomly placing interstitial carbon atoms throughout the 512-atom diamond lattice, allowing isolated interstitials to migrate and aggregate into more complex defect structures during the annealing simulation. For each C i (where 2 ≤ i ≤ 8 ) family, twenty configurations were randomly initiated and subsequently compared using a structure-matching algorithm 40 to remove duplicates. Only final structures lying within 4 eV of the lowest-energy configuration were retained and fully optimised by DFT, thereby filtering out rare or potentially unstable defects. Consistent with the previous study 24 , structures exceeding this threshold are assumed to be unlikely to form or remain stable under the annealing conditions considered. Figure 2a shows the relative energies of the stable structures 
+
+> 3/9
+
+(c) (d) 
+
+(e) (f) 
+
+Elow (b) Graph representation            
+
+> GAP (Kernel -based) MACE (Neural network)
+> Local multi -body descriptor
+> Defect center Isolated defects Stable defect
+> Disordered atoms Cubic diamond
+> cutoff
+> Descriptor
+> vector
+> q1
+> ⋮
+> ⋮
+> ⋮
+> qn
+> NEP (Neural network)
+> vw
+> Message passing
+> hw(t) hv(t)
+> hv(t+ 1)hw(t+ 1)
+
+(a) Figure 1. Overview of MLIP development and validation. (a) Schematic illustration of the configurations used for dataset construction. (b) Schematic illustration of the descriptors used in the MLIP models. (c-d) Comparison of MLIP-predicted energies and force with reference values and the associated error ranges. The lower and upper triangles represent the first and third quartiles of the error distribution, respectively. (e) Comparison of formation energies predicted by different MLIP models against the corresponding DFT values for the validation set. For each C i family, structures reported in prior studies are arranged in order of decreasing stability, with the most stable configuration designated as C i,a. (f) NEB migration pathways for C 1 and C2 calculated by different MLIP models and DFT calculations. Here, C 1a , C 1b , C 2a , and C 2b denote the ⟨001 ⟩ split-interstitial, bond-centred, π-bonded, and Humble configurations, respectively. The DFT results in (e-f) were obtained using the same parameter settings for dataset construction in our calculations. within each C i family, referenced to the lowest-energy configuration at PBE level. Newly discovered configurations in this work are labelled using uppercase letters (e.g., C 2A ,C4B ) to distinguish them from previously reported structures (e.g., C 2a , C 4b ). For reference, all these configurations were also optimised at the more accurate HSE06 level 41 , and their corresponding ground-state electronic structures are presented in Supplementary Note 3 (Defect structures). Since charged defects are typically unstable under visible-light illumination due to shallow states and carrier excitation, while neutral defects are more stable across configurations 24 , we do not explicitly consider charge states in this work. Our results reveal a di-interstitial defect, C 2A , a distorted (C1) derivative of the π-bonded C 2a . The two are essentially degenerate, and their ordering is functional-dependent: C 2A 
+
+lies 37 meV below C 2a at the PBE level on which our dataset is built, whereas HSE06 reverses the order, placing C2a 14 meV below C 2A (Supplementary Note 3). C2A is therefore best regarded as a new metastable member of the di-interstitial family rather than a lower-energy ground state. Across the tri- to octa-interstitial families we identify several further new metastable configurations – C 3A , C 4A ,C5A , C 5B , C 6A , C 6B , C 7A , C 7B and C 8A – whose geometries, formation energies and electronic structures are catalogued in Supplementary Note 3. Two features matter more than the individual structures. First, a cage-like tetra-interstitial motif, C 4A (3.60 eV above the tetra-interstitial ground state), recurs as a structural sub-unit of the larger stable clusters 
+
+4/9 Figure 2. Defect structures obtained from MLIP-driven annealing simulations. (a) Relative energies of structures generated from annealing simulations and subsequently optimised by DFT. Structures reported by Ref. 24 are labelled with lowercase letters (dark purple), while newly discovered configurations are denoted by uppercase letters (orange). Within each C i family, relative energies are defined with respect to the lowest-energy structure. (b) Distribution of annealing outcomes from 20 independent simulations, including ten MACE-based and ten NEP-based runs. (c) Atomic visualisations of representative structures sampled from the simulations. Atoms are coloured by their local structural environments–cubic diamond, first-neighbour, second-neighbour, and other coordination types. To ensure reproducibility, all atomic coordinates have been deposited in the Zenodo repository. (C 5a , C 6a , C 7A , C 8A ) and, despite its high energy, forms with strikingly high probability (see below) – a direct signature of kinetic rather than thermodynamic control. Second, the new configurations separate cleanly by electronic character: C 4A ,C5A , C 5B , C 7A and C 7B introduce two-level in-gap states of potential interest as colour centres (Supplementary Note 3; a quantitative assessment will require methods beyond standard DFT 42 ), whereas C 3A and C 6B are electronically and optically silent. C 6A , an aggregate of C 4a and C 2a units, was previously proposed as a sub-unit of nitrogen–carbon platelets 43 .Several experimentally observed electron paramagnetic resonance (EPR) and optical centres have later been linked to metastable defect structures formed under non-equilibrium conditions 44, 45 . Examples include C 2b , associated with the 3H centre, and C 2c , assigned to the R1 EPR centre. According to Arrhenius kinetics, the rate of structural transformation decreases exponentially with increasing activation barrier Ea
+
+as k ∝ e−Ea/kBT . Consistent with this picture, our calculations also show that the C 1b → C1a transition is kinetically much faster than the analogous transformation in the di-interstitial manifold, implying that the metastable C 2b structure is more readily retained and more likely to trap interstitial carbon. This finding may resolve the long-standing question of how the 3H centre, recently assigned to the C 2b configuration 24 ,can be observed despite C 2a being the most stable structure (Fig. 2f). For larger defect complexes, where NEB becomes increasingly demanding, annealing MD offers a more practical route to assess metastable formation and persistence. Figure 2b illustrates the occurrence of the annealed structures generated by the MACE and NEP models. As a result, the total number of structures is fewer than ten in some cases due to the exclusion of high-energy, highly disordered defective configurations. For the MACE simulations, the most frequently generated structures are C2A , C 3a , C 4A , C 5a , C 6a , C 7A , and C 8A . Among these, the newly identified C 4A structure is particularly notable: it appears in half of the MACE-based simulations. By contrast, all other frequently generated structures correspond 
+
+> 5/9
+
+to the lowest-energy configurations within their respective categories, highlighting the unusual structural prevalence of the higher-energy C 4A motif. As visualised in Fig. 2c, C 4A 
+
+shares a structural motif with the stable C 5a , C 6a , C 7A , and C 8A 
+
+structures, consisting solely of six-membered carbon rings arranged in a zigzag stacking pattern. When projected onto the (011 ) plane, this family of line defects is characterised by six-membered carbon rings surrounded by six alternating five-and seven-membered rings. Although trained on similar datasets, different MLIPs may generate distinct potential energy surfaces, leading to variations in diffusion kinetics, energy barriers, and resulting products 46 . Such method-dependent behaviour is evident in the structural distributions obtained from the MACE and NEP simulations shown in Fig. 2b, where certain configurations are sampled exclusively by one potential. For instance, the C6b structure, proposed as a possible precursor to the TR12 defect 24 , appears in 40% of the NEP simulations but is absent in the more accurate MACE results. This discrepancy likely arises from limited simulations at fixed temperatures ( e.g. ,4500 K), since the C 6b structure also appears in MACE simulations under extended sampling conditions ( e.g. , one out of ten runs at 3000 K). When comparing the most readily formed defect structures, MACE and NEP show generally consistent behaviour, except for the C 2 family, where NEP misestimates the relative energetics. For the remaining cases, the most frequently generated stable configurations predicted by NEP coincide with those obtained from MACE. Notably, NEP produces these stable configurations with a higher probability than MACE, indicating that NEP tends to underestimate energy barriers and thus more readily reaches stable states, consistent with the C 1 and C 2 transition behaviours observed in Fig. 1f. Overall, our results demonstrate that defect-landscape searches become more effective when multiple computational frameworks are used in combination, with the final candidate set assessed through comparative energetics. 
+
+# 2 Discussion 
+
+Carbon interstitial defects in diamond remain difficult to identify experimentally because carbon scatters weakly, and many relevant structures appear on the nanoscale and are embedded in the bulk of three-dimensional crystals. In this context, MLIPs provide a scalable and accurate route to resolve the complex local environments and aggregation pathways that define the interstitial defect landscape. By benchmarking three representative MLIP frameworks against a carefully constructed interstitial dataset, we show that model choice is decisive for reliably describing this landscape. Among the models examined, the state-of-the-art MACE potential reproduces the reference energetics most faithfully, capturing interatomic forces, defect formation energies, and migration pathways with high fidelity, whereas other models can misidentify point-defect ground states and introduce substantial errors in the predicted aggregation pathways. Our annealing simulations uncover a series of previously unreported carbon interstitial clusters that fill missing regions of the diamond defect landscape. Several – C 4A , C 5A ,C5B , C 7A and C 7B – introduce two-level in-gap electronic structures of potential interest as colour centres, although a quantitative assessment will require methods beyond standard DFT. Others, such as C 3A and C 6B , introduce no in-gap states and are electronically and optically silent; even so, each constitutes a distinct, localised source of lattice strain that can be sensed by – and measurably shift the spectra of – a proximate quantum defect such as the nitrogen-vacancy centre, and thus remains relevant to diamond-based quantum sensing. Remarkably, even for the well-studied di-interstitial family, our simulations uncover the overlooked, near-degenerate C 2A 
+
+configuration, underscoring the power of high-fidelity MLIPs to map complex defect physics. The observed metastability of small interstitial clusters is governed by kinetically accessible transition pathways rather than by their energetic ordering, clarifying how experimentally observed centres such as 3H (C 2b ) and R1 (C 2c ) can be retained despite C 2a being the most stable di-interstitial – directly paralleling the kinetically selected, metastable G centre in silicon 30 , and underscoring that a search based on thermodynamic stability alone can overlook the configurations that actually form. These results provide a transferable framework for related wide-bandgap materials such as silicon carbide and gallium nitride. 
+
+# 3 Methods 
+
+3.1 DFT calculations 
+
+All DFT calculations were carried out using the Vienna Ab initio Simulation Package (VASP) 47 within the projector-augmented wave (PAW) framework. Exchange-correlation effects were treated using the Perdew–Burke–Ernzerhof (PBE) functional within the generalised gradient approximation (GGA) 48 . The plane-wave basis set was expanded with a kinetic energy cutoff of 550 eV, and electronic self-consistency was achieved with a convergence threshold of 10 −6 eV. The Brillouin zone was sampled using a Monkhorst–Pack k-point mesh with a spacing of 0.2 Å −1. Spin polarization is taken into account to accurately determine the magnetic ground state and calculate the corresponding structural energy. Zero-point energy corrections were not included, and all defects were treated in the neutral charge state. For geometry optimisations, atomic positions were relaxed while keeping the lattice parameters fixed until the total energy change between consecutive ionic steps was below 10 −6 eV and the forces on all atoms were less than 0.02 eV Å −1.
+
+3.2 MLIP training 
+
+Supplementary Note 1 details the initial data preparation and the iterative expansion of the dataset using active learning. The active learning procedure was implemented 
+
+> 6/9
+
+within the NEP framework to iteratively refine the dataset. The GAP 31 model was trained using the QUIPPY package 49 , incorporating explicit two-body interactions together with turbo_SOAP descriptors 50 , which implicitly encode three-body and higher-order effects. The NEP 34 
+
+model was optimised using full-batch training for 180,000 generations, with an increased energy weight to enhance predictive accuracy. The MACE 35 model was trained using a two-stage protocol with hidden irreps of “128x0e + 128x1o” for 1,000 epochs. Force loss is prioritized in the first stage, while the energy weight is increased in the second stage to improve convergence and generalization. Further details on the training hyperparameters for three MLIP models are provided in Supplementary Note 2. 
+
+3.3 Formation energy and transition barrier 
+
+The interstitial defect formation energy is defined as 
+
+Ef = Etot − N + nN Ebulk , (1) where Etot is the total energy of the supercell containing 
+
+n interstitial atoms, and Ebulk is the total energy of the pristine supercell with N host atoms. The NEB path was obtained using ASE 51 code by interpolating intermediate images between the initial and final minima. The energies of these images were evaluated using three models and benchmarked against DFT reference calculations. Notably, neither the intermediate images nor the local minima were directly included in the training dataset. 
+
+3.4 MLMD simulations 
+
+To identify stable structures (Section 1.2), we generated initial defect configurations by inserting two to eight interstitial atoms into a 4 × 4 × 4 diamond cubic supercell containing 512 carbon atoms. The resulting structures were then obtained using a three-stage annealing protocol: (i) heating the initial configurations containing several isolated defects from 300 K to the target temperature within 1.2 ns — specifically, 3000 K for C 2 to C 6 and 4500 K for C 7 and C8 — to provide sufficient kinetic energy to overcome the energy barrier and reach a stable state, (ii) maintaining the system at the target temperature for 2 ns; and (iii) cooling down to 1 K over 1.2 ns, followed by a 0.2 ps equilibration. All simulations were conducted in the 
+
+NV T ensemble. Higher applied temperatures increase the internal pressure (roughly 30–50 GPa) simultaneously within the configuration, thereby preventing the system from approaching the graphitization boundary 52, 53 . The resulting structures were then subjected to energy minimisation using the conjugate gradient (CG) algorithm, yielding locally stable configurations. Unique structures were identified using a structure-matching algorithm implemented in the pymatgen 40 
+
+package. Structures lying within 4 eV of the lowest energy configuration were then fully optimised using DFT for further investigation. All MACE-based MD simulations were performed using the LAMMPS 54 software, while the NEP-based simulations were conducted with the GPUMD 34 package to achieve higher computational efficiency. For a 514-atom system, MACE-based MD reaches a performance of 1.85 ns/day on a state-of-the-art NVIDIA H200 GPU (Hopper architecture), while NEP-based simulations with GPUMD achieve 14.87 ns/day on an older Tesla architecture-based NVIDIA V100 GPU. Atomic visualisations and trajectory generation were performed using the OVITO 55 software, while other MD post-processing was conducted with the MDAPY 56 package. 
+
+# 4 Acknowledgments 
+
+This work was supported by the Academy of Finland through grants 370057 and 373647, and by the European Union and the European Innovation Council through the Horizon Europe project QRC-4-ESP (Grant No. 101129663), and EU Horizon Europe Quest project (No. 10116088). A.H. and M.K. were supported by the Research Council of Finland (Flagship of Advanced Mathematics for Sensing Imaging and Modeling, grant 358944) and by Foundation PS. We gratefully acknowledge CSC–IT Center for Science Ltd., Finland, and the Aalto Science–IT project for providing the computational resources and computing time used in this work. A.G. acknowledges the high performance computational resources provided by KIF Ü (Governmental Agency for IT Development of Hungary) and the European Commission for the projects SPINUS (Grant No. 101135699) and QuSPARC (Grant No. 101186889). 
+
+# 5 Author contributions 
+
+X. C. constructed the data set, developed the MLIP model, performed formal analysis, visualised the results, and wrote the original manuscript draft. A. H. contributed to conceptualization, methodology design, validation, supervision, and extensively reviewed and edited the manuscript. N. G. C. examined the generated structures, performed HSE06 calculations, and reviewed and edited the manuscript. M. K. contributed to technical aspects, and reviewed and edited the manuscript. A. G. critically reviewed the manuscript and provided insightful suggestions. T. A.-N. 
+
+supervised the project, acquired funding, provided resources, managed project administration, and reviewed and edited the manuscript. 
+
+# 6 Data availability 
+
+All data supporting the conclusions are presented in the paper and the Supplementary Information. The interstitial training dataset and the optimised atomic structures will be deposited in a public repository (Zenodo) upon publication. 
+
+> 7/9
+
+# 7 Code availability 
+
+The code used for dataset construction, machine-learning interatomic potential training, and data analysis, together with the trained potential models, will be made publicly available on GitHub upon acceptance of the manuscript. 
+
+# 8 Competing interests 
+
+The authors declare no competing interests. 
+
+# References 
+
+1. Nie, A., Zhao, Z., Xu, B. & Tian, Y. Microstructure engineering in diamond-based materials. Nat. Mater. 24 ,1172–1185 (2025). 
+
+2. Aharonovich, I. & Neu, E. Diamond nanophotonics. Adv. Opt. Mater. 2, 911–928 (2014). 
+
+3. Yang, N. et al. Conductive diamond: synthesis, properties, and electrochemical applications. Chem. Soc. Rev. 48 ,157–204 (2019). 
+
+4. Bundy, F., Hall, H. T., Strong, H. & Wentorfjun, R. Man-made diamonds. Nature 176 , 51–55 (1955). 
+
+5. Balmer, R. et al. Chemical vapour deposition synthetic diamond: materials, technology and applications. J. Phys. Condens. Matter 21 , 364221 (2009). 
+
+6. Németh, P. et al. Complex nanostructures in diamond. 
+
+Nat. Mater. 19 , 1126–1131 (2020). 
+
+7. Rakha, S. A., Yu, G., Cao, J., He, S. & Zhou, X. Influence of CH 4 on the morphology of nanocrystalline diamond films deposited by ar rich microwave plasma. J. Appl. Phys. 107 (2010). 
+
+8. Sankaran, K. J. et al. Nitrogen incorporated ultrananocrystalline diamond microstructures from bias-enhanced microwave N2/CH 4-plasma chemical vapor deposition. Plasma Process. Polym. 13 , 419–428 (2016). 
+
+9. Sankaran, K. J. et al. Origin of conductive nanocrystalline diamond nanoneedles for optoelectronic applications. 
+
+ACS Appl. Mater. & Interfaces 11 , 25388–25398 (2019). 
+
+10. Pezzagna, S. & Meijer, J. Quantum computer based on color centers in diamond. Appl. Phys. Rev. 8 (2021). 
+
+11. Atatüre, M., Englund, D., Vamivakas, N., Lee, S.-Y. & Wrachtrup, J. Material platforms for spin-based photonic quantum technologies. Nat. Rev. Mater. 3, 38–51 (2018). 
+
+12. Aharonovich, I., Greentree, A. D. & Prawer, S. Diamond photonics. Nat. Photonics 5, 397–405 (2011). 
+
+13. Pershin, A., Tárkányi, A., Verkhovlyuk, V., Ivády, V. & Gali, A. A coherence-protection scheme for quantum sensors based on ultra-shallow single nitrogen-vacancy centers in diamond. Nat. Commun. 16 , 9797 (2025). 
+
+14. Ashfold, M. N. et al. Nitrogen in diamond. Chem. Rev. 
+
+120 , 5745–5794 (2020). 
+
+15. Bézard, M. et al. Giant quantum electrodynamic effects on single SiV color centers in nanosized diamonds. ACS nano 18 , 6406–6412 (2024). 
+
+16. Iakoubovskii, K. et al. Annealing of vacancies and interstitials in diamond. Phys. B: Condens. Matter 340 ,67–75 (2003). 
+
+17. Slepetz, B. & Kertesz, M. Divacancies in diamond: a stepwise formation mechanism. Phys. Chem. Chem. Phys. 
+
+16 , 1515–1521 (2014). 
+
+18. Dickmann, M. et al. Defect evolution in nitrogen-implanted CVD diamond during thermal annealing: The formation of NV centers and vacancy clusters. Mater. & Des. 115422 (2026). 
+
+19. Hunt, D. et al. Identification of the neutral carbon< 100>-split interstitial in diamond. Phys. Rev. B 61 , 3863 (2000). 
+
+20. Kiflawi, I., Collins, A., Iakoubovskii, K. & Fisher, D. Electron irradiation and the formation of vacancy–interstitial pairs in diamond. J. Phys. Condens. Matter 19 , 046216 (2007). 
+
+21. Naydenov, B. et al. Engineering single photon emitters by ion implantation in diamond. Appl. Phys. Lett. 95 
+
+(2009). 
+
+22. Foglszinger, J. et al. TR12 centers in diamond as a room temperature atomic scale vector magnetometer. npj Quantum Inf. 8, 65 (2022). 
+
+23. Foglszinger, J. et al. Discovery of ST2 centers in natural and CVD diamond. npj Quantum Inf. 12 , 42 (2026). 
+
+24. Cherati, N. G., Hashemi, A. & Gali, Á. From mono-to hexa-interstitials: Computational insights into carbon defects in diamond. Phys. Rev. Res. 8, 023088 (2026). 
+
+25. Stuart, S. J., Tutein, A. B. & Harrison, J. A. Areactive potential for hydrocarbons with intermolecular interactions. The J. Chem. Phys. 112 , 6472–6486 (2000). 
+
+26. Rowe, P., Deringer, V. L., Gasparotto, P., Csányi, G. & Michaelides, A. An accurate and transferable machine learning potential for carbon. The J. Chem. Phys. 153 
+
+(2020). 
+
+27. Wang, Y., Fan, Z., Qian, P., Caro, M. A. & Ala-Nissila, T. Density dependence of thermal conductivity in nanoporous and amorphous carbon with machine-learned molecular dynamics. Phys. Rev. B 111 , 094205 (2025). 
+
+28. Hohenberg, P. & Kohn, W. Inhomogeneous electron gas. 
+
+Phys. Rev. 136 , B864 (1964). 
+
+29. Chen, G., Prentice, J. C. & Smith, J. M. Simulating the dynamics of NV − formation in diamond in the presence of carbon self-interstitials. npj Comput. Mater. 11 , 157 (2025). 
+
+> 8/9
+
+30. Deák, P., Udvarhelyi, P., Thiering, G. & Gali, A. The kinetics of carbon pair formation in silicon prohibits reaching thermal equilibrium. Nat. Commun. 14 , 361 (2023). 
+
+31. Bartók, A. P., Payne, M. C., Kondor, R. & Csányi, G. Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons. Phys. Rev. Lett. 104 , 136403 (2010). 
+
+32. Bartók, A. P., Kondor, R. & Csányi, G. On representing chemical environments. Phys. Rev. B 87 , 184115 (2013). 
+
+33. Fan, Z. et al. Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport. Phys. Rev. B 104 , 104309 (2021). 
+
+34. Xu, K. et al. GPUMD 4.0: a high-performance molecular dynamics package for versatile materials simulations with machine-learned potentials. Mater. Genome Eng. Adv. 3,e70028 (2025). 
+
+35. Batatia, I., Kovacs, D. P., Simm, G., Ortner, C. & Csányi, G. MACE : Higher order equivariant message passing neural networks for fast and accurate force fields. Adv. Neural Inf. Process. Syst. 35 , 11423–11436 (2022). 
+
+36. Kovács, D. P., Batatia, I., Arany, E. S. & Csanyi, G. Evaluation of the MACE force field architecture: from medicinal chemistry to materials science. The J. Chem. Phys. 159 (2023). 
+
+37. Deng, B. et al. Systematic softening in universal machine learning interatomic potentials. npj Comput. Mater. 11 , 9 (2025). 
+
+38. Fan, Z. et al. Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials. J. Phys. Condens. Matter 36 , 245901 (2024). 
+
+39. Fan, Z. et al. GPUMD : a package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations. The J. Chem. Phys. 
+
+157 (2022). 
+
+40. Ong, S. P. et al. Python materials genomics (pymatgen): a robust, open-source python library for materials analysis. 
+
+Comput. Mater. Sci. 68 , 314–319 (2013). 
+
+41. Heyd, J. & Scuseria, G. E. Efficient hybrid density functional calculations in solids: assessment of the Heyd–Scuseria–Ernzerhof screened coulomb hybrid functional. The J. Chem. Phys. 121 , 1187–1192 (2004). 
+
+42. Wasielewski, M. R. et al. Exploiting chemistry and molecular systems for quantum information science. Nat. Rev. Chem. 4, 490–504 (2020). 
+
+43. Humble, P. The structure and mechanism of formation of platelets in natural type Ia diamond. Proc. Royal Soc. London. A. Math. Phys. Sci. 381 , 65–81 (1982). 
+
+44. Twitchen, D. et al. Electron-paramagnetic-resonance measurements on the di-< 001>-split interstitial center (R1) in diamond. Phys. Rev. B 54 , 6988 (1996). 
+
+45. Twitchen, D., Newton, M., Baker, J., Banholzer, W. & Anthony, T. Optical spin polarization in the di-< 001>-split interstitial (R1) centre in diamond. Diam. Relat. Mater. 8, 1101–1106 (1999). 
+
+46. Liu, Y., He, X. & Mo, Y. Discrepancies and error evaluation metrics for machine learning interatomic potentials. npj Comput. Mater. 9, 174 (2023). 
+
+47. Hafner, J. Ab initio simulations of materials using VASP: density-functional theory and beyond. J. Comput. Chem. 
+
+29 , 2044–2078 (2008). 
+
+48. Perdew, J. P., Burke, K. & Ernzerhof, M. Generalized gradient approximation made simple. Phys. Rev. Lett. 77 ,3865 (1996). 
+
+49. Kermode, J. R. f90wrap: an automated tool for constructing deep Python interfaces to modern Fortran codes. J. Phys. Condens. Matter. 32 , 305901 (2020). 
+
+50. Caro, M. A. Optimizing many-body atomic descriptors for enhanced computational performance of machine learning based interatomic potentials. Phys. Rev. B 100 ,024112 (2019). 
+
+51. Larsen, A. H. et al. The atomic simulation environment—a python library for working with atoms. 
+
+J. Phys. Condens. Matter 29 , 273002 (2017). 
+
+52. Marchant, G. A., Caro, M. A., Karasulu, B. & Pártay, L. B. Exploring the configuration space of elemental carbon with empirical and machine learned interatomic potentials. npj Comput. Mater. 9, 131 (2023). 
+
+53. Luo, K. et al. Coherent interfaces govern direct transformation from graphite to diamond. Nature 607 ,486–491 (2022). 
+
+54. Thompson, A. P. et al. LAMMPS-a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales. Comput. Phys. Commun. 
+
+271 , 108171 (2022). 
+
+55. Stukowski, A. Visualization and analysis of atomistic simulation data with ovito–the open visualization tool. 
+
+Model. Simul. Mater. Sci. Eng. 18 , 015012 (2010). 
+
+56. Wu, Y.-C. & Shao, J.-L. Mdapy: a flexible and efficient analysis software for molecular dynamics simulations. 
+
+Comput. Phys. Commun. 290 , 108764 (2023).

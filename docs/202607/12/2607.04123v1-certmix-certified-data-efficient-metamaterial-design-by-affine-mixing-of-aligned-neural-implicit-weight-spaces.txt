@@ -1,0 +1,424 @@
+Title: CertMix: Certified, Data-Efficient Metamaterial Design by Affine Mixing of Aligned Neural-Implicit Weight Spaces
+
+URL Source: https://arxiv.org/pdf/2607.04123v1
+
+Published Time: Tue, 07 Jul 2026 02:32:44 GMT
+
+Number of Pages: 6
+
+Markdown Content:
+# CertMix: Certified, Data-Efficient Metamaterial Design by Affine Mixing of Aligned Neural-Implicit Weight Spaces 
+
+## Yifan Wang 
+
+Department of Mechanical Engineering, McGill University Montreal, QC, H3A 2T7, Canada yifan.wang18@mail.mcgill.ca 
+
+Abstract 
+
+Inverse design of mechanical metamaterials—finding a pe-riodic unit cell whose homogenized elastic properties meet a prescribed target—is central to architected-material engi-neering, yet current learning-based methods are data-hungry, confined to interpolation, and provide no guarantee that the generated design meets specification. We introduce CertMix ,a data-efficient framework that represents each exemplar unit cell as a small periodic neural implicit field (a SIREN signed-distance decoder) overfit from a shared anchor , so that the exemplar weight vectors become aligned and directly compa-rable. Our key observation is that, in this aligned weight space, the homogenized elasticity tensor is approximately linear in the mixing coefficients; consequently, designing a cell with target properties reduces to a small constrained affine mixing 
+
+problem solved with a differentiable periodic homogenizer in the loop. Allowing negative coefficients enables extrapolation 
+
+beyond the exemplar range, a linearity-mismatch trust region keeps blends valid, and a split-conformal calibration converts the mismatch signal into a distribution-free certificate on the achieved-property error. From as few as 50 exemplars, Cert-Mix attains a scaled property error of 10 −4, roughly two to three orders of magnitude below conditional generative base-lines trained on 1000 cells; it remains accurate far outside the exemplar range, is 57 × faster than per-target topology opti-mization while avoiding checkerboards and enclosed voids, and extends to spatially graded fields, 3D triply-periodic sur-faces, and a certified running-shoe midsole application. 
+
+## Introduction 
+
+A mechanical metamaterial derives its effective behaviour from the geometry of a periodic unit cell rather than its base chemistry: by patterning a solid into a lattice one can real-ize a target stiffness, a prescribed anisotropy, or a counter-intuitive negative Poisson’s ratio (auxetic response) (Lakes 1987; Bertoldi et al. 2017; Surjadi et al. 2019). The practical bottleneck is the inverse problem: given a desired homog-enized elasticity tensor C∗ 
+
+> H
+
+, find a manufacturable unit-cell geometry that realizes it. Two families of methods dominate. Topology optimiza-tion (TO) solves a PDE-constrained optimization per target (Bendsøe and Kikuchi 1988; Sigmund 2001; Andreassen et al. 2011), including the inverse-homogenization formu-lation that tailors a periodic cell to prescribed constitutive parameters (Sigmund 1994). TO is accurate but expensive (a full solve per target) and frequently returns checkerboards or enclosed voids that are not manufacturable without heavy filtering (Gaynor and Guest 2016; Langelaar 2016). Learned generative models —conditional VAEs, GANs, and diffusion models—amortize design across targets (Wang et al. 2022; Zheng et al. 2023; Bastek and Kochmann 2023; Zheng et al. 2025), but they typically require 10 3–10 4 simulated cells, are confined to the convex hull of their training distribution, and offer no guarantee that a generated cell meets its target once measured. We take a different route inspired by recent weight-space 
+
+shape models that control geometric parameters by mixing the weights of aligned neural implicit decoders (Plattner, Berzins, and Brandstetter 2025; Berzins, Plattner, and Brand-stetter 2025). Our central scientific claim is that, once per-exemplar signed-distance decoders are aligned by overfitting from a shared anchor, the physical homogenized property is approximately linear in the weight-space mixing coefficients. This turns property-controlled design into a tiny constrained linear-blending problem that we solve with an exact, differ-entiable periodic homogenizer in the loop (Fig. 1). 
+
+Contributions. 
+
+• We show empirically that PDE-homogenized elastic prop-erties are approximately linear in the coefficients of an 
+
+aligned neural-implicit weight space, and that a cheap 
+
+linearity-mismatch signal predicts when a blend is trust-worthy (Spearman 0.855 ; failure-flag AUC 0.962 ). 
+
+• We formulate property-controlled metamaterial design as a constrained affine mixing problem with a differen-tiable periodic homogenizer in the loop, giving exact self-adjoint gradients at no extra solve cost, and a two-stage (convex-then-affine) solver with a trust region for robust 
+
+extrapolation .
+
+• We attach a split-conformal certificate to the achieved-property error, yielding a distribution-free coverage guar-antee, and add exact manufacturability checks. 
+
+• We extend the method to spatially graded mixing fields ,to 3D triply-periodic surfaces, and to a certified person-alized running-shoe midsole, and report comprehensive comparisons against retrieval, cVAE, diffusion, learned weight regression, and per-target topology optimization. 
+
+> arXiv:2607.04123v1 [cs.LG] 5 Jul 2026
+
+Stage I · Align   
+
+> per-cell SIREN weights wifrom a shared anchor
+
+Stage II · Mix & Solve      
+
+> min
+> α‖CH(∑
+> i
+> αiwi)−C*‖2
+
+Stage III · Decode   
+
+> tileable unit cell +conformal certi fi cate
+
+Figure 1: CertMix in three stages. (I) Align : overfit a tiny periodic SIREN signed-distance decoder to each exemplar cell from one shared anchor, so the flattened weight vectors wi live in a common space. (II) Mix & solve : choose affine coefficients α so that the differentiable homogenized tensor CH (P 
+
+> i
+
+αiwi) matches the property target C∗ 
+
+> H
+
+. (III) Decode : read the zero-level set of the blended weights into a seamless, tileable unit cell, with a split-conformal certificate on the achieved error. 
+
+## Related Work 
+
+Neural implicit shape representations. Coordinate net-works that map a point to occupancy or signed distance (Park et al. 2019; Mescheder et al. 2019) represent geometry compactly and continuously. Periodic activations (Sitzmann et al. 2020) and Fourier features (Tancik et al. 2020) cap-ture high-frequency detail; we use a period-lifted SIREN so that decoded cells tile seamlessly by construction. Surveys of neural fields (Xie et al. 2022) document their breadth. 
+
+Weight-space learning. Treating a trained network’s weights as data underlies hypernetworks (Ha, Dai, and Le 2017), functa (Dupont et al. 2022), and architectures equiv-ariant to the permutation symmetries of weight space (Navon et al. 2023). Alignment from a shared initialization is what makes naive weight interpolation meaningful, echoing linear mode connectivity modulo permutation (Ainsworth, Hayase, and Srinivasa 2023). LAMP (Plattner, Berzins, and Brand-stetter 2025) and related work (Berzins, Plattner, and Brand-stetter 2025) mix aligned SDF weights to control geometric 
+
+macro-parameters, validated by a learned surrogate. Cert-Mix differs by controlling physical homogenized properties through an exact PDE solver in the loop, by adding spatially graded fields, and by replacing heuristic safety scores with a conformal certificate. 
+
+Inverse design of metamaterials. Numerical homoge-nization (Andreassen and Andreasen 2014) and inverse-homogenization TO (Sigmund 1994) are the classical tools. Learned inverse designers include IH-GAN for cellular struc-tures (Wang et al. 2022), generative truss-metamaterial mod-els (Zheng et al. 2023), and diffusion-based designers (Bastek and Kochmann 2023; Zheng et al. 2025). These require large labeled datasets and interpolate; CertMix is data-efficient, extrapolates, and certifies. 
+
+Conformal prediction. Split-conformal methods (Vovk, Gammerman, and Shafer 2005; Lei et al. 2018; Angelopou-los and Bates 2021) provide finite-sample, distribution-free coverage. We use them to bound the achieved-property error, turning a heuristic validity signal into a guarantee. 
+
+## Method 
+
+Aligned neural-implicit exemplars 
+
+Each exemplar unit cell k is represented by a periodic SIREN 
+
+sw : [0 , 1] 2 → R with weights w ∈ RD that predicts a signed distance (solid where s < 0). Periodicity is enforced by lifting the input coordinate before the first layer, 
+
+γ(x) = cos 2 πx, sin 2 πx, cos 2 πy, sin 2 πy , (1) so that any decoded field tiles seamlessly—a property the graded-structure stage relies on. We overfit every exemplar 
+
+from one shared anchor initialization w0, optionally with a proximal pull ρ∥w − w0∥22. This aligns the weight vec-tors {wi}Ni=1 so that they occupy a common, comparable region of weight space; without this alignment, weight in-terpolation is meaningless (Sec. Ablations confirms a 400 ×
+
+degradation). 
+
+Differentiable periodic homogenization 
+
+Given a weight vector w, we decode a signed-distance field on an NH × NH grid, convert it to a smooth density by a differentiable Heaviside 
+
+ρ(x) = σ −sw(x)/β , Ee = Emin + ( E0 − Emin ) ρe,
+
+(2) and compute the homogenized plane-stress elasticity ten-sor CH ∈ R3×3 by periodic homogenization using bilinear quadrilateral elements and the energy / mutual-energy for-mulation (Andreassen and Andreasen 2014). With periodic boundary conditions, the induced displacement fields χ(j)
+
+for the three unit test strains solve Kχ(j) = f (j), and 
+
+CH,ij = X
+
+> e
+
+Ee q(e) 
+
+> ij
+
+, q(e) 
+
+> ij
+
+= ( u0 
+
+> i
+
+−χi)⊤ 
+
+> e
+
+K0 
+
+> e
+
+(u0 
+
+> j
+
+−χj )e,
+
+(3) where K0 
+
+> e
+
+is the unit-modulus element stiffness and u0 
+
+> j
+
+are the affine unit-strain modes. Because each element modulus enters K linearly , the sensitivity is self-adjoint and available in closed form, 
+
+∂C H,ij 
+
+∂E e
+
+= q(e) 
+
+> ij
+
+, (4) requiring no additional linear solves . We wrap Eqs. (3)–(4) as a custom autograd operator, making the map w 7 → CH
+
+end-to-end differentiable. Engineering constants follow from the compliance S = C−1 
+
+> H
+
+: Ex = 1 /S 11 , Ey = 1 /S 22 , νxy =
+
+−S12 /S 11 , and G = CH, 33 . A 3D trilinear-hexahedral ana-log with an algebraic-multigrid solver handles triply-periodic surfaces. 
+
+Property-controlled affine mixing 
+
+Let F (α) = PNi=1 αi wi be the blended weight vector. Property-controlled design solves 
+
+min  
+
+> α
+
+CH
+
+ F (α) − C∗ 
+
+> H
+> 2sc
+
++ λm m(α) + λ1 ∥α∥1
+
+s.t. P 
+
+> i
+
+αi = 1 ,
+
+(5) where ∥ · ∥ sc is a per-property standardized (scaled) L2
+
+norm over the controlled entries of CH . The affine constraint P 
+
+> i
+
+αi = 1 keeps blends on the affine hull of the exemplars; permitting αi < 0 lets the design leave the convex hull, which is precisely what enables extrapolation. The linearity mismatch 
+
+m(α) = sF (α) − P 
+
+> i
+
+αi swi 1
+
+(6) measures how far the decoded field of the blended weights departs from the linear blend of the exemplar fields; it acts as a differentiable trust region keeping the solve inside the locally linear regime. 
+
+Two-stage solve. We first solve a convex restriction with 
+
+α = softmax( z) (guaranteed feasible), then refine with a free affine parameterization initialized at the convex opti-mum under a strong mismatch penalty. Since the affine fea-sible set contains the convex one and we keep the better of the two, affine refinement can only improve on the convex solution. Optimization uses Adam (Kingma and Ba 2015); each iteration performs one homogenization solve and uses the closed-form gradient of Eq. (4). 
+
+Spatially graded mixing fields 
+
+Replacing the single coefficient vector by a smooth field 
+
+α(x) = softmax  bilinear( Z, x) over macro-grid logits Z
+
+yields functionally graded structures: each macro cell is ho-mogenized with its centre coefficients to match a prescribed property field, and a smoothness penalty on Z regularizes the field. Because every macro cell is decoded from the same aligned, periodic network, the implicit fields agree at shared boundaries, so the global structure is continuous by construction—interfaces are 9–23 × smoother than tiling dis-tinct cells. 
+
+Algorithm 1 CertMix property-controlled design 
+
+Input : aligned bank {wi}, target C∗ 
+
+> H
+
+, calibrated (ˆ q, g )
+
+Output : unit-cell weights w⋆, certified error bound 
+
+b 
+
+> 1:
+
+α ← convex solve of Eq. (5) ( softmax ) 
+
+> 2:
+
+α ← affine refine from α under trust region λm 
+
+> 3:
+
+w⋆ ← P 
+
+> i
+
+αiwi; evaluate CH (w⋆), m(α) 
+
+> 4:
+
+b ← ˆq · g(m, hull dist , ∥α∥1) 
+
+> 5:
+
+return w⋆, b
+
+Split-conformal property certificate 
+
+To turn validity into a guarantee we calibrate a split-conformal bound (Lei et al. 2018; Angelopoulos and Bates 2021). On a calibration set we fit a log-linear scale model 
+
+g(·) of the achieved error from cheap features (mismatch, hull distance, ∥α∥1), form nonconformity scores r = err /g ,and take the quantile 
+
+ˆq = Quantile ⌈(n+1)(1 −δ)⌉/n 
+
+ {ri}. (7) At test time the certified error bound for a new design is ˆq g (·),which holds with probability ≥ 1 − δ under exchangeability. 
+
+## Experiments 
+
+Setup. Unless noted, the exemplar bank is procedurally generated from five 2D periodic families (grid, cross-brace, perforated plate, honeycomb spanning conventional ↔re-entrant/auxetic, and chiral), each decoded by a 3-layer pe-riodic SIREN. All methods—ours, generative baselines, and TO—are scored by the same exact homogenizer at in-loop resolution NH = 64 , verified for resolution independence at NH = 128 . The controlled property set is {Ex, ν xy }
+
+(all of [Ex, E y , ν xy , G ] reported); error is the per-property standardized L2 distance to target. Experiments run on a CPU-only laptop. The homogenizer passes five validation gates (analytic solid tensor to 10 −15 ; rank-1 laminate match-ing the Backus average to 1.4% ; auxetic honeycomb giving 
+
+νxy < 0; autograd vs. finite-difference agreement to < 10 −7;
+
+3D isotropy of a solid and gyroid). 
+
+Weight-space property linearity 
+
+Figure 2 plots the homogenized Ex along pairwise mixing paths. Inside the interpolation regime α ∈ [0 , 1] the property tracks the exact linear reference closely (mean relative error 
+
+0.041 ), and it bends only mildly outside it ( 0.108 ). Over 400 
+
+random blends, the linearity mismatch m(α) ranks strongly with the true property error (Spearman 0.855 ) and flags large-error blends with AUC 0.962 —comparable to the surrogate-based safety metric of Plattner, Berzins, and Brandstetter (2025) but grounded in the real PDE error rather than learned labels. This validates both the affine formulation and the mismatch trust region. 
+
+Data efficiency 
+
+Table 1 and Fig. 3 compare CertMix (50 exemplars) against nearest-exemplar retrieval, a conditional VAE (Kingma and Welling 2014), a classifier-free guided DDPM (Ho, Jain, −0.5 0.0 0.5 1.0 1.5   
+
+> mixing coefficient α(pairwise path)
+> −2
+> 0
+> 2
+> normalised homogenized  Ex
+> Property is near-linear in the weight blend
+> Spearman(mismatch,err) = 0.855, AUC = 0.962
+> exact linear
+> interpolation regime
+
+Figure 2: Homogenized property along pairwise weight-mixing paths stays near the exact-linear reference inside [0 , 1] 
+
+and bends gently outside. The mismatch signal predicts true error (Spearman 0.855 , AUC 0.962 ). 
+
+Method Train cells Median error ↓
+
+CertMix (ours) 50 0.0001 
+
+Nearest exemplar 1000 0.0381 Conditional VAE 1000 0.0683 Learned weights (DNI) 50 0.1191 Conditional diffusion 1000 0.6310 Table 1: Property-target error (scaled L2), scored by the iden-tical homogenizer. Generative baselines use best-of-eight sampling. and Abbeel 2020; Sohl-Dickstein et al. 2015), and a learned weight-regression network (DNI). Generative baselines re-ceive a generous best-of-eight sampling budget. CertMix reaches a median scaled error of 0.0001 from 50 cells— about 680 × below the best cVAE trained on 1000 cells and three orders of magnitude below the diffusion model. 
+
+Certified extrapolation 
+
+We target properties drawn from an extended parameter box lying outside the bank’s convex hull, laddered by extrapo-lation depth (as a fraction of the property span). Figure 4 shows that convex mixing and nearest-exemplar retrieval di-verge with depth, whereas the two-stage affine solve stays on target. At 25 –50% depth CertMix attains error 0.0015 
+
+versus 1.36 for convex mixing—roughly a 900 × reduction. An ablation confirms the trust region is essential: raw affine without it reaches a max error of 1.31 , versus 0.026 for the two-stage solve. The split-conformal certificate (Eq. (7)) achieves 95 .8%
+
+empirical coverage at a target of 90% , with a failure-flag AUC of 0.795 and recall 1.00 at the chosen tolerance. 10 −4 10 −3 10 −2 10 −1 10 0  
+
+> median property error (scaled L2, log)
+> CertMix
+> (ours, 50)
+> NN
+> (1000)
+> cVAE
+> (1000)
+> DNI
+> (50)
+> DDPM
+> (1000)
+> 0.0001
+> 0.0381
+> 0.0683
+> 0.1191
+> 0.631
+> Data e ff iciency (fewer labels, lower error)
+
+Figure 3: Data efficiency: CertMix from 50 exemplars vs. baselines trained on up to 1000 cells (log scale). 0.0 0.1 0.2 0.3 0.4 
+
+> extrapolation depth (× property span)
+> 10 −3
+> 10 −2
+> 10 −1
+> 10 0
+> property error (scaled  L2, log)
+> Certi fi ed extrapolation beyond the library
+> nearest exemplar
+> convex mixing
+> CertMix (ours)
+
+Figure 4: Property error vs. extrapolation depth. Interpolation-only methods break down; CertMix stays ac-curate well beyond the exemplar range. 
+
+Functionally graded structures 
+
+With a spatially varying mixing field, CertMix produces continuous graded parts. For a Poisson-ratio grading (aux-etic transition νxy : −0.26 → +0 .83 with Ex held fixed) the per-cell property error is 0.0052 (median) and the inter-face seam mismatch is 9× smoother than nearest-exemplar tiling; a global tension test recovers the target column-ν pro-file with Pearson r = 0 .997 . A cross-topology transition (grid →honeycomb) yields 23 × smoother seams. 
+
+Comparison to topology optimization 
+
+Against per-target inverse-homogenization TO (SIMP), Cert-Mix matches or beats the converged property error while be-ing amortized: 57 × faster per design (Fig. 5), with 0 enclosed voids and no minimum-feature violation, whereas raw SIMP produces checkerboards ( 222 enclosed voids) and filtered SIMP fails to converge on several targets. per-target SIMP  
+
+> (raw)
+> per-target SIMP
+> (fi ltered)
+> CertMix
+> (amortized)
+> 10 0
+> 10 1
+> seconds per design (log)
+> 57s 57s
+> 0.9s
+> 57× faster, manufacturable
+> (SIMP raw: 222 enclosed voids / checkerboards)
+
+Figure 5: CertMix is 57 × faster than per-target SIMP and manufacturable by construction (SIMP-raw: 222 enclosed voids). 
+
+Ablations 
+
+Shared anchor is decisive: anchored alignment yields me-dian error 0.0013 versus 0.536 for independent initializa-tion ( ∼ 400 ×). The trust-region weight λm trades property accuracy against mismatch as expected; in-loop resolution 
+
+NH = 64 suffices for resolution-independent design (veri-fied at NH = 128 ); and the bank spans 10 –50 cells with graceful degradation. 
+
+Application: certified personalized midsoles 
+
+Re-parameterizing the controlled property as the vertical compression stiffness Ev = CH, 22 —the effective modu-lus footwear science uses for cushioning firmness (Gib-son and Ashby 1997)—CertMix designs functionally graded running-shoe midsoles over a 100 -cell library spanning a 
+
+90 × firmness range (Fig. 6). Personalizing per-zone firmness to runner body weight attains median error 0.0001 versus 
+
+0.0119 for the nearest catalog cell; a graded heel-to-forefoot midsole tracks its target firmness profile with median error 
+
+0.004 and 14 × smoother seams than tiling, and is exported as a printable STL. For runners requiring support firmer than any catalog pattern, negative coefficients extrapolate up to 
+
+190% beyond the catalog band while the conformal certifi-cate still holds at the target coverage. 
+
+## Conclusion 
+
+CertMix casts property-controlled metamaterial design as constrained affine mixing in an aligned neural-implicit weight space, exploiting the near-linearity of PDE-homogenized properties in weight-space coordinates. With a differentiable homogenizer in the loop, a linearity-mismatch trust region, and a split-conformal certificate, it is data-efficient, extrapolative, fast, manufacturable, and certified— and extends to graded fields, 3D surfaces, and a footwear application. Limitations include the linear-elastic property regime (large-strain energy return is future work) and the re-liance on a procedurally generated exemplar bank; scaling to 0 2 4 6 8   
+
+> midsole zone (heel →forefoot)
+
+30 
+
+40 
+
+50 
+
+60 
+
+70   
+
+> cushioning  fi rmness (0 –100)
+> Per-zone fi rmness tracks target
+> seam mismatch 0.013 vs tiling 0.185 (14× smoother)
+> target fi rmness
+> achieved (CertMix)
+
+Figure 6: Per-zone cushioning firmness of a graded midsole tracks the prescribed heel →forefoot target; seams are ∼ 14 ×
+
+smoother than block tiling. richer 3D families and nonlinear responses are natural next steps. 
+
+## References 
+
+Ainsworth, S. K.; Hayase, J.; and Srinivasa, S. 2023. Git Re-Basin: Merging Models Modulo Permutation Symmetries. In International Conference on Learning Representations (ICLR) .Andreassen, E.; and Andreasen, C. S. 2014. How to Deter-mine Composite Material Properties Using Numerical Ho-mogenization. Computational Materials Science , 83: 488– 495. Andreassen, E.; Clausen, A.; Schevenels, M.; Lazarov, B. S.; and Sigmund, O. 2011. Efficient Topology Optimization in MATLAB Using 88 Lines of Code. Structural and Multidis-ciplinary Optimization , 43(1): 1–16. Angelopoulos, A. N.; and Bates, S. 2021. A Gentle Intro-duction to Conformal Prediction and Distribution-Free Un-certainty Quantification. arXiv:2107.07511. Bastek, J.-H.; and Kochmann, D. M. 2023. Inverse Design of Nonlinear Mechanical Metamaterials via Video Denoising Diffusion Models. arXiv:2305.19836. Bendsøe, M. P.; and Kikuchi, N. 1988. Generating Optimal Topologies in Structural Design Using a Homogenization Method. Computer Methods in Applied Mechanics and En-gineering , 71(2): 197–224. Bertoldi, K.; Vitelli, V.; Christensen, J.; and van Hecke, M. 2017. Flexible Mechanical Metamaterials. Nature Reviews Materials , 2(11): 17066. Berzins, A.; Plattner, M.; and Brandstetter, J. 2025. Shape Generation via Weight Space Learning. arXiv:2503.21830. Dupont, E.; Kim, H.; Eslami, S. M. A.; Rezende, D. J.; and Rosenbaum, D. 2022. From Data to Functa: Your Data Point Is a Function and You Can Treat It Like One. In Proceedings of the 39th International Conference on Machine Learning (ICML) .Gaynor, A. T.; and Guest, J. K. 2016. Topology Optimization Considering Overhang Constraints: Eliminating Sacrificial Support Material in Additive Manufacturing Through De-sign. Structural and Multidisciplinary Optimization , 54(5): 1157–1172. Gibson, L. J.; and Ashby, M. F. 1997. Cellular Solids: Struc-ture and Properties . Cambridge University Press, 2nd edi-tion. Ha, D.; Dai, A. M.; and Le, Q. V. 2017. HyperNetworks. In International Conference on Learning Representations (ICLR) .Ho, J.; Jain, A.; and Abbeel, P. 2020. Denoising Diffusion Probabilistic Models. In Advances in Neural Information Processing Systems (NeurIPS) .Kingma, D. P.; and Ba, J. 2015. Adam: A Method for Stochas-tic Optimization. In International Conference on Learning Representations (ICLR) .Kingma, D. P.; and Welling, M. 2014. Auto-Encoding Varia-tional Bayes. In International Conference on Learning Rep-resentations (ICLR) .Lakes, R. 1987. Foam Structures with a Negative Poisson’s Ratio. Science , 235(4792): 1038–1040. Langelaar, M. 2016. Topology Optimization of 3D Self-Supporting Structures for Additive Manufacturing. Additive Manufacturing , 12: 60–70. Lei, J.; G’Sell, M.; Rinaldo, A.; Tibshirani, R. J.; and Wasser-man, L. 2018. Distribution-Free Predictive Inference for Re-gression. Journal of the American Statistical Association ,113(523): 1094–1111. Mescheder, L.; Oechsle, M.; Niemeyer, M.; Nowozin, S.; and Geiger, A. 2019. Occupancy Networks: Learning 3D Recon-struction in Function Space. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , 4460–4470. Navon, A.; Shamsian, A.; Achituve, I.; Fetaya, E.; Chechik, G.; and Maron, H. 2023. Equivariant Architectures for Learn-ing in Deep Weight Spaces. In Proceedings of the 40th International Conference on Machine Learning (ICML) .Park, J. J.; Florence, P.; Straub, J.; Newcombe, R.; and Love-grove, S. 2019. DeepSDF: Learning Continuous Signed Dis-tance Functions for Shape Representation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , 165–174. Plattner, M.; Berzins, A.; and Brandstetter, J. 2025. Data-Efficient Linear Affine Weight-Space Models for Parameter-Controlled 3D Shape Generation and Extrapola-tion. arXiv:2510.22491. Sigmund, O. 1994. Materials with Prescribed Constitutive Parameters: An Inverse Homogenization Problem. Interna-tional Journal of Solids and Structures , 31(17): 2313–2329. Sigmund, O. 2001. A 99 Line Topology Optimization Code Written in MATLAB. Structural and Multidisciplinary Op-timization , 21(2): 120–127. Sitzmann, V.; Martel, J. N. P.; Bergman, A. W.; Lindell, D. B.; and Wetzstein, G. 2020. Implicit Neural Representations with Periodic Activation Functions. In Advances in Neural Information Processing Systems (NeurIPS) .Sohl-Dickstein, J.; Weiss, E. A.; Maheswaranathan, N.; and Ganguli, S. 2015. Deep Unsupervised Learning Us-ing Nonequilibrium Thermodynamics. In Proceedings of the 32nd International Conference on Machine Learning (ICML) .Surjadi, J. U.; Gao, L.; Du, H.; Li, X.; Xiong, X.; Fang, N. X.; and Lu, Y. 2019. Mechanical Metamaterials and Their Engineering Applications. Advanced Engineering Materials ,21(3): 1800864. Tancik, M.; Srinivasan, P. P.; Mildenhall, B.; Fridovich-Keil, S.; Raghavan, N.; Singhal, U.; Ramamoorthi, R.; Barron, J. T.; and Ng, R. 2020. Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Do-mains. In Advances in Neural Information Processing Sys-tems (NeurIPS) .Vovk, V.; Gammerman, A.; and Shafer, G. 2005. Algorithmic Learning in a Random World . Springer. Wang, J.; Chen, W. W.; Da, D.; Fuge, M.; and Rai, R. 2022. IH-GAN: A Conditional Generative Model for Im-plicit Surface-Based Inverse Design of Cellular Structures. 
+
+Computer Methods in Applied Mechanics and Engineering ,396: 115060. Xie, Y.; Takikawa, T.; Saito, S.; Litany, O.; Yan, S.; Khan, N.; Tombari, F.; Tompkin, J.; Sitzmann, V.; and Sridhar, S. 2022. Neural Fields in Visual Computing and Beyond. Computer Graphics Forum , 41(2): 641–676. Zheng, L.; Karapiperis, K.; Kumar, S.; and Kochmann, D. M. 2023. Unifying the Design Space and Optimizing Linear and Nonlinear Truss Metamaterials by Generative Modeling. 
+
+Nature Communications , 14: 7563. Zheng, L.; Karapiperis, K.; Kumar, S.; and Kochmann, D. M. 2025. Algebraic Language Models for In-verse Design of Metamaterials via Diffusion Transformers. arXiv:2507.15753.

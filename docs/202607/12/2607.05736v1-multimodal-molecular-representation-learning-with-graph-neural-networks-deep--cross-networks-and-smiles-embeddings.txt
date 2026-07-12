@@ -1,0 +1,399 @@
+Title: Multimodal Molecular Representation Learning with Graph Neural Networks, Deep     Cross Networks, and SMILES Embeddings
+
+URL Source: https://arxiv.org/pdf/2607.05736v1
+
+Published Time: Wed, 08 Jul 2026 00:21:44 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# Multimodal Molecular Representation Learning with Graph Neural Networks, Deep & Cross Networks, and SMILES Embeddings 
+
+Qiwei Han 1,2, ∗, Chi Zhou 2, ∗, Ruobing Wang 1,2 , Zheng Ma 1,2 
+
+> 1
+
+Department of Chemistry, Duke University, Durham, NC 27708, USA 
+
+> 2
+
+Department of Computer Science, Georgia Institute of Technology, Atlanta, GA 30332, USA 
+
+> ∗
+
+These authors contributed equally to this work. 
+
+Abstract 
+
+Molecular property prediction often relies on isolated data modalities, where continuous 3D graph neural networks (GNNs) struggle to efficiently capture long-range topological de-pendencies and exact macroscopic heuristics. In this work, we introduce a parameter-efficient Tri-Branch Modular Fusion Neural Network that synthesizes three orthogonal modalities: 3D spatial geometry (SchNet), discrete topological grammar (SMILES via ChemBERTa), and ex-plicit macroscopic physicochemical descriptors (Deep & Cross Network). By bypassing standard scalar readouts and employing a shared late-fusion architecture, the framework establishes a mathematically rigorous multimodal latent space that effectively resolves the arithmetic and oversmoothing limitations of local message passing. We evaluate the proposed architecture on the QM9 benchmark, targeting the extensive thermodynamic property of atomization energy at 0 K ( U atom 0 ). Through systematic combinatorial ablation and latent bottleneck optimization (de = 64 ), the tri-modal framework achieves a validation Mean Absolute Error (MAE) of 0.0207 eV. Operating with fewer than one million parameters, this architecture decisively surpasses the sub-chemical accuracy threshold and yields a substantial 20.6% error reduction over a strictly controlled geometric baseline. Ultimately, our findings demonstrate that integrating orthogo-nal macroscopic and topological data streams provides a synergistic, O(1) physical shortcut. This multimodal alignment offers a highly efficient alternative to brute-force parameter scaling, establishing a robust surrogate model for high-throughput virtual screening (HTVS) pipelines. 
+
+Keywords: Multimodal Fusion, Graph Neural Networks (GNNs), SchNet, Deep & Cross Networks (DCNs), Semantic Embeddings, Molecular Property Prediction, QM9. 
+
+# 1 Introduction 
+
+The accurate prediction of molecular properties is a fundamental task in computational chemistry, drug discovery, and materials science. Properties such as atomization energy, dipole moments, and electronic characteristics are traditionally calculated using quantum mechanical methods like Density Functional Theory (DFT) [1]. While DFT provides highly reliable predictions, its immense computational cost strictly limits its applicability in large-scale workflows. Consequently, machine learning (ML) has emerged as a critical surrogate, approximating DFT-derived properties at a fraction of the computational expense. 1arXiv:2607.05736v1 [cs.LG] 7 Jul 2026 The development of molecular ML has been accelerated by standardized benchmarks like Molecu-leNet [2] and generative models that map discrete representations to continuous latent spaces [3]. Recently, geometric deep learning has dominated this space by learning directly from 3D spatial structures. Foundational models like SchNet [4] demonstrated the power of continuous-filter convo-lutions, while subsequent equivariant networks have achieved remarkable error floors on standard datasets like QM9 [5]. However, this pursuit of absolute precision has driven the field toward heavily parameterized architectures. Relying on complex high-order tensors or massive attention mechanisms, state-of-the-art equivariant models [6, 7] often require millions of parameters. While these architectures achieve exceptional absolute accuracy, their computational overhead and high VRAM requirements present a bottleneck for real-world applications like high-throughput virtual screening (HTVS). In HTVS pipelines, where chemical libraries frequently exceed millions of candidate compounds, rapid inference and parameter efficiency are as critical as sub-chemical accuracy. This dynamic highlights a pressing need for alternative paradigms: achieving robust predictive fidelity not through the brute-force parameter scaling of a single spatial modality, but through the computationally lightweight synthesis of complementary data sources. Monolithic, geometry-only architectures often ignore the heterogeneous nature of chemical data. Beyond 3D spatial coordinates, molecules are richly characterized by explicitly calculated physic-ochemical descriptors (0D macroscopic scalars) and structural sequences (1D SMILES strings) [8]. While modern message-passing GNNs excel at resolving localized quantum micro-environments, they often struggle with exact global counting tasks and long-range topological dependencies due to graph oversmoothing. Conversely, tabular architectures (like Deep & Cross Networks) can easily map explicit macroscopic heuristics, and language models excel at capturing long-range topological grammar via global self-attention. Combining these modalities theoretically provides an orthogonal mathematical shortcut that mitigates the blind spots of GNNs, though it remains a non-trivial challenge due to stark differences in feature distributions and information density [10]. To address this, we propose a highly parameter-efficient, multimodal representation learning framework that systematically integrates continuous geometric features, discrete semantic embed-dings, and explicitly bounded physicochemical descriptors. Our modular architecture processes each modality via a dedicated encoder before fusing them into a shared predictive latent space. The geometric branch captures local interatomic dependencies using continuous-filter convolutions adapted for extensive properties via additive pooling—a mathematical necessity for predicting ex-tensive thermodynamic targets like atomization energy. Concurrently, a Deep & Cross Network (DCN) [11] explicitly models global physicochemical heuristics via polynomial interactions. Finally, the semantic branch distills pre-trained SMILES embeddings via SwiGLU-gated dimensionality re-duction [12], capturing long-range functional group motifs often obscured by localized Euclidean convolutions. Evaluated on the QM9 benchmark for the extensive atomization energy property, our main contributions are summarized as follows: 
+
+• Parameter-Efficient Multimodal Architecture: We propose a modular, tri-branch fu-sion framework integrating a spatial GNN, explicit DCN feature crossing, and SwiGLU-gated SMILES embeddings. By relying on multimodal synergy rather than extreme depth, the framework operates with fewer than one million parameters, making it highly suitable for rapid inference pipelines. 
+
+• Sub-Chemical Accuracy: The proposed fusion network achieves a validation Mean Abso-lute Error (MAE) of 0.0207 eV on the QM9 benchmark, successfully surpassing the standard 2sub-chemical accuracy threshold ( ≈ 0.0433 eV) while maintaining a lightweight computational footprint. 
+
+• Synergistic Combinatorial Ablation: Through comprehensive ablation across unimodal and bimodal configurations, we empirically demonstrate that synthesizing orthogonal macro-scopic and topological data yields a substantial 20.6% reduction in error compared to a strictly controlled, pure geometric baseline (0.0261 eV). 
+
+• Latent Bottleneck Analysis: We provide a systematic sensitivity analysis of the semantic embedding dimensionality (sweeping from 32 to 256), identifying exactly 64 dimensions as the optimal information bottleneck required to distill global topology without over-parameterizing the downstream latent space. 
+
+• Architectural Tabular Validation: We evaluate the tabular routing mechanism, confirm-ing that explicit polynomial feature crossing via the DCN establishes a superior validation floor compared to implicit dense mixing via a standard MLP control (0.0210 eV). 
+
+# 2 Multimodal Learning Framework 
+
+2.1 Architecture Overview 
+
+The proposed Modular Fusion Network is designed to synthesize three orthogonal molecular modal-ities via a late-fusion architecture. This paradigm ensures each data stream is processed by a structurally optimized encoder, preventing feature interference during initial representation learn-ing. Formally, we define a molecule M as a multimodal tuple: 
+
+M = ( G, T , S) (1) where G = ( V, E ) represents the 3D molecular graph, T ∈ Rdtab is a vector of macroscopic physic-ochemical descriptors, and S ∈ Rdsem is the dense sequence embedding derived from a pretrained language model. As illustrated in Figure 1, these modalities are routed through three independent parameterized encoders—Geometric ( Φgeo ), Tabular ( Φtab ), and Semantic ( Φsem )—to extract structurally aligned latent vectors of a uniform hidden dimension dh. This parallel routing funnels the orthogonal representations into a single unified state before projection to the target property. 
+
+2.2 Geometric Encoder ( Φgeo )
+
+To capture the complex interatomic spatial dependencies required for quantum-level predictions, our geometric branch utilizes a continuous-filter convolutional architecture [4]. Each atom i ∈ V
+
+is associated with an atomic number Zi and Cartesian coordinates ri ∈ R3. Interatomic distances 
+
+dij = ∥ri − rj ∥2 parameterize a learnable continuous filter network to update node representations through iterative message passing. In this work, we select atomization energy at 0 K ( U atom 0 ) as our primary predictive target to evaluate the framework. To structurally adapt the architecture to this specific target, the geometric readout mechanism must be explicitly configured to match its underlying physics. Because U atom 0 is an extensive thermodynamic property—meaning its total magnitude scales directly with the number of atoms in the molecular system—standard size-invariant readouts (such as mean or max pooling) would improperly collapse this critical size-dependent information. 3Molecule M
+
+3D Graph 
+
+G = ( V, E )
+
+Macroscopic 
+
+T ∈ Rdtab 
+
+SMILES 
+
+S ∈ Rdsem 
+
+Geometric Encoder Φgeo 
+
+SchNet + Global Pooling 
+
+Tabular Encoder Φtab 
+
+Deep & Cross Network 
+
+Semantic Encoder Φsem 
+
+SwiGLU + LayerNorm 
+
+> Concat  z ∈ R3dh
+
+Fusion MLP Ψf usion 
+
+Norm + LeakyReLU 
+
+ˆy
+
+(Target) 
+
+hgeo 
+
+htab 
+
+hsem 
+
+Figure 1: Schematic of the Tri-Branch Modular Fusion Network. The framework general-izes molecular representation by integrating a continuous-filter GNN for 3D geometries, a DCN for explicit tabular physics, and a SwiGLU-gated encoder for SMILES sequences. The aligned latent representations ( hgeo , htab , hsem ) are concatenated and processed through a shared late-fusion net-work to predict the target extensive property ( ˆy). Therefore, after L interaction layers, we bypass standard readouts. The raw spatial messages 
+
+h(L) 
+
+> i
+
+are first refined via an atom-wise Multilayer Perceptron ( MLP atom ) and then strictly aggregated using global additive pooling: 
+
+hgeo = 
+
+> |V|
+
+X
+
+> i=1
+
+MLP atom 
+
+ h(L)
+
+> i
+
+ (2) By employing this additive constraint, the magnitude of the geometric latent representation ( hgeo ∈
+
+Rdh ) scales proportionally with the atom count ( |V |), ensuring the resulting embedding space re-mains mathematically and physically consistent with extensive macroscopic properties. 
+
+2.3 Tabular Encoder ( Φtab )
+
+To process the global physicochemical descriptors ( T ), we utilize a DCN [11]. Unlike traditional MLPs that learn feature interactions implicitly, the DCN explicitly computes bounded polynomial cross-feature dependencies, providing the network with exact macroscopic heuristics. For the l-th cross layer, the interaction is formulated as: 
+
+xl+1 = x0 ⊙ (W⊤ 
+
+> l
+
+xl) + bl + xl (3) where x0 is the standardized input vector, and Wl, bl are learnable parameters. Concurrently, a par-allel deep network processes the input to extract implicit abstract patterns ( xdeep = MLP tab (x0)). The outputs are concatenated and linearly projected: 
+
+htab = Wfinal [xLc ∥ xdeep ] + bfinal (4) 4where Lc is the total number of cross layers, yielding the final tabular representation htab ∈ Rdh .
+
+2.4 Semantic Encoder ( Φsem )
+
+SMILES strings offer a robust topological mapping of molecular structure. However, directly con-catenating high-dimensional textual embeddings introduces feature redundancy and risks drowning out the lower-dimensional physical modalities. To efficiently distill this embedding into the target latent space, we apply a SwiGLU-gated projection mechanism [12]. The semantic vector is processed through parallel linear projections and gated via a Sigmoid Linear Unit (SiLU) activation, followed by dropout and layer normalization: 
+
+hsem = LayerNorm 
+
+
+
+Dropout  (SW1) ⊙ SiLU( SW2)
+
+(5) where W1, W2 ∈ Rdsem ×de . The intermediate semantic bottleneck dimension ( de) acts as an in-formational strangulation point, systematically filtering linguistic noise while preserving critical long-range topological dependencies before projecting to dh.
+
+2.5 Multimodal Fusion and Optimization 
+
+The latent representations from the three distinct branches are concatenated to form a unified multimodal state ( z ∈ R3dh ): 
+
+z = [ hgeo ∥ htab ∥ hsem ] (6) This concatenated vector is processed through a deep fusion network ( Ψf usion ) utilizing Layer Nor-malization [17] and LeakyReLU activations to maintain gradient stability across the heterogeneous inputs, ultimately outputting the normalized prediction ˆynorm .To ensure scale-invariant gradient descent, target atomization energy values ( U atom 0 ) are strictly standardized using training set statistics ( μy, σ y). The framework is optimized end-to-end via the L1 Loss function (Mean Absolute Error): 
+
+LL1 = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+ yi − μy
+
+σy
+
+
+
+− ˆynorm ,i (7) During inference, predictions are unnormalized ( ˆy = ˆ ynorm · σy + μy) to compute the absolute error in physical units (eV). 
+
+# 3 Experimental Setup 
+
+3.1 Dataset and Feature Engineering 
+
+To evaluate the predictive performance of our multimodal framework, experiments were conducted using the QM9 molecular benchmark. To ensure strict data alignment across the spatial, physico-chemical, and semantic domains, molecules that failed to generate valid 3D conformations, produced errors during RDKit descriptor calculation, or could not be tokenized by the semantic pipeline were systematically excluded. This intersection protocol yielded a highly curated dataset of exactly 129,012 structurally aligned molecules, which was partitioned into training and validation subsets using a standardized 80%:20% split. For the tabular encoder ( Φtab ), a fixed vector of dtab = 18 physicochemical properties is extracted for each molecule using the RDKit API. As detailed in Table 1, this feature set spans elemental 5composition, bond topology, global size metrics, and macroscopic heuristics. All 18 descriptor features are standardized via z-score normalization calculated over the training partition to ensure stable gradient descent. Table 1: The 18 physicochemical and topological descriptors extracted via RDKit. 
+
+Feature Category Specific Descriptors ( dtab = 18 )
+
+Elemental Composition Counts of C, N, O, F, H Bond Topology Counts of single, double, triple, and aromatic bonds Global Size Metrics Total atoms, heavy atoms, Molecular Weight (MolWt) Macroscopic Heuristics LogP, TPSA, FractionCSP3 Reactivity & Flexibility H-Bond Donors, H-Bond Acceptors, Rotatable Bonds For the semantic encoder ( Φsem ), tokenized SMILES strings are processed through ChemBERTa-77M-MLM ,a pretrained RoBERTa-style foundation model. This architecture fixes the input semantic dimen-sionality to dsem = 384 , providing a contextualized sequence feature map for each molecule. 
+
+Prediction Target and Normalization: In this work, the primary predictive target is the exten-sive atomization energy at 0 K ( U atom 0 ). To ensure scale-invariant optimization, ground-truth targets are z-score normalized prior to training using global training set statistics ( μ = −76 .1823 eV , σ =10 .3195 eV). All final Mean Absolute Error (MAE) evaluations are unnormalized and reported in physical units (eV). 
+
+3.2 Implementation Details and Hyperparameters 
+
+To structurally align the feature spaces prior to late fusion, the hidden capacity for the geometric, tabular, and semantic pathways is fixed to a uniform dimension of dh = 128 . This constraint prevents the high-dimensional semantic embeddings ( dsem = 384 ) from overpowering the multi-source gradient flow. Gradient stability across these heterogeneous modalities is further enforced via Layer Normalization ( LayerNorm ) at the bottlenecks of the tabular, semantic, and fusion networks. The geometric branch utilizes L = 6 interaction blocks with 50 Gaussian filters and a cutoff radius of 10.0 Å. Crucially, to enable equitable late-stage multimodal fusion, the standard SchNet scalar readout mechanism is bypassed. Instead, the raw spatial messages are explicitly refined through a custom atom-wise MLP ( 128 → 64 → 128 ) with Softplus activations prior to global addi-tive pooling. While truncating the native readout slightly restricts the absolute peak performance of the standalone geometric model compared to highly tuned, monolithic packages, it is a deliberate and necessary architectural control. It enforces strict latent parity ( dh = 128 ) across all modalities, ensuring that the fusion head measures the true synergistic gains of multimodal integration rather than being artificially dominated by an over-parameterized spatial branch. 
+
+3.3 Evaluation Metrics and Ablation Design 
+
+Generalization is evaluated on the validation partition using Mean Absolute Error (MAE) and the coefficient of determination ( R2). To guarantee a mathematically rigorous evaluation, all baseline and partial configurations are subjected to identical data splits, normalization parameters, and learning rate schedules as the proposed architecture. Rather than chasing absolute leaderboard dominance through parameter scaling, our primary objective is to investigate how explicitly distinct representations complement one another. To systematically quantify this synergy, we establish an exhaustive, three-phase ablation matrix: 6Table 2: Detailed architectural hyperparameters and training configuration. 
+
+Hyperparameter Value/Configuration 
+
+Optimization 
+
+Optimizer AdamW (Fused) Learning Rate 3e-4 ( ReduceLROnPlateau , Factor 0.5) Batch Size 64 Loss Function L1 Loss (Normalized Targets) Early Stopping 100 Epochs Patience 
+
+Geometric Branch ( Φgeo )
+
+Interaction Blocks L = 6 
+
+Gaussian Filters 50 (Cutoff: 10.0 Å) Atom-wise MLP 128 → 64 → 128 (Softplus )
+
+Tabular Branch ( Φtab )
+
+Cross Layers Lc = 3 
+
+Deep MLP 128 → 128 (ReLU , Dropout 0.2)
+
+Semantic Branch ( Φsem )
+
+Projection Dimension ( de) Swept {32 , 64 , 128 , 256 }
+
+Activation & Regularization SiLU , Dropout 0.1
+
+Late Fusion Network ( Ψf usion )
+
+Hidden Architecture 384 → 256 → 128 → 1
+
+Activations LeakyReLU 
+
+Phase 1: Combinatorial Synergy. Using the standalone 3D graph neural network ( SchNet Only ) as our controlled anchor baseline, we systematically activate, deactivate, and pair individual encoder pathways. For this phase, the semantic projection bottleneck is strictly fixed to de = 128 to ensure perfect latent parity prior to fusion. This isolates performance across seven configurations: all three unimodal baselines, all three dual-modal pairings, and the full tri-modal framework, directly measuring the orthogonal complementarity of the data sources. 
+
+Phase 2: Semantic Bottleneck Sensitivity. We hypothesize that directly projecting high-dimensional text embeddings into a dense latent space risks over-parameterizing the fusion head and introducing linguistic noise. Freezing the internal geometric and tabular dimensions, we sweep the target compressed semantic dimension across a discrete grid ( de ∈ { 32 , 64 , 128 , 256 }) to empirically identify the optimal information bottleneck required to distill global topology. 
+
+Phase 3: Tabular Architectural Validation. To verify that exact macroscopic heuristics require specialized mathematical routing, we isolate the tabular branch within the optimal tri-modal framework. We substitute the DCN cross-network with a standard Multi-Layer Perceptron (MLP) of equivalent parameter capacity. This isolates whether explicit polynomial feature crossing establishes a superior error floor compared to implicit dense mixing. 
+
+# 4 Results and Discussion 
+
+4.1 Modality Ablation Analysis 
+
+To systematically verify the core hypothesis of this work—that geometric structures, tabular chem-ical descriptors, and text-semantic sequences capture orthogonal, highly synergistic molecular fea-tures—we benchmark our multimodal configurations against the pure geometric baseline ( SchNet 
+
+7Only ). For this initial combinatorial phase, the semantic bottleneck is fixed to de = 128 to maintain strict latent alignment with the spatial and tabular branches. 0 100 200 300 400 500              
+
+> Epoch
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> 0.35
+> 0.40
+> Validation MAE (eV)
+> (a) Unimodal Baselines
+> SchNet
+> DCN
+> Emb
+> 0.0261
+> 0.3074
+> 0.2823
+> 050 100 150 200 250 300 350 400
+> Epoch
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> 0.35
+> 0.40
+> (b) Dual-Modal Fusions
+> SchNet+DCN
+> SchNet+Emb
+> DCN+Emb
+> 0.0222 0.0240
+> 0.1458
+> 0100 200 300 400 500
+> Epoch
+> 0.020
+> 0.025
+> 0.030
+> 0.035
+> 0.040
+> 0.045
+> 0.050
+> 0.055
+> 0.060
+> (c) Tri-Modal Convergence
+> SchNet+DCN+Emb
+> SchNet+DCN
+> SchNet
+> 0.0214
+> 0.0222
+> 0.0261
+
+Figure 2: Multimodal Synergy Ablation. Validation MAE convergence profiles demonstrating systematic error reduction via modality fusion. Star markers ( ⋆) indicate the optimally truncated checkpoint. The tri-modal convergence (Panel c) highlights both a significantly lower absolute error floor and accelerated, stabilized gradient dynamics compared to the isolated SchNet baseline. Table 3: Combinatorial ablation performance evaluated at final convergence. For these baseline comparisons, the semantic projection dimension is structurally aligned to de = 128 .
+
+Model Configuration Train Loss ( ↓) Val MAE (eV) ↓ Val R2 (↑)
+
+Unimodal Baselines 
+
+DCN Only 0.0263 0.3074 0.9973 Embedding Only 0.0224 0.2823 0.9977 
+
+SchNet Only (Baseline) 0.0016 0.0261 0.9999 
+
+Dual-Modal Synergies 
+
+DCN + Embedding 0.0087 0.1458 0.9992 SchNet + Embedding 0.0014 0.0240 0.9999 SchNet + DCN 0.0012 0.0222 0.9999 
+
+Tri-Modal Framework 
+
+Full Framework ( de = 128 ) 0.0010 0.0214 0.9999 
+
+The experimental metrics, consolidated in Table 3, establish a rigorous performance hierarchy that exposes the underlying information dynamics between the data sources. 
+
+4.1.1 Unimodal Baselines and Contextual Constraints 
+
+Among isolated modalities (Figure 2a), spatial coordination data predictably provides the strongest unimodal signal. The SchNet Only baseline establishes a robust performance floor with a validation MAE of 0.0261 eV. It is important to acknowledge that this absolute baseline error trails the highly optimized, stan-dalone SchNet implementations frequently reported in state-of-the-art literature. This discrepancy is a deliberate byproduct of our strict experimental controls designed to measure multimodal syn-ergy. First, to enable equitable late-stage fusion, the native scalar readout mechanism was truncated to output a high-dimensional embedding ( dh = 128 ), sacrificing the deep, specialized atom-wise en-ergy networks typically employed in optimized packages (e.g., SchNetPack). Second, the training 8hyperparameters and learning rate schedules were globally standardized to ensure stable multi-source gradient flow across the tri-modal architecture, rather than being aggressively hyper-tuned for the spatial branch in isolation. Consequently, this baseline serves its intended purpose: acting as a strictly controlled anchor to isolate the relative synergistic gains of multimodal integration, rather than competing with monolithic package-level optimizations. When comparing the non-geometric baselines, the Embedding Only model (0.2823 eV) outper-forms the DCN Only model (0.3074 eV). This gap is directly attributable to their pretraining paradigms: ChemBERTa captures structural syntax and functional group topology via masked lan-guage modeling, whereas the DCN relies on a highly compressed vector of predefined macroscopic scalars. Unsurprisingly, without 3D spatial coordinates, these isolated modalities cannot resolve complex quantum energy landscapes, further validating the necessity of the geometric core. 
+
+4.1.2 Dual-Modal Synergies and Orthogonality 
+
+The true impact of multimodal representation emerges when evaluating the dual-modal pairings. Pairing modalities induces a striking, non-linear error reduction driven by feature orthogonality (Figure 2b). The most prominent evidence of this synergy is observed in the DCN + Embedding configura-tion. Despite completely lacking 3D atomic coordinates, fusing explicit physics (DCN) with global topology (SMILES) slashes the error nearly in half compared to their isolated states, achieving 0.1458 eV. This massive relative improvement strongly supports the hypothesis that macroscopic heuristics and topological sequences provide deeply complementary representations of the molecule. Even more revealing is the synergistic reversal that occurs when secondary modalities are fused with the 3D geometric core. Although text outperformed tabular descriptors in isolation, SchNet + DCN (0.0222 eV) yields a lower error than SchNet + Embedding (0.0240 eV). Theoretically, exact macroscopic properties (e.g., atom counts, molecular weight) are implicitly encoded within the 3D graph. However, message-passing GNNs are notoriously inefficient at exact global counting tasks due to oversmoothing [19, 21]. By injecting explicitly calculated descriptors directly into the fusion head, the tabular branch acts as a physical shortcut [23]. This pairing covers the GNN’s physical arithmetic blind spots, resulting in robust dual-modal synergy. 
+
+4.1.3 The Tri-Modal Framework and Topological Scaling 
+
+When all three data streams are synthesized, the model reaches its highest predictive performance (0.0214 eV for the 128-dimensional variant). As visualized in Figure 2c, the tri-modal architecture consistently outperforms all isolated and dual-modality baselines, establishing a significantly lower absolute error floor. The mechanism driving this profound synergy lies in how the modalities structurally complement each other. An important architectural question naturally arises: if SchNet inherently maps the 3D graph, why does integrating a 1D SMILES sequence yield further performance gains rather than causing redundant feature collapse? The answer stems from the contrasting mathematical paradigms of their respective architec-tures. SchNet resolves local quantum micro-environments via message passing but struggles to efficiently exchange information between distant nodes. Conversely, the semantic transformer pro-cesses topology globally; via self-attention, the distance between any two tokens is effectively O(1) 
+
+[26]. Ultimately, the geometric branch maps localized micro-physics, the tabular branch ensures ex-act macroscopic heuristics, and the semantic branch acts as a global topological grammar, seamlessly resolving the long-range dependencies that pure 3D convolutions often obscure. 94.2 Semantic Bottleneck Evaluation 
+
+While the tri-modal architecture yields superior predictive capabilities, projecting 384-dimensional text features directly into a 128-dimensional latent space risks sub-optimal feature mixing. To maximize fusion synergy, we evaluated the SwiGLU projection layer by freezing the geometric and tabular latent spaces at 128 and sweeping the semantic bottleneck dimension ( de) across a discrete search grid. Table 4: Impact of the semantic embedding bottleneck size ( de) on final tri-modal optimization. 
+
+Bottleneck Dimension ( de) Train Loss ( ↓) Val MAE (eV) ↓ Val R2 (↑)
+
+32 0.0010 0.0216 0.9999 
+
+64 (Optimal) 0.0009 0.0207 0.9999 
+
+128 0.0010 0.0214 0.9999 256 0.0011 0.0220 0.9999 Configuring the semantic bottleneck to exactly de = 64 establishes the structural optimum, achieving the lowest validation MAE of 0.0207 eV (Table 4). This represents a substantial 20.6% error reduction compared to the unimodal geometric baseline. The parabolic shape of the vali-dation error confirms that synergistic fusion requires controlled feature compression. Scaling past the optimal threshold ( de = 256 ) over-parameterizes the projection, passing linguistic noise that drowns out the precise spatial coordinates. Restricting the space to exactly 64 dimensions forces the network to distill only the most generalizable topological semantics. 0 100 200 300 400 500       
+
+> Epoch
+> 0.020
+> 0.022
+> 0.024
+> 0.026
+> 0.028
+> 0.030
+> Validation MAE (eV)
+> (a) Semantic Bottleneck ( de)
+> 64 dim (Optimal)
+> 256 dim
+> 128 dim
+> 32 dim
+> 0.0220
+> 0.0214
+> 0.0216
+> 0.0207
+> 0100 200 300 400 500 600
+> Epoch
+> 0.020
+> 0.022
+> 0.024
+> 0.026
+> 0.028
+> 0.030
+> 0.032
+> 0.034
+> (b) Tabular Routing Architecture
+> Tri-Modal (DCN)
+> Tri-Modal (MLP)
+> 0.0210
+> 0.0207
+
+Figure 3: Framework Optimization. (a) Validation trajectories across varying semantic bottle-neck dimensions ( de). (b) Architectural ablation of the tabular branch. While explicit polynomial crossing (DCN) provides a marginal edge, the primary performance gain stems from the orthogonal macroscopic data itself. 
+
+4.2.1 Architectural Validation of the Tabular Branch 
+
+To rigorously evaluate whether the synergy is driven by the data or the architecture , we conducted a structural control experiment. Using the optimized tri-modal framework ( de = 64 ), we substituted 10 the explicit cross-network (DCN) with a standard Multi-Layer Perceptron (MLP) of equivalent parameter capacity. Table 5: Comparison of tabular routing architectures within the optimal framework ( de = 64 ). 
+
+Tabular Architecture Train Loss ( ↓) Val MAE (eV) ↓ Val R2 (↑)
+
+Tri-Modal (MLP Branch) 0.0013 0.0210 0.9999 
+
+Tri-Modal (DCN Branch) 0.0009 0.0207 0.9999 
+
+The MLP control achieved a highly competitive validation MAE of 0.0210 eV, performing closely to the optimized DCN configuration (0.0207 eV). This marginal performance delta confirms our foun-dational theory. Standard MLPs are effective universal approximators for dense, low-dimensional continuous spaces [25]. Because our tabular branch relies on a compact vector of only 18 continuous descriptors, an MLP can implicitly approximate the necessary interactions. Consequently, while the DCN maintains a mathematical edge by explicitly bounding polyno-mial interactions, the MLP control proves the overarching thesis of this framework: the profound performance gains over standard spatial networks are driven primarily by the synergistic inclusion of orthogonal data modalities, rather than relying exclusively on complex architectural depth. 
+
+4.3 Limitations and Architectural Trade-offs 
+
+While the proposed tri-modal architecture achieves a validation MAE of 0.0207 eV for atomization energy ( U atom 0 )—comfortably surpassing the sub-chemical accuracy threshold—several architectural constraints contextualize these findings and illuminate pathways for future refinement. First, to conduct a strictly controlled multimodal ablation, we deliberately constrained the ge-ometric baseline. The isolated SchNet Only architecture was truncated via a custom atom-wise MLP to force a 128-dimensional latent bottleneck at the readout layer. Although this modification successfully enforced structural parity—preventing the spatial branch from artificially dominating the multi-source gradient flow—it restricted the standalone geometric model from reaching its the-oretical peak performance. Substituting this backbone with a massively parameterized equivariant network (e.g., MACE or NequIP) would undoubtedly depress the absolute error floor further. How-ever, such an upgrade would inherently sacrifice the sub-million parameter footprint and rapid inference capabilities that define the core utility of this framework. Second, the semantic sequence branch utilizes a frozen, pretrained ChemBERTa language model. While freezing these 77 million parameters critically prevents the high-dimensional language model from overfitting and overpowering the lighter physical branches during early optimization, it rel-egates the transformer to a static feature extractor. Consequently, the semantic encoder cannot fine-tune its learned topological syntax specifically to the U atom 0 thermodynamic energy landscape. Future iterations could integrate Parameter-Efficient Fine-Tuning (PEFT) techniques, such as Low-Rank Adaptation (LoRA), to enable end-to-end semantic fine-tuning without violating the strict VRAM and parameter efficiency constraints of the architecture. Third, the empirical optimization dynamics reported in this study—including the identified semantic bottleneck ( de = 64 ) and the overall convergence trajectories—are inherently bounded by the defined hyperparameter search grid and available hardware compute. While our specific configuration establishes a mathematically robust proof-of-concept for multimodal synergy, a more exhaustive, compute-intensive Neural Architecture Search (NAS) across alternative fusion depths, learning rate schedules, and gating mechanisms could yield distinct optimization profiles. Scaling this hyperparameter search utilizing distributed compute clusters remains a necessary future step to identify the absolute global minimum of the tri-modal design space. 11 Finally, the empirical evaluation is bounded by the inherent scope of the QM9 benchmark, which is restricted to small, equilibrium-relaxed organic molecules (up to nine heavy atoms). As a result, the framework’s capacity to maintain synergistic multimodal alignment when scaling to large macromolecules, highly flexible poly-pharmacological compounds, or non-equilibrium transitional states remains an open question. Future work will aim to extend this tri-modal synthesis to dy-namic molecular dynamics (MD) trajectories and structurally diverse datasets (e.g., PCQM4Mv2) to rigorously evaluate its predictive stability across shifting conformational landscapes. 
+
+# 5 Conclusion 
+
+In this work, we introduced a parameter-efficient Tri-Branch Modular Fusion Neural Network that systematically addresses the representational limitations of isolated molecular modalities. By syn-thesizing continuous 3D spatial geometry (SchNet), discrete topological grammar (SMILES via ChemBERTa), and explicitly calculated macroscopic heuristics (Deep & Cross Network), we estab-lished a highly orthogonal, multimodal latent space for robust molecular property prediction. Empirical evaluation on the QM9 dataset demonstrates the exceptional predictive fidelity of this multimodal approach. By optimizing the semantic projection bottleneck to de = 64 , the tri-modal framework achieved a validation MAE of 0.0207 eV for atomization energy ( U atom 0 ). Operating with fewer than one million parameters, this architecture not only decisively surpasses the stan-dard sub-chemical accuracy threshold ( ≈ 0.0433 eV), but also achieves a substantial 20 .6% error reduction over a strictly controlled, pure geometric baseline. This extreme parameter efficiency enables rapid inference, positioning the framework as a highly competitive surrogate for large-scale, high-throughput virtual screening (HTVS) pipelines. The success of this architecture is fundamentally grounded in information theory and physical complementarity. While modern message-passing graph neural networks excel at resolving contin-uous local micro-environments, they inherently struggle with exact global counting tasks and often suffer from oversmoothing across long-range dependencies. Our ablation studies demonstrate that injecting tabular heuristics acts as a vital physical shortcut, effectively bypassing the network’s arithmetic bottlenecks. Furthermore, integrating transformer-based textual embeddings resolves macroscopic topology; by leveraging global self-attention, it anchors the localized 3D graph with a codified, O(1) semantic prior. Looking forward, this multimodal alignment strategy provides a scalable blueprint for next-generation molecular representation. As the field gravitates toward massively over-parameterized monolithic geometric models, our findings offer an alternative, highly efficient paradigm: fusing spatial networks with orthogonal macroscopic and topological data streams can effectively break current performance asymptotes without brute-force parameter scaling. Future work will explore parameter-efficient fine-tuning (PEFT) of the semantic encoder and aim to apply this tri-modal framework to dynamic molecular trajectories, extending its utility from static equilibrium states to complex, non-equilibrium thermodynamic environments. 
+
+# Acknowledgements 
+
+The authors acknowledge the use of Google Gemini (version Gemini 1.5 Pro) during the preparation of this manuscript. Specifically, the AI was utilized as a writing assistant to polish the academic prose, ensure consistent mathematical formatting, and improve structural flow. 12 References 
+
+[1] Kohn, W., & Sham, L. J. (1965). Self-consistent equations including exchange and correlation effects. Physical Review , 140(4A). [2] Wu, Z., et al. (2018). MoleculeNet: a benchmark for molecular machine learning. Chemical Science , 9(2), 513–530. [3] Gómez-Bombarelli, R., et al. (2018). Automatic chemical design using a data-driven continuous representation of molecules. ACS Central Science , 4(2), 268–276. [4] Schütt, K. T., et al. (2017). SchNet: A continuous-filter convolutional neural network for modeling quantum interactions. Advances in Neural Information Processing Systems , 30. [5] Ramakrishnan, R., et al. (2014). Quantum chemistry structures and properties of 134 kilo molecules. Scientific Data , 1, 1–19. [6] Satorras, V. G., et al. (2021). E(n) equivariant graph neural networks. International Conference on Machine Learning , 9323–9332. [7] Batatia, I., et al. (2022). MACE: Higher order equivariant message passing neural networks for fast and accurate force fields. Advances in Neural Information Processing Systems , 35, 11423– 11436. [8] Weininger, D. (1988). SMILES, a chemical language and information system. 1. Introduction to methodology and encoding rules. Journal of Chemical Information and Computer Sciences ,28(1), 31–36. [9] Wang, R. (2018). Significantly improving the prediction of molecular atomization energies by an ensemble of machine learning algorithms and rescanning input space: A stacked generalization approach. The Journal of Physical Chemistry C , 122(9), 4752–4760. [10] Wang, Z., et al. (2024). Multi-Modal Representation Learning for Molecular Property Predic-tion: Sequence, Graph, Geometry. arXiv preprint arXiv:2401.03369 .[11] Wang, R., et al. (2017). Deep & cross network for ad click predictions. Proceedings of the ADKDD’17 , 1–7. [12] Shazeer, N. (2020). GLU variants improve transformer. arXiv preprint arXiv:2002.05202 .[13] Kipf, T. N., & Welling, M. (2016). Semi-supervised classification with graph convolutional networks. arXiv preprint arXiv:1609.02907 .[14] Wang, R., et al. (2021). DCN V2: Improved Deep & Cross Network and Practical Lessons for Web-scale Learning to Rank Systems. Proceedings of the Web Conference .[15] Chithrananda, S., et al. (2020). ChemBERTa: Large-scale self-supervised pretraining for molec-ular property prediction. arXiv preprint arXiv:2010.09885 .[16] Hendrycks, D., & Gimpel, K. (2016). Gaussian error linear units (GELUs). arXiv preprint arXiv:1606.08415 .[17] Ba, J. L., et al. (2016). Layer normalization. arXiv preprint arXiv:1607.06450 .13 [18] Maas, A. L., et al. (2013). Rectifier nonlinearities improve neural network acoustic models. 
+
+Proceedings of ICML .[19] Chen, Z., et al. (2020). Can graph neural networks count substructures? Advances in Neural Information Processing Systems .[20] Wallace, E., et al. (2019). Do NLP models know numbers? Probing numeracy in embeddings. 
+
+Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP) .[21] Li, Q., et al. (2018). Deeper insights into graph convolutional networks for semi-supervised learning. Proceedings of the AAAI Conference on Artificial Intelligence .[22] Oono, K., & Suzuki, T. (2019). Graph neural networks exponentially lose expressive power for node classification. International Conference on Learning Representations (ICLR) .[23] Karniadakis, G. E., et al. (2021). Physics-informed machine learning. Nature Reviews Physics .[24] Unke, O. T., et al. (2021). Machine learning force fields. Chemical Reviews .[25] Gorishniy, Y., Rubachev, I., Khrulkov, V., & Babenko, A. (2021). Revisiting deep learning models for tabular data. Advances in Neural Information Processing Systems , 34, 18932-18943. [26] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. Advances in Neural Information Processing Systems , 30, 5998-6008. 14

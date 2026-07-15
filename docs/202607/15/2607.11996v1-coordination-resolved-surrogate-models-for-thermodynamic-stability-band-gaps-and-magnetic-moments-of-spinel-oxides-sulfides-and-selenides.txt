@@ -1,0 +1,1008 @@
+Title: Coordination-Resolved Surrogate Models for Thermodynamic Stability, Band Gaps, and Magnetic Moments of Spinel Oxides, Sulfides, and Selenides
+
+URL Source: https://arxiv.org/pdf/2607.11996v1
+
+Published Time: Wed, 15 Jul 2026 11:57:40 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+## Coordination-Resolved Surrogate Models for Thermodynamic Stability, Band Gaps, and Magnetic Moments of Spinel Oxides, Sulfides, and Selenides 
+
+Keltoum KHALLOUQ ,∗ Ayoub EL MAAZOUZI ,† and Rachid MASROUR ‡
+
+Laboratory of Solid Physics, Faculty of Sciences Dhar El Mahraz, Sidi Mohamed Ben Abdellah University, Fez, Morocco 
+
+(Dated: July 04, 2026) The magnetism, electronic character, and thermodynamic stability of spinels 𝐴𝐵 2 𝑋 4 are set by how the cations distribute over the tetrahedral and octahedral sublattices and by the local 𝑑 -electron configuration on each. We curated 320 cubic ( 𝐹𝑑 ¯3𝑚 ) spinel entries from the Materials Project-nitrides, oxides, sulfides, and selenides, including single-cation mixed-valence 𝐴 3 𝑋 4 compounds-and trained tree-ensemble surrogates for the formation energy, energy above the convex hull, band gap, total magnetization, and metallicity. Cations were assigned to tetrahedral-like and octahedral-like groups from CrystalNN coordination numbers rather than from element identity, and the evaluation was group-aware throughout: splits were grouped by reduced formula, every transform was fit on training folds only, and champion models were selected on cross-validated scores before the holdout was examined. Over twenty repeated grouped holdouts (single-seed refits that reuse the tuned hyperparameters, and are therefore mildly optimistic) the champions reach mean absolute errors of 0.121 ± 0.030 
+
+eV/atom for the formation energy, 0.048 ± 0.013 eV/atom for the hull distance, and 1.27 ± 0.19 𝜇 𝐵 /f.u. for the magnetization, with a metallicity accuracy of 0.85 ± 0.06 . Band-gap regression does not beat a trivial baseline on the 19-member non-metal holdout under paired bootstrap testing, we report this negative result and trace it to sample scarcity and to the semi-local DFT labels. On the identical grouped split, the tabular champion is more accurate than an untuned MEGNet trained from scratch (0.087 versus 0.209 eV/atom formation-energy MAE on the primary holdout), a comparison that bounds, rather than settles, the descriptor-versus-graph question at this data scale. SHAP attribution ties the magnetization model to octahedral 𝑑 -occupancy and the formation-energy and band-gap models to electronegativity descriptors, and grouped conformal intervals, permutation nulls, and leave-one-chemistry-out tests bound a domain of applicability that is uneven across anions and cations. The framework is a triage layer ahead of targeted first-principles calculation, not a substitute for it. 
+
+I. INTRODUCTION A. Cation distribution in spinels 
+
+The spinel structure, general formula 𝐴𝐵 2 𝑋 4 and space group 𝐹𝑑 ¯3𝑚 (No. 227), places cations on two crystallograph-ically distinct sites, the tetrahedral 8𝑎 and the octahedral 16 𝑑 
+
+positions, with anions at 32 𝑒 . The partition of cations be-tween the two sites is conventionally described by the inver-sion parameter 𝜆 , which runs from the normal configuration (𝜆 = 0, all nominal 𝐴 cations tetrahedral) to the fully inverse one ( 𝜆 = 1) [1]. This occupancy matters physically: the edge-sharing 16 𝑑 sublattice forms a pyrochlore-like network on which superexchange couplings, whose sign and magni-tude follow the Goodenough-Kanamori-Anderson rules [2–4], compete with Zener double exchange in mixed-valence com-positions [5]. Which mechanism dominates depends on which cations, in which oxidation states, occupy which sites. Single-cation mixed-valence spinels such as Fe 3O4 and Co 3O4 are the extreme case: one element occupies both sublattices in different oxidation states, so no site-assignment scheme based on element identity can describe them. The thermodynamics of cation inversion, including its dependence on temperature and synthesis route, has a long literature of its own [6]. Two points of scope should be stated at the outset. First,    
+
+> ∗k.khallouq@gmail.com
+> †ayb.elmaazouzi@gmail.com
+> ‡rachidmasrour@hotmail.com
+
+the dataset used here consists of ordered DFT entries in space group 227, the tetragonal 𝐼 41/𝑎𝑚𝑑 branch is excluded, which removes Jahn-Teller-distorted ground states such as hausman-nite Mn 3O4 (only cubic polymorphs of that composition can en-ter the set). Ordered representations of inverse spinels are often tabulated in lower-symmetry settings and may likewise be un-derrepresented under this filter. Second, we do not compute 𝜆 ;the pipeline carries a binary occupancy proxy (Sec. II B). The featurization is therefore coordination-resolved, not inversion-resolved, and we make no claim to model the continuous in-version degree. 
+
+B. Target properties and motivation 
+
+Spinel chalcogenides and oxides appear in permanent mag-nets, magnetic recording media, photocatalysis, and spintron-ics, and their behavior ranges from Mott and charge-transfer insulators to half-metals and ordinary band metals depending on composition and site chemistry. Previous computational studies have employed Monte Carlo simulations [7, 8], of-ten parameterized from first-principles calculations, to investi-gate finite-temperature magnetic ordering and thermodynamic properties of selected spinel compounds. Experimental mag-netization data remain sparse compared with the size of the accessible 𝐴 -𝐵 -𝑋 space, which is the practical argument for computational pre-screening [9]. Exhaustive DFT relaxation of that space is not feasible, so a cheap statistical surrogate that ranks candidates before first-principles work has clear value, provided its errors and domain of validity are quantified rather than assumed. arXiv:2607.11996v1 [cond-mat.mtrl-sci] 13 Jul 2026 2 
+
+> C. This work
+
+We treat machine learning strictly as an interpolative surro-gate on physics-informed descriptors. The specific contribu-tions are: a coordination-based site assignment (CrystalNN) that processes normal, single-cation, and mixed-occupancy entries in one pipeline, a group-aware evaluation protocol, grouped by reduced formula, in which every transform is fit on training folds only and champion models are chosen on cross-validated scores before the holdout is consulted, conformal prediction intervals, label-permutation nulls, and leave-one-anion/cation-out tests that bound the domain of applicability, an explicit accounting of where the surrogate fails, including a band-gap negative result, and a screening exercise with DFT-ready export, presented as prioritization for first-principles validation. A predictive claim is made below only where the model beats trivial and linear baselines under paired bootstrap testing and survives a label-permutation null.  
+
+> D. Relation to prior work
+
+Composition-only tabular surrogates built on Magpie-style statistics [10] cover broad chemistry but cannot distinguish a normal from an inverse spinel of identical composition, which is exactly the degree of freedom that matters here. Graph neu-ral networks pretrained on repository-scale corpora (CGCNN, MEGNet, ALIGNN) [11, 12] are accurate on average but pose a benchmarking hazard for narrow sub-families: when the evaluation compounds were part of the pretraining corpus, the reported errors are contaminated upper bounds rather than generalization estimates. Benchmarking studies have also doc-umented that tree ensembles on descriptors tend to beat graph networks below roughly 10 4 training samples [13], and that ac-curate formation energies do not automatically translate into accurate hull stabilities [14]. Our contribution is not a new learner. It is a leakage-audited evaluation protocol plus a site-resolved featurization for one structure family, with the pretrained-GNN reference explicitly labeled as contaminated and a from-scratch GNN trained on the identical split reported as the like-for-like comparison (Sec. II F).   
+
+> II. METHODS A. Dataset curation and group-aware partitioning
+
+Figure 1 summarizes the full pipeline, from retrieval to the gated screening export. Entries were retrieved from the Ma-terials Project [15] for space group 227 through the mp-api 
+
+summary endpoint, the tetragonal branch (space group 141) was excluded in this run. Entries lacking a reported forma-tion energy would have been removed first, none occurred in this retrieval (rejection log archived with the result bun-dle). Areduced-formula stoichiometry filter then admitted the canonical 𝐴𝐵 2 𝑋 4 composition and the single-cation 𝐴 3 𝑋 4 com-position, rejecting 1059 entries, a further 62 entries failed the coordination-descriptor computation of Sec. II B. The curated set contains 320 entries. No explicit anion filter was applied, the anions observed in the curated set are N, O, S, and Se, with oxides dominating, smaller sulfide and selenide populations, and a small nitride minority. The cation set is transition-metal-rich and also contains lanthanide-bearing chalcogenides. All rejection counts and identifiers are archived with the result bundle. Labels are Materials Project quantities: formation energy per atom, energy above the convex hull, band gap, and total magnetization. The magnetization was converted to per for-mula unit by dividing the reported cell value by the number of formula units ( nsites /7). The binary metallicity label was defined by thresholding the reported gap at 0.01 eV wherever a gap is reported (a sensitivity study over the threshold appears in Sec. III A), entries with a missing label were excluded from the corresponding task and never imputed. Materials Project energies come from a mixed GGA/GGA +𝑈 scheme with com-patibility corrections [16], "PBE" is shorthand below for that scheme, and the gaps are semi-local Kohn-Sham gaps with the usual underestimation [17]. A duplicate audit by reduced formula returned zero duplicated compositions. Because several entries can share one reduced formula (poly-morphs, re-relaxations), plain 𝐾 -fold cross-validation would place near-identical compositions in both training and evalua-tion folds. Partitioning therefore used GroupShuffleSplit 
+
+grouped by reduced formula, holdout fraction 0.15, seed 42, giving 272 training and 48 held-out entries with zero shared formulas (verified by an intersection assert at run time). Ta-ble II summarizes the provenance.  
+
+> B. Local-environment featurization
+
+Cations were assigned to sublattice groups from Crys-talNN [18] coordination numbers: sites with CN ≤ 4 enter the tetrahedral-like 𝐴 group and sites with CN ≥ 5 the octahedral-like 𝐵 group. Cation sites for which CrystalNN raises an exception are excluded from the assignment, if either group ends up empty, the cations are instead split at the median coor-dination number, and entries for which no valid split exists are rejected (part of the 62 descriptor rejections above). Oxidation states were assigned with pymatgen’s guessing routines, with element-default states as fallback. On this assignment we computed: Shannon ionic radii 𝑟 𝐼𝑉 𝐴 ,
+
+𝑟 𝑉 𝐼 𝐵 , and 𝑟 𝑉 𝐼 𝑋 (when the radius for the preferred coordination is unavailable the code falls back to the CN-VI value and then to the element’s generic ionic radius, so a small fraction of radii are not strict Shannon values at the nominal coordination), the ratio 𝑟 𝐴 /𝑟 𝐵 , the size-matching factor 
+
+𝑡 = 𝑟 𝐴 + 𝑟 𝑋 
+
+√2 (𝑟 𝐵 + 𝑟 𝑋 ) ; (1) site-resolved mean oxidation states, formal 𝑑 -electron counts 
+
+𝑑 𝐴 and 𝑑 𝐵 (group number minus oxidation state, clamped to 
+
+[0, 10 ]) and their sum; a transition-metal fraction, site- and anion-resolved electronegativities 𝜒 𝐴 , 𝜒 𝐵 , 𝜒 𝑋 and the anion-cation contrast Δ𝜒 = 𝜒 𝑋 − 12 ( 𝜒 𝐴 + 𝜒 𝐵 ), a Jahn-Teller flag that marks octahedral cations with formal 𝑑 4 or 𝑑 9 counts (the spin 3       
+
+> Materials Project sg. 227
+> 𝐴𝐵 2𝑋 4,𝐴 3𝑋 4
+> Curation label/duplicate audit ( 𝑛 =320 )
+> CrystalNN site grouping
+> CN ≤4→𝐴 ,≥5→𝐵
+> Physics-informed descriptors
+> 𝑡 , 𝑟 𝐴 /𝑟 𝐵 , 𝑑 𝐵 , 𝜒
+> Group split by reduced formula (272/48)
+> Fold-refit pipeline impute →VarThr
+> →CorrPrune
+> Optuna grouped inner CV tree ensembles
+> OOF champion selection (holdout blind)
+> Grouped CV +
+> intervals (MAPIE,
+> 𝛼 =0.10 )
+> Robustness LOAO/LOCO,
+> 𝑦 -scramble
+> SHAP attribution
+> Stability gate
+> +DFT export (POSCAR/INCAR)
+
+FIG. 1. Workflow. Curated Materials Project spinels are featurized through CrystalNN site grouping and physics-informed descriptors (top row), then partitioned and modeled under a group-aware protocol in which all transforms are refit per fold and champions are selected on out-of-fold scores before the holdout is seen (middle row). Conformal intervals, robustness audits, attribution, and a gated stability screen with DFT-ready export follow (bottom row). 
+
+state is not resolved), the coordination-number gap CN 𝐵 −CN 𝐴 ,and a binary occupancy proxy set to one when the dominant 
+
+𝐴 -group and 𝐵 -group elements coincide, as in single-cation spinels. These were combined with Magpie compositional statistics (matminer ElementProperty , magpie preset) and with CrystalNN site fingerprints ( SiteStatsFingerprint 
+
+over the CrystalNNFingerprint "ops" preset, mean and standard deviation per motif). The raw feature matrix holds 264 descriptors: 120 Mag-pie statistics after removal of the SpaceGroupNumber and 
+
+MendeleevNumber families (categorical proxies that could act as shortcuts), 19 bespoke structural and electronic descrip-tors, a 3-descriptor occupancy block (Jahn-Teller flag, occu-pancy proxy, coordination-number gap) used in the ablation of Sec. III B, and 122 CrystalNN fingerprint statistics. The en-ergy above the hull, density, volume, and the Materials Project stability flag are outputs or near-outputs and were excluded from the feature matrix for every task. 
+
+C. Learning pipeline, tuning, and model selection 
+
+Every model is wrapped in a single scikit-learn pipeline [19], median imputation followed by a variance filter (threshold 
+
+10 −10 ) and deterministic correlation pruning (first-kept scan at |𝑟 | > 0.90 ), so that all transforms are refit on the train-ing portion of every split, including inside the tuning loop. Tree models receive the pruned features directly, only the linear baselines standardize internally. The baselines are a DummyRegressor predicting the training median (regres-sion), a DummyClassifier predicting the most frequent train-ing class (classification), RidgeCV , and logistic regression. Against these we benchmarked XGBoost [20], LightGBM [21], CatBoost [22], and random forests. Hyperparameters were tuned with Optuna (TPE sampler, 50 trials per target and model) on a grouped three-fold inner cross-validation of the training partition, minimizing MAE for regression and error rate for classification. Champion selection used repeated grouped five-fold out-of-fold (OOF) statistics on the training partition (four repeats with re-randomized fold as-signments), by mean OOF MAE for regression and mean OOF AUC for classification, the holdout was not consulted at any stage of tuning or selection. One caveat applies to the OOF numbers themselves: the tuning loop ran on the same parti-tion, and the OOF evaluation was not nested inside it, so the OOF values reported in Table VI are selection scores, mildly optimistic as performance estimates. The clean generalization estimates in this paper are the holdout and the repeated-holdout results. On the primary holdout, every model (baselines included) was evaluated as a three-member seed ensemble (seeds 42, 7, 123, predictions averaged). The repeated-holdout, leave-one-chemistry-out, and ablation analyses of Sec. II D use single-seed fits, this asymmetry is quantified in Sec. III A. For each regression champion, prediction intervals were built with MAPIE using the "plus" method over a grouped five-fold split (grouped CV +), at miscoverage 𝛼 = 0.10 . The con-struction assumes exchangeability between calibration and test data, it does not hold in the extrapolation regime of Sec. III E, and we flag that explicitly there. The empirical calibration of these intervals is examined in Sec. III A. 
+
+D. Statistical evaluation and robustness protocol 
+
+Champion-versus-baseline MAE differences on the holdout were tested by paired bootstrap (2000 resamples of the 48 hold-out entries, 19 for the gap), with a 95% percentile interval, a difference is called significant when the interval excludes zero. Twenty additional grouped holdouts (15% test fraction, seeds 100-119) were drawn over the full 320-entry set and evalu-ated with single-seed fits of the dummy, ridge, and champion models. Two caveats apply: these repeated splits reuse the hyperparameters tuned once on the primary training partition, 4so most repeated test folds contain compounds present during tuning, and the same reuse applies to the leave-one-anion-out (LOAO) and leave-one-cation-out (LOCO) tests below. Both analyses are therefore mildly optimistic and are read as robust-ness checks, not as fresh unbiased estimates. LOAO retrains the champion with one anion class withheld (evaluated when at least 5 test and 20 training entries remain), LOCO does the same for a probe set of nine cations (Al, Co, Cr, Cu, Fe, Mg, Mn, Ni, Zn) that appear as a dominant 𝐴 - or 𝐵 -group element in at least ten entries, the full cation content of the dataset is broader. A label-permutation null (five permuta-tions per regression target, grouped OOF protocol) checks that the pipeline cannot manufacture skill from scrambled labels. Feature-group ablations (Sec. III B) use the grouped-OOF pro-tocol with the champion hyperparameters. 
+
+E. Computational environment 
+
+The pipeline ran under Python 3.12 on Google Colab, the graph-network baselines and the GPU-enabled boosters (XG-Boost, CatBoost) used a single NVIDIA T4. Pinned package versions: NumPy 1.26.4, scikit-learn 1.5.2, LightGBM 4.5.0, CatBoost 1.2.7, SHAP 0.46.0, MAPIE 0.9.1, gplearn 0.4.2, PyTorch 2.4.0, DGL 2.4.0, MatGL 1.1.1. XGBoost, Optuna, pymatgen, matminer, and mp-api were installed unpinned, the exact versions of every package in the archived run are recorded in run_metadata.json within the result bundle, to-gether with the Materials Project retrieval date. Fixed seeds were used throughout (global seed 42, holdout ensemble seeds 42, 7, 123), though GPU tree-boosting backends are not bit-reproducible across hardware. 
+
+F. Graph-network baselines 
+
+Two kinds of graph-network reference are reported, and they are not equivalent. The first is a pretrained CGCNN [11] evaluated directly on the holdout, using the formation-energy checkpoint distributed with the original CGCNN repository. Because the holdout compositions were almost certainly in-side that model’s Materials Project training corpus, its error is a contaminated, optimistic bound and is labeled as such wherever it appears (Table I). The like-for-like comparison is a MEGNet [12] trained from scratch on the identical grouped split, with the holdout labels excluded from every stage. A single configuration was used, with no architecture or hyperparameter search: node and edge embeddings of dimension 64, a two-dimensional state embed-ding, three MEGNet blocks ( 1.92 × 10 5 trainable parameters), Adam at learning rate 10 −3, batch size 32, a 5.0 Å graph cutoff, seed 42, and a fixed 80-epoch budget. The first grouped fold of the training partition (217/55 structures for the formation energy, 114/29 for the gap, trained on the non-metal subset) served as a monitored validation set, but no early stopping was applied and the final epoch’s weights were used. One imple-mentation detail deviates slightly from strict holdout isolation: the element vocabulary of the graph encoder was built from the 
+
+TABLE I. Graph-network references on the primary holdout. The pretrained CGCNN figure (formation-energy checkpoint from the original repository) is a contaminated, optimistic bound: the holdout compositions were almost certainly in its Materials Project training corpus. The from-scratch MEGNet rows are the like-for-like compar-ison, trained on the identical grouped split with the holdout labels excluded (single untuned configuration, see Secs. II F and IV).                         
+
+> Model Target 𝑁 MAE 𝑅 2
+> CatBoost (this work) 𝐸 f48 0.0865 0.977 CGCNN (pretrained, contaminated) 𝐸 f48 0.1254 0.953 MEGNet (from scratch, same split) 𝐸 f48 0.2085 0.888 CatBoost (this work) 𝐸 𝑔 19 0.6447 −0.069
+> MEGNet (from scratch, same split) 𝐸 𝑔 19 0.7520 −0.190
+
+TABLE II. Dataset provenance and evaluation configuration. The LOCO row lists the nine-cation extrapolation probe set (dominant-site occurrence ≥ 10 ), not the full cation content of the dataset, which also includes lanthanide-bearing chalcogenides.                               
+
+> Quantity Value Source Materials Project, space group 227 Stoichiometries admitted 𝐴𝐵 2𝑋 4and single-cation 𝐴 3𝑋 4
+> Tetragonal branch (sg. 141) Excluded Curated entries 320 Training / holdout 272 / 48 (grouped, seed 42) Shared reduced formulas 0Rejected: stoichiometry filter 1059 Rejected: descriptor failure 62 Rejected: missing 𝐸 f0Anion classes observed N, O, S, Se LOCO probe cations Al, Co, Cr, Cu, Fe, Mg, Mn, Ni, Zn Metallicity label 𝐸 𝑔 ≤0.01 eV (where gap reported) Raw descriptors 264 (120 Magpie, 19 spinel, 3 occupancy block, 122 CrystalNN) Excluded from features 𝐸 hull , density, volume, is_stable ,
+> SpaceGroupNumber ,MendeleevNumber
+> Optuna TPE, 50 trials, grouped 3-fold inner CV OOF selection 4 repeats ×grouped 5-fold Baselines median dummy, most-frequent dummy, RidgeCV, logistic regression
+
+training and holdout structures together (compositions only, no labels), we note it for completeness. Results are in Sec. III A and Table I, the limits of this comparison are discussed in Sec. IV. 
+
+III. RESULTS AND DISCUSSION A. Surrogate performance and error analysis 
+
+Table IV reports the primary-holdout regression results for every model, with the OOF-selected champion in boldface, Ta-ble V the metallicity results, Table VI the OOF selection statis-tics with the paired-bootstrap tests, and Table III the conformal diagnostics. The OOF-selected champion was CatBoost for the four regression targets and LightGBM for metallicity. Cham-5−3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+> DFT Formation energy (eV/atom)
+> −3.5
+> −3.0
+> −2.5
+> −2.0
+> −1.5
+> −1.0
+> −0.5
+> Predicted Formation energy (eV/atom)  R2=0.977
+> MAE=0.0865 eV/atom
+> N=48
+> catboost (grouped holdout)
+
+(a) 0.00 0.05 0.10 0.15 0.20 0.25 0.30  
+
+> DFT Energy above hull (eV/atom)
+> 0.00
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> Predicted Energy above hull (eV/atom)  R2=0.337
+> MAE=0.0430 eV/atom
+> N=48
+> catboost (grouped holdout)
+
+(b) 0 1 2 3 4
+
+> DFT Band gap (eV)
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 3.0
+> 3.5
+> 4.0
+> Predicted Band gap (eV)
+> R2=-0.069
+> MAE=0.6447 eV
+> N=19
+> catboost (grouped holdout)
+
+(c) 0 2 4 6 8 10  
+
+> DFT Total magnetization (muB/f.u.)
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> Predicted Total magnetization (muB/f.u.)
+> R2=0.724
+> MAE=0.8879 muB/f.u.
+> N=48
+> catboost (grouped holdout)
+
+(d) 
+
+FIG. 2. Predicted-versus-true parity plots on the primary holdout for the regression champion (CatBoost), with the 𝑦 = 𝑥 reference and per-point grouped CV + intervals (gray bars): (a) formation energy, (b) energy above hull, (c) band gap (non-metal subset), (d) total magnetization. The gray intervals are conservative for the formation energy (Sec. III A and Table III) and should not be read as the point-error scale. 
+
+pion parity plots are shown in Fig. 2, residual distributions in Fig. 5, and the model ×target MAE landscape in Fig. 3. 
+
+a. Formation energy. On the primary holdout the Cat-Boost champion reaches an MAE of 0.0865 eV /atom (𝑅 2 =
+
+0.977 ), against 0.6317 eV /atom for the median dummy and 0.1382 eV /atom for ridge. Paired bootstrap testing confirms the improvement over the dummy (ΔMAE =
+
+−0.5445 , 95% CI [− 0.666 , −0.422 ]) and over ridge ( −0.0517 ,CI [− 0.082 , −0.019 ]), the differences against XGBoost (+0.0027 ) and LightGBM ( −0.0045 ) are not significant, so several boosted ensembles are effectively interchangeable here (per-model parity plots in Fig. 4). Over the twenty repeated holdouts the champion averages 0.1206 ± 0.0301 eV/atom (𝑅 2 = 0.922 ± 0.068 ), and we take this, not the single split, as the headline generalization figure. Part of the gap between the two numbers is mechanical: the primary-split predictions average three seed replicates while the repeated splits use sin-gle fits (Sec. II C), the remainder is ordinary split variance. For context, an error near 0.09-0.12 eV/atom is of the same order as the discrepancy between DFT formation enthalpies and experiment [23], adequate for ranking chemistries but not for resolving fine competition between similar compositions. 
+
+b. Energy above hull. The champion attains an MAE of 0.0430 eV /atom (𝑅 2 = 0.337 ) on the primary hold-6catboost dummy lightgbm random_forest ridge xgboost                     
+
+> Model
+> Band gap
+> Energy above hull
+> Formation energy
+> Total magnetization
+> Target
+> 0.6447 0.7404 0.6194 0.6114 0.6357 0.6100
+> 0.0430 0.0575 0.0513 0.0477 0.0554 0.0448
+> 0.0865 0.6317 0.0910 0.1329 0.1382 0.0838
+> 0.8879 3.0188 1.0029 0.9633 1.6818 0.9418
+> Holdout regression MAE (raw values; colour normalized per row, dark = best)
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Per-row normalized MAE (0 = best, dark)
+
+FIG. 3. Holdout regression MAE for every model and target (raw values annotated, color normalized per target row, with the worst model in each row at the dark end of a colorblind-safe scale). CatBoost and XGBoost are the best-performing models across the energy and magnetization targets, no model separates from the others on the band gap. TABLE III. Grouped CV + conformal diagnostics (MAPIE, "plus" method over a grouped five-fold split, 𝛼 = 0.10 , nominal 90%) for the regression champion of each target on the primary holdout: empirical coverage, its 95% binomial confidence interval, and mean interval width. Widths should be read against the data scale: the formation-energy intervals over-cover (coverage 1.000 at nominal 0.90) with a mean width of roughly seven times the point MAE, a conservatism discussed in Sec. III A and inherited by the screening gate of Sec. III E, the magnetization interval (7.09 𝜇 𝐵 /f.u.) exceeds twice the dummy MAE, so individual intervals for that target are close to uninformative even though coverage is honest.                    
+
+> Target Coverage 95% CI Mean width Formation energy ( eV /atom )1.000 [0.926 ,1.000 ]0.622 Energy above hull ( eV /atom )0.896 [0.773 ,0.965 ]0.196 Band gap ( eV )0.737 [0.488 ,0.909 ]2.237 Total magnetization ( 𝜇 𝐵 /f.u.)0.958 [0.857 ,0.995 ]7.093
+
+out, versus 0.0575 eV /atom (dummy) and 0.0554 eV /atom 
+
+(ridge), repeated holdouts give 0.0476 ± 0.0133 eV/atom (𝑅 2 = 0.42 ± 0.22 ). The improvements over dummy ( −0.0145 ,CI [− 0.028 , −0.000 ]), ridge ( −0.0124 , CI [− 0.022 , −0.003 ]), and LightGBM ( −0.0083 , CI [− 0.015 , −0.002 ]) are signifi-cant, the difference against XGBoost is not. Two honest read-ings follow. The low 𝑅 2 partly reflects the narrow dynamic range of hull distances in this curated, near-stable set, on which variance-based metrics are punishing. But the MAE itself is comparable to the 0.025 to 0.050 eV /atom scale usually quoted for room-temperature polymorph competition, and an error the size of the decision window means compounds near the stabil-ity boundary cannot be classified reliably. Consistent with the general finding of Ref. [14], we therefore use the hull model only as a coarse filter with wide margins, and Sec. III E reports how strongly any shortlist depends on the chosen thresholds. The residual histogram [Fig. 5(b)] is peaked near zero with a thin tail of under-stabilized outliers. 
+
+c. Band gap. On the 19-member non-metal holdout sub-set the champion records an MAE of 0.6447 eV and 𝑅 2 =
+
+−0.069 , and the paired bootstrap shows no significant ad-vantage over the dummy baseline ( ΔMAE = −0.0945 , CI 
+
+[− 0.439 , 0.219 ]) or over any other model. We report this as a negative result: on the present non-metal subset, no model demonstrably beats the trivial baseline for gap regression. Two causes are plausible. The PBE-level labels compress and dis-tort the target, most severely for Mott and charge-transfer ox-ides (Sec. IV), and the evaluation subset is small, which the wide conformal coverage interval for this target reflects (Ta-ble III). Cross-validated scores on the training partition are considerably better ( 𝑅 2 ≈ 0.59 , Table VI), but those scores share data with the tuning loop and are optimistic (Sec. II C), the more reliable indication is the learning curve below, which shows the target is still data-limited at the largest training size sampled. 
+
+d. Total magnetization. The champion reaches an MAE of 0.8879 𝜇 𝐵 /f.u. (𝑅 2 = 0.724 ) on the primary holdout, against 3.0188 𝜇 𝐵 /f.u. (dummy) and 1.6818 𝜇 𝐵 /f.u. (ridge); repeated holdouts give 1.273 ± 0.193 𝜇 𝐵 /f.u. (𝑅 2 = 0.61 ±
+
+0.13 ), again the figure we treat as the headline. The champion beats the dummy ( −2.1382 , CI [− 3.051 , −1.235 ]) and ridge (−0.7971 , CI [− 1.130 , −0.426 ]), differences against the other ensembles are not significant. The conformal interval for this target is very wide (mean width 7.09 𝜇 𝐵 /f.u., Table III), wider than the naive spread of the data itself, so although the point accuracy is useful, individual predictions carry little decision value on their own. 
+
+e. Metallicity. The LightGBM champion reaches a hold-out accuracy of 0.8542, F1 of 0.8814 (metallic class positive), and AUC of 0.9328, the confusion matrix [Fig. 6] is 15 true non-metals, 4 false metals, 3 false non-metals, 26 true metals, from which the balanced accuracy is 0.843 and the Matthews corre-lation coefficient 0.693. CatBoost ties the champion on every holdout metric, its thresholded predictions coinciding entry for 7−3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+DFT Formation energy (eV/atom) 
+
+−3.5 
+
+−3.0 
+
+−2.5 
+
+−2.0 
+
+−1.5 
+
+−1.0 
+
+−0.5 
+
+> Predicted Formation energy (eV/atom)
+
+R2=-0.003 
+
+MAE=0.6317 eV/atom 
+
+N=48 
+
+dummy (grouped holdout) 
+
+(a) −3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+DFT Formation energy (eV/atom) 
+
+−3.5 
+
+−3.0 
+
+−2.5 
+
+−2.0 
+
+−1.5 
+
+−1.0 
+
+−0.5 
+
+> Predicted Formation energy (eV/atom)
+
+R2=0.950 
+
+MAE=0.1382 eV/atom 
+
+N=48 
+
+ridge (grouped holdout) (b) −3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+DFT Formation energy (eV/atom) 
+
+−3.5 
+
+−3.0 
+
+−2.5 
+
+−2.0 
+
+−1.5 
+
+−1.0 
+
+−0.5 
+
+> Predicted Formation energy (eV/atom)
+
+R2=0.979 
+
+MAE=0.0838 eV/atom 
+
+N=48 
+
+xgboost (grouped holdout) 
+
+(c) −3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+DFT Formation energy (eV/atom) 
+
+−3.5 
+
+−3.0 
+
+−2.5 
+
+−2.0 
+
+−1.5 
+
+−1.0 
+
+−0.5 
+
+> Predicted Formation energy (eV/atom)
+
+R2=0.976 
+
+MAE=0.0910 eV/atom 
+
+N=48 
+
+lightgbm (grouped holdout) (d) −3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+DFT Formation energy (eV/atom) 
+
+−3.5 
+
+−3.0 
+
+−2.5 
+
+−2.0 
+
+−1.5 
+
+−1.0 
+
+−0.5 
+
+> Predicted Formation energy (eV/atom)
+
+R2=0.977 
+
+MAE=0.0865 eV/atom 
+
+N=48 
+
+catboost (grouped holdout) 
+
+(e) −3.5 −3.0 −2.5 −2.0 −1.5 −1.0 −0.5 
+
+DFT Formation energy (eV/atom) 
+
+−3.5 
+
+−3.0 
+
+−2.5 
+
+−2.0 
+
+−1.5 
+
+−1.0 
+
+−0.5 
+
+> Predicted Formation energy (eV/atom)
+
+R2=0.953 
+
+MAE=0.1329 eV/atom 
+
+N=48 
+
+random_forest (grouped holdout) (f) 
+
+FIG. 4. Per-model formation-energy parity plots on the holdout: (a) dummy, (b) ridge, (c) XGBoost, (d) LightGBM, (e) CatBoost champion, (f) RandomForest. The median baseline (a) collapses to a constant, the linear baseline (b) captures the gross trend, and the boosted models (c-e) agree tightly. 8
+
+TABLE IV. Primary-holdout regression performance for all targets and models (three-seed prediction ensembles, the OOF-selected champion is in boldface). 𝑁 is the holdout size, the band gap is evaluated on the non-metal subset only. Conformal diagnostics are in Table III, repeated-holdout statistics, which we treat as the headline generalization figures, are in Table VII.                                                                                                       
+
+> Target Model 𝑁 MAE RMSE 𝑅 2
+> Formation energy ( eV /atom )dummy 48 0.6317 0.7560 −0.0026
+> ridge 48 0.1382 0.1687 0.9501
+> xgboost 48 0.0838 0.1085 0.9793
+> lightgbm 48 0.0910 0.1177 0.9757
+> catboost 48 0.0865 0.1145 0.9770
+> random_forest 48 0.1329 0.1636 0.9530
+> Energy above hull ( eV /atom )dummy 48 0.0575 0.0807 −0.1010
+> ridge 48 0.0554 0.0772 −0.0072
+> xgboost 48 0.0448 0.0669 0.2445
+> lightgbm 48 0.0513 0.0733 0.0910
+> catboost 48 0.0430 0.0626 0.3372
+> random_forest 48 0.0477 0.0691 0.1919
+> Band gap ( eV )dummy 19 0.7404 0.9810 −0.1910
+> ridge 19 0.6357 0.8647 0.0745
+> xgboost 19 0.6100 0.8996 −0.0016
+> lightgbm 19 0.6194 0.9137 −0.0334
+> catboost 19 0.6447 0.9292 −0.0686
+> random_forest 19 0.6114 0.8933 0.0124
+> Total magnetization ( 𝜇 𝐵 /f.u.)dummy 48 3.0188 4.1843 −1.0502
+> ridge 48 1.6818 2.0438 0.5109
+> xgboost 48 0.9418 1.8250 0.6100
+> lightgbm 48 1.0029 1.7948 0.6228
+> catboost 48 0.8879 1.5343 0.7243
+> random_forest 48 0.9633 1.7379 0.6463
+> 𝑅 2is computed relative to the holdout mean, negative values indicate a model worse than predicting that mean. The dummy baseline predicts the training-fold median.
+
+entry with LightGBM’s on this 48-entry split [Figs. 6(c) and (e)], ties of this kind between closely related gradient boosters are plausible on a small holdout, and the coincidence occurs after thresholding, not at the level of the underlying probability scores. The baselines need a comment. The most-frequent dummy classifier labels everything non-metallic, because non-metals are the majority class in the training partition, and scores 19/48 = 0.396 with 𝐹 1 = 0 on the holdout, where 29 of 48 entries are metallic, the informative naive reference on the holdout is therefore the majority class at 0.604, and the train/holdout class-balance shift itself illustrates the sampling noise of a 48-entry split. The ridge baseline reaches 0.7917 (AUC 0.8421). RandomForest posts the best single-split accu-racy (0.8958) with a lower AUC (0.9093) than LightGBM and CatBoost (0.9328), since selection was fixed on OOF AUC be-fore the holdout was seen, LightGBM remains the champion, and the RandomForest advantage is within the split variance of Table VII. Over the repeated holdouts the champion averages an accuracy of 0.847 ± 0.058 .
+
+f. Conformal calibration. The grouped CV + intervals are honest but not uniformly tight (Table III). For the formation energy the empirical coverage is 1.000 against the nominal 0.90, with a mean width of 0.622 eV /atom , roughly seven times the point MAE: the intervals over-cover, because grouping the calibration folds by reduced formula makes the residual quantiles conservative wherever between-group heterogeneity exceeds within-group scatter. This conservatism propagates into the screening gate of Sec. III E, where the formation-energy half-width is one of the four criteria, the stringency of the width threshold there reflects the calibration as much as the model. The hull intervals are close to nominal (coverage 0.896), the magnetization intervals cover well (0.958) but are too wide to be decision-useful, and the band-gap coverage (0.737, CI [0.488 , 0.909 ]) undershoots nominal on the 19-entry subset, consistent with the small-sample reading above. 
+
+g. Repeated holdouts and data efficiency. The twenty repeated splits (Table VII) give champion averages of 0.1206 ±
+
+0.0301 eV/atom (formation energy), 0.0476 ± 0.0133 eV/atom (hull), 0.4608 ± 0.1091 eV (gap), 1.2732 ± 0.1930 𝜇 𝐵 /f.u.
+
+(magnetization), and 0.8469 ± 0.0575 (metallicity accuracy). Grouped five-fold learning curves (Fig. 7) show the formation-energy CV-MAE falling from 0.290 eV /atom at 𝑁 = 43 to a plateau near 0.137 eV /atom by 𝑁 ≈ 188 -217, and the hull CV-MAE plateauing near 0.047 eV /atom , both energy targets are close to their data-limited asymptote at the present sample size. The band-gap CV-MAE is still declining at the largest size sampled ( 0.470 eV at 𝑁 = 114 ), which is what a data-starved target looks like, and it is why we read the holdout gap result as power-limited rather than as a ceiling. 9−0.3 −0.2 −0.1 0.0 0.1 0.2              
+
+> Residual (eV/atom)
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> 7
+> Count
+> Holdout residuals — Formation energy [catboost]
+> (a) −0.2 −0.1 0.0 0.1
+> Residual (eV/atom)
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> 7
+> 8
+> Count
+> Holdout residuals — Energy above hull [catboost] (b) −1 0123
+> Residual (eV)
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> Count
+> Holdout residuals — Band gap [catboost]
+> (c) −2 0246
+> Residual (muB/f.u.)
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> 12
+> 14
+> Count
+> Holdout residuals — Total magnetization [catboost] (d)
+
+FIG. 5. Holdout residual distributions for the champion of each target: (a) formation energy, (b) energy above hull, (c) band gap, (d) total magnetization. The energy residuals are peaked near zero, the magnetization residuals show heavier tails, consistent with the wide conformal width in Table III. 
+
+h. Zero-inflation and threshold sensitivity. A hurdle treatment of the magnetization-a zero/nonzero classifier ( |𝑚 | >
+
+0.1 𝜇 𝐵 /f.u.) composed with a magnitude regressor on the nonzero subset-gives an OOF MAE of 1.2822 𝜇 𝐵 /f.u. with 
+
+𝑅 2 = 0.448 , against 1.2938 𝜇 𝐵 /f.u. and 𝑅 2 = 0.670 for the direct CatBoost regression under the same protocol (first OOF repetition in both cases). The hurdle MAE is marginally lower, but its variance-weighted accuracy is much worse, and both figures come from a single repetition, there is no consistent improvement to justify the extra moving part, so we keep the direct model and report the hurdle result as a null. The metal-licity label threshold was varied over 0.01, 0.05, and 0.10 eV 
+
+in a grouped five-fold cross-validation on the 272-entry train-ing partition (not on the holdout): accuracy rises from 0.8235 to 0.8309 to 0.8419 with AUC stable near 0.91 [Table V(B)], so the residual error is dominated by near-zero-gap cases at the metal-insulator boundary, and a threshold near the PBE numerical-noise floor ( 0.10 eV ) is marginally more robust. 
+
+B. Feature attribution and descriptor ablation 
+
+SHAP [24] attribution (Figs. 8 and 10, Table VIII) was computed under the grouped-OOF protocol, and a feature-group ablation (Fig. 9, Table IX) quantifies what the bespoke descriptors add. 
+
+a. Formation energy. The anion-cation electronegativity contrast Δ𝜒 and the octahedral electronegativity 𝜒 𝐵 lead the ranking [Figs. 8(a) and 10(a)], ahead of covalent-radius and 
+
+𝑑 -valence statistics; the full numerical list is archived in the result bundle. That electronegativity descriptors carry most of the formation-energy signal is the ionicity-driven stabilization picture, and the symbolic search of Sec. III D recovers it inde-pendently: its closed-form expression is built from the same two quantities. 
+
+b. Band gap. The anion-cation electronegativity contrast dominates (mean |SHAP | 0.262), followed by the mean atomic number (0.183) and the mean 𝑑 -valence count (0.159), 𝜒 𝐵 
+
+(0.045) and the transition-metal fraction (0.040) also rank in 10 Non-metal Metal 
+
+Predicted 
+
+> Non-metal Metal
+> True
+
+19 0
+
+29 0
+
+Metallicity — dummy (holdout) 
+
+(a) Non-metal Metal 
+
+Predicted 
+
+> Non-metal Metal
+> True
+
+15 4
+
+6 23 
+
+Metallicity — ridge (holdout) (b) Non-metal Metal 
+
+Predicted 
+
+> Non-metal Metal
+> True
+
+15 4
+
+3 26 
+
+Metallicity — lightgbm (holdout) (c) Non-metal Metal 
+
+Predicted 
+
+> Non-metal Metal
+> True
+
+15 4
+
+5 24 
+
+Metallicity — xgboost (holdout) 
+
+(d) Non-metal Metal 
+
+Predicted 
+
+> Non-metal Metal
+> True
+
+15 4
+
+3 26 
+
+Metallicity — catboost (holdout) (e) Non-metal Metal 
+
+Predicted 
+
+> Non-metal Metal
+> True
+
+16 3
+
+2 27 
+
+Metallicity — random_forest (holdout) (f) 
+
+FIG. 6. Holdout metallicity confusion matrices: (a) dummy, (b) ridge, (c) LightGBM champion, (d) XGBoost, (e) CatBoost, (f) RandomForest. The champion yields 15/4/3/26 (TN/FP/FN/TP), i.e. accuracy 0.8542, balanced accuracy 0.843, MCC 0.693, CatBoost (e) coincides with the champion after thresholding (Sec. III A). 50 100 150 200 
+
+> Training-set size
+> 0.00
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> MAE (eV/atom)
+> Learning curve (grouped 5-fold CV) — Formation energy
+> Train MAE
+> Grouped-CV MAE
+
+(a) 50 100 150 200  
+
+> Training-set size
+> 0.00
+> 0.02
+> 0.04
+> 0.06
+> 0.08
+> MAE (eV/atom)
+> Learning curve (grouped 5-fold CV) — Energy above hull
+> Train MAE
+> Grouped-CV MAE
+
+(b) 20 40 60 80 100  
+
+> Training-set size
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> MAE (eV)
+> Learning curve (grouped 5-fold CV) — Band gap
+> Train MAE
+> Grouped-CV MAE
+
+(c) 
+
+FIG. 7. Grouped five-fold learning curves (train and CV MAE versus training-set size): (a) formation energy, (b) energy above hull, (c) band gap. The energy targets reach a data-limited plateau by 𝑁 ≈ 190 -220, the band-gap CV-MAE is still declining at the largest size sampled. 11 −0.6 −0.4 −0.2 0.0 0.2 0.4 
+
+> SHAP value (impact on model output)
+> mean Column
+> r X VI
+> minimum NValence
+> ox B
+> minimum GSvolume pa
+> maximum NUnfilled
+> d B
+> mean NdValence
+> maximum GSbandgap
+> range CovalentRadius
+> chi B
+> eneg diff
+> SHAP — Formation energy
+> Low
+> High
+> Feature value
+
+(a) −0.02 0.00 0.02 0.04 0.06 0.08  
+
+> SHAP value (impact on model output)
+> mean tetrahedral CN 4
+> avg dev NpValence
+> avg dev GSvolume pa
+> d B
+> mean wt CN 1
+> r A IV
+> minimum NsValence
+> chi A
+> mean see-saw-like CN 4
+> maximum GSvolume pa
+> chi B
+> mean pentagonal pyramidal CN
+> SHAP — Energy above hull
+> Low
+> High
+> Feature value
+
+(b) −0.4 −0.2 0.0 0.2 0.4 0.6 
+
+> SHAP value (impact on model output)
+> mean MeltingT
+> mean NValence
+> minimum Column
+> tm fraction
+> chi B
+> maximum CovalentRadius
+> d sum
+> minimum NValence
+> maximum NdValence
+> mean NdValence
+> mean Number
+> eneg diff
+> SHAP — Band gap
+> Low
+> High
+> Feature value
+
+(c) −1 0 1 2 3 4 5 6 
+
+> SHAP value (impact on model output)
+> mean MeltingT
+> chi B
+> maximum NfUnfilled
+> mean NValence
+> r B VI
+> maximum GSmagmom
+> avg dev MeltingT
+> avg dev NValence
+> minimum NUnfilled
+> maximum NUnfilled
+> d B
+> maximum NdUnfilled
+> SHAP — Total magnetization
+> Low
+> High
+> Feature value
+
+(d) 
+
+FIG. 8. SHAP beeswarm summaries (grouped-OOF protocol, color encodes feature value) for the champion of each target: (a) formation energy, (b) energy above hull, (c) band gap, (d) total magnetization. For the formation energy, the electronegativity descriptors Δ𝜒 and 𝜒 𝐵 lead the ranking (Sec. III B). For the magnetization, the moment grows monotonically with unfilled-𝑑 occupancy and 𝑑 𝐵 , the localized-moment mechanism. 
+
+the top group. This ordering fits the expected two-component picture of the gap in these compounds: bonding ionicity sets the charge-transfer component, and 𝑑 -orbital localization the Mott-Hubbard component. Given the weak holdout skill for this target, we read the attribution as a description of what the model uses, not as evidence that the model is quantitatively right. 
+
+c. Total magnetization. The maximum unfilled-𝑑 count dominates (0.892), followed by the octahedral 𝑑 -count 𝑑 𝐵 
+
+(0.416) and the maximum and minimum unfilled-orbital counts (0.223 and 0.201), 𝑟 𝑉 𝐼 𝐵 (0.127) and 𝜒 𝐵 (0.115) follow. The beeswarm [Fig. 8(d)] shows a monotonic, sign-consistent de-pendence of the moment on unfilled-𝑑 occupancy. This is the localized Hund’s-rule moment picture at the octahedral site, recovered by the model from data. 
+
+d. Energy above hull. Here the leading contributors are local-coordination-geometry descriptors: the mean pentagonal-pyramidal CN 6 motif (0.00376), 𝜒 𝐵 (0.00305), the maximum ground-state volume per atom (0.00302), and the mean see-saw CN 4 motif (0.00286). That coordination mo-tifs rather than composition carry the hull signal is consistent with stability depending on distortions and site preferences that composition alone does not encode. 
+
+e. Ablation. Adding the 19 bespoke descriptors to the 120 Magpie features improves the grouped-OOF formation-energy MAE from 0.1457 to 0.1253 eV /atom , the hull MAE from 0.0497 to 0.0470 eV /atom , and the gap MAE from 0.5095 to 0.4881 eV , the smallest relative gain. Adding the three-descriptor occupancy block (Jahn-Teller flag, occupancy proxy, coordination-number gap) changes little and slightly worsens the formation energy and the gap (Table IX). So the 12 
+
+TABLE V. Metallicity classification. (A) Per-model primary-holdout performance (the OOF-selected champion, LightGBM, in boldface). The most-frequent dummy labels every holdout entry non-metallic, which is why its accuracy (0.396) lies below the holdout majority class (29/48 = 0.604), the informative naive reference. CatBoost ties LightGBM on every metric: the two boosters’ thresholded predictions coincide on this split (Sec. III A). Champion balanced accuracy and Matthews coefficient, derived from the confusion matrix of Fig. 6, are 0.843 and 0.693. (B) Sensitivity of the champion to the band-gap threshold defining the label, computed by grouped five-fold cross-validation on the 272-entry training partition.                                    
+
+> (A) Per-model holdout ( 𝑁 =48 )
+> Model Accuracy F1 AUC dummy (most frequent) 0.3958 0.0000 0.5000 ridge 0.7917 0.8214 0.8421 xgboost 0.8125 0.8421 0.9256
+> lightgbm 0.8542 0.8814 0.9328
+> catboost 0.8542 0.8814 0.9328 random_forest 0.8958 0.9153 0.9093
+> (B) Label-threshold sensitivity (training OOF)
+> Threshold ( eV )Accuracy F1 AUC 0.01 0.8235 0.8125 0.9049 0.05 0.8309 0.8231 0.9124 0.10 0.8419 0.8377 0.9124
+
+structural/electronic block carries real, non-redundant signal, while the occupancy block, as currently constructed, does not, a continuous inversion descriptor is an obvious next step. 
+
+f. Permutation null. Label permutation collapses the mean OOF 𝑅 2 to −0.207 ±0.102 (formation energy), −0.147 ±
+
+0.023 (hull), −0.252 ± 0.140 (gap), and −0.234 ± 0.097 (mag-netization), confirming that the pipeline cannot manufacture skill from scrambled labels. 
+
+C. Transferability under held-out chemistries 
+
+LOAO and LOCO results (Fig. 11, ranges in Table VII) probe chemical extrapolation, with the hyperparameter-reuse caveat of Sec. II D. Withholding the small nitride class gives strongly negative 𝑅 2 for every target (formation energy −1.560 ,hull −0.162 , gap −0.229 , magnetization −1.304 ). Withhold-ing oxygen, the majority anion, also fails for the energies (for-mation energy −1.474 , hull −0.140 ): the wide oxide formation-energy range cannot be recovered from chalcogenides alone. Inside the chalcogenide subspace transfer is much better, with-holding sulfur gives a formation-energy 𝑅 2 of 0.507 and with-holding selenium gives the best LOAO figures (formation energy 0.870, hull 0.613, magnetization 0.626). Band-gap LOAO is uniformly poor (all 𝑅 2 ≤ 0.018 ). LOCO transfer is uneven by element. Formation-energy extrapolation is strongest for Cu ( 𝑅 2 = 0.965 ) and weakest for Mn (0.614), hull extrapolation ranges from −0.381 (Co) to 0.496 (Cu), magnetization extrapolation reaches 0.803 for Cu but collapses for the most magnetically active cations, Fe (−0.336 ) and Cr ( −1.630 ). Figure 11 reports the same analysis band_gap 
+
+> energy_above_hull
+> formation_energy_per_atom
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> Grouped-OOF MAE
+
+Feature ablation (grouped-OOF MAE) 
+
+> Feature set
+> magpie_only
+> magpie+spinel
+> magpie+spinel+occupancy
+
+FIG. 9. Grouped-OOF MAE under the Magpie-only, Magpie +spinel, and Magpie +spinel +occupancy feature sets. The bespoke spinel block lowers the error for all three targets (largest relative gain for the formation energy), the three-descriptor occupancy block adds nothing (Table IX). 
+
+as per-cation MAE, because 𝑅 2 normalizes by the variance of each withheld subset while MAE does not, the two metrics can order cations differently-Al, for instance, carries the largest formation-energy MAE in Fig. 11 without being the weakest by 𝑅 2-so the MAE map and the 𝑅 2 ranges of Table VII should be read together. Magnetization prediction is acutely sensitive to the local magnetic environment of the withheld cation, and this bounds how far the surrogate can be trusted outside its training chemistry. 
+
+D. Symbolic regression 
+
+To probe whether a compact analytical relation exists, a gplearn symbolic search was run over a fixed set of 14 named raw physical descriptors (ionic radii, radius ratio, tolerance factor, 𝑑 -counts, transition-metal fraction, oxidation states, electronegativities, and Δ𝜒 ), median-imputed and otherwise untransformed. gplearn’s operators are protected: division guards small denominators, and sqrt and log act on absolute values. For the formation energy, the search converged to 
+
+𝐸 sym f ≃ log 𝜒 𝐵 − Δ𝜒 −√︃ log 𝜒 𝐵 −√︁ | 𝜒 𝐵 − 𝜒 𝑋 | , (2) where the variable identities follow directly from the fixed col-umn order of the descriptor list. Validation on one held-out grouped fold gives an MAE of 0.2758 eV /atom . Equation (2) should be read as an empirical surrogate rather than a phys-ical law: it carries no fitted constants or units, the protected operators matter (for chalcogenide anions 𝜒 𝑋 > 𝜒 𝐵 , so the 13 
+
+TABLE VI. Left columns: repeated grouped five-fold out-of-fold statistics (mean ± sd over four repeats) on the training partition. Because hyperparameters were tuned on the same partition without nesting, these are model-selection scores, mildly optimistic as performance estimates (Sec. II C). Right column: champion-versus-baseline MAE differences on the primary holdout , quoted as the point difference of the holdout MAEs of Table IV (champion minus comparator), significance is assessed by paired bootstrap (2000 resamples, ∗ marks a 95% percentile interval excluding zero, ns otherwise).                                                                                                                                                                                              
+
+> Target Model MAE (mean ±sd) RMSE (mean ±sd) 𝑅 2/ Acc. (mean ±sd) Holdout ΔMAE Formation energy dummy 0.6601 ±0.0018 0.8496 ±0.0005 −0.0070 ±0.0011 vs. dummy: −0.5445 [∗]ridge 0.2000 ±0.0045 0.3359 ±0.0363 0.8412 ±0.0338 vs. ridge: −0.0517 [∗]
+> catboost 1.322 ×10 −1±0.0043 0.2458 ±0.0145 0.9156 ±0.0098 vs. xgboost: +0.0027 [ns] Energy above hull dummy 0.0663 ±0.0003 0.1324 ±0.0004 −0.0781 ±0.0073 vs. dummy: −0.0145 [∗]ridge 0.0590 ±0.0018 0.1024 ±0.0062 0.3525 ±0.0779 vs. ridge: −0.0124 [∗]
+> catboost 0.0487 ±0.0008 0.1071 ±0.0011 0.2948 ±0.0150 vs. lightgbm: −0.0083 [∗]Band gap dummy 0.9046 ±0.0021 1.2349 ±0.0024 −0.0792 ±0.0043 vs. dummy: −0.0945 [ns] ridge 0.6610 ±0.0211 0.9712 ±0.0432 0.3314 ±0.0588 vs. ridge: +0.0079 [ns]
+> catboost 0.5000 ±0.0341 0.7602 ±0.0378 0.5903 ±0.0399 vs. xgboost: +0.0353 [ns] Total magnetization dummy 2.5376 ±0.0338 4.2256 ±0.0093 −0.5085 ±0.0067 vs. dummy: −2.1382 [∗]ridge 2.2127 ±0.0684 2.9564 ±0.0736 0.2613 ±0.0369 vs. ridge: −0.7971 [∗]
+> catboost 1.3084 ±0.0135 2.0047 ±0.0271 0.6604 ±0.0092 vs. lightgbm: −0.1128 [ns] Metallicity (Acc/F1/AUC) dummy 0.5101 ±0.0312 /0.0516 ±0.1032 /0.4870 ±0.0261 -ridge 0.7390 ±0.0124 /0.7183 ±0.0110 /0.8145 ±0.0166 -
+> lightgbm 0.8198 ±0.0161 /0.8124 ±0.0193 /0.9069 ±0.0105 -
+
+TABLE VII. Robustness summary. Repeated-holdout statistics are the mean ± sd over 20 grouped splits of the full dataset, single-seed champion fits with hyperparameters reused from the primary training partition (Sec. II D). LOAO/LOCO columns give the 𝑅 2 range over held-out anion/cation chemistries (the corresponding per-cation MAE map is Fig. 11), the 𝑦 -scrambled column the permutation-null 𝑅 2. 𝑁 a/𝑁 c
+
+are the numbers of probed anion/cation chemistries.                                                                                            
+
+> Target Repeated holdout ( 𝑛 =20 )LOAO 𝑅 2range ( 𝑁 a=4)LOCO 𝑅 2range 𝑦 -scrambled 𝑅 2
+> Formation energy MAE 0.1206 ±0.0301 ,𝑅 20.9224 ±0.0680 −1.560 to 0.870 0.614 to 0.965 (𝑁 c=9)−0.2072 ±0.1024
+> Energy above hull MAE 0.0476 ±0.0133 ,𝑅 20.4221 ±0.2237 −0.162 to 0.613 −0.381 to 0.496 (𝑁 c=9)−0.1471 ±0.0227
+> Band gap MAE 0.4608 ±0.1091 ,𝑅 20.5348 ±0.1906 −0.229 to 0.018 −1.956 to 0.597 (𝑁 c=7)−0.2516 ±0.1399
+> Total magnetization MAE 1.2732 ±0.1930 ,𝑅 20.6072 ±0.1255 −1.304 to 0.626 −1.630 to 0.803 (𝑁 c=9)−0.2341 ±0.0970
+> Metallicity (Acc/F1) Acc 0.8469 ±0.0575 , F1 0.8440 ±0.0588 n/a n/a n/a
+
+inner square root acts on | 𝜒 𝐵 − 𝜒 𝑋 |), and its error is two to three times that of the tree ensemble ( 0.2758 eV /atom against 
+
+0.0865 eV /atom on the primary holdout and 0.1206 eV /atom 
+
+over repeated holdouts). What it does show is that a usable fraction of the formation-energy signal in this family is car-ried by electronegativity descriptors alone, in line with an ionicity-driven stabilization picture and with the SHAP attri-bution of the formation-energy champion (Sec. III B), which ranks the same two electronegativity descriptors first. For the energy above the hull the search converged to a constant, 
+
+0.016 eV /atom (validation MAE 0.0702 eV /atom ): under this search budget and parsimony penalty, no low-complexity ex-pression beat a constant, which matches the SHAP finding that the hull signal lives in nonlinear coordination-geometry descriptors outside the 14-feature search space. 
+
+E. Screening and DFT-validation export 
+
+The stability gate combines four criteria: a predicted-
+
+𝐸 f cutoff, a predicted-𝐸 hull cutoff, predicted non-metallicity (𝑝 metal < 0.5 from the metallicity champion), and an upper bound on the formation-energy conformal half-width (grouped CV +, Sec. II C). Because those half-widths are conservative (Sec. III A), the width criterion is stringent by construction. The candidate-count sensitivity to the three continuous thresh-olds is reported in Fig. 12(a) and Table X. At the tightest width tested ( 0.15 eV /atom ) nothing passes at any energy cutoff. At the median half-width of the screened pool ( 0.298 eV /atom )the count ranges from 14 to 50 depending on the energy cut-offs, and at the loosest width ( 0.5 eV /atom ) it rises to 76. Any shortlist is therefore strongly contingent on the uncertainty stringency, and we report the full sensitivity rather than a sin-gle funnel count. Two exercises were run. The first applies the gate to the curated set itself, scoring each entry with out-of-fold predic-tions (training entries) or holdout predictions (test entries), so that no entry is scored by a model that saw its label. Twenty entries pass at the median-width stringency, among them lanthanide chalcogenide spinels such as Ho 2MgSe 4
+
+(mp-1103791, predicted 𝐸 hull = −0.0043 eV /atom , half-width 0.295 eV /atom ) and Tm 2CdS 4 (mp-4324, predicted 14 0.00 0.05 0.10 0.15 0.20 0.25 
+
+> mean(|SHAP value|) (average impact on model output magnitude)
+> mean Column
+> r X VI
+> minimum NValence
+> ox B
+> minimum GSvolume pa
+> maximum NUnfilled
+> d B
+> mean NdValence
+> maximum GSbandgap
+> range CovalentRadius
+> chi B
+> eneg diff
+> SHAP — Formation energy
+
+(a) 0.0000 0.0005 0.0010 0.0015 0.0020 0.0025 0.0030 0.0035  
+
+> mean(|SHAP value|) (average impact on model output magnitude)
+> mean tetrahedral CN 4
+> avg dev NpValence
+> avg dev GSvolume pa
+> d B
+> mean wt CN 1
+> r A IV
+> minimum NsValence
+> chi A
+> mean see-saw-like CN 4
+> maximum GSvolume pa
+> chi B
+> mean pentagonal pyramidal CN
+> SHAP — Energy above hull
+
+(b) 0.00 0.05 0.10 0.15 0.20 0.25 
+
+> mean(|SHAP value|) (average impact on model output magnitude)
+> mean MeltingT
+> mean NValence
+> minimum Column
+> tm fraction
+> chi B
+> maximum CovalentRadius
+> d sum
+> minimum NValence
+> maximum NdValence
+> mean NdValence
+> mean Number
+> eneg diff
+> SHAP — Band gap
+
+(c) 0.0 0.2 0.4 0.6 0.8  
+
+> mean(|SHAP value|) (average impact on model output magnitude)
+> mean MeltingT
+> chi B
+> maximum NfUnfilled
+> mean NValence
+> r B VI
+> maximum GSmagmom
+> avg dev MeltingT
+> avg dev NValence
+> minimum NUnfilled
+> maximum NUnfilled
+> d B
+> maximum NdUnfilled
+> SHAP — Total magnetization
+
+(d) 
+
+FIG. 10. Mean-absolute-SHAP rankings, complementary to Fig. 8, for (a) formation energy, (b) energy above hull, (c) band gap, (d) total magnetization. Numerical top lists for (b)-(d) are in Table VIII, the formation-energy list is archived in the result bundle. 
+
+−0.0030 eV /atom ). Slightly negative predicted hull distances are artifacts of unconstrained regression and are read as "on the hull within model error", the elevated half-widths of the 𝑓 -electron entries correctly flag them as the least certain. Since the true Materials Project hull distances of these compounds exist, this exercise is a self-consistency check of the gate, not a discovery claim, and the predicted values can be compared entry by entry with the database in the result bundle. The second exercise enumerates 141 charge-neutral 
+
+𝐴 2+ 𝐵 3+
+
+2 𝑋 2−
+
+4 compositions absent from the Materials Project, with 𝐴 ∈ { Ca, Cd, Co, Cu, Fe, Mg, Mn, Ni, Zn }, 𝐵 ∈ { Al, Co, Cr, Fe, Ga, In, Mn, Sc, Ti, V }, and 𝑋 ∈ { O, S, Se }. No relaxed structures exist for these, so they were scored by a composition-only model: the champion architecture and hyperparameters retrained on the training partition using Magpie features alone. Three consequences must be stated plainly. The conformal guarantees of the exchangeable regime do not extend to this extrapolation. The metallicity filter of the gate was not applied to this list, 𝑝 metal is reported for information only, and most of the lowest-𝐸 hull compositions are in fact predicted metallic (Ta-ble XI). And the ten lowest predicted hull distances span only 
+
+0.02 eV /atom , well inside the model MAE of 0.043 eV /atom ,so Table XI is an unordered shortlist, not a ranking. Absence from the Materials Project also does not imply novelty: several enumerated compositions are known experimentally in other structure types (NiCr 2Se 4, for instance, adopts the monoclinic Cr 3S4 type), and a literature and ICSD check is part of the in-tended DFT triage, since the composition-only model cannot see competing polymorphs. For the ten shortlisted compositions, prototype structures were built by cation substitution onto an isostructural, same-anion template from the training set, and POSCAR files with 15 
+
+TABLE VIII. Leading SHAP features (mean |SHAP |, top six of the archived top-15 lists) for the energy-above-hull, band-gap, and total-magnetization champions. The formation-energy ranking is shown in Figs. 8(a) and 10(a) and archived numerically in the result bundle. Coordination-motif features originate from the CrystalNN site finger-prints.                        
+
+> Target Feature mean |SHAP |
+> Band gap eneg_diff 0.2623 MagpieData mean Number 0.1833 MagpieData mean NdValence 0.1591 MagpieData maximum NdValence 0.0594
+> 𝜒 𝐵 0.0449 tm_fraction 0.0400 Energy above hull mean pentagonal-pyramidal CN 60.00376
+> 𝜒 𝐵 0.00305 MagpieData maximum GSvolume_pa 0.00302 mean see-saw-like CN 40.00286
+> 𝜒 𝐴 0.00281
+> 𝑑 𝐵 0.00225 Total magnetization MagpieData maximum NdUnfilled 0.8924
+> 𝑑 𝐵 0.4158 MagpieData maximum NUnfilled 0.2225 MagpieData minimum NUnfilled 0.2010
+> 𝑟 𝑉 𝐼 𝐵 0.1268
+> 𝜒 𝐵 0.1146
+
+TABLE IX. Feature-group ablation (grouped-OOF protocol): cu-mulative addition of the 19 bespoke structural/electronic descriptors and of the 3-descriptor occupancy block (Jahn-Teller flag, occupancy proxy, coordination-number gap) to the Magpie baseline. 
+
+Target Feature set 𝑛 feat MAE RMSE 𝑅 2
+
+Formation energy Magpie only 120 0.1457 0.2738 0.8954 + spinel 139 0.1253 0.2585 0.9068 + occupancy 142 0.1272 0.2607 0.9052 Energy above hull Magpie only 120 0.0497 0.1075 0.2889 + spinel 139 0.0470 0.1054 0.3166 + occupancy 142 0.0469 0.1052 0.3185 Band gap Magpie only 120 0.5095 0.7666 0.5841 + spinel 139 0.4881 0.7346 0.6181 + occupancy 142 0.4939 0.7373 0.6153 
+
+template INCAR/KPOINTS inputs were emitted for DFT +𝑈 
+
+relaxation: 520 eV plane-wave cutoff, 10 −6 eV energy conver-gence and 0.01 eV /Å force convergence ( EDIFFG = −0.01 ), full ionic and cell relaxation, spin polarization, Dudarev DFT +𝑈 with per-species 𝑈 left for manual specification, and a 6 × 6 × 6 Γ-centered mesh. Finally, Fig. 12(b) places the tabular champion next to the graph-network references. The champion ( 0.0865 eV /atom on the primary holdout) is more accurate than the contaminated pretrained CGCNN bound ( 0.1254 eV /atom ), and the from-scratch MEGNet on the identical split reaches 0.2085 eV /atom 
+
+(𝑅 2 = 0.888 ) for the formation energy and 0.7520 eV (𝑅 2 =
+
+−0.190 ) for the gap on the non-metal subset, no better than the dummy baseline there ( 0.7404 eV ). With 272 training compounds, a message-passing network cannot amortize its parameter count, while the descriptors inject the coordination chemistry it would otherwise have to learn. The scope of this band_gap                          
+
+> energy_above_hull
+> formation_energy_per_atom
+> total_magnetization
+> target
+> Al Co Cr Cu Fe Mg Mn Ni Zn
+> held_out_cation
+> 0.725 0.034 0.351 1.158
+> 0.905 0.056 0.114 1.727
+> 0.538 0.070 0.216 2.501
+> 0.037 0.089 0.869
+> 0.517 0.058 0.098 3.514
+> 0.497 0.048 0.131 1.263
+> 0.728 0.050 0.330 3.074
+> 0.064 0.152 1.599
+> 0.601 0.043 0.155 1.183
+> Leave-one-cation-out MAE (chemical extrapolation)
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 3.0
+> 3.5
+> MAE (target units)
+
+FIG. 11. Leave-one-cation-out MAE (chemical extrapolation) for each target. Magnetization extrapolation degrades sharply for the most magnetically active cations (Fe, Cr, Mn), formation energy and hull distance are more stable. Note the metric: this map reports MAE, whereas the text and Table VII quote 𝑅 2 ranges, which normalize by the variance of each withheld subset and can order cations differently (Sec. III C). Blank cells mark cations with no held-out band-gap entries. 
+
+conclusion is limited by the single untuned MEGNet configu-ration, as discussed below. 
+
+IV. LIMITATIONS 
+
+Several limitations bound the interpretation. (i) All la-bels derive from the Materials Project’s mixed GGA/GGA +𝑈 
+
+scheme with compatibility corrections [16], the gaps in par-ticular are semi-local and severely underestimated for Mott and charge-transfer oxides, and the metallicity label inherits that bias, only partially mitigated by the threshold study of Sec. III A. (ii) The magnetization label is whatever configu-ration the underlying calculation converged to from a ferro-magnetic start, ferrimagnetic and non-collinear ground states are not guaranteed. (iii) The set is oxide-heavy, and both the nitride minority and the heterogeneous oxide majority extrap-olate poorly under LOAO, broader anion sampling would help. (iv) The energy targets are near their data-limited plateau while the gap is not, so the gap result is a power-limited negative, and the 19-member non-metal holdout gives wide coverage in-tervals. (v) Several screened entries are 𝑓 -electron lanthanide spinels, for which both the descriptor set and the DFT +𝑈 16 -2.0 -1.5 -1.0             
+
+> Predicted Efthreshold (eV/atom)
+> 0.15 0.298 0.3 0.5
+> Conformal half-width threshold 00014 44 50 17 48 56 28 65 76
+> Screening sensitivity: candidate count vs thresholds ( Ehull ≤ 0.05 eV/atom)
+> 010 20 30 40 50 60 70
+> # candidates
+
+(a) 0.00 0.05 0.10 0.15 0.20  
+
+> Holdout MAE, formation energy (eV/atom)
+> CGCNN
+> catboost (this work, ML)
+> MEGNet-from-scratch (spinel split)
+> 0.125
+> 0.086
+> 0.208
+> From-scratch (fair) vs MP-wide pretrained (CONTAMINATED) — holdout
+
+(b) 
+
+FIG. 12. (a) Screening-funnel sensitivity: candidate count versus the predicted-𝐸 f and conformal half-width thresholds at 𝐸 hull ≤ 0.05 eV /atom 
+
+(the 𝑝 metal < 0.5 gate is always applied), nothing survives the tightest width (Table X). (b) Formation-energy holdout MAE of the tabular champion versus the contaminated pretrained CGCNN bound and the from-scratch MEGNet on the identical split (values in Table I). TABLE X. Screening-funnel sensitivity: number of curated en-tries passing the combined gate (predicted 𝐸 f , predicted 𝐸 hull , pre-dicted non-metallicity 𝑝 metal < 0.5, and formation-energy conformal half-width) as a function of the three continuous thresholds. The 0.298 eV/atom row is the median half-width of the screened pool. Representative rows, full grid in Fig. 12(a). 
+
+Half-width thr. ( eV /atom ) 𝐸 f thr. ( eV /atom ) 𝐸 hull thr. ( eV /atom ) 𝑛 cand 
+
+0.150 −1.0 0.05 00.150 −2.0 0.10 00.298 −1.0 0.05 50 0.298 −1.0 0.10 68 0.298 −2.0 0.05 14 0.298 −2.0 0.10 23 0.300 −1.0 0.05 56 0.300 −1.0 0.10 75 0.500 −1.0 0.05 76 0.500 −1.0 0.10 122 
+
+ground truth are least reliable. (vi) The generative screen is composition-only, outside the exchangeability assumption of the conformal construction, and unfiltered for electronic char-acter. (vii) Hull distances are 0 K electronic-energy quantities; vibrational, configurational, and finite-temperature contribu-tions are neglected, and DFT +𝑈 results depend on the chosen 
+
+𝑈 . (viii) The from-scratch MEGNet used one fixed configu-ration, one seed, and a fixed 80-epoch budget with no early stopping and no hyperparameter search, whereas the tabular models were tuned, the 0.2085 eV /atom figure is a represen-tative small-data GNN reference, not an optimized one, and a tuned or transfer-learned network would likely narrow, though at this sample size probably not close, the gap. (ix) The out-of-fold statistics are non-nested with respect to tuning, and the repeated-holdout and leave-one-chemistry-out analyses reuse hyperparameters tuned on the primary training partition, both are mildly optimistic, which is why the grouped holdout re-mains the primary evidence. (x) The grouped conformal con-struction over-covers for the formation energy (empirical cov-
+
+TABLE XI. Ten generated 𝐴𝐵 2 𝑋 4 compositions (absent from the Materials Project) with the lowest composition-only predicted hull distance. The spread of 𝐸 pred hull across the table ( 0.02 eV /atom ) is well inside the model MAE ( 0.043 eV /atom ), so the list is an unordered shortlist, not a ranking. No metallicity filter was applied; 𝑝 metal is in-formational. Predictions carry no conformal guarantee in this extrap-olation regime, and absence from the database does not imply novelty (Sec. III E). DFT-ready prototypes (POSCAR/INCAR/KPOINTS) were emitted for each entry. 
+
+Formula 𝐸 pred f (eV /atom ) 𝐸 pred hull (eV /atom ) 𝑝 metal 
+
+MnCr 2Se 4 −0.806 −0.0016 0.971 Co 2NiSe 4 −0.369 0.0021 0.981 Ti 2CuSe 4 −1.080 0.0082 0.979 Sc 2CuS 4 −1.586 0.0138 0.936 Sc 2NiSe 4 −1.544 0.0146 0.915 Mn 2CuSe 4 −0.724 0.0156 0.989 Cr 2NiSe 4 −0.663 0.0164 0.981 Ti 2CdSe 4 −1.218 0.0165 0.743 Sc 2CuSe 4 −1.483 0.0165 0.913 MgTi 2Se 4 −1.460 0.0182 0.205 
+
+erage 1.00 at nominal 0.90, Sec. III A), and the width-gated screen inherits that conservatism, better-calibrated intervals (Mondrian or residual-normalized conformal, for instance) would loosen the gate without changing the underlying mod-els. All conclusions rest on computational surrogates trained on computational ground truth, synthesis, magnetometry, and diffraction of any shortlisted candidate are required before a prediction becomes a design recommendation. 
+
+V. CONCLUSION 
+
+We have applied a coordination-resolved, group-aware sur-rogate framework to 320 cubic spinel nitrides, oxides, sulfides, and selenides from the Materials Project, with CrystalNN-based site assignment in place of element-identity rules and 17 with every predictive claim conditioned on beating trivial and linear baselines under paired bootstrap testing and sur-viving a label-permutation null. The outcome is differen-tiated, deliberately so. Formation energy, hull distance, and magnetization are predicted with statistically significant accuracy-repeated-holdout MAEs of 0.121 ± 0.030 eV/atom, 
+
+0.048 ± 0.013 eV/atom, and 1.27 ± 0.19 𝜇 𝐵 /f.u., with the stated caveat that the repeats reuse the tuned hyperparameters-and metallicity is classified with an AUC of 0.93. Band-gap regression does not beat the trivial baseline on the small non-metal holdout, a power-limited negative result on semi-local labels rather than evidence of a ceiling. On the identical grouped split the tabular champion outperforms an untuned, single-configuration MEGNet trained from scratch, and it also beats the contaminated pretrained CGCNN bound, both com-parisons support descriptor-based models for narrow structure families at this data scale, while leaving open how much a tuned or transfer-learned network would recover. The attribution is physically sensible where the models are skillful: unfilled-𝑑 
+
+occupancy at the octahedral site carries the moment, and elec-tronegativity descriptors carry the formation energy-a picture the symbolic-regression expression recovers independently-as well as what little gap signal exists. The ablation shows gen-uine, non-redundant signal in the bespoke structural block, while the current binary occupancy proxy adds nothing, a con-tinuous inversion descriptor is the natural next step. Transfer-ability is uneven: chalcogenide-to-chalcogenide extrapolation works, nitrides and the most magnetically active cations do not. The conformal intervals are honest but conservative-the formation-energy intervals over-cover at roughly seven times the point error, and it is these widths that make the screening gate stringent-so the hull model is deployed only as a coarse, sensitivity-reported filter, and the composition-only generative shortlist is presented unordered, with DFT-ready inputs, as a starting point for first-principles validation rather than as dis-covery. 
+
+> DATA AND CODE AVAILABILITY
+
+The data and source code supporting the findings of this study are available from the corresponding author upon rea-sonable request. The complete codebase, datasets, analysis scripts, and documentation will be made publicly available in a GitHub repository following publication of this work. 
+
+> AUTHOR CONTRIBUTIONS
+
+K. KHALLOUQ: Conceptualization, Methodology, Inves-tigation, Data Curation, Formal Analysis, Visualization, Writ-ing & Editing. 
+
+A. EL MAAZOUZI: Conceptualization, Methodology, Software, Formal Analysis, Visualization, Writing, Review & Editing. 
+
+R. MASROUR: Supervision, Validation, Investigation, Writing, Review & Editing.

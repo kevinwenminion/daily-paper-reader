@@ -1,0 +1,1766 @@
+Title: 2607.13467v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.13467v1
+
+Published Time: Thu, 16 Jul 2026 00:35:26 GMT
+
+Number of Pages: 33
+
+Markdown Content:
+1
+
+Physics -Informed Residual Deep Learning for Constitutive Modeling of Hot 
+
+Deformation and Dynamic Recrystallization in a Mo -Rich α+β Titanium Alloy 
+
+Prashil S. Joshi 1, Diksha Mahadule 2, Rajesh K.Khatirkar 2* 
+
+(1) Prashil S. Joshi 1
+
+E-mail: prashiljoshi@iisc.ac.in 
+
+Affiliation(s): 1Department of Materials Engineering, Indian Institute of Science, Bengaluru, 
+
+Karnataka - 560012, India. 
+
+ORCID: orcid.org/0009 -0009 -6727 -5483 
+
+(2) Diksha Mahadule 2
+
+E-mail: diksha.mahadule7@gmail.com 
+
+Affiliation(s): 2Department of Metallurgical and Materials Engineering, Visvesvaraya 
+
+National Institute of Technology (VNIT), South Ambazari Road, Nagpur – 440010, 
+
+Maharashtra, India. 
+
+ORCID: orcid.org/0000 -0002 -7596 -5830 
+
+(3) Rajesh K. Khatirkar 2 (* Corresponding author )
+
+E-mail: rajesh.khatirkar@gmail.com, rajeshk@mme.vnit.ac.in 
+
+Affiliation(s): 2Department of Metallurgical and Materials Engineering, Visvesvaraya 
+
+National Institute of Technology (VNIT), South Ambazari Road, Nagpur – 440010, 
+
+Maharashtra, India. 
+
+Phone: +91 -712 -2801508, Fax: +91 -712 -2223230 
+
+ORCID: orcid.org/0000 -0001 -6421 -9368 2
+
+Abstract 
+
+Accurate constitutive modeling of hot deformation behavior is essential for designing 
+
+thermomechanical processes in advanced structural alloys. Conventional Arrhenius -type and 
+
+empirical models do not adequately capture the combined effects of strain harden ing, dynamic 
+
+recovery (DRV), and dynamic recrystallization (DRX) across broad processing conditions. In 
+
+this study, two Stacked Residual Physics -Informed Neural Networks (STAR -PINNs) were 
+
+developed to simulate the hot deformation response of a Mo -rich α+β titanium alloy (Ti –6Al –
+
+4Mo –1V –0.1Si). The Enhanced STAR -PINN incorporated thermomechanical constitutive 
+
+constraints, while the DRX -Aware STAR -PINN employed a dual -output architecture to 
+
+account for recrystallization kinetics. Both models used a shared resi dual encoder trained on 
+
+experimental flow stress data collected at temperatures from 800 to 1050 °C and strain rates 
+
+between 0.01 and 10 s⁻¹. Physics -informed constraints, including thermal softening, strain -rate 
+
+sensitivity, strain hardening, and post -pea k softening, were enforced through automatic 
+
+differentiation. The DRX -Aware model further integrated JMAK –Avrami regularization, DRX 
+
+saturation constraints, and Arrhenius -based consistency with tunable parameters, directly 
+
+linking the predicted DRX fractio n to stress output via latent -feature fusion. The DRX -Aware 
+
+STAR -PINN achieved RMSE = 11.69 MPa, MAE = 4.83 MPa, R² = 0.9850, and a cross -
+
+validated RMSE of 12.47 ± 0.26 MPa. This model accurately reproduced temperature -
+
+dependent flow curves, DRX kinetics, and Zener –Hollomon relationships, while maintaining 
+
+physically consistent constitutive behavior. These results demonstrate that physics -informed 
+
+deep learning provides a robust and interpretable framework for constitutive modeling, offering 
+
+a practical app roach for advanced process modeling of titanium alloys. 
+
+Keywords : Physics -Informed Neural Networks, Dynamic Recrystallization, Hot Deformation, 
+
+Constitutive Modeling, Titanium Alloy 3
+
+1.  Introduction 
+
+Titanium alloys occupy a position of critical importance in advanced engineering applications 
+
+owing to their exceptional combination of high specific strength, outstanding corrosion 
+
+resistance, and biocompatibility [1 –3] . The aerospace sector relies extensively on titanium 
+
+components for airframe structures, compressor blades, and fasteners, where weight savings 
+
+directly translate to fuel efficiency gains and payload improvements [4,5] . The ongoing drive 
+
+for elevated operating temperatures and intricate structural designs has increased the need for 
+
+α+β and near -β titanium alloys with regulated microstructures. Mo -containing titanium alloys, 
+
+specifically, have garnered significant research attention due to the potent β-stabilizing 
+
+influence of molybdenum, which elevates the β-transus temperature, facilitates retention of the 
+
+β-phase, and allows for wider hot -working ranges compared to traditional Ti –6Al –4V [4,6 –8] .
+
+Realizing the full potential of these alloys requires a detailed understanding and an accurate 
+
+mathematical description of their hot -deformation response across the entir e thermomechanical 
+
+processing space. 
+
+Hot deformation of titanium alloys involves the simultaneous operation of competing 
+
+microstructural mechanisms , including dislocation generation and interaction (work 
+
+hardening), thermally activated dislocation climb and annihilation (dynamic recovery, DRV), 
+
+and nucleation and growth of strain -free grains (dynamic recrystallization, DRX) [9 –12] . The 
+
+relative dominance of these mechanisms is governed by the Zener –Holloman temperature -
+
+compensated strain -rate parameter Z =  ε̇·exp(Q/RT), which collapses the influence of 
+
+temperature and strain rate into a single thermally activated kinetics descriptor [10,13] . At high 
+
+temperatures and low strain rates (low Z), DRX predominates and produces characteristic flow 
+
+softening after a peak stress; at low temperatures and high strain rates (high Z), work hardening 
+
+and DRV compete without significant recrystallization [14] . Accurate prediction of flow stress 
+
+across this mechanistic spectrum is essential for finite -element simulation of forging, rolling, 
+
+and extrusion operations . Classical constitutive frameworks for hot deformation fall into three 
+
+broad categories. The empirical Johnson –Cook (JC) model [15] describes the flow stress as a 
+
+multiplicative function of plastic strain, strain rate, and temperature, but its decoupled form 
+
+fails to capture the complex interaction s among these variables during DRX. The 
+
+phenomenological Arrhenius sinh -type equation introduced by [11,16] and subsequently 
+
+refined by [9] relates the Zener –Hollomon parameter to flow stress via hyperbolic -sine kinetics 
+
+and has been widely applied to titanium alloys [17,18] . While the Arrhenius approach has a 
+
+rigorous physical basis rooted in thermally activated deformation theory [13] it is 4
+
+fundamentally a single -valued steady -state description that is incapable of reproducing the 
+
+transient peak –softening –steady -state flow curve morphology characteristic of DRX [19,20] .
+
+Modified Arrhenius equations with strain -dependent material constants have been proposed 
+
+[21] but the polynomial fitting required introduces overfitting risks and provides no 
+
+mechanistic connection to the underlying microstructural evolution. 
+
+The limitations of classical constitutive models have motivated the application of machine 
+
+learning methods, particularly artificial neural networks (ANNs), to constitutive modeling [22] .
+
+[23] pioneered the use of neural networks for material behavior characteri zation, and 
+
+subsequent work demonstrated their capacity to approximate highly nonlinear constitutive 
+
+relationships without explicit functional assumptions [24,25] . For titanium alloys specifically, 
+
+ANN models have been shown to outperform Arrhenius equations in reproducing flow curves 
+
+across wide thermomechanical windows [26,27] demonstrated that ANN constitutive models 
+
+achieve higher accuracy than Arrhenius -type models for high -temperature deformation of 
+
+Aermet100 steel, and analogous results have been reported for magnesium [28] and near -β
+
+titanium alloys [29] . However, conventional ANN models lack physical interpretability: they 
+
+function as black -box function approximators that may produce predictions violating 
+
+fundamental metallurgical principles when evaluated outside the training domain [30,31] . This 
+
+physical inconsistency is particularly problematic for industrial applications, where 
+
+constitutive equations must remain reliable under extrapolation to process conditions not 
+
+represented in the training data. 
+
+Recent developments in high -performance computing, reduced -order modeling, and data -
+
+driven materials science have facilitated the creation of extensive constitutive datasets 
+
+appropriate for machine learning uses. Deep learning methods have shown exceptiona l ability 
+
+to accurately and efficiently capture complex history -dependent plastic deformation behavior, 
+
+providing a viable alternative to traditional constitutive modeling frameworks [32,33] . Even 
+
+with these improvements, solely data -driven models frequently lack physical interpretability 
+
+and might breach established metallurgical principles beyond the training domain. Physics -
+
+informed neural networks (PINNs), introduced by [34] , offer a principled solution by 
+
+incorporating governing physical equations directly into the neural network loss function 
+
+through automatic differentiation. By penali zing violations of physical constraints as additional 
+
+loss terms, PINNs are encouraged to satisfy known governing equations simultaneously with 
+
+fitting the training data, thereby achieving both data -driven accuracy and physical consistency 
+
+[35,36] . The PINN framework has been successfully applied to solid mechanics inverse 5
+
+problems [37] , high -speed fluid dynamics [38] , material characteri zation from indentation [39] ,
+
+and microstructural defect analysis [39] . Crucially, PINNs trained with physical penalty terms 
+
+retain their physical constraints under extrapolation, making them inherently more reliable than 
+
+purely data -driven models for out -of -distribution prediction [40,41] .
+
+Despite the clear relevance of this framework to constitutive modeling, the systematic 
+
+incorporation of hot deformation physics , including hardening, thermal softening, strain -rate 
+
+sensitivity, and DRX , into PINN loss functions for titanium alloys remains under explored. The 
+
+deep learning architecture underpinning the present models is a Stacked Residual Neural 
+
+Network (STAR -NN) built upon the residual learning principle introduced by [42,43] . Residual 
+
+connections provide direct gradient pathways through the network, alleviating the vanishing -
+
+gradient problem that limits the depth and expressive capacity of conventional feedforward 
+
+architectures [44,45] , Layer normalization [46] and SiLU (Sigmoid Linear Unit) activation 
+
+functions [47] are employed within each residual block, where SiLU's smooth differentiability 
+
+at all points is particularly important for physics -informed training, which requires second -
+
+order automatic differentiation of the network output to compute curvature penaltie s. The 
+
+AdamW optimizer [48] with decoupled weight decay and cosine annealing learning -rate 
+
+scheduling [49] were employed for all models. 
+
+Predictive uncertainty quantification is an increasingly important requirement for engineering 
+
+constitutive models, particularly when used to drive process optimization under uncertainty 
+
+[50,51] . Monte Carlo Dropout (MC -Dropout), introduced by Gal and Ghahramani [51] 
+
+approximates Bayesian inference by performing multiple stochastic forward passes through a 
+
+network with dropout active at inference time. The resulting distribution of predictions 
+
+provides per -input uncertainty estimates without the computational overhead of full Bayesian 
+
+training [50,52] . A well -calibrated uncertainty estimate is critical for the downstream use of 
+
+constitutive models in process control applications, where regions of high model uncertainty 
+
+correspond to processing conditions that require additional experimental validation .
+
+DRX modelling has traditionally relied on phenomenological JMAK (Johnson –Mehl –Avrami –
+
+Kolmogorov) kinetics [53,54] which describe the evolution of recrystallized volume fraction 
+
+as a sigmoidal function of normalized strain [55,56] . The JMAK equation is physically 
+
+grounded in nucleation and growth statistics but requires fitting of kinetic parameters that vary 
+
+with deformation conditions [16,57] . Coupling JMAK kinetics with constitutive predictions has 
+
+been achieved through multi -equation systems in the classical modeling literature [58,59] , but 6
+
+this approach requires sequential solution of coupled equations and assumes the JMAK 
+
+functional form is valid across the entire processing space. The DRX -Aware STAR -PINN 
+
+proposed in this work circumvents these limitations by jointly training stress and DRX fraction 
+
+predictions within a single neural network framework, using JMAK kinetics only as a soft 
+
+regularization prior while retaining data -driven flexibility to capture deviations from ideal 
+
+kinetics [60] . Multi -task learning through parameter sharing has been shown to improve 
+
+generali zation by regularizing shared representations through diverse but related objectives 
+
+[60] , providing a theoretical motivation for the joint prediction architecture. 
+
+[61] recently presented the STAR -PINN architecture to tackle nonlinear magnetic diffusion 
+
+issues, showing that residual -stacked physics -informed networks can successfully capture 
+
+intricate nonlinear material behaviors while ensuring physical consistency. Inspi red by its 
+
+capacity to depict highly nonlinear constitutive behavior, the STAR -PINN framework was 
+
+enhanced in this study for physics -informed modeling of hot deformation and dynamic 
+
+recrystallization processes in a Mo -rich α+β titanium alloy [6 –8,22] . First, a residual PINN 
+
+architecture (Improved STAR -PINN) is developed that enforces five thermomechanical 
+
+constitutive constraints which are thermal softening, strain -rate sensitivity, pre -peak hardening, 
+
+post -peak softening, and curvature regularization , simultaneously via automatic differentiation 
+
+and is validated on Ti –6Al –4Mo –1V –0.1Si across a wide thermomechanical window. Second, 
+
+a novel DRX -Aware STAR -PINN is introduced in which the DRX fraction output is explicitly 
+
+concatenated with latent features before stress decoding, encoding the mechanistic path way 
+
+recrystalli zation → flow softening directly into the network topology. Third, a DRX –softening 
+
+coupling loss is proposed that penali zes simultaneous positive gradients of both the DRX 
+
+fraction and stress with respect to strain, providing gradient -level enforcement of the anti -
+
+correlation between the microstructural state and macroscopic flow resistance. Fourth, both 
+
+models are systematically evaluated using five -fold cross -validation, MC -Dropout uncertainty 
+
+quantification, and comprehensive error analysis across the full processing space. 
+
+2. Experimental Procedure and STAR -PINN Framework Description 
+
+2.1 Experimental Procedure 
+
+A comprehensive hot deformation investigation was carried out on a Mo -rich α+β titanium 
+
+alloy, Ti –6Al –4Mo –1V –0.1Si (wt.%), to establish a robust experimental database for the 
+
+development of physics -informed machine learning -based constitutive models. The a lloy was 
+
+synthesized through vacuum induction melting followed by sequential forging and hot rolling 7
+
+operations to obtain sheets with a final thickness of approximately 8 mm. The chemical 
+
+composition of the alloy was measured using optical emission spectroscopy (OES) and was 
+
+determined to be Ti –88.1%, Al –6.18%, Mo –3.96%, V –1.36%, Si –0.10%, and O –0.0164% 
+
+(wt.%). Based on metallographic observations and empirical composition -based relations 
+
+available in the literature, the β-transus temperature of the alloy was estimated to be 
+
+approximately 965 °C . Prior to deformation testing, the as -rolled sheets were homogenized at 
+
+950 °C for 45 min. The homogenization cycle was repeated three times with intermediate 
+
+furnace cooling in order to minimize residual chemical segregation and microstructural 
+
+heterogeneity arising from prior thermomechanical processing. This treatment produced a 
+
+relatively uniform duplex ( α+β) microstructure suitable for high -temperature deformation 
+
+studies. Cylindrical hot compression specimens with dimensions of 6.0±0.05 mm diameter and 
+
+9.0±0.05 mm height were machined using electrical discharge machining (EDM), with the 
+
+specimen axis oriented parallel to the rolling direction. The specimen end faces were carefully 
+
+polished to ensure parallelism and minimize barreling effects during deformation. Hot 
+
+compression experiments were conducted using a DARTEC 100 kN serv o-hydraulic testing 
+
+system equipped with a high -temperature resistance furnace. Before deformation, each 
+
+specimen was soaked at the target temperature for 15 min to ensure thermal equilibrium 
+
+throughout the sample volume. Compression testing was performed up to a true strain of 
+
+approximately 0.7, corresponding to nearly 50% height reduction. The deformation 
+
+temperatures ranged from 800 to 1050 °C at intervals of 50 °C , while the strain rates varied 
+
+between 0.01 and 10 s⁻¹ [6 –8] . Consequently, 30 independent thermomechanical deformation 
+
+conditions were investigated. Graphite lubricant was applied at the die –specimen interface to 
+
+reduce friction and promote homogeneous deformation. The load –displacement responses 
+
+acquired during t esting were converted into true stress –true strain data using standard 
+
+constitutive relationships. After deformation, all specimens were water -quenched to preserve 
+
+the deformation -induced microstructures. Metallographic characterization was subsequently 
+
+carried out on sections parallel to the compression axis. Surface preparation involved sequential 
+
+grinding with SiC papers, followed by polishing with alumina and diamond suspensions to 
+
+achieve a mirror -like finish. The microstructures were revealed using Kroll’s reagent and 
+
+analyzed using a JEOL JSM -6380A scanning electron microscope operating in secondary 
+
+electron mode. The experimentally obtained stress –strain responses exhibited characterist ic 
+
+features associated with hot deformation of titanium alloys, including strain hardening, 
+
+dynamic recovery, flow softening, and dynamic recrystallization. These experimentally 8
+
+measured constitutive responses formed the basis for the development and validation of the 
+
+proposed STAR -PINN frameworks. 
+
+2.2 Dataset Preparation for Physics -Informed Constitutive Learning 
+
+Hot -compression experiments were conducted on a Mo -rich α+β titanium alloy (Ti –6Al –4Mo –
+
+1V –0.1Si) over 800 –1050 °C and 0.01 –10 s−1 strain rates, yielding ~7,100 experimental 
+
+observations. Each data point is described by three inputs and one output: 
+
+x = [ ε, ln (ε̇ ), T] → y = σ ( MPa) 
+
+All inputs were independently normalized to [0, 1] using min –max scaling computed on the 
+
+training set only. The dataset was split 80 % training / 20 % test. Model robustness was 
+
+confirmed by five -fold cross -validation. Peak stress  σ𝑝  = 420.33 MPa occurs at peak strain  ε𝑝 =
+
+0.1459. The DRX critical strain was estimated as  ε𝑐  = 0.6 ε𝑝  = 0.0876, consistent with the 
+
+Poliak –Jonas criterion. 
+
+2.2.1 Motivation for Physics -Informed Learning 
+
+Unlike conventional neural networks that rely solely on data fitting, the proposed framework 
+
+embeds metallurgical knowledge directly into the optimization process. Physics constraints 
+
+were imposed through automatic differentiation. The following physically meaningful trends 
+
+were enforced:  
+
+> ∂σ
+> ∂T
+
+< 0 (thermal softening),  
+
+> ∂σ
+> ∂ln (ε̇)
+
+> 0 (strain -rate sensitivity),  
+
+> ∂σ
+> ∂ε
+
+> 0 before DRX initiation (strain hardening), and  
+
+> ∂σ
+> ∂ε
+
+< 0 after the critical strain εc (flow softening). 
+
+These constraints guide the model toward thermodynamically consistent constitutive behavio r.
+
+Constraint  Physical basis 
+
+Thermal softening  Thermal activation reduces dislocation 
+
+resistance 
+
+Strain -rate sensitivity  Less recovery time at higher strain 
+
+rates 9
+
+Strain hardening  Dislocation accumulation before DRX 
+
+onset 
+
+DRX softening  Recrystallized grains reduce 
+
+dislocation density 
+
+Table 1: Physical basis for the constraints imposed in the model. 
+
+These constraints were embedded via automatic differentiation of the network output with 
+
+respect to its inputs, computing exact partial derivatives at every training point. 
+
+2.2.2 Improved STAR -PINN Architecture 
+
+The Improved Stacked Residual Physics -Informed Neural Network (STAR -PINN) was 
+
+developed to capture the highly nonlinear hot -deformation response of the alloy. The network 
+
+receives [ ε, ln( ε̇), T] as inputs and propagates them through a sequence of residual blocks. Each 
+
+residual block contains fully connected layers, SiLU activation functions, layer normalization, 
+
+dropout regularization, and a residual skip connection. 
+
+Residual learning is expressed as SiLU was chosen over ReLU for its everywhere -smooth 
+
+differentiability, required by second -order physics penalties. Layer Normalization stabilizes 
+
+training under the adaptive physics weight schedule. Dropout ( τ = 0.05) provides both 
+
+regularization and MC -Dropout uncertainty at inference. 
+
+2.2.3 Data Loss 
+
+Heteroscedastic Gaussian NLL: 
+
+Ldata = 1 
+
+> 𝑁
+
+∑ [ 0.5·exp(−log  𝜎 2)· (𝜎 − 𝜇 )2 + 0.5 ·log 𝜎 2 ] (1.1) 
+
+2.2.4 Physics Loss 
+
+The total loss function combines prediction accuracy and physics regularization: 
+
+LA = L data + λ( t) ( Lthermal + L SR + 0.5L hard + L soft + 0.3L curv ) (1.2) 
+
+where λ( t) is an adaptive weighting parameter. The thermal softening term penalizes violations 
+
+of  ∂σ 
+
+> ∂T
+
+< 0 , the strain -rate term enforces  ∂σ  
+
+> ∂ln (ε̇)
+
+> 0, the hardening term promotes positive work 
+
+hardening before peak stress, and the softening term encourages stress reduction after 10 
+
+recrystallization onset. A curvature regularization term was introduced to suppress nonphysical 
+
+oscillations in the predicted flow curves. 
+
+2.2.5 DRX -Aware STAR -PINN Architecture 
+
+Although the Improved STAR -PINN captures constitutive behavior accurately, it does not 
+
+explicitly account for microstructural evolution. To address this limitation, DRX -Aware STAR -
+
+PINN architecture was developed. The framework retains the residual stacked backbone but 
+
+introduces an auxiliary branch that predicts the dynamic recrystallization fraction (X DRX ). The 
+
+predicted DRX fraction is concatenated with latent features before the final stress prediction 
+
+layer, allowing microstructural evolution to directly influence constitutive response. 
+
+The critical strain for DRX initiation was estimated from experimental flow curves using: 
+
+ε𝑐 = 0.6 ε𝑝 (1.3)
+
+where  ε𝑝  denotes the peak strain. For the present alloy,  ε𝑝  = 0.1459 and  ε𝑐  = 0.0876. 
+
+2.2.5 Additional Physics Losses (Model B only) 
+
+Term  Weight  Purpose 
+
+LDRX  1.0  DRX monotonicity 
+
+LAvrami  1.0  JMAK kinetic prior 
+
+Lcouple  1.0  DRX↑ → σ↓ 
+
+coupling 
+
+Lsat  0.5  XDRX → 1 at large ε
+
+LArr  0.5  Kinetic consistency 
+
+Table 2: List of physics losses in model B with their purpose. 
+
+XJMAK = 1 − exp[−k·(( ε−ε c)/( εp−εc)) n] (1.4) 
+
+with k = 2.0, n = 2.0. L Arr is activated after 3,000 warm -up epochs to allow the data NLL to 
+
+stabili ze fir st. 
+
+Total DRX -Aware STAR -PINN loss: 
+
+LB = Ldata + λ( t)·(L phys + L DRX + L Avrami + L couple + L sat ) + L Arr (1.5) 
+
+where L phys contains the thermal, strain -rate, hardening, and softening constraints; L DRX 
+
+enforces recrystallization evolution; L Avrami promotes agreement with Avrami kinetics; L couple 11 
+
+links DRX evolution with stress reduction; L sat enforces saturation behavior; and L Arr 
+
+introduces Arrhenius consistency. 
+
+2. 2.6 Model Training and Hyperparameters 
+
+Both models were implemented in PyTorch and trained with the following configuration: 
+
+Hyperparameter  Value 
+
+Optimizer  AdamW 
+
+Learning rate  1×10⁻³ 
+
+Weight decay  1×10⁻⁵ 
+
+LR scheduler  Cosine annealing ( ηmin = 1×10⁻⁶) 
+
+Max epochs  15,000 
+
+Mini -batch size  512 
+
+Early stopping patience  1,500 epochs ( on validation NLL) 
+
+Gradient clipping  max_norm = 5.0 
+
+Encoder width  256 ( 4 residual blocks) 
+
+Dropout rate  τ = 0.05 ( also used for MC -Dropout UQ) 
+
+Physics λ warm -up  1×10⁻⁵ → 1×10⁻ ² ( linear) 
+
+Arrhenius warm -up  Active after epoch 3,000 ( Model B only) 
+
+MC -Dropout passes  M = 50 ( inference) 
+
+Cross -validation  5-fold ( fold epochs = 5,000) 
+
+JMAK parameters  k = 2.0 , n = 2.0
+
+Activation function  SiLU ( encoder & heads) 
+
+Normalization  Min –Max ( per feature, training set only) 
+
+Train / Test split  80 % / 20 % ( random, seed = 42) 12 
+
+Table 3. Complete hyperparameter configuration used for both STAR -PINN models. 
+
+2.2.7 Uncertainty Quantification and Evaluation Metrics 
+
+Monte Carlo Dropout: M = 50 stochastic forward passes with dropout ON at inference yield 
+
+predictive mean  μ̂ (x) and std  σ̂ (x). The 95 % confidence interval is  μ̂ ± 1.96 σ̂.
+
+Model performance was assessed using: 
+
+RMSE = √1 
+
+> 𝑁
+
+∑(σ − σ̂)2 (1.6) 
+
+MAE = 1 
+
+> 𝑁
+
+∑|σ − σ̂| (1.7) 
+
+R² = 1 – ∑ (σ− σ̂)2  
+
+> ∑(σ−σ̅)
+
+(1.8) 
+
+3. Results and Discussion 3.1 Training Convergence 
+
+Fig ure 1: The e volution of the total training loss (solid line) and validation loss (dashed line) 
+
+on a logarithmic scale for both the (a) Improved STAR -PINN and (b) DRX -Aware STAR -PINN 
+
+(blue) models. 
+
+Both models demonstrate a distinct two -phase convergence pattern: a sharp initial decline 
+
+lasting around 0 –300 epochs, during which the loss decreases by roughly three orders of 
+
+magnitude from ~10 3 to ~10 1, follow ed by an extended plateau phase in which gradual 
+
+improvements accumulate over many thousands of epochs. The Improved STAR -PINN 
+
+achieved its early -stopping condition at epoch 5,653, concluding with a total loss of about 1.3. 
+
+The DRX -Aware STAR -PINN needed an extended training time of around 6,500 epochs before 
+
+early stopping oc curred, indicating its broader loss landscape due to six physics penalty terms 
+
+alongside the data -fitting goal. Even with the Arrhenius loss (activated only after 3,000 warm -13 
+
+up epochs to let the data NLL stabilize first), there were no occurrences of loss divergence or 
+
+NaN events following the implementation of the numerical safeguards, indicating that both the 
+
+delayed activation approach and intermediate -value clamping were s uccessful. A significant 
+
+observation is that in both models, the training and validation loss graphs stay closely linked 
+
+during the plateau phase, showing no noticeable divergence. This close monitoring shows that 
+
+neither model overfits the training set, d ue to the joint impact of LayerNorm -stabilized residual 
+
+blocks, weight decay (1×10 -5), and MC -Dropout regularization. The stochastic variations 
+
+observed in the plateau area arise naturally from mini -batch training using physics residuals 
+
+assessed on randomly selected sub -batches; their magnitude diminishes throughout the cosine -
+
+annealing schedule as the learning rate nears its minimum of 1 × 10 -6.
+
+4.3 Predictive Accuracy on the Hold -Out Test Set 
+
+Fig ure 2: T he parity plots of experimental versus predicted flow stress for both models, with 
+
+individual points color -coded by their MC -dropout 95% confidence interval half -width. 
+
+Model  RMSE (MPa)  MAE (MPa)  R²  95% CI (MPa) 
+
+Imp. STAR -
+
+PINN 
+
+11.82  4.91  0.9847  ±3.12 (mean) 
+
+DRX -Aware 
+
+STAR -PINN 
+
+11.69  4.89  0.9850  ±3.35 (mean) 14 
+
+Table 4. Test -set predictive performance metrics. R² = coefficient of determination; RMSE = 
+
+root mean square error; MAE = mean absolute error; 95% CI = Monte Carlo dropout 
+
+confidence interval half -width (mean across test set). 
+
+Both models attain nearly the same and remarkably high predictive accuracy. The DRX -Aware 
+
+STAR -PINN achieves R² = 0.9850, while the Improved STAR -PINN has R² = 0.9847, 
+
+reflecting an enhancement of 0.03 percentage points. Although this difference is minor i n
+
+relative terms, it has physical significance: it suggests that the deliberate microstructural 
+
+conditioning of the stress decoder via the DRX fraction, a purely structural alteration, offers a 
+
+slight yet consistent predictive advantage with no sacrifice in accuracy. Examination of the 
+
+parity plots shows that both models exhibit the greatest point -prediction inaccuracies (shaded 
+
+orange -to -red on the CI scale, peaking at 40 MPa) in the intermediate stress range of about 
+
+100 –150 MPa. This stress range aligns with the post -peak softening transition at intermediate 
+
+temperatures (around 950 –1000 °C) and moderate strain rates (1 –5 s⁻¹), where the vari ation in 
+
+DRX -induced softening is significantly influenced by the strain rate. The DRX -Aware model 
+
+exhibits a moderate decrease in the percentage of red points in this area, consistent with its 
+
+ability to explicitly depict the microstructural condition that influences th is variation. The 
+
+scatter plot of absolute error versus true strain (Fig. 2) provide s additional spatial diagnostic 
+
+insights. Both models exhibit the greatest errors at low strains ( ε < 0.1), particularly in the 
+
+work -hardening and peak -stress transition area. For ε values greater than approximately 0.15, 
+
+the errors for both models remain consistent w ithin the 0 –25 MPa range, with occasional 
+
+outliers reaching around 60 MPa under certain conditions. The DRX -Aware STAR -PINN 
+
+demonstrates a visually clearer distribution within the range ε = 0.1 –0.3, which again aligns 
+
+with the DRX initiation and accelerati on phase , the area most directly affected by the 
+
+microstructural coupling architecture. 15 
+
+4.4 Flow Curve Reconstruction with Uncertainty Quantification 16 
+
+Fig ure 3: T he reconstruction of complete true stress –true strain flow curves at all experimental 
+
+temperatures (a) 800 °C, (b) 950 °C, (c) 1000 °C, and (d) 1050 °C and all five strain rates (0.01, 
+
+0.1, 1, 5, and 10 s ⁻¹). Experimental data are shown as solid lines and model predictions as 
+
+dashed lines of identical color , with the 95% MC -dropout confidence interval shaded in the 
+
+corresponding hue. 
+
+At 800 °C (Fig. 3a), the material demonstrates typical Type A (or C) hot deformation 
+
+characteristics: an abrupt increase in stress to a clear peak stress (~410 MPa at ε̇ = 10 s⁻¹), 
+
+succeeded by ongoing DRX -induced softening leading to an almost steady state. Both models 
+
+re plicate this behavior with impressive accuracy at all five strain rates. The 95% CI bands are 
+
+very narrow (usually < 5 MPa) in the steady -state region but expand slightly near the peak 
+
+stress, consistent with the greater prediction uncertainty in this methodologically intricate 
+
+transition. The DRX -Aware model demonstrates slightly narrower bands at peak stress, due to 
+
+its design that conditions stress prediction based on the DRX state at the critical stra in. 
+
+At 950 °C (Fig. 3b), flow stresses are significantly lower (peak ~175 MPa at  ε̇ = 10 s⁻¹), and 
+
+the softening following the peak is more gradual, indicating a diminished DRX driving force 
+
+in comparison to dynamic recovery. Both models accurately replicate the flow curves; however, 
+
+slight discrepancies of about 15 MPa ar e observed at intermediate strain rates (0.1 –1 s⁻¹) during 
+
+the post -peak phase. These discrepancies occur since the maximum stress under these 
+
+circumstances (around 75 –80 MPa) is reached at a higher normalized strain compared to the 
+
+global critical strain  ε𝑐  employed in the physics penalty terms, resulting in the precise initiation 
+
+of softening being dependent on conditions in a manner that a singular global  ε𝑐  cannot entirely 
+
+represent. 
+
+At temperatures of 1000 °C and 1050 °C (Fig. 3c and 3d), flow stresses decrease further, and 
+
+the deformation behavior shifts primarily toward dynamic -recovery -controlled softening, 
+
+evidenced by continuously rising flow curves that level off without a clear stress peak at low 
+
+strain rates (0.01 and 0.1 s⁻¹). This qualitative shift in curve shape poses the greatest difficulty 
+
+for any constitutive model developed from data encompassing both peak -and -soften (DRX) 
+
+and monotone -plateau (DRV) curves. Both STAR -PINN models respond appropriately: at 1000 
+
+°C/0.01 s⁻¹, the predicted graphs accurately depict no distinct peak and a mild positive slope, 
+
+whereas at 10 s⁻¹ a distinct peak followed b y softening is accurately represented. This switching 
+
+of conditional morphology arises directly from the physics penalty terms, which restrict  ∂σ 
+
+> ∂ε
+
+to 17 
+
+be ≤ 0 once  ε𝑐  is reached and ≥ 0 before it, thereby enabling the data -driven part of the loss to 
+
+determine whether a peak is present. Significantly, the 95% CI bands stay narrow (< 10 MPa) 
+
+across the 1000 °C and 1050 °C curves, verifying that the models are not merely interpolating 
+
+but have acquired a well -defined representation of the constitutive surface at temperat ures near 
+
+the upper limit of the training distribution. 
+
+4. 5 Gradient -Based Feature Importance 
+
+Fig ure 4: T he gradient -based feature importance, defined as the mean absolute gradient of 
+
+predicted stress with respect to each normali zed input feature, evaluated over the full test set. 
+
+Fig ure 3: T he reconstruction of complete true stress –true strain flow curves at all experimental 
+
+temperatures (a) 800 °C, (b) 950 °C, (c) 1000 °C, and (d) 1050 °C and all five strain rates (0.01, 
+
+0.1, 1, 5, and 10 s ⁻¹). Experimental data are shown as solid lines and model predictions as 
+
+dashed lines of identical color, with the 95% MC -dropout confidence interval shaded in the 
+
+corresponding hue. 
+
+At 800 °C (Fig. 3a), the material demonstrates typical Type A (or C) hot deformation 
+
+characteristics: an abrupt increase in stress to a clear peak stress (~410 MPa at ε̇ = 10 s⁻¹), 
+
+succeeded by ongoing DRX -induced softening leading to an almost steady state. Both models 
+
+re plicate this behavior with impressive accuracy at all five strain rates. The 95% CI bands are 
+
+very narrow (usually < 5 MPa) in the steady -state region but expand slightly near the peak 
+
+stress, consistent with the greater prediction uncertainty in this methodologically intricate 18 
+
+transition. The DRX -Aware model demonstrates slightly narrower bands at peak stress, due to 
+
+its design that conditions stress prediction based on the DRX state at the critical strain. 
+
+At 950 °C (Fig. 3b), flow stresses are significantly lower (peak ~175 MPa at  ε̇ = 10 s⁻¹), and 
+
+the softening following the peak is more gradual, indicating a diminished DRX driving force 
+
+in comparison to dynamic recovery. Both models accurately replicate the flow curves; however, 
+
+slight discrepancies of about 15 MPa ar e observed at intermediate strain rates (0.1 –1 s⁻¹) during 
+
+the post -peak phase. These discrepancies occur since the maximum stress under these 
+
+circumstances (around 75 –80 MPa) is reached at a higher normalized strain compared to the 
+
+global critical strain  ε𝑐  employed in the physics penalty terms, resulting in the precise initiation 
+
+of softening being dependent on conditions in a manner that a singular global  ε𝑐  cannot entirely 
+
+represent. 
+
+At temperatures of 1000 °C and 1050 °C (Fig. 3c and 3d), flow stresses decrease further, and 
+
+the deformation behavior shifts primarily toward dynamic -recovery -controlled softening, 
+
+evidenced by continuously rising flow curves that level off without a clear stress peak at low 
+
+strain rates (0.01 and 0.1 s⁻¹). This qualitative shift in curve shape poses the greatest difficulty 
+
+for any constitutive model developed from data encompassing both peak -and -soften (DRX) 
+
+and monotone -plateau (DRV) curves. Both STAR -PINN models respond appropriately: at 1000 
+
+°C/0.01 s⁻¹, the predicted graphs accurately depict no distinct peak and a mild positive slope, 
+
+whereas at 10 s⁻¹ a distinct peak followed b y softening is accurately represented. This switching 
+
+of conditional morphology arises directly from the physics penalty terms, which restrict  ∂σ 
+
+> ∂ε
+
+to 
+
+be ≤ 0 once  ε𝑐  is reached and ≥ 0 before it, thereby enabling the data -driven part of the loss to 
+
+determine whether a peak is present. Significantly, the 95% CI bands stay narrow (< 10 MPa) 
+
+across the 1000 °C and 1050 °C curves, verifying that the models are not merely interpolating 19 
+
+but have acquired a well -defined representation of the constitutive surface at temperatures near 
+
+the upper limit of the training distribution. 
+
+4. 6 Five -Fold Cross -Validation 
+
+Fig ure 5: T he 5 -fold cross -validation box plots for RMSE, MAE, and R². Table 2 summarizes 
+
+the cross -validation statistics. 
+
+Model  CV RMSE (MPa)  CV MAE (MPa)  CV R² 
+
+Imp. STAR -PINN  12.76 ± 0.50  5.40 ± 0.12  0.9815 ± 0.0023 
+
+DRX -Aware 
+
+STAR -PINN 
+
+12.87 ± 0.60  5.38 ± 0.18  0.9811 ± 0.0029 
+
+Table 5. Five -fold cross -validation summary. Values reported as mean ± standard deviation 
+
+across five folds. 
+
+The 5 -fold CV results confirm several important conclusions. The median RMSE values for 
+
+both models are tightly clustered around 12.7 –12.9 MPa, with overlapping interquartile ranges, 
+
+confirming that there is no statistically significant differe nce in performa nce between the two 
+
+architectures on this dataset when evaluated solely by interpolation accuracy. Both models 
+
+show fold -to -fold variability of approximately ±0.5 MPa in RMSE and ±0.003 in R², which is 
+
+modest relative to the mean values, confirming robustness to the specific training partition. The 
+
+DRX -Aware STAR -PINN exhibits slightly wider CV distributions (larger IQR in all three 20 
+
+metrics). This is attributable to the greater complexity of its optimization landscape: with six 
+
+physics penalty terms and the additional DRX head, different random data partitions result in 
+
+modestly greater variation in the final converged solution. The presence of one low -
+
+performance outlier fold in the Improved STAR -PINN (visib le as a circle below the box at 
+
+RMSE ≈ 11.9 in the box plot) suggests occasional , particularly favorable training/validation 
+
+splits for that model. Taken together, the CV analysis supports the conclusion that both models 
+
+are well -generalized and neither architecture overfits any particular subset of the deformation 
+
+conditions. 
+
+4. 7 Uncertainty Assessment and Quantile –Quantile Analysis of Prediction Errors 
+
+Fig ure 6: The distribution of MC -dropout predictive standard deviations σ̂ over the test set. 
+
+Both distributions are strongly right skewed : the overwhelming majority of test points (>85%) 
+
+have predictive standard deviations below 2 MPa, with long tails extending to ~20 MPa. 
+
+The Improved STAR -PINN achieves a mean predictive standard deviation of 1.59 MPa ,
+
+yielding a mean 95% CI of ±3.12 MPa. The DRX -Aware STAR -PINN produces a slightly 
+
+higher mean of 1.71 MPa , with a mean 95% CI of ±3.35 MPa. The marginally higher 
+
+uncertainty of the DRX -Aware model reflects the additional stochasticity introduced by the 
+
+DRX head at inference time: the dropout layers in the shared encoder produce variability not 
+
+only in the str ess output but also in the intermediate X DRX value, which is then passed to the 
+
+stress head , creating a compounding uncertainty pathway that is absent in the Improved STAR -
+
+PINN. 
+
+Physically, the highest predictive uncertainties (the right tail of the distribution, corresponding 
+
+to  σ̂ >10 MPa) are concentrated at deformation conditions where the constitutive response is 21 
+
+most condition -sensitive: the peak stress transition region ( ε = 0.05 –0.15) at high strain rates 
+
+and low temperatures, exactly where the gradient of stress with respect to all three inputs is 
+
+simultaneously large. This provides indirect validation that the MC -dropout uncertainty is not 
+
+a random art ifact but a meaningful signal of model confidence , correlated with the physical 
+
+difficulty of the prediction task. Such uncertainty estimates are directly actionable in finite -
+
+element process simulation: high -uncertainty predictions can be flagged for additional 
+
+experimental validation or replaced with co nservative bounds. 
+
+Figure 7: The Q –Q plots of residuals for the Improved STAR -PINN and DRX -Aware STAR -
+
+PINN models. 
+
+Deviations from this line indicate departures from normality and may reveal systematic 
+
+prediction errors or extreme outliers. For both models, the central portion of the residual 
+
+distribution lies relatively close to the ideal line, indicating that the maj ority of predictions 
+
+exhibit small and randomly distributed errors. This suggests that both frameworks capture the 
+
+alloy’s dominant constitutive response across most deformation conditions. However, 
+
+noticeable departures from linearity are observed in both tails of the distributions. The upward 
+
+curvature at large positive quantiles and downward deviation at negative quantiles indicate the 
+
+presence of a limited number of large residuals associated with highly nonlinear regions of the 
+
+flow curves. The Improved STAR -PINN model (Figure 7a) exhibits stronger tail deviations, 
+
+particularly in the positive residual region where observed quantiles extend beyond 90 MPa. 
+
+This behavior suggests that the model occasionally underpredicts or overpredicts stress values 
+
+in localized regions, most likely near the transition from strain hardening to flow softening. 
+
+The pronounced S -shaped trend indicates that residuals are not fully Gaussian and that certain 
+
+metallurgical mechanisms remain insufficiently constrained within the constitutive 22 
+
+formulation. In contrast, the DRX -Aware STAR -PINN model (Figure 7b) displays a more 
+
+symmetric residual distribution and a closer agreement with the ideal normal trend throughout 
+
+much of the quantile range. Although deviations remain at the extreme tails, the overall spread 
+
+of residuals is reduced, and the central region follows the reference line more closely. This 
+
+improvement can be attributed to the incorporation of dynamic recrystallization (DRX) -related 
+
+physics constraints, which provide additional guidance during training and improve the 
+
+representation of post -peak flow softening behavior. 
+
+4.8 Dynamic Recrystallization Fraction Prediction 
+
+Prior to delving into the detailed analysis of the anticipated DRX fraction curves and contour 
+
+map, a significant qualification is warrant ed. The DRX fraction outputs from the DRX -Aware 
+
+STAR -PINN provide qualitative predictions meant to illustrate physically consistent 
+
+microstructural trends, not precise measurements of the recrystallized volume fraction. The 
+
+model was trained solely on macr oscopic flow stress data; no direct microstructural 
+
+measurements , such as EBSD -derived recrystallized area fractions, optical metallography grain 
+
+counts, or X -ray line -broadening dislocation density estimates were available for training 
+
+targets or validation reference points. As a result, the absolute values of X DRX predic ted by the 
+
+network contain intrinsic uncertainty that cannot be measured without separate microstructural 
+
+validation. The kinetic parameters of JMAK (k = 2.0, n = 2.0), used as a gentle regularization 
+
+prior, are universal estimates based on the mean experimental peak strain rather than specific 
+
+fits to conditions, adding another layer of quantitative uncertainty. The data shown here should 
+
+thus be viewed as proof that the DRX -Aware STAR -PINN has acquired physically consistent 
+
+microstructural patterns , accurate monotonicity, appropriate temperature and strain -rate 
+
+sequencing, and correct saturation behavior , instead of as precise forecasts of experimental 
+
+DRX fractions. Quantitative validation of experimentally obtained recrystallized fractions 
+
+remains a significant focus for future research. 23 
+
+Fig ure 8: T he DRX fraction (X DRX ) as a function of true strain predicted by the DRX -Aware 
+
+STAR -PINN at all four temperatures and five strain rates, compared against the JMAK 
+
+reference curve (thick black line) computed with k = 2.0 and n = 2.0. The vertical dotted lines 
+
+indicate the criti cal strain εc = 0.088 and peak strain εp = 0.146. 
+
+At all four temperatures, the X DRX curves predicted by the network exhibit the expected 
+
+sigmoidal form: X DRX ≈ 0 for  ε < ε𝑐 , a rapid sigmoidal increase between  ε𝑐  and roughly 0.20, 
+
+and a saturation approaching X DRX → 1.0 for  ε > 0.25. This behavior results directly from the 
+
+three loss terms specific to DRX: the monotonicity loss guarantees X DRX is non -decreasing 
+
+post -ε𝑐 , the Avrami regularization limits the overall sigmoid shape, and the saturation loss 
+
+pushes X DRX towards 1 for  ε > ε𝑝 . A significant point is the insensitivity to strain rate of the 
+
+anticipated DRX fraction curves: across the spectrum of 0.01 to 10 s⁻¹, the five colored dashed 
+
+lines nearly overlap at each temperature, closely aligning with the solitary black JMAK target. 
+
+This happens as the JMAK regularization loss acts as the main limitation on the DRX trajectory, 
+
+effectively enforcing strain -rate -independent DRX kinetics. While this acts as an appropriate 24 
+
+first estimation at temperatures over ~900 °C, where DRX is thermally driven, it has a known 
+
+limitation: at lower temperatures and higher strain rates, the start of DRX may be postponed 
+
+due to rivalry with dynamic strain aging, and the DRX fraction is expe cted to show a minor 
+
+dependence on strain rate. The slight differences in curves at different strain rates, seen at 800 
+
+°C (the predicted curves exhibit a minor dispersion around the JMAK reference, with higher -
+
+strain -rate predictions lagging slightly), su ggest that the network has somewhat understood this 
+
+nuance from the data. The nearly precise alignment between the neural network predictions 
+
+and the JMAK target across all temperatures, despite the JMAK curve being based on constant 
+
+global parameters rath er than specific adjustments for conditions, validates the effectiveness of 
+
+the Avrami regularization as a physics prior and demonstrates that k = 2.0, n = 2.0 provides an 
+
+appropriate zeroth -order depiction of DRX kinetics for this material across the stud ied 
+
+processing range. 
+
+4.6 DRX Contour Map and 3D Constitutive Surface 
+
+Fig ure 9: T he DRX fraction as a two -dimensional contour map over the ε–𝜀 ̇ plane at the median 
+
+temperature (~952 °C). The color scale runs from deep blue (X DRX = 0, pre -DRX regime) 
+
+through orange and yellow (X DRX → 1, fully recrystallized). 
+
+The contour map indicates that the DRX onset boundary, where X DRX changes from ~0.1 to 
+
+~0.9, is located at roughly  ε = 0.10 –0.18 for all strain rates, experiencing a slight shift to the 
+
+right at higher strain rates toward increased strains. This behavior aligns physically with the 25 
+
+Zener –Hollomon model: elevated strain rates enhance the force driving deformation while 
+
+concurrently decreasing the time for thermally activated boundary migration, leading to a 
+
+slightly increased strain necessary for the onset and completion of DRX. The D RX saturation 
+
+area (yellow, X DRX ≈ 1.0) covers the entire right two -thirds of the map ( ε > 0.2 almost) across 
+
+all strain rates. This suggests that at 952 °C, full recrystallization occurs at fairly low strains, 
+
+aligning with the recognized conditions favorable for DRX at temperatures close to 0.8 –0.9 of 
+
+the melting point for titanium alloys. The abrupt transition front , the steep color gradient at ε ≈ 
+
+0.15 observable across the entire log strain -rate axis , demonstrates the quick sigmoidal DRX 
+
+kinetics represented by the Avrami regularization and verifies that the saturation constraint 
+
+effectively forces X DRX → 1 in the post -peak phase. The contour lines are even and single -
+
+toned across the map, without crossings or unphysical inversions, demonstrating that the DRX 
+
+monotonicity condition (L DRX ) has been successfully applied globally rather than only at 
+
+training locations. The contours' smoothness indicates that the JMAK -Avrami regularization 
+
+(L Avrami ) has applied a physically plausible kinetic form to the DRX evolution, avoiding 
+
+discontinuities or artifacts thanks to its soft -prior nature. 
+
+Fig ure 10: T hree -dimensional constitutive surfaces of predicted flow stress over the ε–ε̇ plane 
+
+at the same reference temperature (~952 °C) for both models. 
+
+Both surfaces exhibit the monotone increase with strain rate at any fixed strain, a clear peak -
+
+and -softening transition along the strain axis at moderate and high strain rates, and a flatter, 
+
+near -plateau response at the lowest strain rates. The DRX -Aware STAR -PINN surface is 
+
+visually smoother in the post -peak softening region, a consequence of the coupling loss , which 
+
+penalises non -monoton ic stress transitions whenever X DRX is increasing. This architectural 26 
+
+constraint acts as an implicit regularizer on the smoothness of the stress surface in precisely 
+
+the region where it is most physically appropriate. 
+
+4.10 Zener –Hollomon Correlation 
+
+Fig ure 11: The predicted flow stress at a fixed reference strain (median strain value) against 
+
+the Zener –Hollomon parameter ln Z = ln( ε̇) + Q/(RT), with individual points colour -coded by 
+
+temperature. 
+
+Figure 11 displays the correlation between the anticipated flow stress and the Zener –Hollomon 
+
+parameter (ln Z) derived from the Improved STAR -PINN and DRX -Aware STAR -PINN 
+
+models. Both frameworks show a monotonic increase in flow stress with ln Z, indicating that 
+
+the constitutive response aligns with the thermally activated characteristics of hot deformation. 
+
+At low ln Z values (≈19 –23), which correspond to elevated deformation temperatures and 
+
+reduced strain rates, the estimated stresses remain below roughly 100 MPa due to improved 
+
+dynamic recovery and thermally driven dislocation annihilation processes that reduce flow 
+
+resistance [10] . As ln Z increase s, the estimated stress increases steadily and nearly reaches 400 
+
+MPa at about ln Z = 32. This trend is physically anticipated, as lower temperatures and elevated 
+
+strain rates inhibit recovery and recrystallisation , leading to greater dislocation buildup and 
+
+higher flow stresses. The capacity of both models to replicate this Arrhenius -type constitutive 
+
+behavior suggests that the integrated physics constraints effectively directed the learning 
+
+process toward thermodynamically valid solutions, even without an explicitly defined 
+
+constitutive equation during training. A comparison of the two architectures reveals nuanced 
+
+yet significant distinctions in the intermediate ln Z range (≈26 –29), where strain hardening, 
+
+dynamic recovery, and the onset of dynamic recrystallisation concurrently influence the flow 27 
+
+behavior . The Enhanced STAR -PINN displays a marginally greater variation in this transition 
+
+area, indicating heightened uncertainty in representing the interplay between hardening and 
+
+softening mechanisms when relying solely on stress -based physics constraints. In comparison, 
+
+the DRX -Aware STAR -PINN generates a more consistent and seamless constitutive trajectory 
+
+throughout the complete ln Z spectrum. Integrating recrystallisation -informed regularization 
+
+enable s the model to more accurately depict the microstructure -induced softening processes 
+
+that become increasingly important under moderate deformation conditions. 
+
+Furthermore, the temperature distribution shown by the color scale follows the expected 
+
+metallurgical trend: lower temperatures correspond to higher ln Z values and higher flow 
+
+stresses, whereas elevated temperatures correspond to lower ln Z values and reduced stresses 
+
+due to enhanced recovery and recrystallisation . These observations demonstrate that the DRX -
+
+Aware STAR -PINN not only preserves the fundamental temperature –strain -rate dependence of 
+
+the material but also provides a more physically consistent description of the deformation 
+
+behavior by explicitly account ing for recrystallisation -mediated softening. 
+
+Conclusion 
+
+This research developed and assessed two Stacked Residual Physics -Informed Neural 
+
+Networks (STAR -PINNs) for modelling the constitutive behavior of hot deformation in a Mo -
+
+rich α+β titanium alloy (Ti –6Al –4Mo –1V –0.1Si) over temperatures from 800 to 1050 °C and 
+
+strain rates from 0.01 to 10 s⁻¹. The subsequent key conclusions are derived: 
+
+• The two STAR -PINN architectures demonstrated significant predictive accuracy, with 
+
+the Improved STAR -PINN recording RMSE = 11.82 MPa, MAE = 4.91 MPa, and R² = 
+
+0.9847, while the DRX -Aware STAR -PINN achieved RMSE = 11.69 MPa, MAE = 
+
+4.83 MPa, and R² = 0.9850. These findings verify that the physics -constrained, residual -
+
+stacked architecture generalizes successfully throughout a wide thermomechanical 
+
+processing range. 
+
+• Physics -Informed constraints applied through automatic differentiation , such as 
+
+thermal softening (∂σ 
+
+> ∂T
+
+< 0 ), strain -rate sensitivity (  ∂σ  
+
+> ∂ln (ε̇)
+
+>0), pre -peak strain hardening, 
+
+post -peak flow softening, and curvature regularization , directed both models toward 
+
+thermodynamically consistent constitutive behaviour without needing a direct 
+
+analytical constitutive equation. 
+
+• The DRX -Aware STAR -PINN, utilising its dual -output structure and latent -feature 
+
+integration, incorporated the mechanistic relationship between recrystallisation -driven 28 
+
+softening and overall flow resistance directly into the network design. The JMAK –
+
+Avrami regularisation , DRX monotonicity constraint, DRX –softening coupling loss, 
+
+saturation constraint, and Arrhenius -consistency penalty together delivered physically 
+
+consistent DRX fraction forecasts that showcased sigmoidal kinetics, accurate strain -
+
+rate sequencing, and sat uration behaviour approaching X DRX → 1. 
+
+• Monte Carlo Dropout uncertainty quantification indicated that predictive confidence is 
+
+greatest during the steady -state deformation phase and least close to the peak -stress 
+
+transition under high strain rates and low temperatures , a physically relevant 
+
+uncertainty distribution that is immediately usable in finite -element process simulation. 
+
+• Gradient -based feature importance analysis showed that the DRX -Aware architecture 
+
+attained a 21% decrease in raw strain sensitivity compared to the Enhanced STAR -
+
+PINN, reallocating predictive dependence towards temperature and strain rate. This 
+
+verifies th at explicit DRX conditioning partially separates the constitutive surface 
+
+decomposition in a way that aligns with the Zener –Hollomon framework. 
+
+• Zener –Hollomon correlation analysis confirmed that both models demonstrate the 
+
+anticipated monotonic rise of flow stress with ln Z, with the DRX -Aware STAR -PINN 
+
+yielding a distinctly smoother and more reliable path through the intermediate ln Z 
+
+range (≈26 –29) where hardening and DRX softening compete .
+
+Future work should extend the DRX -Aware framework to include grain size prediction as a 
+
+third output head, incorporate EBSD microstructural measurements as additional soft training 
+
+targets, and validate the framework on other near -β titanium alloys to asse ss generalizability 
+
+across alloy compositions. 
+
+Acknowledgments 
+
+The authors are grateful to the Director of VNIT Nagpur for providing the necessary facilities 
+
+and offering constant encouragement for this research. 
+
+Conflict of Interest Statement 
+
+The authors declare that they have no known competing financial interests or personal 
+
+relationships that could have influenced the work reported in this paper. 
+
+Credit Authorship 29 
+
+Prashil S. Joshi: Conceptualization, Methodology, Visualization, Investigation, Writing –
+
+original draft. Diksha Mahadule: Methodology, Visualization, Writing – review & editing. 
+
+Rajesh K. Khatirkar: Supervision, Writing – review & editing, Resources. 
+
+Data Availability Statement 
+
+The data supporting the findings of this study are available from the corresponding author upon 
+
+reasonable request. 
+
+References 
+
+[1] D. Banerjee, J.C. Williams, Perspectives on Titanium Science and Technology, Acta 
+
+Mater. 61 (2013) 844 –879. https://doi.org/10.1016/j.actamat.2012.10.043. 
+
+[2] R.R. Boyer, An overview on the use of titanium in the aerospace industry, Mater. Sci. Eng. 
+
+A 213 (1996) 103 –114. https://doi.org/10.1016/0921 -5093(96)10233 -1. 
+
+[3] Titanium, Springer Berlin Heidelberg, Berlin, Heidelberg, 2007. 
+
+https://doi.org/10.1007/978 -3-540 -73036 -1. 
+
+[4] M. Peters, J. Kumpfert, C.H. Ward, C. Leyens, Titanium Alloys for Aerospace 
+
+Applications, Adv. Eng. Mater. 5 (2003) 419 –427. 
+
+https://doi.org/10.1002/adem.200310095. 
+
+[5] C. Leyens, M. Peters, eds., Titanium and Titanium Alloys: Fundamentals and 
+
+Applications, 1st ed., Wiley, 2003. https://doi.org/10.1002/3527602119. 
+
+[6] D. Mahadule, R.K. Khatirkar, A. Gupta, R. Kumar, Effect of heating temperature and 
+
+cooling rate on the microstructure and mechanical properties of a Mo -rich two phase α + 
+
+β titanium alloy, J. Mater. Res. 36 (2021) 751 –763. https://doi.org/10.1557/s43578 -020 -
+
+00100 -6. 
+
+[7] P.S. Joshi, D. Mahadule, R.K. Khatirkar, Effect of cooling rate and temperature on variant 
+
+selection in a Mo -rich two -phase α + β titanium alloy, Can. Metall. Q. (2026) 1 –14. 
+
+https://doi.org/10.1080/00084433.2025.2611656. 
+
+[8] D. Mahadule, P.S. Joshi, R.K. Khatirkar, Evolution of Microstructure and Texture During 
+
+Hot Deformation of the Ti -6Al -4Mo -1 V-0.1Si Alloy, Met. Mater. Int. (2025). 
+
+https://doi.org/10.1007/s12540 -025 -01974 -z. 
+
+[9] C.M. Sellars, W.J. McTegart, On the mechanism of hot deformation, Acta Metall. 14 
+
+(1966) 1136 –1138. https://doi.org/10.1016/0001 -6160(66)90207 -0. 
+
+[10] C. Zener, J.H. Hollomon, Effect of Strain Rate Upon Plastic Flow of Steel, J. Appl. Phys. 
+
+15 (1944) 22 –32. https://doi.org/10.1063/1.1707363. 
+
+[11] F. Garofalo, An empirical relation defining the stress dependence of minimum creep rate 
+
+in metals, (1963) 351. 
+
+[12] Y. Liu, H. Zhang, L. Hua, F. Huang, K. Ji, Y. Chen, J. Mao, Deformation behavior and 
+
+microstructural evolution of Ti -6Al -4 V alloy under compression with confining pressure, 
+
+Int. J. Plast. 198 (2026) 104610. https://doi.org/10.1016/j.ijplas.2026.104610. 
+
+[13] J.J. Jonas, C.M. Sellars, W.J.McG. Tegart, Strength and structure under hot -working 
+
+conditions, Metall. Rev. 14 (1969) 1 –24. https://doi.org/10.1179/mtlr.1969.14.1.1. 30 
+
+[14] T. Sakai, J.J. Jonas, Overview no. 35 Dynamic recrystallization: Mechanical and 
+
+microstructural considerations, Acta Metall. 32 (1984) 189 –209. 
+
+https://doi.org/10.1016/0001 -6160(84)90049 -X. 
+
+[15] J. Cook, W.H. G.R., A constitutive model and data for metals subjected to large strains, 
+
+high strain rates and high temperatures, 21 (1983) 541 --547. 
+
+[16] E.I. Poliak, J.J. Jonas, A one -parameter approach to determining the critical conditions for 
+
+the initiation of dynamic recrystallization, Acta Mater. 44 (1996) 127 –136. 
+
+https://doi.org/10.1016/1359 -6454(95)00146 -7. 
+
+[17] T. Seshacharyulu, S.C. Medeiros, W.G. Frazier, Y.V.R.K. Prasad, Microstructural 
+
+mechanisms during hot working of commercial grade Ti -6Al -4V with lamellar starting 
+
+structure, Mater. Sci. Eng. A 325 (2002) 112 –125. https://doi.org/10.1016/S0921 -
+
+5093(01)0144 8-4. 
+
+[18] J. Cai, F. Li, T. Liu, B. Chen, M. He, Constitutive equations for elevated temperature flow 
+
+stress of Ti –6Al –4V alloy considering the effect of strain, Mater. Des. 32 (2011) 1144 –
+
+1151. https://doi.org/10.1016/j.matdes.2010.11.004. 
+
+[19] G. Quan, G. Luo, J. Liang, D. Wu, A. Mao, Q. Liu, Modelling for the dynamic 
+
+recrystallization evolution of Ti –6Al –4V alloy in two -phase temperature range and a wide 
+
+strain rate range, Comput. Mater. Sci. 97 (2015) 136 –147. 
+
+https://doi.org/10.1016/j.commat sci.2014.10.009. 
+
+[20] Y.C. Lin, X. -M. Chen, A critical review of experimental results and constitutive 
+
+descriptions for metals and alloys in hot working, Mater. Des. 32 (2011) 1733 –1759. 
+
+https://doi.org/10.1016/j.matdes.2010.11.048. 
+
+[21] A. Safari, M. Imran, S. Weiss, A Comparative Study on Modified Johnson –Cook and 
+
+Arrhenius -Type Constitutive Models to Predict the Hot Deformation Behaviour of 
+
+Molybdenum -Hafnium -Carbide Alloy, J. Mater. Eng. Perform. 30 (2021) 1945 –1956. 
+
+https://doi.org/1 0.1007/s11665 -021 -05464 -2. 
+
+[22] P.S. Joshi, D. Mahadule, R.K. Khatirkar, A machine learning and microstructural synergy 
+
+for flow stress prediction in hot -deformed Ti –6Al –4Mo –1V –0.1Si alloy, Mater. Chem. 
+
+Phys. 350 (2026) 131943. https://doi.org/10.1016/j.matchemphys.2025.131943. 
+
+[23] J. Ghaboussi, J.H. Garrett, X. Wu, Knowledge‐Based Modeling of Material Behavior with 
+
+Neural Networks, J. Eng. Mech. 117 (1991) 132 –153. 
+
+https://doi.org/10.1061/(ASCE)0733 -9399(1991)117:1(132). 
+
+[24] N. Huber, Ch. Tsakmakis, Determination of constitutive properties fromspherical 
+
+indentation data using neural networks. Part i:the case of pure kinematic hardening in 
+
+plasticity laws, J. Mech. Phys. Solids 47 (1999) 1569 –1588. 
+
+https://doi.org/10.1016/S0022 -5096(98)00109 -4. 
+
+[25] Y. Sun, W.D. Zeng, Y.Q. Zhao, Y.L. Qi, X. Ma, Y.F. Han, Development of constitutive 
+
+relationship model of Ti600 alloy using artificial neural network, Comput. Mater. Sci. 48 
+
+(2010) 686 –691. https://doi.org/10.1016/j.commatsci.2010.03.007. 
+
+[26] G. Ji, F. Li, Q. Li, H. Li, Z. Li, A comparative study on Arrhenius -type constitutive model 
+
+and artificial neural network model to predict high -temperature deformation behaviour in 
+
+Aermet100 steel, Mater. Sci. Eng. A 528 (2011) 4774 –4782. 
+
+https://doi.org/1 0.1016/j.msea.2011.03.017. 31 
+
+[27] P.W. Peng, K.L. Ou, C.Y. Chao, Y.N. Pan, C.H. Wang, Research of microstructure and 
+
+mechanical behavior on duplex ( α + β) Ti -4.8Al -2.5Mo -1.4V alloy, J. Alloys Compd. 490 
+
+(2010) 661 –666. https://doi.org/10.1016/j.jallcom.2009.10.133. 
+
+[28] O. Sabokpa, A. Zarei -Hanzaki, H.R. Abedi, N. Haghdadi, Artificial neural network 
+
+modeling to predict the high temperature flow behavior of an AZ81 magnesium alloy, 
+
+Mater. Des. 39 (2012) 390 –396. https://doi.org/10.1016/j.matdes.2012.03.002. 
+
+[29] J.K. Fan, H.C. Kou, M.J. Lai, B. Tang, H. Chang, J.S. Li, Characterization of hot 
+
+deformation behavior of a new near beta titanium alloy: Ti -7333, Mater. Des. 49 (2013) 
+
+945 –952. https://doi.org/10.1016/j.matdes.2013.02.044. 
+
+[30] H.J. Logarzo, G. Capuano, J.J. Rimoli, Smart constitutive laws: Inelastic homogenization 
+
+through machine learning, Comput. Methods Appl. Mech. Eng. 373 (2021) 113482. 
+
+https://doi.org/10.1016/j.cma.2020.113482. 
+
+[31] K.S. Pandya, C.C. Roth, D. Mohr, Strain rate and temperature dependent fracture of 
+
+aluminum alloy 7075: Experiments and neural network modeling, Int. J. Plast. 135 (2020) 
+
+102788. https://doi.org/10.1016/j.ijplas.2020.102788. 
+
+[32] M. Mozaffar, R. Bostanabad, W. Chen, K. Ehmann, J. Cao, M.A. Bessa, Deep learning 
+
+predicts path -dependent plasticity, Proc. Natl. Acad. Sci. 116 (2019) 26414 –26420. 
+
+https://doi.org/10.1073/pnas.1911815116. 
+
+[33] M.B. Gorji, M. Mozaffar, J.N. Heidenreich, J. Cao, D. Mohr, On the potential of recurrent 
+
+neural networks for modeling path dependent plasticity, J. Mech. Phys. Solids 143 (2020) 
+
+103972. https://doi.org/10.1016/j.jmps.2020.103972. 
+
+[34] M. Raissi, P. Perdikaris, G.E. Karniadakis, Physics -informed neural networks: A deep 
+
+learning framework for solving forward and inverse problems involving nonlinear partial 
+
+differential equations, J. Comput. Phys. 378 (2019) 686 –707. 
+
+https://doi.org/10.10 16/j.jcp.2018.10.045. 
+
+[35] G.E. Karniadakis, I.G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang, L. Yang, Physics -
+
+informed machine learning, Nat. Rev. Phys. 3 (2021) 422 –440. 
+
+https://doi.org/10.1038/s42254 -021 -00314 -5. 
+
+[36] S. Cuomo, V.S. di Cola, F. Giampaolo, G. Rozza, M. Raissi, F. Piccialli, Scientific 
+
+Machine Learning through Physics -Informed Neural Networks: Where we are and What’s 
+
+next, (2022). https://doi.org/10.48550/ARXIV.2201.05624. 
+
+[37] E. Haghighat, M. Raissi, A. Moure, H. Gomez, R. Juanes, A physics -informed deep 
+
+learning framework for inversion and surrogate modeling in solid mechanics, Comput. 
+
+Methods Appl. Mech. Eng. 379 (2021) 113741. 
+
+https://doi.org/10.1016/j.cma.2021.113741. 
+
+[38] Z. Mao, A.D. Jagtap, G.E. Karniadakis, Physics -informed neural networks for high -speed 
+
+flows, Comput. Methods Appl. Mech. Eng. 360 (2020) 112789. 
+
+https://doi.org/10.1016/j.cma.2019.112789. 
+
+[39] E. Zhang, M. Dao, G.E. Karniadakis, S. Suresh, Analyses of internal structures and 
+
+defects in materials using physics -informed neural networks, Sci. Adv. 8 (2022) 
+
+eabk0644. https://doi.org/10.1126/sciadv.abk0644. 
+
+[40] A.D. Jagtap, K. Kawaguchi, G.E. Karniadakis, Adaptive activation functions accelerate 
+
+convergence in deep and physics -informed neural networks, J. Comput. Phys. 404 (2020) 
+
+109136. https://doi.org/10.1016/j.jcp.2019.109136. 32 
+
+[41] G.E. Karniadakis, I.G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang, L. Yang, Physics -
+
+informed machine learning, Nat. Rev. Phys. 3 (2021) 422 –440. 
+
+https://doi.org/10.1038/s42254 -021 -00314 -5. 
+
+[42] K. He, X. Zhang, S. Ren, J. Sun, Deep Residual Learning for Image Recognition, in: 2016 
+
+IEEE Conf. Comput. Vis. Pattern Recognit. CVPR, IEEE, Las Vegas, NV, USA, 2016: 
+
+pp. 770 –778. https://doi.org/10.1109/CVPR.2016.90. 
+
+[43] K. Eshkofti, M. Barreau, Vanishing Stacked -Residual PINN for State Reconstruction of 
+
+Hyperbolic Systems, (2025). https://doi.org/10.48550/ARXIV.2503.14222. 
+
+[44] Y. LeCun, Y. Bengio, G. Hinton, Deep learning, Nature 521 (2015) 436 –444. 
+
+https://doi.org/10.1038/nature14539. 
+
+[45] J. Heaton, Ian Goodfellow, Yoshua Bengio, and Aaron Courville: Deep learning: The MIT 
+
+Press, 2016, 800 pp, ISBN: 0262035618, Genet. Program. Evolvable Mach. 19 (2018) 
+
+305 –307. https://doi.org/10.1007/s10710 -017 -9314 -z. 
+
+[46] J.L. Ba, J.R. Kiros, G.E. Hinton, Layer Normalization, (2016). 
+
+https://doi.org/10.48550/ARXIV.1607.06450. 
+
+[47] P. Ramachandran, B. Zoph, Q.V. Le, Searching for Activation Functions, (2017). 
+
+https://doi.org/10.48550/ARXIV.1710.05941. 
+
+[48] I. Loshchilov, F. Hutter, Decoupled Weight Decay Regularization, (2017). 
+
+https://doi.org/10.48550/ARXIV.1711.05101. 
+
+[49] I. Loshchilov, F. Hutter, SGDR: Stochastic Gradient Descent with Warm Restarts, (2016). 
+
+https://doi.org/10.48550/ARXIV.1608.03983. 
+
+[50] B. Lakshminarayanan, A. Pritzel, C. Blundell, Simple and Scalable Predictive Uncertainty 
+
+Estimation using Deep Ensembles, (2016). https://doi.org/10.48550/ARXIV.1612.01474. 
+
+[51] G. Ghahramani, Zoubin Yarin, Dropout as a Bayesian approximation: representing model 
+
+uncertainty in deep learning, (2016) 1050 –1059. 
+
+[52] S. Salakhutdinov, Ruslan Nitish and Hinton, Geoffrey and Krizhevsky, Alex and 
+
+Sutskever, Ilya, Dropout: a simple way to prevent neural networks from overfitting, 
+
+(2014) 1929 –1958. 
+
+[53] M. Avrami, Kinetics of Phase Change. I General Theory, J. Chem. Phys. 7 (1939) 1103 –
+
+1112. https://doi.org/10.1063/1.1750380. 
+
+[54] K. Barmak, A Commentary on: “Reaction Kinetics in Processes of Nucleation and 
+
+Growth”*, Metall. Mater. Trans. B 49 (2018) 3616 –3680. https://doi.org/10.1007/s11663 -
+
+010 -9421 -1. 
+
+[55] H. Hallberg, Approaches to Modeling of Recrystallization, Metals 1 (2011) 16 –48. 
+
+https://doi.org/10.3390/met1010016. 
+
+[56] Sellars C M, The Physical Metallurgy of Hot Working, Sheffield, England, 1979. 
+
+[57] T. Sakai, A. Belyakov, R. Kaibyshev, H. Miura, J.J. Jonas, Dynamic and post -dynamic 
+
+recrystallization under hot, cold and severe plastic deformation conditions, Prog. Mater. 
+
+Sci. 60 (2014) 130 –207. https://doi.org/10.1016/j.pmatsci.2013.09.002. 
+
+[58] H. Hallberg, Approaches to Modeling of Recrystallization, Metals 1 (2011) 16 –48. 
+
+https://doi.org/10.3390/met1010016. 
+
+[59] R. Ding, Z.X. Guo, Coupled quantitative simulation of microstructural evolution and 
+
+plastic flow during dynamic recrystallization, Acta Mater. 49 (2001) 3163 –3175. 
+
+https://doi.org/10.1016/S1359 -6454(01)00233 -6. 33 
+
+[60] R. Caruana, Multitask Learning, Mach. Learn. 28 (1997) 41 –75. 
+
+https://doi.org/10.1023/A:1007379606734. 
+
+[61] S. Dodge, S. Barmada, A. Formisano, A STacked Adaptive Residual PINN (STAR -PINN) 
+
+Approach to 2D Time -Domain Magnetic Diffusion in Nonlinear Materials, IEEE Access 
+
+13 (2025) 141380 –141394. https://doi.org/10.1109/ACCESS.2025.3597869.

@@ -1,0 +1,221 @@
+Title: Implementations of Quantum and Classical Topology-Aligned Architectures for Molecular Property Prediction
+
+URL Source: https://arxiv.org/pdf/2607.13737v1
+
+Published Time: Thu, 16 Jul 2026 01:23:05 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# Implementations of Quantum and Classical Topology-Aligned Architectures for Molecular Property Prediction 
+
+1st James T. Pegg 
+
+QunaSys Europe 
+
+Copenhagen, Denmark james@qunasys.com 0000-0002-6743-8651 
+
+2nd Hubert Okadome Valencia 
+
+QunaSys Inc. 
+
+Tokyo, Japan hubert@qunasys.com 0000-0003-0955-3886 
+
+3rd Ronin Wu 
+
+QunaSys Europe 
+
+Copenhagen, Denmark ronin@qunasys.com 0000-0002-3736-5391 
+
+Abstract —For low-data and resource-constrained regimes typ-ical of quantum chemistry, parameter-efficient learning is a key objective. Here, we propose a topology-aligned inductive bias in which the model architecture mirrors the molecular bond graph: atoms map to a fixed register of computational units, and bonds determine which pairs interact through shared learnable parameters. This principle is instantiated in two architectures: a variational quantum circuit (Iso-QGNN), and a parameter-matched classical message-passing model (Iso-CGNN). The mod-els are benchmarked on HOMO-LUMO and dipole moment binary classification tasks over the QM9 benchmark. With 64 trainable parameters, the implementations achieve test AUCs of approximately 0.88 (quantum) and 0.91 (classical) on the gap task, and close to 0.78 (both) on the dipole task. The models reach 90% of asymptotic performance within about 250 training molecules and gradient norms remain stable throughout training. These results indicate that the topology-aligned inductive bias is the active ingredient driving parameter efficiency at QM9 scale, with implications for matched-baseline benchmarking in quantum machine learning. 
+
+I. I NTRODUCTION 
+
+In the design of machine-learning interatomic potentials (MLIPs) and generative adversarial networks (GANs), graph-based methodologies have emerged as a primary tool for mapping molecular systems [1]–[5]. Within computational chemistry, the simulation of systems with intricate electronic structure (highly correlated, photoreactive, or excited-state systems) scales unfavourably; consequently, physicochemical property prediction for complex systems is often intractable from first principles [6]–[8]. In cheminformatics, classical machine learning (ML) offers inference speeds orders of magnitude faster than ab initio calculation [9], [10]. Here, graph neural networks (GNNs) have established themselves as the state-of-the-art; however, capturing subtle electronic 
+
+© 2026 IEEE. Personal use of this material is permitted. Permission from IEEE must be obtained for all other uses, in any current or future media, including reprinting/republishing this material for advertising or promotional purposes, creating new collective works, for resale or redistribution to servers or lists, or reuse of any copyrighted component of this work in other works. Accepted for publication in the 2026 IEEE International Conference on Quantum Computing and Engineering (QCE). 
+
+correlations typically requires deep, highly parameterised ar-chitectures [11]. These in turn demand large training datasets that are frequently scarce or expensive. Two distinct lines of work have responded to this data-and-parameters problem. The first, from the quantum machine learning (QML) community, encodes molecular information directly into the high-dimensional Hilbert space of a quantum processor; the appeal is a potentially favourable expressivity– parameter trade-off and improved data efficiency [12], [13]. The second, from classical geometric deep learning, builds the symmetries and structure of the data into the model architecture itself, reducing the parameters needed to represent physically valid functions [14]–[16]. These lines aim at the same target: competitive predictive performance with fewer parameters and less data. Matched-baseline benchmarking has emerged as a method-ological focus in QML, motivated by the need to disentan-gle the contributions of these two design choices. Bowles et al. [17] systematically compared twelve quantum models against classical baselines across 160 datasets and found that out-of-the-box classical methods generally outperformed their quantum counterparts on small-scale tasks, with the further observation that removing entanglement often left quantum-model performance unchanged. Subsequent benchmarking of quantum kernel methods has reached similar conclusions [18], [19]. These results suggest that, in the noisy intermediate-scale quantum (NISQ) regime, the inductive bias of a model architecture often matters more than whether its substrate is quantum; performance claims for quantum models are most informative when the comparison controls for architectural design. In the NISQ era, deploying effective quantum neural net-works (QNNs) remains challenging [20]. Earlier methods used quantum annealing for molecular similarity and electronic structure, but gate-based variational methods have become the dominant paradigm [21]–[24]. These methods generally rely on hardware-efficient ansätze (HEAs), where gates are arranged according to the connectivity of the processor rather than the structure of the problem [25], [26]. Such generic arXiv:2607.13737v1 [cs.LG] 15 Jul 2026 circuits are agnostic to chemical topology and lack inductive bias [27]. To capture complex chemical features, HEAs must therefore be deepened, introducing a critical trade-off: deep variational circuits are notoriously susceptible to gate-error accumulation and barren plateaus, where gradients vanish exponentially with system size [28]–[30]. In this work, we examine an alternative: a structure-preserving architecture in which the model topology directly mirrors the molecular graph. Atoms are mapped to a fixed register of computational units, and bonds determine which pairs interact through shared, learnable parameters. Topology-aware quantum graph models for QM9-class tasks have been explored before [31], but typically without parameter-matched classical controls. We instantiate the topology-aligned induc-tive bias in two architectures: a variational quantum circuit (Iso-QGNN), in which entangling operations are applied be-tween qubits corresponding to bonded atoms, and a parameter-matched classical message-passing network (Iso-CGNN), in which bonded nodes exchange messages weighted by the same shared parameters. For the two implementations with identical parameter count and identical splits, the contribution of the inductive bias is relatively isolated from that of the quantum substrate. Our contributions are threefold. First, we show that the topology-aligned inductive bias yields competitive perfor-mance on QM9 binary classification with only 64 trainable parameters in both implementations, reaching test AUCs of 0.88 (quantum) and 0.91 (classical) on the highest occupied– lowest unoccupied molecular orbital (HOMO-LUMO) gap task, well above a non-graph logistic-regression control evalu-ated on identical splits. Second, we show that both implemen-tations are highly data-efficient, reaching 90% of asymptotic performance within about 250 training molecules. Third, the matched comparison demonstrates that the inductive bias rather than the quantum substrate is the active ingredient driving parameter efficiency at QM9 scale, with the quantum and classical implementations performing comparably across all metrics tested. We discuss what this result implies for QML benchmarking methodology and for the regimes in which a quantum implementation may offer genuine advantages. II. M ETHOD 
+
+A. Dataset and Graph Representation 
+
+We use the QM9 benchmark [32], comprising approxi-mately 134,000 small organic molecules with computed ge-ometric and electronic properties. We address two binary classification tasks: the HOMO-LUMO energy gap ( ∆ϵ) and the electric dipole moment ( μ). Both targets are scalars as tabulated in QM9: ∆ϵ is an orbital-energy difference and μ
+
+is the magnitude of the dipole vector. This framing focuses the comparison on architectural efficiency rather than absolute regression accuracy. Binary labels are produced by a median split. All exper-iments draw a fixed sample of 1,500 molecules from QM9 (seeded), and each continuous target value is assigned label 1 if it exceeds the sample median and 0 otherwise. This                            
+
+> qN(|0⟩)RY(θN
+> atom )RZ(θsingle bond )RXRY
+> qC(|0⟩)RY(θC
+> atom )RZ(θsingle bond )RZ(θdouble bond )RXRY
+> qO(|0⟩)RY(θO
+> atom )RZ(θdouble bond )RXRY
+
+Fig. 1: Iso-QGNN circuit for a three-atom example (for-mamide O=CH–NH 2, with implicit H atoms). Each atom is assigned a qubit initialised in |0⟩ and rotated by RY (θatom )
+
+with a per-atom-type parameter. Bonded atoms are then entan-gled with a CZ gate followed by symmetric RZ (θbond ) rota-tions with per-bond-type parameters (single and double bonds receive different parameters). A final RX , R Y rotation layer is applied, and each qubit’s magnetisation ⟨Zi⟩ is measured. Padding qubits are omitted for clarity. yields exactly balanced classes: 750 positive and 750 negative molecules on both tasks. The median split is computed once per task over the full sample, before any train/validation/test partitioning, so class balance is identical across all trials. Each molecule is represented as a graph G = ( V, E ), where nodes vi ∈ V correspond to heavy atoms (C, N, O, F) and edges eij ∈ E represent chemical bonds. Hydrogen atoms are treated implicitly. To ensure a constant register width across batches, we fix the maximum heavy-atom count at 
+
+Nmax = 9 ; molecules exceeding this are excluded, and smaller molecules are padded with non-interacting ghost nodes. In the quantum implementation these are qubits initialised in 
+
+|0⟩ to which no entangling or rotation gates are applied; in the classical implementation they are nodes whose state is held at zero and that participate in no message passing. This padding strategy ensures consistent tensor dimensions without artefactually encoding molecular size into the readout. Performance is evaluated with the area under the receiver operating characteristic curve (AUC), computed by integrating the true positive rate against the false positive rate across all decision thresholds of the raw classifier logits. 
+
+B. Topology-Aligned Architectures 
+
+We instantiate the same topology-aligned inductive bias in two architectures. The models share an identical input representation, parameter-sharing scheme, and classical read-out head, and differ only in the primitive used to propagate information between bonded atoms. This construction makes the matched comparison structural rather than coincidental: differences in performance reflect the choice of substrate, not the choice of architecture. 
+
+1) Iso-QGNN: quantum implementation: The quantum ar-chitecture (Fig. 1) proceeds in three stages. 
+
+Atom embedding. For each atom type A ∈ { C, N, O, F }, a trainable parameter θ(A) 
+
+> atom
+
+is assigned. The initial state is pre-pared by applying RY (θ(A)
+
+> atom
+
+) to the qubit qi corresponding to each non-padding atom. These four parameters are initialised uniformly in [0 , 2π] to break symmetry at the start of training. TABLE I: Structural mapping between Iso-QGNN and Iso-CGNN. Each row pairs a quantum primitive with its classical analogue at matched parameter count.                      
+
+> Iso-QGNN primitive Iso-CGNN analogue
+> RY(θatom )on |0⟩cos( θatom )initial state
+> CZ +RZ(θbond )on bond shared bond-weighted message
+> RX(ϕ(1) ), R Y(ϕ(2) )rotations tanh( s h +b)node update
+> ⟨Zi⟩measurement scalar node state ( tanh -bounded) LayerNorm + Linear classifier LayerNorm + Linear classifier
+
+Isomorphic entanglement. For every bond type T ∈{single, double, triple, aromatic }, a controlled-phase gate (CZ ) followed by symmetric local rotations RZ (θ(T )
+
+> bond
+
+) is applied between the qubits of bonded atoms. This composition realises a parameterised diagonal interaction whose strength is shared across all bonds of a given type. Restricting the entangling primitive to a diagonal CZ family and the readout to the Z basis keeps gate depth and measurement overhead minimal at near-term scale, at the cost of restricting expressiv-ity to diagonal correlations [25]. This composition introduces a bond-type-dependent phase (RZ ) and an entanglement-inducing CZ , approximating but not exactly equivalent to a symmetric RZZ interaction. 
+
+Variational rotations. A layer of single-qubit rotations 
+
+RX (ϕ(1)  
+
+> q
+
+), R Y (ϕ(2)  
+
+> q
+
+) is applied to all qubits, allowing quantum interference and state mixing analogous to a node-update step in classical message passing. The molecular representation is obtained by measuring the local magnetisation ⟨Zi⟩ at each qubit. The resulting feature vector x ∈ RNmax is passed to a lightweight classical head (LayerNorm followed by a linear classifier) producing the classification logits. 
+
+2) Iso-CGNN: classical implementation: The classical ar-chitecture mirrors Iso-QGNN element-by-element, replacing each quantum primitive with its closest classical analogue (Table I). Each atom type carries a trainable scalar θ(A)
+
+> atom
+
+;the initial node state is hi = cos 
+
+
+
+θ(A)
+
+> atom
+
+
+
+, an analogue of the ⟨Z⟩ expectation produced by an RY rotation on |0⟩. For each bond type T a trainable scalar weight θ(T ) 
+
+> bond
+
+is shared across all bonds of that type. A message-passing update accumulates contributions from bonded neighbours weighted by these shared bond parameters: hi ← hi+P  
+
+> j∈N (i)
+
+θ(Tij ) 
+
+> bond
+
+hj .A node-wise transform hi ← tanh( si hi + bi) then plays the role of the variational rotation, with tanh keeping each node state bounded in [−1, 1] as a Z-basis expectation would be. The same LayerNorm and linear classifier head produces the logits. 
+
+3) Parameter accounting: The architectures use a single layer ( L = 1) and the parameter accounting is identical (Table II). The atom and bond embeddings each contribute four shared parameters; the per-node update contributes two parameters per qubit (or node), giving 2×9 = 18 . The classical readout head contributes 18 LayerNorm parameters ( γ and β)and 20 linear-classifier parameters (weight matrix and bias), for a total of 64 trainable parameters per architecture. This is TABLE II: Parameter accounting. The Iso-QGNN and Iso-CGNN models share the same breakdown at a single layer (L = 1 ).                  
+
+> Component Symbol Count
+> Atom embedding (one per atom type) θatom 4Bond parameter (one per bond type) θbond 4Per-node update ( Nmax ×2)ϕor s, b 18 LayerNorm ( γ, β )—18 Linear classifier (weight + bias) W, b 20
+> Total 64
+
+the matched capacity used throughout the comparison. 
+
+C. Training Protocol 
+
+The architectures are trained with the Adam optimiser (lr = 0 .01 ) and cross-entropy loss. Parameters are updated after every training molecule (batch size one), and each model is trained for 200 epochs, by which point the trajectories have converged. To mitigate cold-start gradient issues in the quantum circuit, the bond-entanglement and variational parameters are initialised from N (0 , 0.01) , ensuring the circuit begins near the identity; the same scheme is applied to the corresponding parameters of Iso-CGNN for consistency. Atom embeddings are uniformly randomised in [0 , 2π] for both models. For the matched-capacity comparison, we use ten indepen-dent trials with seeds {42 , 43 , . . . , 51 }; the sample-complexity sweep uses five trials per training size, reflecting its larger compute footprint (19 training sizes for each task and architec-ture). The training/validation/test split (80/10/10) is generated once per trial from a seeded random generator, and both architectures are trained on byte-identical splits within each trial. Before each model is constructed, all PyTorch, NumPy, and Python random number generators (RNGs) are reset to a common seed so that parameter initialisation draws from a matched RNG state. All quantum experiments are performed via state-vector simulation using PennyLane [33]; no hardware noise model is included. All reported metrics are averaged over these ten seeds. The variational quantum models show sensitivity to initialisation, most visibly on the dipole task where individual seeds can differ by up to ∼ 0.1 AUC and shorter training runs occasionally leave a seed under-converged; we therefore report converged 200-epoch values with cross-trial standard deviations, and the released code pins exact dependency versions for reproducibility. III. R ESULTS AND DISCUSSION 
+
+A. Predictive Performance at Matched Capacity 
+
+At identical parameter count (64) and on identical splits, both architectures achieve competitive performance on the QM9 binary classification tasks (Table III). On the HOMO-LUMO gap task, Iso-CGNN reaches a test AUC of 0.913 and Iso-QGNN reaches 0.883; on the dipole moment task, the two are level at 0.780 (Iso-QGNN) and 0.779 (Iso-CGNN). Across the two tasks the implementations reach test AUCs from roughly 0.78 to 0.91 with 64 trainable parameters. The TABLE III: Test performance at matched capacity. Mean ±
+
+cross-trial standard deviation over ten trials on identical splits, trained to convergence (200 epochs). LogReg is a non-graph control: logistic regression on heavy-atom composition (atom-type counts). Bold marks the leading model on the gap task; the dipole task is a tie within noise.                                                     
+
+> Model Property Params Test AUC Test Acc.
+> LogReg Gap ( ∆ϵ)50.660 ±0.046 0.623 ±0.041
+> Iso-QGNN Gap ( ∆ϵ)64 0.883 ±0.038 0.785 ±0.040
+> Iso-CGNN Gap ( ∆ϵ)64 0.913 ±0.026 0.823 ±0.038
+> LogReg Dipole ( μ)50.698 ±0.035 0.651 ±0.026
+> Iso-QGNN Dipole ( μ)64 0.780 ±0.038 0.728 ±0.025
+> Iso-CGNN Dipole ( μ)64 0.779 ±0.043 0.716 ±0.049
+
+cross-trial standard deviations ( ±0.026 to ±0.043 ) indicate that single runs of either architecture should be expected to land within roughly ±0.04 AUC of the reported mean. To verify that the reported AUCs reflect learned structure rather than easy task geometry, we include a non-graph control: an ℓ2-regularised logistic regression on heavy-atom composition (the per-molecule counts of C, N, O, F; five trainable parameters including the bias), fit to convergence and evaluated with the same test AUC and ten-seed protocol as the graph models. The quoted values are mean test AUCs, not a saturation point: the control reaches only 0.660 (gap) and 0.698 (dipole), well below both topology-aligned models on both tasks. The median-split tasks are therefore not solvable from atomic composition alone, and the margin over this baseline is attributable to the information the architectures extract from the bond structure. On the HOMO-LUMO gap this margin reaches 0.22–0.25 AUC, several times the cross-trial standard deviation; whereas, on the dipole moment it narrows to roughly 0.08, exceeding the 0.026–0.043 spread by a smaller factor. A systematic study of richer hand-crafted molecular descriptors as non-graph baselines is the subject of ongoing work. A consistent task-level pattern emerges across the architec-tures: predictive accuracy is higher on the gap than on the dipole. The HOMO-LUMO gap is an eigenvalue difference associated with the system Hamiltonian, and the topological structure of bonding correlates strongly with frontier-orbital delocalisation. The dipole moment, in contrast, is a spatial expectation value of the position operator weighted by the electron density, and its prediction fundamentally requires resolving the vector sum of partial charges. The architectures encode purely two-dimensional graph connectivity, with no explicit spatial geometry; consequently, they are subject to the same geometric information bottleneck on the dipole task. The head-to-head comparison varies by task. On the gap task, Iso-CGNN exceeds Iso-QGNN by 2.9 AUC points and 3.8 accuracy points; at roughly 0.6 combined cross-trial standard deviations this is a modest lead rather than a sharp separation at matched capacity, but it is consistent, as the classical implementation leads across the entire sample-complexity sweep (Sec. III-E). On the dipole task the two architectures are statistically indistinguishable: the mean-AUC 
+
+Fig. 2: Confusion matrices. Aggregated test-set confusion over ten trials. Rows are the architectures (Iso-QGNN upper, Iso-CGNN lower); columns are the tasks (HOMO-LUMO gap left, dipole moment right). Diagonal dominance confirms both architectures learn discriminative features rather than class priors; Iso-CGNN’s stronger diagonal on the gap task appears in the lower-left panel. difference (0.780 vs 0.779) is far below one combined cross-trial standard deviation, a clear tie within noise. Iso-QGNN exhibits higher cross-trial standard deviation than Iso-CGNN on the gap task ( ±0.038 vs ±0.026 ), indicating greater sen-sitivity to initialisation in the quantum implementation there; on the dipole task the two spreads are comparable ( ±0.038 vs 
+
+±0.043 ). The aggregated confusion matrices (Fig. 2) confirm that both architectures distribute their errors broadly along the di-agonal, ruling out class-prior exploitation. Iso-CGNN’s higher AUC on the gap task corresponds to a visibly stronger diagonal in the lower-left matrix. 
+
+B. Sample Complexity 
+
+The architectures are highly data-efficient (Fig. 3). Defining the saturation point N90% as the smallest training-set size at which the model first reaches 90% of its own asymptotic peak AUC, Iso-QGNN reaches saturation at N90% ≈ 250 on both tasks, while Iso-CGNN saturates earlier at N90% ≈ 100 
+
+on the gap task and N90% ≈ 200 on the dipole task. The implementations enter a strongly predictive regime within about 250 training molecules. For context, deep classical GNNs for molecular property prediction are typically trained on datasets several orders of magnitude larger [1]; we note, however, that those models address full regression rather than binary classification, so this contrast illustrates the differ-ence in operating regime rather than a like-for-like sample-complexity comparison. This sample-complexity study uses an independent, larger molecule pool (3,000 molecules) with Fig. 3: Sample complexity. Test AUC on a fixed 500-molecule held-out set as a function of training-set size. The architectures saturate within N ≤ 250 molecules. Iso-CGNN reaches saturation faster on both tasks and maintains a small but consistent lead on the gap task across all training sizes. Error bars are standard deviations across five trials. For each training-set size we report the test AUC at the epoch selected by validation AUC, applied identically to both architectures. a fixed 500-molecule held-out test set, a shorter per-point training budget (40 epochs, for tractability across the full sweep), and validation-selected reporting (the epoch is chosen by validation AUC, identically for both architectures); its absolute AUCs are therefore not directly comparable to the converged, matched-capacity values in Table III, though the qualitative ordering between architectures is preserved. The gap between the two architectures persists across the full sweep on the gap task: Iso-CGNN leads by roughly 0.12 AUC at the smallest training sizes (N = 50 to 200) and by 0.02–0.035 AUC at the largest. On the dipole task the curves nearly overlap, with Iso-CGNN marginally ahead ( ≈ 0.06 –0.08 AUC, comparable to or modestly above the combined cross-trial standard deviation) only at the smallest sizes and the two converging thereafter. The two architectures therefore exhibit comparable sample efficiencies on tasks the inductive bias supports, with Iso-CGNN converging slightly faster. 
+
+C. Gradient Stability 
+
+Variational quantum circuits are notoriously susceptible to barren plateaus, where parameter gradients vanish exponen-tially with system size [28]. The reduced parameter manifold induced by topology-aligned sharing might be expected to mitigate this; the matched comparison lets us test whether any such mitigation is quantum-specific. The architectures exhibit non-vanishing gradients through-out training (Fig. 4). For Iso-QGNN, gradient norms across all parameter groups remain of order 10 −1 to ∼ 10 0 and stabilise within a few epochs. For Iso-CGNN, gradients of comparable magnitude remain stable across training, though with qualitatively different dynamics: where the quantum gradients climb from initialisation to a plateau, the classical 
+
+Fig. 4: Gradient flow stability. Mean gradient norms (log scale) per parameter group across training on the gap task, for Iso-QGNN (upper graph) and Iso-CGNN (lower graph). Both maintain non-vanishing gradients (of order 10 −1 to ∼ 10 0); the quantum implementation (upper) climbs from a small initialisation, while the classical one (lower) decays from a larger value. Stability holds at QM9 scale ( N ≤ 9 heavy atoms); theoretical guarantees at larger system sizes remain open. gradients decay from a higher initial value to a comparable steady state. Neither architecture exhibits vanishing gradients at QM9 scale. In both substrates, the shared property is therefore stable training under topology-aligned parameter sharing. We caution against extrapolating: barren-plateau scaling is an asymp-totic property and the present work covers only N ≤ 9
+
+qubits/nodes. Whether either architecture continues to benefit from stable gradients at larger system sizes is an open question. 
+
+D. Bond-Parameter Analysis 
+
+Earlier reports of single-trial runs of Iso-QGNN suggested a clean, task-dependent ranking of bond-parameter magnitudes that aligned with chemical intuition, with double, triple, and aromatic bonds receiving systematically larger entanglement strength than single bonds on the gap task. We do not find that this hierarchy is robust across seeds (Fig. 5). For both Iso-QGNN and Iso-CGNN, mean bond-type weights across ten seeds carry cross-trial standard deviations comparable to or larger than the means themselves on most bond types. That said, the data carries a robust task-dependent signal even when the per-bond ranking does not stabilise. The bond-Fig. 5: Learned bond parameters. Mean and standard de-viation of the bond-type weights across ten trials, for both architectures on the HOMO-LUMO gap (upper graph) and dipole moment (lower graph) tasks. The large error bars indicate that neither architecture converges to a stable, individ-ually interpretable bond hierarchy across seeds at QM9 scale; however, the underlying weight distributions remain task- and substrate-dependent (see text). weight distributions differ between the gap and dipole tasks for both architectures, and they differ between the two architec-tures on the same task. The optimisation is therefore respond-ing to chemical task structure: the model is not converging to noise, and the path through parameter space depends on which physical property is being predicted. What does not survive across seeds is the identification of any single bond type as uniquely important; the chemical signal is encoded in the joint distribution of all parameters together rather than in isolated bond weights. This pattern suggests an under-explored direction. Even though post-training values of individual bond parameters are not directly interpretable, chemically informed initialisation (for example, scaling initial bond parameters by published bond enthalpies or related descriptors) could provide a more reliable starting point and yield more stable optimisation trajectories. Such priors would leverage the topology-aligned inductive bias more aggressively than the random initialisation used here, and could form a natural bridge between the archi-tectural framework presented in this work and chemistry-aware constraint or correction schemes for downstream applications. We do not test this here, but flag it as a concrete future direction. 
+
+E. Comparison 
+
+The matched-baseline comparison supports three substan-tive claims and clarifies one over-claim from the prior litera-ture. 
+
+The inductive bias is the active ingredient. Across all metrics tested (peak performance, sample complexity, gra-dient stability) the two implementations of the topology-aligned architecture perform comparably. The 64-parameter compactness, the data efficiency at or below ∼250 training molecules, and the stable gradient dynamics are properties of the topology-aligned parameter-sharing scheme, not of the quantum substrate. 
+
+Comparative claims in QML require matched controls. Re-cent benchmarking work [17]–[19] has shown that parameter-matched classical baselines often close apparent quantum advantages on small-scale tasks. Topical predecessors that report quantum advantage on QM9-class tasks [31] did not include a fully matched classical control of the kind run here; the present results indicate that such controls are necessary methodology rather than optional due diligence. 
+
+Resource cost at near-term scale. Iso-QGNN requires 
+
+Nmax = 9 qubits with circuit depth scaling as the maximum graph degree (a small constant for organic molecules), and a per-layer gate count of approximately 3N + 3 |E| (one RY
+
+atom-encoding rotation plus two variational rotations per atom, and a CZ with two RZ rotations per bond), dominated by operations on bonds. For QM9 at L = 1 this puts the circuit comfortably within the coherence-time and gate-fidelity budget of current trapped-ion devices [34]. The shared parameter count is constant in Nmax for both atom-type and bond-type embeddings; only the per-node update scales with Nmax , and linearly so. 
+
+Where the substrate may still matter. On the gap task the classical implementation holds a small consistent lead; on the dipole task the two are statistically indistinguishable. With only ten trials and small effect sizes we cannot make strong claims about which substrate is preferable in general. More im-portantly, several regimes in which a quantum substrate has a theoretically motivated advantage are simply not exercised by the QM9 binary classification setting. Theoretical arguments for quantum utility in learning rest on feature maps that are hard to evaluate classically [12] or on favourable effective-dimension and trainability properties of quantum models [13]; neither mechanism is stressed by a nine-qubit circuit restricted to a diagonal entangling family with Z-basis readout, which was chosen deliberately for near-term feasibility. Concretely, we expect the substrate question to become non-trivial when (i) the target property depends on strongly correlated electronic structure whose classical surrogate models are themselves expensive [8], (ii) molecule sizes grow beyond the reach of exact classical simulation of the corresponding circuits, or (iii) the readout requires non-diagonal observables that entangle the register. Whether topology-aligned quantum architectures retain or extend their parity with classical counterparts in those regimes is a natural direction for future work, and one that the present matched-comparison framework is well-suited to address: the classical control construction of Sec. II carries over unchanged, while the quantum implementation gains access to the mechanisms above. 
+
+F. Scaling Beyond QM9 
+
+The QM9 benchmark restricts molecules to Nmax = 9
+
+heavy atoms, but the architectural primitives in both imple-mentations are constant or linear in molecule size, suggesting that resource cost grows gracefully with N . We summarise the scaling here, deferring empirical validation at larger N to future work. The trainable parameter count is dominated by the atom-type and bond-type embeddings (4 each in our setting) plus the per-node update; both atom-type and bond-type vocab-ularies are constant in N , and only the per-node update scales linearly. For Iso-QGNN, the qubit count scales as 
+
+O(Nmax ) by construction, and the per-layer gate count scales as O(Nmax + |E|), with single-qubit rotations on each non-padding qubit and two-qubit entanglers on each bond. Iso-CGNN inference cost scales the same way: one update per node and one weighted message per edge. The circuit depth scales as O(dmax ), where dmax is the maximum graph degree. Bonds incident on the same atom must be applied sequentially, but bonds at different atoms can parallelise. For organic molecules, dmax is bounded by carbon valence; this depth bound is independent of total molecule size. Concretely, a QM9 molecule with N = 8 and |E| ≈ 9 requires approximately 51 gates per layer; a drug-like molecule at N =30 and |E| ≈ 32 requires approximately 186 gates per layer at the same depth budget. This analysis does not predict whether either architecture’s predictive accuracy is preserved at larger N . As graph diameter grows, a single layer ( L = 1) may no longer propagate information across the molecule, requiring additional layers and a corresponding increase in depth and parameter count. The matched-comparison framework introduced here trans-lates directly to that regime, but empirical evaluation at N > 9
+
+requires datasets covering larger molecules and is left for future work. IV. C ONCLUSION 
+
+We presented a topology-aligned inductive bias for parameter-efficient molecular property prediction in which the model architecture mirrors the molecular bond graph: atoms map to a fixed register of computational units, and bonds determine which pairs interact through shared, learnable pa-rameters. This principle was instantiated in two architectures: a variational quantum circuit (Iso-QGNN) and a parameter-matched classical message-passing network (Iso-CGNN). The models were benchmarked on QM9 binary classification of the HOMO-LUMO gap and dipole moment. The matched comparison establishes three findings. With only 64 trainable parameters, both implementations reach test AUCs from roughly 0.78 to 0.91 across the two tasks, well above a five-parameter non-graph logistic-regression control on the same splits. The models reach 90% of asymptotic performance within about 250 training molecules on the binary classification tasks studied here. And both maintain stable gradient flow throughout training at QM9 scale. These properties belong to the topology-aligned parameter-sharing scheme rather than to the quantum substrate: across all metrics tested, the quantum and classical implementations perform comparably, with Iso-CGNN holding a small consistent lead on the gap task and tying within noise on the dipole task. We do not interpret this as a result against quantum machine learning. Rather, it clarifies what the source of the parameter efficiency is in this class of architecture, and it adds to a grow-ing body of work [17]–[19] indicating that matched-baseline benchmarking is necessary methodology for QML claims at NISQ scale. The topology-aligned framework introduced here is itself substrate-agnostic and offers a clean basis for future comparisons. The framework also lends itself well to scaling beyond QM9. The shared parameters (atom and bond embeddings) are constant in the number of atoms; only the per-node update scales linearly. For Iso-QGNN, circuit depth scales with the maximum graph degree, which is bounded by a small constant for organic molecules. Whether this favourable scaling translates into preserved or improved performance at 
+
+N > 9, particularly on datasets covering larger drug-like molecules, is an open question that follows naturally from the present work. Several other open directions follow. Chemically informed initialisation of the bond and atom parameters, exploiting the same topology-alignment that drives the inductive bias, is a promising route to faster and more stable convergence than the random initialisation used here, and could provide a bridge to chemistry-aware constraint or verification schemes. Equivariant extensions that incorporate three-dimensional ge-ometric information could address the bottleneck both archi-tectures face on the dipole task. The matched-comparison framework itself extends straightforwardly to other inductive biases relevant in chemistry beyond bond topology. Together, these directions provide a concrete path for testing where quantum implementations of topology-aligned architectures genuinely outperform classical ones, rather than where they merely coexist with them. DATA AND CODE AVAILABILITY 
+
+The QM9 dataset is publicly available through DeepChem. Source code for both Iso-QGNN and Iso-CGNN, together with the matched-comparison training pipeline, the non-graph control, and the scripts reproducing every figure and table in this paper, is publicly available at https://github.com/QunaSys/ IsoQGNN. REFERENCES [1] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, “E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials,” 
+
+> Nature Communications , vol. 13, no. 1, p. 2453, 2022.
+
+[2] G. Wang, C. Wang, X. Zhang, Z. Li, J. Zhou, and Z. Sun, “Machine learning interatomic potential: Bridge the gap between small-scale models and realistic device-scale simulations,” iScience , vol. 27, no. 5, p. 109673, 2024. [3] N. De Cao and T. Kipf, “Molgan: An implicit generative model for small molecular graphs,” arXiv preprint arXiv:1805.11973 , 2018. [4] A. M. Thomas, Y.-C. Chen, H. O. Valencia, S. T. Jose, and R. Wu, “Qca-molgan: Quantum circuit associative molecular gan with multi-agent reinforcement learning,” arXiv preprint arXiv:2509.05051 , 2025. [5] S. M. Mniszewski, C. F. A. Negre, H. Ushijima-Mwesigwa et al. ,“Hybrid quantum-classical machine learning for generative chemistry and drug design,” Scientific Reports , vol. 11, p. 4048, 2021. [6] R. J. Bartlett and M. Musiał, “Coupled-cluster theory in quantum chemistry,” Reviews of Modern Physics , vol. 79, no. 1, pp. 291–352, 2007. [7] R. P. Feynman, “Simulating physics with computers,” International Journal of Theoretical Physics , vol. 21, no. 6–7, pp. 467–488, 1982. [8] Y. Cao, J. Romero, J. P. Olson, M. Degroote, P. D. Johnson, M. Kiefer-ová, I. D. Kivlichan, T. Menke, B. Peropadre, N. P. D. Sawaya et al. ,“Quantum chemistry in the age of quantum computing,” Chemical Reviews , vol. 119, no. 19, pp. 10 856–10 915, 2019. [9] K. T. Butler, D. W. Davies, H. Cartwright, O. Isayev, and A. Walsh, “Machine learning for molecular and materials science,” Nature , vol. 559, no. 7715, pp. 547–555, 2018. [10] J. S. Smith, O. Isayev, and A. E. Roitberg, “Ani-1: an extensible neural network potential with dft accuracy at force field computational cost,” 
+
+Chemical Science , vol. 8, no. 4, pp. 3192–3203, 2017. [11] V. Fung, J. Zhang, E. Juarez, and B. G. Sumpter, “Benchmarking graph neural networks for materials chemistry,” npj Computational Materials ,vol. 7, no. 1, p. 84, 2021. [12] V. Havlíˇ cek, A. D. Córcoles, K. Temme, A. W. Harrow, A. Kandala, J. M. Chow, and J. M. Gambetta, “Supervised learning with quantum-enhanced feature spaces,” Nature , vol. 567, no. 7747, pp. 209–212, 2019. [13] A. Abbas, D. Sutter, C. Zoufal, A. Lucchi, A. Figalli, and S. Woerner, “The power of quantum neural networks,” Nature Computational Sci-ence , vol. 1, no. 6, pp. 403–409, 2021. [14] M. M. Bronstein, J. Bruna, T. Cohen, and P. Veliˇ ckovi´ c, “Geometric deep learning: Grids, groups, graphs, geodesics, and gauges,” arXiv preprint arXiv:2104.13478 , 2021. [15] V. G. Satorras, E. Hoogeboom, and M. Welling, “E(n) equivariant graph neural networks,” in International Conference on Machine Learning .PMLR, 2021, pp. 9323–9332. [16] E. Hoogeboom, V. G. Satorras, C. Vignac, and M. Welling, “Equivariant diffusion for molecule generation in 3d,” in International Conference on Machine Learning . PMLR, 2022, pp. 8867–8887. [17] J. Bowles, S. Ahmed, and M. Schuld, “Better than classical? The subtle art of benchmarking quantum machine learning models,” Quantum ,vol. 8, p. 1559, 2024. [18] J. Egginger, A. Sakhnenko, and J. M. Lorenz, “Quantum kernel methods under scrutiny: a benchmarking study,” Quantum Machine Intelligence ,vol. 7, p. 47, 2025. [19] D. Alvarez-Estevez, “Benchmarking quantum machine learning kernel training for classification tasks,” arXiv preprint arXiv:2408.10274 , 2024. [20] J. Preskill, “Quantum computing in the NISQ era and beyond,” Quan-tum , vol. 2, p. 79, 2018. [21] I. Hen and A. P. Young, “Solving the graph-isomorphism problem with a quantum annealer,” Physical Review A , vol. 86, no. 4, p. 042310, 2012. [22] M. Hernandez and M. Aramon, “Enhancing quantum annealing per-formance for the molecular similarity problem,” Quantum Information Processing , vol. 16, no. 5, p. 133, 2017. [23] M. Streif, F. Neukart, and M. Leib, “Solving quantum chemistry problems with a D-Wave quantum annealer,” in International Workshop on Quantum Technology and Optimization Problems . Springer, 2019, pp. 111–122. [24] P. J. J. O’Malley, R. Babbush, I. D. Kivlichan, J. Romero, J. R. McClean, R. Barends, J. Kelly, P. Roushan, A. Tranter, N. Ding et al. , “Scalable quantum simulation of molecular energies,” Physical Review X , vol. 6, no. 3, p. 031007, 2016. [25] A. Kandala, A. Mezzacapo, K. Temme, M. Takita, M. Brink, J. M. Chow, and J. M. Gambetta, “Hardware-efficient variational quantum eigensolver for small molecules and quantum magnets,” Nature , vol. 549, no. 7671, pp. 242–246, 2017. [26] K. Bharti, A. Cervera-Lierta, T. H. Kyaw, T. Haug, S. Alperin-Lea, A. Anand, M. Degroote, H. Heimonen, J. S. Kottmann, T. Menke et al. ,“Noisy intermediate-scale quantum algorithms,” Reviews of Modern Physics , vol. 94, no. 1, p. 015004, 2022. [27] B. T. Gard, L. Zhu, G. S. Barron, N. J. Mayhall, S. E. Economou, and E. Barnes, “Efficient symmetry-preserving state preparation circuits for the variational quantum eigensolver algorithm,” npj Quantum Informa-tion , vol. 6, no. 1, p. 10, 2020. [28] J. R. McClean, S. Boixo, V. N. Smelyanskiy, R. Babbush, and H. Neven, “Barren plateaus in quantum neural network training landscapes,” Nature Communications , vol. 9, no. 1, p. 4812, 2018. [29] M. Cerezo, A. Sone, T. Volkoff, L. Cincio, and P. J. Coles, “Cost function dependent barren plateaus in shallow parameterized quantum circuits,” 
+
+Nature Communications , vol. 12, no. 1, p. 1791, 2021. [30] K. Fujii, K. Mizuta, H. Ueda, K. Mitarai, W. Mizukami, and Y. O. Nak-agawa, “Deep variational quantum eigensolver: A divide-and-conquer method for solving a larger problem with smaller size quantum com-puters,” PRX Quantum , vol. 3, no. 1, p. 010346, 2022. [31] J.-Y. Ryu, E. Elala, and J.-K. K. Rhee, “Quantum graph neural network models for materials search,” Materials , vol. 16, no. 12, p. 4300, 2023. [32] R. Ramakrishnan, P. O. Dral, M. Rupp, and O. A. von Lilienfeld, “Quantum chemistry structures and properties of 134 kilo molecules,” 
+
+Scientific Data , vol. 1, no. 1, p. 140022, 2014. [33] V. Bergholm, J. Izaac, M. Schuld, C. Gogolin, M. S. Alam, S. Ahmed, J. M. Arrazola, C. Blank, A. Delgado, S. Jahangiri et al. , “Pennylane: Automatic differentiation of hybrid quantum-classical computations,” 
+
+arXiv preprint arXiv:1811.04968 , 2018. [34] C. D. Bruzewicz, J. Chiaverini, R. McConnell, and J. M. Sage, “Trapped-ion quantum computing: Progress and challenges,” Applied Physics Reviews , vol. 6, no. 2, p. 021314, 2019.

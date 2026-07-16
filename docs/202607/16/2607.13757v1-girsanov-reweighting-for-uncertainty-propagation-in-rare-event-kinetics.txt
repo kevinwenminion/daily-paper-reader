@@ -1,0 +1,1309 @@
+Title: Girsanov Reweighting for Uncertainty Propagation in Rare-Event Kinetics
+
+URL Source: https://arxiv.org/pdf/2607.13757v1
+
+Published Time: Thu, 16 Jul 2026 01:24:45 GMT
+
+Number of Pages: 28
+
+Markdown Content:
+# GIRSANOV REWEIGHTING FOR UNCERTAINTY PROPAGATION IN 
+
+# RARE -E VENT KINETICS 
+
+Léonard Moracchini 1,2 , Thomas Pigeon 1,* , Morgane Menz 1, Thibault Faney 1, Thomas D. Swinburne 3,4 , and Mihai-Cosmin Marinica 21IFP Energies nouvelles (IFPEN), 1–4 Av. du Bois Préau, 92852 Rueil-Malmaison, France 
+
+> 2
+
+Université Paris-Saclay, CEA, SRMP, 91191 Gif-sur-Yvette, France 
+
+> 3
+
+Department of Mechanical Engineering, University of Michigan, Ann Arbor, MI 48109, USA 
+
+> 4
+
+Aix-Marseille Université, CNRS, CINaM UMR 7325, 13288 Marseille, France 
+
+> *
+
+Corresponding author: thomas.pigeon@ifpen.fr 
+
+July 16, 2026 
+
+# ABSTRACT 
+
+Machine-learning interatomic potentials (MLIPs) have become a powerful tool for rare event sam-pling in molecular dynamics, offering near ab initio accuracy at a fraction of the computational cost. However, the uncertainty associated with these models remains a major challenge. Existing uncertainty quantification approaches have largely focused on point-wise quantities, such as energies and forces, or on equilibrium thermodynamic observables. In this work, we introduce a framework for propagating MLIP uncertainty to the averaged committor probability, a kinetic observable that enables reaction-rate calculations. Our approach combines rare event sampling methods such as Adaptive Multilevel Splitting with Girsanov reweighting to estimate the sensitivity of committor probabilities to variations in MLIP parameters, without requiring the costly resampling of reactive trajectories for each parameter realization. We derive exact and approximate Girsanov-based esti-mators for uncertainty propagation and validate them on several benchmark systems, including a rugged Müller–Brown potential, a dimer in a solvent, and the conformational transition of butane. The proposed framework enables the construction of uncertainty-aware probability distributions for rare event observables and successfully recovers reference rare event probabilities from uncertain surrogate models. Under mild assumptions on the accuracy of the MLIP within metastable basins, the framework can also provide uncertainty bounds on reaction rates through Hill’s relation. These results demonstrate that path-space reweighting provides an efficient route for propagating MLIP uncertainty to rare event kinetics. 
+
+# 1 Introduction 
+
+The exact dynamics of systems of interest in chemistry and biology are often difficult, if not impossible, to fully characterize with a purely experimental approach. Indeed, some intermediate states are too short-lived for instruments to capture any signature of their presence. Consequently, modeling these systems at the atomic scale based on fundamental physics laws has become a crucial complementary tool to describe in silico the features missing from experimental observations. In this context, a standard framework is Molecular Dynamics (MD), where the electronic degrees of freedom are integrated out to define an interatomic potential energy surface V (x) via first-principles calculation at fixed atomic positions x. The time evolution of the nuclei is then governed by classical equations of motion determined by V .In cases relevant for chemical or biological applications, the potential V presents a complex landscape with multiple basins corresponding to the various metastable states of the system. The system remains trapped within a given state A
+
+for a long time before eventually undergoing a fluctuation large enough to cross a high energetic or entropic barrier to reach another metastable state B. Mathematically, the transition timescale τAB is orders of magnitude larger than the characteristic vibrational period of the system [ 1], meaning that the probability of observing a reactive trajectory, arXiv:2607.13757v1 [physics.chem-ph] 15 Jul 2026 A PREPRINT - J ULY 16, 2026 a path leaving A and entering B without returning to A, within standard MD simulations vanishes. This highlights a fundamental paradox: while the transition event itself is short-lived, the waiting time to observe it is prohibitively long. Since the fastest atomic oscillations dictate a discretization time-step ∆t ∼ 1 fs , computing the transition rate constant 
+
+kAB via brute-force MD becomes computationally intractable. Various methodologies have been developed to circumvent this timescale separation; Transition State Theory (TST) [ 2, 3]remains the most widely employed. Grounded in equilibrium statistical mechanics, TST assumes a clear separation of timescales and evaluates the flux across a predefined dividing surface. Yet, it often lacks reliability when complex, entropic, or multi-channel paths co-exist, and it fundamentally fails to account for recrossing events or to provide an ensemble of reactive trajectories [ 4]. Consequently, alternative frameworks rooted in Transition Path Theory (TPT) [ 5, 6]have emerged that focus specifically on reactive path sampling. The Hill relation [ 7 ] transforms the computation of kAB 
+
+into a rare event probability computation via the committor probability ⟨pA→B⟩λ∂ A averaged against the exit distribution 
+
+λ∂ A defined on the boundary ∂ A of A. It corresponds to the probability for a trajectory, when starting from the reactant boundary ∂ A, to hit B before reaching A. Various methods were designed to compute kAB and ⟨pA→B⟩λ∂ A by sampling reactive trajectories. While Transition Path Sampling (TPS) [ 8] and Transition Interface Sampling (TIS) [ 9] sample trajectories in path space through local Monte Carlo perturbations, particle splitting techniques such as Forward Flux Sampling [ 10 ] (FFS), Sequential Monte Carlo [ 11 ] (SMC), and Adaptive Multilevel Splitting [ 12 ] (AMS) leverage an interacting particle system where poorly performing replicas are iteratively discarded and replaced by branches of better-adapted trajectories. The latter type of methods, on which we will focus, has been successfully used for the sampling of rare events in a wide range of applications, including catalysis [ 13 ] protein folding [ 14 ], and protein-ligand dissociation [15]. To alleviate the computational cost inherent to these long simulations, MLIPs trained to reproduce a given level of first-principles calculations results, most often density functional theory (DFT), have been increasingly used in molecular dynamics. Although these potentials achieve impressive force and energy errors, they still require robust uncertainty quantification (UQ). Significant research has addressed this challenge in recent years, largely focusing on epistemic uncertainty to identify training data scarcity within configurational space, thereby facilitating active learning [ 16 , 17 ]. More recently, attention has shifted toward model misspecification errors [ 18 , 19 ], that characterize the under-parameterization of the model. While reference data (DFT energies and forces) exhibit negligible aleatoric noise, machine learning models remain susceptible to inherent structural limitations. For instance, MLIPs can exhibit dynamical instabilities despite low point-wise errors [ 20 ], alongside severe transferability failures outside their training manifold [ 21 ]. Furthermore, model distillation inevitably compounds misspecification errors, as evidenced by the error curves plotted against training set size and parameter count across diverse models [ 22 ]. Many popular UQ methodologies [ 23 ] used in MD focus on the values (i.e forces and energies), such as conformal prediction [ 24 , 25 ], mixture of experts [ 26 , 27 ] and ensemble methods [ 17 , 28 ], but other frameworks also provide a proper posterior distribution over the parameter space, like Bayesian regression [ 29 ], Laplace approximation [ 30 ] or Point-wise Optimal Parameter Set (POPS) method [ 18 , 19 ]. The latter type of methods is particularly advantageous, as it enables the propagation of uncertainty through sequential simulations to final derivative observables. However, efficient propagation relies on calculating observables independently of the specific parametrization of the interatomic potential, as recently achieved for vibrational free energy [ 31 ]. Yet, traditional UQ methods do not directly solve the problem of propagating these parameter uncertainties onto rare event kinetic observables, such as the averaged committor probability ⟨pA→B⟩λ∂ A
+
+or the transition rate kAB .Reweighting methodologies provide a powerful framework for mapping observables computed under a specific reference ensemble (characterized by a given potential energy surface or temperature) onto a target state. These approaches generally fall into two categories [ 32 ]: thermodynamic reweighting, which applies to equilibrium properties, and dynamical reweighting, which applies to kinetic observables. The former relies solely on configurational phase-space averages, making it independent of the actual time-evolution of the system. Conversely, reweighting a dynamical observable is considerably more challenging, as it requires evaluating weight corrections over entire path trajectories. Recently, Girsanov theorem-based reweighting has emerged as a mathematically rigorous and promising approach to handle such path-space trajectories [ 33 , 34 , 35 ]. Reweighting techniques are particularly valuable in the context of enhanced sampling [ 32 ], where the underlying potential or temperature is biased to increase the frequency of rare events. Furthermore, while these frameworks have also been applied to uncertainty propagation, their scope has been strictly limited to thermodynamic observables so far [ 36 ]. By bridging this gap, this work leverages Girsanov dynamical reweighting to propagate point-wise uncertainties to the averaged committor probability ⟨pA→B⟩λ∂ A .The remainder of this article is organized as follows. Section 2 establishes the theoretical framework, encompassing rare event sampling techniques, Girsanov reweighting principles, and the mathematical formalism for uncertainty quantification and propagation in molecular dynamics. Section 3 derives the proposed Girsanov-based estimators for rare event probabilities, specifically formalizing the full Girsanov estimator and the cumulant estimator. Section 4.1 validates these estimators via numerical experiments on a dimer in a Weeks-Chandler-Andersen [ 37 ] (WCA) solvent, a 2A PREPRINT - J ULY 16, 2026 (a) Parametric UQ 
+
+MLIP V (x, θ )
+
+# θ ∼ π(d θ)
+
+# θL = arg min L(x, θ )
+
+V (x, θ )
+
+> θ1
+> θ2
+> θL
+
+π(d θ)
+
+# (b) Rare Event Sampling at θ = θL
+
+# A B
+
+# p = ⟨pA→B ⟩λ∂A 
+
+# (c) Girsanov Reweighting 
+
+# Estimation of p | θ
+
+dQθL dQθ = M(θ, θ L)dQθL
+
+# (d) UQ-aware distribution 
+
+P(p | π) = ∫ P(p | θ)π(d θ)
+
+p
+
+Reference 
+
+P(p | θL)
+
+P(p | π)
+
+Figure 1: Schematic pipeline of parametric uncertainty propagation for rare event probabilities. (a) Uncertainty quantification of the MLIP potential parameters θ with respect to the posterior distribution π(dθ ) centered at the nominal point θL . (b) Evaluation of the committor probability p = ⟨pA→B⟩λ∂ A at θ = θL characterizing the system’s transition from the reference state A to the target state B. (c) Path-space reweighting via Girsanov’s theorem, mapping the nominal probability measure dQθL to the perturbed measure dQθ . (d) Resulting uncertainty-aware probability distribution P(p | π) (blue curve) capturing parametric uncertainties, compared against the Maximum Likelihood Estimation (MLE) profile P(p|θL ) and the reference profile Pref (p).rugged extended Müller-Brown potential [ 38 ]. Section 4.2 applies the complete methodology to an academic example and to a physical system, quantifying the uncertainty of conformational rare event probabilities in butane using MACE foundation models [39] and the POPS UQ scheme. Finally, Section 5 provides concluding remarks. 
+
+# 2 Theoretical Framework 
+
+We consider a system of N particles in a periodic box of volume V at temperature T . The evolution of the particle positions x ∈ Ω ⊂ R3N and momenta p ∈ R3N is dictated by the Stochastic Differential Equation (SDE) commonly referred to as underdamped Langevin dynamics: 
+
+
+
+dxt = M−1pt dt,
+
+dpt = −∇V (xt ) dt − ζ pt dt +
+
+s
+
+2ζβ M 12 d Bt , (1) where the friction coefficient ζ > 0 has the dimension of an inverse time, V : Ω → R is a potential and Bt is a standard 3N-dimensional Brownian motion. In the limit of ζ → ∞, after an appropriate rescaling of time ( t → ζt), the inertia 3A PREPRINT - J ULY 16, 2026 term becomes negligible, yielding the overdamped Langevin dynamics: dxt = −∇V (xt ) dt +
+
+s
+
+2
+
+β dBt , (2) where Bt is a standard 3 N-dimensional Brownian motion. For pedagogical clarity, the theoretical framework and the derivation of the Girsanov estimators in Sections 2 and 3 are presented within the simpler framework of overdamped Langevin dynamics. However, since actual molecular dynamics simulations often require accounting for inertial effects, all numerical benchmarks presented in Sections 4.1 and 4.2 are conducted using underdamped Langevin dynamics, using the explicit extension detailed in Appendix A. 
+
+2.1 Rare event sampling methods 
+
+A common need in MD is to compute the rare event probability of transitioning between a reactant state A and a product state B. Let us consider the committor function, which represents the probability for a trajectory X = ( xt )t≥0 starting in 
+
+x to reach B before A:
+
+pA→B(x) = Px(τB < τA), (3) where τA and τB are the first hitting times of the sets A and B.The committor function can be used to identify collective variables [ 40 , 41 , 42 ], but it also serves to compute reaction rates, which is the main focus of this work. Indeed, the Hill relation [ 7, 43 ] relates the reaction rate to the flux φA of trajectories leaving state A and the committor function averaged against the exit distribution λ∂ A on a boundary surface 
+
+∂ A:
+
+kAB = φA ⟨pA→B⟩λ∂ A . (4) In the overdamped setting, ∂ A is defined as a boundary layer located at a small distance ε from the reactant state to avoid the trivial vanishing of the committor function on ∂ A. It is a fixed hyperparameter of the Hill relation that is assumed to be constant throughout the rest of the paper. Meanwhile, the exit distribution λ∂ A is given by the Gibbs measure restricted to ∂ A:
+
+λ∂ A(x) ∝ e−βV (x)σ∂ A(dx),
+
+where σ∂ A denotes the surface measure on ∂ A. Throughout the remainder of this work, this rare event probability will be denoted by p:
+
+p = 
+
+> Z
+> ∂A
+
+pA→B(x) λ∂ A(dx). (5) Several sampling methods based on multilevel splitting have been developed to compute this probability, such as Forward Flux Sampling (FFS) [ 10 ], Sequential Monte-Carlo (SMC) [ 11 ], and Adaptive Multilevel Splitting (AMS) [ 12 ]. These methods provide unbiased estimators ˆpspl of the rare event probability and a collection of NT reactive trajectories 
+
+{X1, . . . , XNT } starting in ∂ A and ending in B. These algorithms exhibit a nonzero variance, denoted by σ 2spl , which depends on the quality of the chosen reaction coordinate as well as on the number of replicas employed. In practice, since the sampling algorithms satisfy Central Limit Theorem (CLT) [ 44 ], nreal independent simulations { ˆp(1) 
+
+> spl
+
+, . . . , ˆp(nreal ) 
+
+> spl
+
+} are computed, resulting in a law on ˆ pspl :ˆpspl ∼ N ¯pspl , σ 2spl 
+
+nreal 
+
+!
+
+, (6) where ¯ pspl is the empirical mean. For certain algorithms, the properties of the path distributions have also been established [ 11 , 45 , 44 ]. For instance, for SMC and AMS, it has been shown that the empirical distribution ˆ γ:ˆγ = ˆpspl 
+
+NTNT
+
+# ∑
+
+> i=1
+
+δXi , (7) where δXi denotes the Dirac measure on the path space concentrated at Xi, is an unbiased estimator of the distribution on the path space γ, defined for any test function ϕ by: 
+
+γ(ϕ) = E [ϕ(X)1τB<τA ] . (8) The unbiasedness of the path distribution estimator ˆγ is central to our work, as it allows, through an appropriate choice of ϕ, of the paths sampled under the initial potential to a different target potential. In the remainder of this paper, we 4A PREPRINT - J ULY 16, 2026 focus on the AMS algorithm ( spl = ams ). This choice is motivated by its ability to minimize variance through the automatic and adaptive positioning of the intermediate surfaces [ 44 ]. A comprehensive description of the AMS method, which is used in this study, is provided in Appendix B. It is worth noting, however, that our framework remains agnostic to the specific choice of the underlying sampling method. 
+
+2.2 Uncertainty Quantification for Molecular Dynamics 
+
+Uncertainty Quantification for Molecular Dynamics is a rapidly growing field [ 23 ]. The most commonly employed strategies are ensemble methods and their variants. The central concept consists in training the MLIP V (x, θ ),with parameters θ ∈ Rp, on the same dataset using different initializations of the parameter vector. This procedure yields a collection of distinct optimal parameter sets {θ1, . . . , θne }, where typical ensemble sizes are in the range 
+
+ne ∈ [5, 20 ] [23 , 28 ]. Despite their simplicity, recent studies have shown that ensemble methods can fail to capture the true epistemic uncertainty in the case of Graph Neural Networks [ 46 ]. Furthermore, they do not yield a realistic posterior distribution over the parameter space, as it is a sum of Dirac distributions: 
+
+πensemble (θ ) = 1
+
+nene
+
+# ∑
+
+> i=1
+
+δ (θ − θi)
+
+To enable rigorous propagation of uncertainty, it is necessary to specify an appropriate distribution for the parameters. In general, the exact posterior distribution over the parameters of a MLIP based on neural networks is intractable due to the size of the models. A standard solution consists of focusing on a subset of the model parameters. This has been achieved, for instance, by considering only the final layer of the network, an approach known as the Last-Layer Prediction Rigidity [ 30 ]. Recently [ 31 , 19 ], it was proposed to exploit a linear parametrization with respect to the per-atom descriptors Di : Ω → RD of the model. This is achieved by formulating the MLIP in a linear form: 
+
+V L(x, θ ) def 
+
+= θ ⊤D(x), D(x) def 
+
+=
+
+> N
+
+# ∑
+
+> i=1
+
+ˆφ (Di(x)) , (9) where ˆφ (Di) is a P-dimensional featurization of per-atom descriptors Di. This framework includes several linear-in-descriptors models, where ˆφ (Di) = Di, like SOAP [ 47 ], SNAP [ 48 ], ACE [ 49 ], MILADY [ 50 ], as well as potentials using polynomial or kernel featurizations, like qSNAP [ 51 ] or GAP [ 52 ]. It can also encompass architectures that are not globally linear in their parameters by restricting attention to a subset of trainable parameters. For instance, in the Message-Passing Neural Network MACE architecture [ 39 ], taking the input of the final readout layer as Di, we can write the featurization ˆ φMACE as: ˆφMACE (Di) = Di ⊕ f (Di), (10) where f is a frozen one-layer neural network. Quantifying model misspecification by focusing exclusively on this linear subset of parameters may provide a conservative upper bound on the uncertainty. Intuitively, restricting the optimization to a subset of parameters reduces the flexibility of the model and therefore tends to overestimate the structural error relative to the full architecture. This approach has been successfully evaluated on the mptraj dataset [ 19 ]. The linear parameterization of foundational MLIPs can also be leveraged for transfer learning [53]. Using this framework, one can easily apply UQ methods designed for linear models, such as Bayesian ridge regres-sion [ 29 , 54 ]. However, as demonstrated in recent work [ 18 ], this framework is not suited for molecular dynamics due to the near-deterministic nature of ab initio data (e.g., Density Functional Theory), which leads to a vanishing parameter uncertainty. To address this limitation, the Point-wise Optimal Parameter Set (POPS) framework was recently introduced [ 18 ]. POPS is robust to the non-aleatoric nature of the data and provides a posterior distribution that explicitly accounts for the structural misspecification error of the model. The POPS scheme has been tested across a wide variety of observables and datasets [18, 19, 24], yielding a posterior distribution πPOPS over the parameter space. We give more details about the limitations of classical Bayesian Regression and the derivation of the POPS method in Appendix C. 
+
+2.3 Uncertainty Propagation 
+
+We aim to quantify the distribution of the observable p = ⟨pA→B⟩λ∂ A under a parameter distribution π(dθ ), which corresponds to the conditional distribution [55] P(p | π):
+
+P(p | π) =  
+
+> Z
+> Rp
+
+P(p | θ )π(dθ ), (11) with P(p | θ ) the distribution of the conditional law p | θ . When parameter uncertainty is neglected, i.e., the distribution is a Dirac measure at the maximum-likelihood estimate (MLE) parameter θL , πMLE (dθ ) = δ (θ − θL )dθ , the uncertainty 5A PREPRINT - J ULY 16, 2026 reduces strictly to the epistemic noise of the sampling algorithm: P(p | πMLE ) = P(p | θL ), which can be calculated with equation (6) . Conversely, if model parameters are uncertain, π(dθ ) is non-trivial and the conditional distribution 
+
+P(p | θ ) must be estimated. A straightforward approach [ 36 , 56 ], valid for any generic observable, consists of sampling parameter sets {θ1, . . . , θne }
+
+from π(dθ ) and running multiple independent simulations of the algorithm to obtain a standard Monte Carlo estimate: 
+
+P(p | π) ≈ 1
+
+nene
+
+# ∑
+
+> i=1
+
+P(p | θi). (12) While this strategy is inherently compatible with popular ensemble-based methods, it becomes computationally prohibitive when each evaluation of the algorithm to compute p | θi is expensive. To alleviate this burden, efficient approximation methods must be deployed to evaluate this expectation across the parameter space with only one expensive probability computation at the MLE parameter p | θL , which is the aim of the next section. 
+
+2.4 Girsanov Reweighting 
+
+We refer to Girsanov reweighting [ 34 ] as the use of path probability ratios to reweight dynamical properties computed under a modified potential. This approach is rooted in the works of Onsager and Machlup [ 57 ] and Girsanov [ 58 ]. Girsanov reweighting can be interpreted as an importance sampling method over path space. Recently, Girsanov reweighting has been coupled with enhanced sampling techniques [ 32 ] and used to identify reaction coordinates [ 59 ]. Girsanov reweighting has also been applied for sensitivity analysis (SA) and uncertainty quantification (UQ) pur-poses [ 60 , 61 ], notably by computing the relative entropy rate between two potential parameterizations. This allows for the derivation of bounds on certain thermodynamic quantities under an equilibrium measure. However, to the best of our knowledge, no sensitivity analysis for kinetic quantities, such as the committor probability, has been reported in the literature. An intuitive exposition of Girsanov reweighting is presented in this subsection. Let us consider a path X = ( x0, x1, . . . , xnτ ) sampled up to a stopping time τ, with a time step ∆t. For overdamped Langevin dynamics, the Euler-Maruyama integration scheme under a reference potential V is given by: 
+
+xk+1 = xk − ∇V (xk)∆t + p2β −1∆t ξk, ξk ∼ N (0, I). (13) The transition probability density πdyn (xk+1|xk) is Gaussian: 
+
+πdyn (xk+1|xk) ∝ exp 
+
+
+
+− β
+
+4∆t ∥xk+1 − xk + ∇V (xk)∆t∥2
+
+
+
+. (14) Under a target perturbed potential ˜V = V +U, the transition density ˜πdyn (xk+1|xk) follows the same functional form with V replaced by ˜ V . The reweighting factor for the complete discrete trajectory is obtained via the likelihood ratio: dQ ˜V (X)
+
+dQV (X) = μ ˜V (x0)
+
+μV (x0) 
+
+> nτ−1
+
+# ∏
+
+> k=0
+
+˜πdyn (xk+1|xk)
+
+πdyn (xk+1|xk) ,
+
+= μ ˜V (x0)
+
+μV (x0) exp 
+
+
+
+− β
+
+4∆t 
+
+> nτ−1
+
+# ∑
+
+> k=0
+
+h
+
+∥xk+1 − xk + ∇ ˜V (xk)∆t∥2 − ∥ xk+1 − xk + ∇V (xk)∆t∥2i 
+
+,
+
+where μ ˜V and μV refer to the probability measure on the initial point induced by the potentials. By expanding the squares and substituting xk+1 − xk + ∇V (xk)∆t = p2β −1∆t ξk, the terms quadratic in ∇V cancel, yielding: dQ ˜V (X)
+
+dQV (X) = μ ˜V (x0)
+
+μV (x0) exp − 
+
+> nτ−1
+
+# ∑
+
+> k=0
+
+"r β
+
+2 ∇U(xk) · ξk
+
+√∆t
+
++ β
+
+4 ∥∇U(xk)∥2∆t
+
+!
+
+. (15) This expression, which constitutes the discretized version of Girsanov’s theorem [ 58 ], is particularly powerful. Indeed, it allows for the exact evaluation of the likelihood ratio of a given path under two distinct potentials. This computation only requires additionally storing the realization of the driving noise (ξk) and evaluating the difference between the forces derived from the two potentials along the sampled trajectory. A well-known limitation of Girsanov-based path reweighting is the exponential growth of its variance with respect to both the trajectory duration and the magnitude of the potential perturbation [ 32 , 62 ]. This scaling behavior typically 6A PREPRINT - J ULY 16, 2026 renders the approach computationally intractable for long equilibrium simulations or substantial potential discrepancies. In our framework, this issue is mitigated by two factors. First, we apply Girsanov reweighting to reactive trajectories sampled via splitting methodologies, whose duration is significantly shorter than the mean first-passage time [ 1]. Second, the potential energy differences arising from the uncertainty quantification of the machine learning model remain sufficiently bounded across the configurational space explored by the reactive ensemble, thereby preventing pathological variance inflation. 
+
+# 3 Method 
+
+We consider Girsanov reweighting around a parameterized potential V (x, θ ), where we wish to vary the parameter θ
+
+around a reference value θL . Both the exit distribution λ θ∂ A on ∂ A and the committor function pθ 
+
+> A→B
+
+now depend on the parameter θ (∂ A itself is a hyperparameter of the Hill relation and does not change with θ ). Let p(θ ) denote the true committor probability, averaged over the reactant boundary ∂ A with distribution λ θ∂ A, for the potential V (x, θ ):
+
+p(θ ) =  
+
+> Z
+> ∂A
+
+pθ
+
+> A→B
+
+(x)λ θ∂ A(dx) (16) Let ˆpams (θL ) denote the AMS estimator of the committor probability p(θL ) at the reference parameter θL , and let 
+
+{X1, . . . , XNT } denote the sampled reactive trajectories. The aim of this section is to build estimators of the parametric probability p(θ ) using only trajectories sampled at θL , and to derive an approximation of the law p | θ . For this purpose, we use the Girsanov reweighting framework. 
+
+3.1 General case 
+
+Let us consider a path X = ( x0, x1, . . . , xnτ ) sampled up to a stopping time τ, with an Euler-Maruyama scheme, Gaussian noise terms {ξ0, . . . , ξnτ −1} and discretization step ∆t. The likelihood ratio between two path-space probability measures 
+
+QθL and Qθ for the path X can be computed using equation 15. Let us denote this quantity M (X, θL ,θ ):
+
+M (X, θL , θ ) = dQθ (X)
+
+dQθL (X)= dλ θ∂ A
+
+dλ θL 
+
+> ∂A
+
+(x0) exp − 
+
+> nτ−1
+
+# ∑
+
+> k=0
+
+"r β
+
+2 ∇ [V (xk, θ ) −V (xk, θL )] · ξk
+
+√∆t
+
++ β
+
+4 ∥∇ [V (xk, θ ) −V (xk, θL )] ∥2 ∆t
+
+!
+
+. (17) with dλ θ∂ A/dλ θL  
+
+> ∂A
+
+the Radon–Nikodym derivative of the initial distribution on ∂ A associated with the potential parameter 
+
+θ with respect to the reference distribution associated with θL . In the overdamped setting, where the exit distribution is the Gibbs measure restricted to ∂ A, it is given by: dλ θ∂ A
+
+dλ θL 
+
+> ∂A
+
+(x0) = exp [−β (V (x0, θ ) −V (x0, θL ))] 
+
+Eλ θL 
+
+> ∂A
+
+[exp [−β (V (x, θ ) −V (x, θL ))]] . (18) Using equation 17, one can define the full Girsanov estimator ˆpG(θ ) of p(θ ) using the NT trajectories generated under the reference potential V (x, θL ) as: ˆpG(θ ) def 
+
+= ˆpams (θL ) · 1
+
+NTNT
+
+# ∑
+
+> i=1
+
+M (Xi, θL , θ ). (19) By noticing that ˆpG(θ ) = ˆγ(M (·, θL , θ )) , where ˆγ is defined in equation 7, it is straightforward to show that ˆpG(θ ) is an unbiased estimator of p(θ ), using the unbiasedness of ˆ γ:
+
+E [ ˆγ(M (X, θL , θ ))] = EQθL [M (X, θL , θ )1{τB<τA}]= EQθ [1{τB<τA}] = p(θ ). (20) The use of the estimator in equation 19 enables us to rely exclusively on trajectories sampled at θ = θL . However, in order to compute the Girsanov weights M (X, θL , θ ), it is necessary, for each point of the sampled trajectories, to evaluate the perturbed potential V (x, θ ). This becomes computationally intractable when considering an entire distribution of parameters θ ∼ π. This limitation, coupled with the intractability of π in high-dimensional nonlinear regimes (as noted in Section 2.2), justifies restricting the scope to linear potentials. 7A PREPRINT - J ULY 16, 2026 
+
+3.2 Linear case 
+
+Consider a potential belonging to the linear framework defined in section 2.2: 
+
+V (x, θ ) = θ ⊤D(x). (21) The associated drift is: 
+
+−∇xV (x, θ ) = −[∇xD(x)] ⊤θ . (22) By equation (15), Girsanov reweighting factor for overdamped dynamics is: 
+
+M (X, θL , θ ) = exp [L(X, θL , θ )] 
+
+Z(θL , θ ) , (23) with: 
+
+Z(θL , θ ) = Eλ θL 
+
+> ∂A
+
+[exp [−β (θ − θL )⊤D]] , (24) 
+
+L(X, θL , θ ) = ( θ − θL )⊤s(X) − 12 (θ − θL )⊤I(X)( θ − θL ), (25) where the score s(X) and the Fisher Information Matrix (FIM) I(X) are defined as: 
+
+s(X) = −β D(x0) −
+
+r β
+
+2 
+
+> nτ−1
+
+# ∑
+
+> k=0
+
+[∇xD(xk)] ξk
+
+√∆t, (26) 
+
+I(X) = β
+
+2 
+
+> nτ−1
+
+# ∑
+
+> k=0
+
+[∇xD(xk)][ ∇xD(xk)] ⊤∆t. (27) Thus, for linear potentials, computing ˆpG reduces to evaluating the vector s and the matrix I along the sampled trajectories: 
+
+∀θ ∈ RP,
+
+ˆpG(θ ) = ˆpams (θL )
+
+NT Z(θL , θ )
+
+> NT
+
+# ∑
+
+> i=1
+
+exp (θ − θL )⊤s(X)
+
+− 12 (θ − θL )⊤I(X)( θ − θL ). (28) The computation of Z is quite straightforward with K samples y j ∼ λ θL  
+
+> ∂A
+
+.
+
+Z(θ , θL ) ≈ 1
+
+K
+
+> K
+
+# ∑
+
+> j=1
+
+exp 
+
+h
+
+−β (θ − θL )⊤D(y j)
+
+i
+
+(29) This estimator, although unbiased and enabling the analytical propagation of uncertainty with respect to θ , has several drawbacks. First, the computation of the FIM can be quite costly for true MLIPs. For Neural Network-based MLIPs such as MACE , calculating the FIM I requires evaluating the Jacobian ∇xD along each trajectory, necessitating P = 256 automatic differentiation passes. It is worth noting that the score s only requires evaluating the term [∇xD(xt )] dBt ,which is a Vector-Jacobian Product, and thus is significantly faster to compute. Second, this estimator can suffer from the statistical instability of Girsanov reweighting mentioned in Section 2. This is why in practice, for real-world high-dimensional examples, the cumulant expansion [ 63 ] is used, as it is known to stabilize heavy-tailed estimators [ 64 , 65 ]and has been previously applied in the context of thermodynamic reweighting [66, 36]: 
+
+⟨exp (L(X, θL , θ )) ⟩ = exp 
+
+> ∞
+
+# ∑
+
+> k=1
+
+κk(L)
+
+k!
+
+!
+
+, (30) where the values κk(L) are the cumulants of the random variable L(X, θL , θ ). The series can be truncated as a function of the order of (θ − θL ). The first order is particularly interesting as it only requires the computation of the score: ˆpC(θ ) = ˆpams (θL )
+
+Z(θL , θ ) exp 
+
+
+
+(θ − θL )⊤ ¯s
+
+
+
+, (31) 8A PREPRINT - J ULY 16, 2026 with ¯s = 1 
+
+> NT
+
+∑NT 
+
+> i=1
+
+s(Xi) the empirical mean of the score over the sampled trajectories. We do not claim that this estimator is exact, but it is expected to give a good idea of the variation of the rare-event probability, as it shares with ˆpG the first-order Taylor expansion, while being much easier to compute and achieving better numerical stability in high dimensions. The expressions for both estimators are preserved in the underdamped case; the only modification occurs in the expressions for the score and the FIM, as detailed in Appendix A. 
+
+3.3 Practical implementation 
+
+Analogously to the standard sampling estimators, we can aggregate nreal independent realizations of the path sampling algorithm to define the following empirical estimators. Given the computed committor probabilities 
+
+{ ˆp1ams (θL ), . . . , ˆpnreal  
+
+> ams
+
+(θL )} and the reactive trajectories {X ji }1≤i≤NT ,1≤ j≤nreal generated by the path sampling algo-rithm, the Girsanov estimator and the Cumulant estimator can be expressed as ˆpG(θ ) = 1
+
+nreal 
+
+> nreal
+
+# ∑
+
+> j=1
+
+"
+
+ˆp j
+
+> ams
+
+(θL ) · 1
+
+NTNT
+
+# ∑
+
+> i=1
+
+M (X ji , θL , θ )
+
+#
+
+, (32) ˆpC(θ ) = 1
+
+nreal 
+
+> nreal
+
+# ∑
+
+> j=1
+
+ˆp j
+
+> ams
+
+(θL )
+
+Z(θL , θ )
+
+!
+
+exp 
+
+ 1
+
+nreal 
+
+> nreal
+
+# ∑
+
+> j=1
+
+¯s j
+
+!⊤
+
+(θ − θL )
+
+ . (33) The variance can be estimated using the empirical variance for ˆpG and via the delta method for ˆpC. In order to reconstruct the full conditional distribution p | θ from these moments, an explicit distributional hypothesis is required. We chose a log-normal distribution, which naturally satisfies the non-negativity constraint of probabilities and is uniquely determined by its first two moments, though alternative choices could be considered. Ultimately, this framework provides a complete methodology to compute the conditional distribution P(p | θ ) solely using sampling data generated at the reference point θ = θL .The results of this section and the previous one can be readily integrated into a pipeline to estimate uncertainty-aware committor probabilities, as illustrated in Fig. 1. Given a probability distribution π(dθ ) over the parameter space (or a relevant subset thereof) centered around the maximum likelihood estimator θL , the rare event algorithm is first evaluated at θL . Utilizing Girsanov reweighting, we can then derive estimators for the conditional distribution p | θ .This allows for the direct propagation of parametric uncertainty into the probability space, ultimately yielding the full uncertainty-aware distribution P(p | π).
+
+# 4 Results 
+
+4.1 Parametric Sensitivity 
+
+In this subsection, we present two toy models to validate the theoretical framework developed above. We perform a sensitivity analysis by varying the parameters of a reference potential to evaluate the accuracy of the estimators ˆpG(θ )
+
+and ˆpC(θ ). The parameters studied correspond to linear parameterizations of the potentials, such as the height of the energetic barrier. All the parameters used in the simulations are listed in Appendix D. 
+
+4.1.1 Dimer in a WCA Solvent 
+
+We consider a system of NWCA particles in a three-dimensional periodic cell. Two of these particles form a dimer, while the remaining N − 2 particles constitute the solvent. The solvent particles interact with each other and with the dimer via the WCA [37] potential: 
+
+VWCA (r) = 4ε
+
+ σ
+
+r
+
+12 
+
+−
+
+ σ
+
+r
+
+6
+
+1{r≤r0}(r), (34) where r is the distance between two atoms, and ε, r0 and σ are three positive parameters. The internal interaction between the two particles forming the dimer is governed by a double-well potential: 
+
+VD(r) = h
+
+
+
+1 − (r − r0 − w)2
+
+w2
+
+2
+
+(35) 9A PREPRINT - J ULY 16, 2026 Consequently, the total potential energy of the system is given by: 
+
+V (x) = VD(|x1 − x2|) + ∑ 
+
+> 3≤i<j≤N
+
+VWCA (|xi − x j|)+ ∑
+
+> i=1,2
+
+# ∑ 
+
+> 3≤j≤NWCA
+
+VWCA (|xi − x j|) (36) This total potential can be linearly parameterized with respect to the parameter vector θ = [ h, ε]⊤ by introducing the descriptors D1(x) and D2(x):
+
+V (x) = θ ⊤
+
+D1(x)
+
+D2(x)
+
+
+
+= hD 1(x) + εD2(x) (37) The potential energy surface exhibits two local minima. The first, denoted by A = {x | | x1 − x2| ≤ r0}, corresponds to the compact state. The second, denoted by B = {x | | x1 − x2| ≥ r0 + 2w}, corresponds to the stretched state. The reaction coordinate used to describe the transition from the compact to the stretched state is the normalized bond length of the dimer molecule, denoted by ξ . After defining a boundary ∂ A = {x | | x1 − x2| = r0 + δ r} with a small parameter 
+
+δ r > 0 and sampling the exit distribution λ∂ A, we can compute the rare event probability p = ⟨pA→B⟩λ∂ A . We then perform a sensitivity analysis with respect to θ , for N = 30 particles, as shown in Fig. 2. 
+
+Figure 2: Sensitivity analysis of the dimer rare event probability (with θ0 = ( 5, 1)) for N = 30 particles. The variation is parameterized by α such that h = h0 + α and ε = ε0 + α. Direct samples, computed with AMS, are plotted in black with their corresponding confidence intervals. The estimators computed from the initial value are plotted in blue (estimator ˆ pG) and orange ( ˆ pC) along with their confidence intervals. As expected, the height of the energy barrier is the most sensitive parameter and is accurately captured by the Girsanov estimators. Since the response exhibits an exponential-like behavior, the first-order cumulant estimator ˆpC achieves satisfactory coverage for substantial variations of the parameter h. It is worth emphasizing that, in practice, the investigated ranges of variation (between 90% and 110% of the nominal parameters) are significantly broader than what is typically required for standard uncertainty propagation applications. 
+
+4.1.2 Rugged Müller-Brown Potential 
+
+We consider a system described by a coordinate vector x = ( x1, x2) ∈ R2. The coordinates (x1, x2) evolve on a rugged Müller-Brown potential surface. 10 A PREPRINT - J ULY 16, 2026 The classical Müller-Brown surface is defined by four potential wells and barriers: 
+
+VMB (x1, x2) = 
+
+> 3
+
+# ∑
+
+> k=0
+
+Ak exp 
+
+h
+
+ak(x1 − xk)2 + bk(x1 − xk)( x2 −Yk)+ ck(x2 −Yk)2i
+
+(38) A high-frequency periodic perturbation [6] is added to create local ruggedness: 
+
+Vrug (x1, x2) = hrug sin (ωx1) sin (ωx2) (39) The total energy of the system is therefore given by: 
+
+V (x) = VMB (x1, x2) + Vrug (x1, x2) (40) We can parametrize this potential as a function of the Gaussian amplitudes Ak and the perturbation amplitude hrug .
+
+V (x) = θ ⊤D(x) (41) where θ = [ A0, A1, A2, A3, hrug ]⊤ ∈ R5 and D is the featurization associated with the Müller-Brown potential. The Müller-Brown potential exhibits three metastable states. Following the standard convention, the local minimum located at ≈ (0.623 , 0.028 ) is defined as the reactant state A, while the local minimum at ≈ (−0.558 , 1.442 ) is defined as the product state B. The remaining minimum is considered an intermediate state I. Regarding the parameter values of the Müller-Brown potential, the amplitudes A0, A1, A2, and A3 correspond respectively to the depth of state B, the depth of the intermediate state ( I), the depth of state A, and the height of a potential barrier located between the intermediate state and state A.After defining a boundary ∂ A = {x ∈ R2 | ∥ x − xA∥ = δ r} around the reactant minimum xA with a small parameter 
+
+δ r > 0 and sampling the exit distribution λ∂ A, we can compute the rare event probability p = ⟨pA→B⟩λ∂ A . We then perform a sensitivity analysis with respect to θ , as shown in Fig. 3. As illustrated, the most sensitive parameters correspond to dimensions 1 and 2, which aligns with physical intuition. Furthermore, the full Girsanov estimator and the first-order cumulant estimator both achieve excellent coverage. 
+
+4.2 Predictive Uncertainty Propagation 
+
+In this section, we evaluate our uncertainty propagation pipeline on two distinct test systems. The first is a toy model involving a one-dimensional potential energy surface, which allows for a straightforward visualization of the potential’s uncertainty. The second is a realistic physical system: the conformational space of a butane molecule, modeled using 
+
+MACE foundation models [39]. 
+
+4.2.1 One-dimensional Potential 
+
+We consider a one-dimensional reference potential Vref . We fit this potential using a POPS regression with a polynomial of degree 8. This optimization yields an MLE parameter vector θL ∈ R9 and a posterior distribution π(dθ ) over the parameter space, as illustrated in Fig. 4. We compute the rare event probability (the transition from state A to state B), using AMS, using both the reference and the fitted potentials. This yields the reference value pref and the nominal fitted distribution P(p | θL ). By applying the uncertainty propagation framework detailed in Section 2.3 alongside our proposed estimators, we can evaluate the full propagated distribution P(p | π).The results obtained with the two Girsanov-based estimators ˆpG and ˆpC are reported in Fig. 5 by plotting the distributions (reference, MLE, UQ) of the negative log probability − log p. Both estimators achieve the same highly consistent results for this uncertainty propagation task. The resulting probability distribution P(p | π) exhibits a complex profile characteristic of a Gaussian mixture. Notably, its confidence interval is excellent, as it encompasses the true reference probability while remaining sharp and bounded. 
+
+4.2.2 Butane with MACE Foundation Models 
+
+Butane ( C4H10 ) is a prototypical molecular system for studying conformational dynamics. Its conformational state is primarily characterized by the dihedral angle φ around the central C − C bond. The underlying free energy surface exhibits three local minima: the global minimum at φ = 180 ◦ (the trans or anti conformer) and two equivalent local minima located at φ ≈ ± 60 ◦ (the gauche conformers). 11 A PREPRINT - J ULY 16, 2026 
+
+Figure 3: Sensitivity analysis of the rare event probability across all parameters around a reference parametrization 
+
+θ0 = [ θ 00 , . . . , θ 40 ]. The variation is parameterized by α such that θ i = θ i 
+
+> 0
+
++ α. Direct samples, computed with AMS, are plotted in black with their corresponding confidence intervals. The estimators computed from the initial value are plotted in blue (estimator ˆ pG)and orange ( ˆ pC) along with their confidence intervals. Dimension 0: depth of the B state; Dimension 1: depth of the intermediate ( I) state; Dimension 2: depth of the A
+
+state; Dimension 3: height of the hill between the intermediate state and the A state; Dimension 4: amplitude of the perturbations. 12 A PREPRINT - J ULY 16, 2026 
+
+Figure 4: One-dimensional non-linear reference potential (dashed grey) fitted with an 8-degree polynomial (solid black). The parametric uncertainties computed via POPS are displayed as a shaded black area. The two metastable states A and 
+
+B are defined by two narrow intervals around the local minima of the initial potential. We define the reactant state A as the basin corresponding to the φ = 180 ◦ minimum, and the product state B as the union of the two basins around φ ≈ ± 60 ◦. Utilizing Fleming-Viot particle systems [ 67 ], we generated a sample distributed according to exit distribution on the reactant border ∂ A. Our objective is to compute the rare event probability of hitting B before returning to A, starting from ∂ A = {x ∈ Ω, φ (x) ∈ { 175 , 185 }} at a temperature of T = 300 K while providing a rigorous quantification of the uncertainty associated with this estimate. Because performing a full DFT reference study for rare butane transitions would be computationally prohibitive, we use the MACE-MPA-0 medium model as a controlled reference potential. The objective of this section is therefore not to reproduce a realistic DFT-training workflow, but to assess whether the proposed uncertainty-propagation framework can recover the rare event probability of a known reference dynamics from imperfect surrogate MLIPs. Specifically, we designate the MACE-MPA-0 medium model as our reference “ground truth” and assess two reduced-size models, MACE-OMAT-0 small and MACE-MP-0a small , as surrogates. The MACE-MP-0a model represents the initial realization of the MACE foundation models and was trained on the MPTraj dataset [ 68 ], whereas MACE-OMAT-0 was trained on the Open Materials dataset [ 69 ]. The MACE-MPA-0 model was trained on both MPTraj and sAlex [ 68 ], and was recently used for the determination of the committor probability in a complex catalytic reaction [ 13 ]. By employing both distinct model capacities (small vs. medium) and training datasets, we aim to probe and quantify epistemic as well as model misspecification uncertainties. The methodology is structured as follows: 13 A PREPRINT - J ULY 16, 2026 
+
+Figure 5: Violin plots of the probability density function of the rare event transition negative log probability on the one dimensional potential, using the exact Girsanov estimator ˆpG(θ ) (top) and cumulant approximation ˆpC(θ ) (bottom). The reference value is shown in black, the prediction from the best-fit potential is in orange, and the full Bayesian uncertainty-aware distribution p | π is in green. Samples of the parameter vector θ were drawn, and their corresponding conditional probabilities distributions are plotted in grey. 14 A PREPRINT - J ULY 16, 2026 1. Finetuning: The two surrogate models are finetuned using 6400 configurations sampled from the MACE-MPA-0 
+
+reference potential by running trajectories starting in the metastable states A and B.2. Point-wise UQ: POPS methodology is applied to the same configurations to retrieve a distribution π(dθ ) over the linear parameters of the surrogate model. 3. AMS computation: AMS is computed at the MLE parameter θL to retrieve the committor averaged probability ˆpams (θL ). All the parameters used in the simulations are referenced in Appendix D. 4. Propagation: This parameter uncertainty is propagated to the rare event probabilities to characterize the distribution P(p | π). The cumulant estimator ˆpC is used for faster computations and better numerical stability. After finetuning, the two models achieve a Force Root Mean Square Error (FRMSE) of 30 meV/Å for MACE-MP-0a 
+
+and 10 meV/Å for MACE-OMAT-0 . We apply the POPS framework to the linear parameters of the MACE architecture to derive the parameter distribution πPOPS (θ ) around the MLE parameter θL . In practice, a sample of 2000 parameters was used. The resulting point-wise uncertainties are illustrated in Fig. 6. The two panels on the left of Fig. 6 show the distribution of the true point-wise test errors and the error between the MLE prediction and the predictions of the UQ ensemble members. The close agreement between these distributions indicates that the resampled POPS ensemble 
+
+πPOPS accurately reproduces the error statistics of the MLE. The two right-hand panels of Fig. 6 present the predictions and corresponding errors for a representative subset of the test set, together with their associated uncertainty bounds. Overall, the POPS framework exhibits excellent uncertainty quantification performance, as demonstrated by the strong agreement between the observed and predicted error distributions and by the Envelope Violation (EV) that is below 5% .As observed, MACE-OMAT-0 achieves significantly higher accuracy compared to MACE-MP-0a .
+
+Figure 6: Statistical analysis of local energy errors for the MACE-OMAT-0 (top) and MACE-MP-0a (bottom) foundation models, from the posterior distribution πPOPS . Left: Test error distributions for the MLE relative to the ground truth (black) and for the πPOPS distribution relative to the MLE (green). Right: Parity plot comparing reference energies against MLE predictions for a data subset. Shaded areas denote the 95 % confidence interval of the predicted energy variable y = V (x, θ ) where θ ∼ πPOPS . The envelope violation (EV) measures the fraction of data points falling outside this confidence interval. 15 A PREPRINT - J ULY 16, 2026 
+
+Figure 7: Violin plots of the probability density function of the negative log rare event probability of butane conformation, for MACE-OMAT-0 (top) and MACE-MP-0a (bottom), at T = 300 K. The reference value is shown in black, the prediction from the best-fit potential is in orange, and the full Bayesian uncertainty-aware distribution p | π is in green. Samples of the parameter vector θ were drawn, and their corresponding conditional probabilities distributions are plotted in grey. 16 A PREPRINT - J ULY 16, 2026 
+
+Figure 8: Empirical mean and ±2σ confidence interval of L(θ ) = ( θ − θL )⊤ ¯s for the three cases investigated in this section: the one-dimensional toy model, and the two MACE foundational models on butane. The values of L(θ ) are sorted in increasing order. We subsequently performed AMS at θL (80 AMS runs with 100 replicas each) with both MLIPs and applied the uncertainty propagation framework detailed in the previous sections to compute the distribution and confidence intervals for the rare event committor probabilities. The results are presented in Fig. 7. For the OMAT potential, the reference results and the ones at the MLE parameter θL are nearly overlapping, with their respective Gaussians intersecting significantly. This consistency suggests that the model misspecification uncertainty is negligible compared to the epistemic (algorithmic) noise. Consequently, the full uncertainty-aware distribution P(p | π) remains centered near the original OMAT estimate, and the reference value is well-covered by the uncertainty bands. In contrast, for MP-0a , the distributions differ substantially from the reference. Here, the misspecification error due to the model is significantly more impactful than the epistemic noise. In this case, the uncertainty-aware density P(p | π) is notably wider, with its confidence interval successfully encompassing the reference MPA value. These results validate the effectiveness of our framework in capturing both types of uncertainty, even in cases of significant model bias. The approach is also computationally efficient: a single 100-replica AMS run costs about one hour on GPU, and the reweighting step (score computation) adds roughly half an hour, after which inference for any subsequent parameter θ
+
+is essentially instantaneous. Compared to the direct approach of rerunning a full AMS simulation for each θ , this yields a speedup of approximately 4000 ×.The computations were also conducted at temperature T = 200 K and T = 500 K. The results are quite similar and shown in Appendix E. 
+
+4.3 Stability of the Girsanov estimators 
+
+To assess the stability of the proposed estimators, we focus on the cumulant approximation, which is the most computationally tractable approach for realistic systems. Figure 8 shows the distributions of the log-weights 
+
+L(θ ) = ( θ − θL )⊤ ¯s,
+
+computed over the 70 independent AMS realizations, together with their empirical ±σ intervals. In both the toy and realistic systems, the log-weights remain concentrated around zero and typically lie within the interval (−2, 2). This indicates that the exponential reweighting does not produce excessively large likelihood ratios and supports the use of a low-order cumulant expansion. Although the variance is larger for the realistic system, the log-weights remain sufficiently well concentrated for the approximation to remain numerically stable. 17 A PREPRINT - J ULY 16, 2026 
+
+4.4 Extension to the reaction rate 
+
+The remaining step required to compute the full UQ of the reaction rate kAB through Hill’s relation is the quantification of uncertainty in φA. Indeed, given a distribution P(φA | θ ), uncertainty can be propagated according to 
+
+P(kAB | π) =  
+
+> Z
+> RP
+> Z+∞
+> 0
+
+1
+
+φA
+
+P
+
+
+
+p = k
+
+φA
+
+θ
+
+
+
+× P(φA | θ ) dφA π(dθ ).
+
+(42) In practice, the method used to compute the exit frequency φA, both in the previous sections and in several earlier studies [ 70 , 15 , 13 ], consists of running long trajectories initiated in A and recording the points at which they cross ∂ A.Although a Girsanov reweighting could theoretically be applied, it would be computationally intractable due to the length of the trajectories. Nevertheless, we argue that our method can still be applied to the reaction rate under certain assumptions. Our main observation is that MLIPs are often fine-tuned using data sampled from metastable states and are therefore substantially more accurate in these regions, as demonstrated in several active-learning studies [ 71 , 72 , 73 , 74 ]. This supports the hypothesis that the dominant source of uncertainty in Hill’s relation lies in the rare event contribution p = ⟨pA→B⟩λ∂ A ,rather than in the exit frequency φA, which is estimated from trajectories sampled in the vicinity of A. In our butane example, the exit-frequency estimates obtained with MACE-OMAT-0 and MACE-MP-0a differed by less than 3% from the reference value computed using MACE-MPA-0 , compared with discrepancies of approximately 50% in the rare event contribution, as shown in Table 1. Model φ −1 
+
+> A
+
+(fs) 
+
+MACE-OMAT-0 small 191.2 
+
+MACE-MP-0a small 186.5 
+
+MACE-MPA-0 medium 190.6 Table 1: Mean exit times from A computed for the three models. Assuming that the estimation of φA depends only weakly on θ , we can provide the uncertainty distribution of kAB with respect to π with the equation: 
+
+P(kAB | π) ≈ 
+
+> Z
+> RP
+> Z+∞
+> 0
+
+1
+
+φA
+
+P
+
+
+
+p = k
+
+φA
+
+θ
+
+
+
+× P(φA | θL ) dφA π(dθ ).
+
+(43) The distribution of the exit frequency P (φA | θL ) can therefore be estimated by sampling trajectories starting from A
+
+at θ = θL . The results obtained under this assumption are shown in Fig. 9. This framework can therefore be applied in the present setting, as it yields results similar to those obtained for the averaged committor. In particular, it provides a meaningful bound on the error while accurately capturing its magnitude. 
+
+# 5 Conclusion and discussion 
+
+In this work, we presented a new methodology to quantify and propagate uncertainties in rare event kinetics driven by MLIPs. By coupling interacting particle systems, such as Adaptive Multilevel Splitting, with Girsanov path reweighting, we demonstrated that the parametric uncertainty inherent to misspecified MLIPs can be rigorously mapped onto macroscopic kinetic observables, such as the rare event probability of transition between two metastable states 
+
+p = ⟨pA→B⟩λ∂ A . A central contribution of this study is the derivation of computationally tractable Girsanov-based estimators. We showed that the first-order cumulant estimator, ˆpC(θ ), achieves high accuracy while bypassing the prohibitive cost of computing the full Fisher Information Matrix along trajectories. This formulation is particularly advantageous for deep learning architectures where parameter spaces are vast. Our method was validated on several benchmark systems: a rugged Müller-Brown potential, a dimer potential in a solvent, and the conformational transitions of butane with MACE foundation potentials, demonstrating the stability and accuracy of our approach. In particular, the butane conformational application shows that this framework successfully isolates algorithmic variance from model misspecification, providing tight and reliable confidence intervals for the calculated rare event probabilities. Finally, we demonstrated that this uncertainty quantification on the rare event probability provides a very accurate approximation of the uncertainty quantification on the transition rate kAB , since MLIPs are generally highly precise in the vicinity of the metastable states. 18 A PREPRINT - J ULY 16, 2026 
+
+Figure 9: Violin plots of the probability density function of the reaction rate of butane conformation, for MACE-OMAT-0 
+
+(top) and MACE-MP-0a (bottom). The reference value is shown in black, the prediction from the best-fit potential is in orange, and the full Bayesian uncertainty-aware distribution kAB | π is in green. Samples of the parameter vector θ were drawn, and their corresponding conditional probabilities distributions are plotted in grey. This last result is based on an assumption regarding the accuracy of MLIPs near the metastable basin and should be investigated in future work. Indeed, the choice of ∂ A is user-dependent and may, in more complex reactions, lie beyond the safe region where MLIPs are highly accurate. A method to propagate uncertainty to φA, which does not require to apply Girsanov reweighting to potentially long trajectories, remains to be found. Another perspective is the application of our method to more complex activated processes, such as catalytic reactions. The goal would be to verify whether the variance remains tractable for longer and higher-dimensional trajectories. Finally, this Girsanov reweighting framework could pave the way for direct path-space observable reweighting from MLIPs to the ab initio DFT level. 
+
+Acknowledgments The authors kindly thank Tony Lelièvre for fruitful discussions leading to completion of this work. 
+
+Data The data that support the findings of this study are openly available at the following URL/DOI: https://github.com/21moracchi/girsanov-uq. 19 A PREPRINT - J ULY 16, 2026 
+
+# A Extension to underdamped Langevin 
+
+In the underdamped regime, the definitions are slightly modified, as the dynamical path now includes both positions and momenta: 
+
+X = ( x0, p0, . . . , xnτ , pnτ ).
+
+Accordingly, the committor function pA→B is defined on the full phase space of positions and momenta, and the distribution λ∂ A is evaluated on phase-space points located on ∂ A whose velocities are directed outward from A:
+
+λ∂ A(x, p) = e−β H(x,p) (M−1p)T nA(x)
+
+× 1{(M−1p)T nA(x)>0} σ∂ A(dx) dp, (44) where σ∂ A denotes the surface measure on ∂ A, M is the mass matrix, and nA(x) is the outward unit normal vector to A
+
+at the point x ∈ ∂ A.For Girsanov reweighting, the derivation is more involved than the overdamped case [ 34 ]. Since modern geometric "splitting" integrators treat the drift and Ornstein-Uhlenbeck operators separately, the exact expression for Girsanov weights depends on the specific integration scheme. Furthermore, the existence of a discrete-time path measure is not guaranteed for all schemes. In this work, we employ the OBABO scheme, for which the Girsanov weight is well-defined [ 34 ]. The discrete-time update from step n to n + 1 via the quasi-symplectic OBABO splitting pattern is defined by the following sequential system of equations: 
+
+O pn+1/4 = 1
+
+c1
+
+(c2 pn + C3 ξ n) (45) 
+
+B pn+1/2 = pn+1/4 + ∆t
+
+2 F(xn) (46) 
+
+A xn+1 = xn + ∆t M −1pn+1/2 (47) 
+
+B pn+3/4 = pn+1/2 + ∆t
+
+2 F(xn+1) (48) 
+
+O pn+1 = 1
+
+c1
+
+
+
+c2 pn+3/4 + C3 ηn
+
+(49) with F = −∇V , ξ n, ηn ∼ N (0, I) independent Gaussian noises in R3N and c1, c2 scalars, and C3 a matrix defined by: 
+
+c1 = 1 + ζ ∆t
+
+4 (50) 
+
+c2 = 1 − ζ ∆t
+
+4 (51) 
+
+C3 =
+
+s
+
+ζ ∆t
+
+β M1/2 = pζ ∆t k BT M 1/2 (52) As derived by Kieninger et al. [34], the Girsanov likelihood ratio for potentials V and ˜ V = V +U reads: dQ ˜V
+
+dQV
+
+(X) = μ ˜V (x0)
+
+μV (x0) exp 
+
+
+
+− 
+
+> nτ−1
+
+# ∑
+
+> n=0
+
+h
+
+ηn · ∆ηn + ξn · ∆ξn
+
++ 12
+
+ ∥∆ηn∥2 + ∥∆ξn∥2 i (53) where μ ˜V and μV refer to the probability measure on the initial point induced by the potentials, and with 
+
+∆ξn = c1∆t
+
+2 C−13 ∇U(xn) (54) 
+
+∆ηn = c2∆t
+
+2 C−13 ∇U(xn+1) (55) 20 A PREPRINT - J ULY 16, 2026 For a general linear potential V (x, θ ) = θ ⊤D(x), we can derive the path-dependent score vector s(X) ∈ RP and Fisher Information Matrix I(X) ∈ RP×P:
+
+s(X) = −β D(x0) −
+
+pβ ∆t
+
+2pζ 
+
+> nτ−1
+
+# ∑
+
+> n=0
+
+h
+
+c1[∇xD(xn)] M−1/2 ξ n + c2[∇xD(xn+1)] M−1/2 ηni
+
+(56) 
+
+I(X) = β ∆t
+
+4ζ 
+
+> nτ−1
+
+# ∑
+
+> n=0
+
+h
+
+c21[∇xD(xn)] M−1[∇xD(xn)] ⊤ + c22[∇xD(xn+1)] M−1[∇xD(xn+1)] ⊤i
+
+(57) The expression of Z(θL , θ ) remains identical to the one in Equation 24. 
+
+# B Additional details on Adaptive Multilevel Splitting 
+
+The Adaptive Multilevel Splitting (AMS) algorithm is designed to reduce the variance of standard Monte Carlo simulations when sampling rare events. Let ξ : Ω → R be a reaction coordinate. We define the reactive state A and the product state B such that 
+
+A = {x ∈ Rd | ξ (x) < L0}, (58) 
+
+B = {x ∈ Rd | ξ (x) ≥ Lmax }. (59) with two scalar values L0 and Lmax . For any subset V ⊂ Rd , let τV (x) = inf {t > 0 | qt ∈ V } denote the first entrance time of a stochastic process qt into V . We also define the global extinction/absorption time τ as 
+
+τ = min  τA, τB
+
+. (60) The quantity of interest is the rare event probability p = Px0  τB < τA
+
+.In standard fixed splitting methods, a deterministic sequence of M intermediate levels L0 < L1 < · · · < LM = Lmax is introduced to factorize the probability via the nested formula 
+
+p =
+
+> M−1
+
+# ∏
+
+> j=0
+
+Px0  τΣ j+1 < τA τΣ j < τA
+
+, (61) where Σ j = {x ∈ Rd | ξ (x) = L j}.Conversely, the distinctive feature of the AMS method [ 44 ] is that the intermediate levels are determined adaptively online to minimize the variance. Starting with N replicas, at each iteration j, the next level L j+1 is defined as the score value of the K-th least advanced replica. The detailed pseudo-code of the algorithm is provided in Fig. 10. In this work, the K = 1 variant of the algorithm is utilized [45, 44], as it is known to minimize the asymptotic variance. 
+
+# C Bayesian Regression and POPS 
+
+For linear regression, the standard assumption on the data-generating process relies on a noisy linear response: 
+
+y(x) = θ T Φ(x) + ε, ε ∼ N (0, σ 2), (62) where y(x) is the ground-truth observation, Φ : Ω → RP is a feature map, and σ ∈ R∗ 
+
+> +
+
+is a positive scalar. Assuming a Gaussian prior π0(θ ) = N (μ0, Σ0), the analytical posterior distribution is given by: 
+
+πbayesian (θ ) = N (μn, Σn), (63) where the updated mean and covariance matrix are defined as: 
+
+Σn =
+
+
+
+Σ−10 + 1
+
+σ 2 ΦT 
+
+> X
+
+ΦX
+
+−1
+
+, (64) 
+
+μn = Σn
+
+
+
+Σ−10 μ0 + 1
+
+σ 2 ΦT 
+
+> X
+
+yX
+
+
+
+, (65) 21 A PREPRINT - J ULY 16, 2026 
+
+Algorithm 1 Adaptive Multilevel Splitting (AMS) 
+
+Require: Initial distribution λ∂ A, importance function ξ , number of replicas NT , minimal number K of trajectories to discard at each iteration  
+
+> 1:
+
+Initialization:  
+
+> 2:
+
+Sample x10, . . . , xN 
+
+> 0
+
+∼ λ∂ A i.i.d.  
+
+> 3:
+
+Set j ← 0 
+
+> 4:
+
+for i = 1 to NT do  
+
+> 5:
+
+Run trajectory Xi 
+
+> 0
+
+until its final time τi 
+
+> 6:
+
+Set zi ← max x0≤t≤τi ξ (xit ) 
+
+> 7:
+
+end for  
+
+> 8:
+
+Sort the zi in increasing order: z(1) ≤ · · · ≤ z(N) 
+
+> 9:
+
+Set current level L ← z(K) 
+
+> 10:
+
+while L < Lmax do  
+
+> 11:
+
+j ← j + 1 
+
+> 12:
+
+Discard all trajectories such that zi ≤ L 
+
+> 13:
+
+Let Kj be the number of discarded trajectories (with Kj ≥ K) 
+
+> 14:
+
+Let Ij be the index set of the remaining trajectories  
+
+> 15:
+
+for i ∈ { 1, . . . , NT } \ Ij do  
+
+> 16:
+
+Choose uniformly at random an index in Ij 
+
+> 17:
+
+Clone the corresponding trajectory until the first time t such that ξ (xt ) > L 
+
+> 18:
+
+From that time, simulate the cloned trajectory until its final time τi 
+
+> 19:
+
+Replace trajectory i by the new one  
+
+> 20:
+
+Set zi ← max x0≤t≤τi ξ (xit ) 
+
+> 21:
+
+end for  
+
+> 22:
+
+Sort the zi in increasing order: z(1) ≤ · · · ≤ z(N) 
+
+> 23:
+
+Set current level L ← z(K) 
+
+> 24:
+
+end while  
+
+> 25:
+
+Set M = j 
+
+> 26:
+
+Estimate the rare event probability: 
+
+> 27:
+
+ˆpAMS =
+
+> M−1
+
+# ∏
+
+> j=0
+
+NT − Kj
+
+NT
+
+!
+
+Figure 10: Pseudo-code of the AMS algorithm where ΦX and yX denote the design matrix and the label vector of the training dataset X , respectively. In the case of a vanishing aleatoric error and over-parameterization, the posterior πbayesian converges to a Dirac distribution centered on the optimal parameter θL , leading to a divergent generalization error: lim  
+
+> n/P→+∞
+
+G [πbayesian ] = O(1/σ 2). (66) The POPS method was introduced to mitigate this divergence. In brief, for each point x in the training dataset X , it defines the point-wise exact-match manifold: 
+
+P(x) = {θ | f (x, θ ) = y(x)}, (67) where f : Ω × RP → R is the predictive model. It has been shown that the distribution minimizing the generalization loss G must assign weights within every POPS manifold. The per-point optimal parameter vector θ ∗ 
+
+> x
+
+is then formulated as the solution to the constrained optimization problem: 
+
+θ ∗ 
+
+> x
+
+= arg min   
+
+> θ∈P(x)
+
+L (x, θ ), (68) where L (x, θ ) represents the global loss function over the entire dataset X . In the case of a linear model f (x, θ ) = 
+
+θ ⊤Φ(x), an analytic form of θ ∗ 
+
+> x
+
+can be derived. A uniform empirical distribution is subsequently constructed either directly over the set of local optima {θ ∗ 
+
+> x
+
+} or over the bounding hypercube enclosing these parameters, yielding the POPS parameter distribution πPOPS (θ ).22 A PREPRINT - J ULY 16, 2026 
+
+# D Simulation Parameters 
+
+Table 2: Algorithmic and physical parameters for the toy models. Units for the Dimer in WCA are dimensionless (Lennard-Jones units). Units for the Müller-Brown and 1D potential are standard physical units (fs, K, fs −1). Parameter Dimer in WCA Müller-Brown 1D Potential Dimension d 90 2 1Time step ∆t 0.005 1.0 fs 0.01 fs Friction ζ 1.0 0.1 fs −1 2 fs −1
+
+AMS Replicas NT 500 1000 200 AMS Realizations nreal 50 40 40 Table 3: Simulation g for the butane conformational analysis. Parameter Value Time step ∆t 1 fs Friction coefficient ζ 0.01 fs −1
+
+Reactant state A φ −1([ 175 , 185 ]) 
+
+Product state B φ −1([ 55 , 65 ] ∪ [295 , 305 ]) 
+
+AMS Replicas NT 100 AMS Realizations nreal 70 23 A PREPRINT - J ULY 16, 2026 
+
+# E Simulations of butane conformations at different temperatures 
+
+Figure 11: Violin plots of the probability density function of the negative log rare event probability of butane conformation, for MACE-OMAT-0 (top) and MACE-MP-0a (bottom), at T = 200 K. The reference value is shown in black, the prediction from the best-fit potential is in orange, and the full Bayesian uncertainty-aware distribution p | π is in green. Samples of the parameter vector θ were drawn, and their corresponding conditional probabilities distributions are plotted in grey. 24 A PREPRINT - J ULY 16, 2026 
+
+Figure 12: Violin plots of the probability density function of the negative log rare event probability of butane conformation, for MACE-OMAT-0 (top) and MACE-MP-0a (bottom), at T = 500 K. The reference value is shown in black, the prediction from the best-fit potential is in orange, and the full Bayesian uncertainty-aware distribution p | π is in green. Samples of the parameter vector θ were drawn, and their corresponding conditional probabilities distributions are plotted in grey. 25 A PREPRINT - J ULY 16, 2026 
+
+# References 
+
+[1] Cossio P, Hummer G and Szabo A 2018 The Journal of Chemical Physics 148 ISSN 0021-9606 URL https://pubs.aip.org/aip/jcp/article/148/12/123309/1023758/ Transition-paths-in-single-molecule-force 
+
+[2] Vanden-Eijnden E and Tal F A 2005 The Journal of Chemical Physics URL https://sci-hub.red/10.1063/ 1.2102898 
+
+[3] Hänggi P, Talkner P and Borkovec M 1990 Reviews of modern physics 62 251 [4] Gešvandtnerová M, Raybaud P, Chizallet C and Buˇ cko T 2024 ACS Catalysis 14 7478–7491 ISSN 2155-5435, 2155-5435 URL https://pubs.acs.org/doi/10.1021/acscatal.4c00736 
+
+[5] E W and Vanden-Eijnden E 2006 Journal of Statistical Physics 123 503–523 ISSN 0022-4715, 1572-9613 URL 
+
+http://link.springer.com/10.1007/s10955-005-9003-9 
+
+[6] E W and Vanden-Eijnden E 2010 Annual Review of Physical Chemistry 61 391–420 ISSN 0066-426X, 1545-1593 URL https://www.annualreviews.org/content/journals/10.1146/annurev.physchem. 040808.090412 
+
+[7] Hill T L 2012 Free Energy Transduction in Biology: The Steady-State Kinetic and Thermodynamic Formalism (Elsevier Science and Technology Books) ISBN 9780123482501 [8] Dellago C, Bolhuis P G, Csajka F S and Chandler D 1998 The Journal of Chemical Physics URL https: //sci-hub.red/10.1063/1.475562 
+
+[9] Van Erp T S, Moroni D and Bolhuis P G 2003 Journal of Chemical Physics 118 7762 –7774 cited by: 464; All Open Access, Green Open Access URL https://www.scopus.com/ inward/record.uri?eid=2-s2.0-0038515443&doi=10.1063%2f1.1562614&partnerID=40&md5= 87db2fae183c4c34cbe22b7b224f12bf 
+
+[10] Allen R J, Valeriani C and Rein Ten Wolde P 2009 Journal of Physics: Condensed Matter 21 463102 ISSN 0953-8984, 1361-648X URL https://iopscience.iop.org/article/10.1088/0953-8984/21/46/463102 
+
+[11] Del Moral P 2004 Feynman-Kac Formulae Probability and its Applications (New York, NY: Springer New York) ISBN 978-1-4419-1902-1 978-1-4684-9393-1 URL http://link.springer.com/10.1007/ 978-1-4684-9393-1 
+
+[12] Cérou F and Guyader A 2007 Stochastic Analysis and Applications 25 417–443 ISSN 0736-2994, 1532-9356 URL http://www.tandfonline.com/doi/abs/10.1080/07362990601139628 
+
+[13] Pigeon T, Valero M C and Raybaud P 2026 Journal of Catalysis 116826 [14] Borrero E E and Escobedo F A 2006 The Journal of Chemical Physics 125 164904 ISSN 0021-9606 URL 
+
+https://doi.org/10.1063/1.2357944 
+
+[15] Teo I, Mayne C G, Schulten K and Lelièvre T 2016 Journal of chemical theory and computation 12 2983–2989 [16] Kulichenko M, Barros K, Lubbers N, Li Y W, Messerly R, Tretiak S, Smith J S and Nebgen B 2023 Nature Computational Science 3 230–239 ISSN 2662-8457 URL https://www.nature.com/articles/ s43588-023-00406-5 
+
+[17] Carrete J, Montes-Campos H, Wanzenböck R, Heid E and Madsen G K H 2023 The Journal of Chemical Physics 
+
+158 204801 ISSN 0021-9606 URL https://doi.org/10.1063/5.0146905 
+
+[18] Swinburne T D and Perez D 2025 Machine Learning: Science and Technology 6 015008 ISSN 2632-2153 URL 
+
+https://iopscience.iop.org/article/10.1088/2632-2153/ad9fce 
+
+[19] Perez D, Subramanyam A P, Maliyov I and Swinburne T D 2025 npj Computational Materials 11 263 URL 
+
+https://doi.org/10.1038/s41524-025-01758-4 
+
+[20] Fu X, Wu Z, Wang W, Xie T, Keten S, Gomez-Bombarelli R and Jaakkola T 2023 Forces are not Enough: Bench-mark and Critical Evaluation for Machine Learning Force Fields with Molecular Simulations arXiv:2210.07237 [physics.comp-ph] URL http://arxiv.org/abs/2210.07237 
+
+[21] Montes De Oca Zapiain D, Wood M A, Lubbers N, Pereyra C Z, Thompson A P and Perez D2022 npj Computational Materials 8 189 ISSN 2057-3960 URL https://www.nature.com/articles/ s41524-022-00872-x 
+
+[22] Mazitov A, Bigi F, Kellner M, Pegolo P, Tisi D, Fraux G, Pozdnyakov S, Loche P and Ceriotti M 2025 Nature Communications 16 10653 ISSN 2041-1723 URL https://www.nature.com/articles/ s41467-025-65662-7 
+
+26 A PREPRINT - J ULY 16, 2026 [23] Grasselli F, Chong S, Kapil V, Bonfanti S and Rossi K 2025 Digital Discovery 4 2654–2675 URL https: //pubs.rsc.org/en/content/articlelanding/2025/dd/d5dd00102a 
+
+[24] Ho C H, Ortner C and Wang Y 2026 Flexible uncertainty calibration for machine-learned interatomic potentials [25] Best I, Sullivan T and Kermode J R 2024 The Journal of Chemical Physics 161 
+
+[26] Zeni C, Anelli A, Glielmo A, De Gironcoli S and Rossi K 2024 Digital Discovery 3 113–121 ISSN 2635-098X URL https://xlink.rsc.org/?DOI=D3DD00155E 
+
+[27] Wood B M, Dzamba M, Fu X, Gao M, Shuaibi M, Barroso-Luque L, Abdelmaqsoud K, Gharakhanyan V, Kitchin J R, Levine D S, Michel K, Sriram A, Cohen T, Das A, Rizvi A, Sahoo S J, Ulissi Z W and Zitnick C L [28] Kellner M and Ceriotti M 2024 Machine Learning: Science and Technology 5 035006 ISSN 2632-2153 URL 
+
+https://doi.org/10.1088/2632-2153/ad594a 
+
+[29] Hegde A, Weiss E, Windl W, Najm H N and Safta C 2024 International Journal for Uncertainty Quantification 
+
+14 37–70 ISSN 2152-5080 URL https://www.dl.begellhouse.com/journals/52034eb04b657aea, 3de4227a72ef3945,231acd2072a0acb7.html 
+
+[30] Bigi F, Chong S, Ceriotti M and Grasselli F 2024 Machine Learning: Science and Technology 5 045018 URL 
+
+https://doi.org/10.1088/2632-2153/ad805f 
+
+[31] Swinburne T D, Lapointe C and Marinica M C 2025 Nature Communications URL https://doi.org/10. 1038/s41467-025-66938-8 
+
+[32] Keller B G and Bolhuis P G 2024 Annual Review of Physical Chemistry 75 137–162 ISSN 0066-426X, 1545-1593 URL https://www.annualreviews.org/content/journals/10.1146/ annurev-physchem-083122-124538 
+
+[33] Donati L, Hartmann C and Keller B G 2017 The Journal of Chemical Physics 146 244112 ISSN 0021-9606, 1089-7690 URL https://pubs.aip.org/jcp/article/146/24/244112/991531/ Girsanov-reweighting-for-path-ensembles-and-Markov 
+
+[34] Kieninger S, Ghysbrecht S and Keller B G 2023 Girsanov reweighting for simulations of underdamped Langevin dynamics. Theory arXiv:2303.14696 [cond-mat] URL http://arxiv.org/abs/2303.14696 
+
+[35] Kieninger S and Keller B G 2021 The Journal of Chemical Physics 154 
+
+[36] Imbalzano G, Zhuang Y, Kapil V, Rossi K, Engel E A, Grasselli F and Ceriotti M 2021 The Journal of Chemical Physics 154 074102 ISSN 0021-9606 URL https://doi.org/10.1063/5.0036522 
+
+[37] Weeks J D, Chandler D and Andersen H C 1971 The Journal of chemical physics 54 5237–5247 [38] Müller K and Brown L D 1979 Theoretica chimica acta 53 75–93 [39] Batatia I, Benner P, Chiang Y, Elena A M, Kovács D P, Riebesell J, Advincula X R, Asta M, Avaylon M, Baldwin W J et al. 2025 The Journal of chemical physics 163 
+
+[40] Jung H, Covino R and Hummer G 2019 arXiv preprint arXiv:1901.04595 [41] Chen H, Roux B and Chipot C 2023 Journal of chemical theory and computation 19 4414–4426 [42] Fröhlking T, Aureli S and Gervasio F L 2025 Nature Computational Science 5 520–521 [43] Lelièvre T, Ramil M and Reygner J 2024 Annales de l’Institut Henri Poincaré, Probabilités et Statistiques 60 
+
+1645 – 1683 URL https://doi.org/10.1214/23-AIHP1370 
+
+[44] Cérou F, Guyader A and Rousset M 2019 Chaos: An Interdisciplinary Journal of Nonlinear Science [45] Bréhier C E, Gazeau M, Goudenège L, Lelièvre T and Rousset M 2016 [46] Vieira P C, Ribeiro P and Borovitskiy V 2026 Do Deep Ensembles Actually Capture Uncertainty in Graph Neural Networks? arXiv:2605.22593 [cs.LG] URL http://arxiv.org/abs/2605.22593 
+
+[47] Bartók A P, Kondor R and Csányi G 2013 Physical Review B—Condensed Matter and Materials Physics 87 
+
+184115 [48] Thompson A P, Swiler L P, Trott C R, Foiles S M and Tucker G J 2015 Journal of Computational Physics 285 
+
+316–330 [49] Lysogorskiy Y, Oord C v d, Bochkarev A, Menon S, Rinaldi M, Hammerschmidt T, Mrovec M, Thompson A, Csányi G, Ortner C et al. 2021 npj computational materials 7 97 [50] Goryaeva A M, Dérès J, Lapointe C, Grigorev P, Swinburne T D, Kermode J R, Ventelon L, Baima J and Marinica M C 2021 Physical Review Materials 5 103803 27 A PREPRINT - J ULY 16, 2026 [51] Rohskopf A, Sievers C, Lubbers N, Cusentino M, Goff J, Janssen J, McCarthy M, de Zapiain D M O, Nikolov S, Sargsyan K et al. 2023 Journal of Open Source Software 8 5118 [52] Bartók A P and Csányi G 2015 International Journal of Quantum Chemistry 115 1051–1057 [53] Novelli P, Meanti G, Buigues P J, Rosasco L, Parrinello M, Pontil M and Bonati L 2025 npj Computational Materials 11 293 [54] Kurniawan Y, Petrie C L, Williams K J, Transtrum M K, Tadmor E B, Elliott R S, Karls D S and Wen M 2022 The Journal of Chemical Physics 156 
+
+[55] Dai J, Adhikari S and Wen M 2025 Reviews in Chemical Engineering 41 333–357 ISSN 2191-0235 URL 
+
+https://www.degruyterbrill.com/document/doi/10.1515/revce-2024-0028/html 
+
+[56] Wen M and Tadmor E B 2020 npj Computational Materials 6 124 ISSN 2057-3960 URL https://www.nature. com/articles/s41524-020-00390-8 
+
+[57] Onsager L and Machlup S 1953 Physical Review 91 1505–1512 [58] Girsanov I V 1960 Theory of Probability & Its Applications 5 285–301 [59] Shmilovich K and Ferguson A L 2023 The Journal of Physical Chemistry A 127 3497–3517 ISSN 1089-5639 URL https://doi.org/10.1021/acs.jpca.3c00505 
+
+[60] Pantazis Y and Katsoulakis M A 2013 The Journal of chemical physics 138 
+
+[61] Tsourtis A, Pantazis Y, Katsoulakis M A and Harmandaris V 2015 The Journal of Chemical Physics 143 
+
+014116 ISSN 0021-9606, 1089-7690 URL https://pubs.aip.org/jcp/article/143/1/014116/566974/ Parametric-sensitivity-analysis-for-stochastic 
+
+[62] Wang Y, Wu H and Olsson S 2025 Marginal Girsanov Reweighting: Stable Variance Reduction via Neural Ratio Estimation version Number: 1 URL https://arxiv.org/abs/2509.25872 
+
+[63] Kendall M G and Alan S 1961 [64] Miao Y, Sinko W, Pierce L, Bucher D, Walker R C and McCammon J A 2014 Journal of chemical theory and computation 10 2677–2689 [65] Singh A N and Limmer D T 2023 The Journal of Chemical Physics 159 
+
+[66] Ceriotti M, Brain G A, Riordan O and Manolopoulos D E 2012 Proceedings of the Royal Society A: Mathematical, Physical and Engineering Sciences 468 2–17 [67] Asselah A, Ferrari P A and Groisman P 2011 Journal of Applied Probability 48 322–332 [68] Jain A, Ong S P, Hautier G, Chen W, Richards W D, Dacek S, Cholia S, Gunter D, Skinner D, Ceder G et al. 2013 APL materials 1
+
+[69] Barros-Luque L, Shuaibi M, Fu X, Wood B M, Dzamba M, Gao M, Rizvi A, Uyttendaele M, Zitnick C L and Ulissi Z W 2026 Nature Computational Science 1–11 [70] Lopes L J and Lelièvre T 2019 Journal of computational chemistry 40 1198–1208 [71] Achar S K, Shukla P B, Mhatre C V, Bernasconi L, Vinger C Y and Johnson J K 2025 Journal of Chemical Theory and Computation 21 8889–8906 [72] Bachelor K, Murdeshwar S, Sabo D and Marinescu R 2025 arXiv preprint arXiv:2509.17208 [73] Qi J, Ko T W, Wood B C, Pham T A and Ong S P 2024 npj Computational Materials 10 43 [74] Kang K, Purcell T A, Carbogno C and Scheffler M 2025 Physical Review Materials 9 063801 [75] Zeni C, Anelli A, Glielmo A, De Gironcoli S and Rossi K 2024 Digital Discovery 3 113–121 ISSN 2635-098X URL https://xlink.rsc.org/?DOI=D3DD00155E 
+
+[76] Wood B M, Dzamba M, Fu X, Gao M, Shuaibi M, Barroso-Luque L, Abdelmaqsoud K, Gharakhanyan V, Kitchin J R, Levine D S, Michel K, Sriram A, Cohen T, Das A, Rizvi A, Sahoo S J, Ulissi Z W and Zitnick C L 2025 [77] Kang P, Trizio E and Parrinello M 2024 Nature Computational Science 4 451–460 [78] Khoo Y, Lu J and Ying L 2019 Research in the Mathematical Sciences 6 1[79] Batatia I, Kovacs D P, Simm G, Ortner C and Csányi G 2022 Advances in neural information processing systems 
+
+35 11423–11436 [80] Radon J 1913 Theorie und Anwendungen der absolut additiven Mengenfunktionen (Hölder) [81] Nikodym O 1930 Fundamenta Mathematicae 15 131–179 28

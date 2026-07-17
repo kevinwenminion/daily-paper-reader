@@ -1,0 +1,914 @@
+Title: Towards end-to-end optimization in multimaterial 3D printing
+
+URL Source: https://arxiv.org/pdf/2607.13174v1
+
+Published Time: Thu, 16 Jul 2026 00:07:20 GMT
+
+Number of Pages: 41
+
+Markdown Content:
+# Towards end-to-end optimization in multimaterial 3D printing 
+
+Xue-Ling Luo a, Steven Yang a, Jingye Tan b, Robert F. Shepherd a, Noy Cohen c,a , Nikolaos Bouklas a,d, ∗
+
+> aSibley School of Mechanical and Aerospace Engineering, Cornell University, Ithaca, NY, USA
+> bDepartment of Aerospace & Mechanical Engineering, University of Southern California, Los Angeles, CA, USA
+> cDepartment of Materials Science and Engineering, Technion - Israel Institute of Technology, Haifa, Israel
+> dPasteur Labs, Brooklyn, NY, USA
+
+Abstract 
+
+Multimaterial 3D printing enables the fabrication of functionally graded components, but op-timizing their spatial material distribution alongside structural topology remains a formidable challenge due to high-dimensional design spaces and complex constitutive modeling. This pa-per presents an end-to-end computational framework integrating sparsified physics-augmented neural networks with finite-element-based topology optimization. By extracting closed-form, composition-aware hyperelastic constitutive laws from experimental data, this approach facilitates exact symbolic differentiation via the adjoint state method implemented with FEniCSx, efficiently circumventing the bottlenecks of applying neural network constitutive models. This pipeline is deployed on soft robotic gripper applications, demonstrating contin-uous composition optimization for highly anisotropic contact responses, and the concurrent optimization of macroscopic topology and material distribution under non-failure stretch constraints. This methodology could replace laborious empirical prototyping, establishing interpretable machine-learning models as practical, robust design primitives for advanced multimaterial additive manufacturing. 
+
+Keywords: Multimaterial optimization, additive manufacturing, machine learning constitutive model, topology optimization   
+
+> ∗Corresponding author.
+> Email address: nb589@cornell.edu (Nikolaos Bouklas)
+> July 16, 2026 arXiv:2607.13174v1 [physics.comp-ph] 14 Jul 2026
+
+# 1. Introduction 
+
+Digital materials, in the context of multimaterial 3D printing, are blends of multiple base materials (usually polymeric) [1] that can be combined at different mixing ratios to re-alize spatially heterogeneous, functionally graded material distributions at the component level. Such spatial gradients are ubiquitous across various animal and plant species, from a squid’s beak and a spruce trunk to bones [2] and lenses in human eyes [3], and have in-spired advancements in soft robotics [4], aerospace engineering [5], bioengineering [6], and beyond [7], enabling target material performance and improved properties. Multimaterial 3D-printing techniques for digital materials, such as the PolyJet method, have achieved spa-tial resolutions as fine as 14 microns [8, 9], allowing structures to be meticulously tailored for specific functionality. However, the combination of exploring component topology along with functionally graded material distribution creates a high-dimensional design space whose optimization is hindered by an additional bottleneck. A prerequisite for this design opti-mization problem is the efficient discovery and calibration of constitutive laws that capture the material response for a multitude of material combinations; the problem becomes more challenging as more base materials are utilized and mixed in continuously varying ratios. However, the conventional design paradigm for functionally graded materials relies heavily on empirical methods, characterized by a laborious trial-and-error process [7] common in prototyping. In contrast, numerical modeling and optimization offer the opportunity to design multimaterial distributions with significantly accelerated turnaround times [10, 11], from material testing to prototyping. Nevertheless, the efficacy and efficiency of these numer-ical approaches are constrained by (1) the calibration of material models for multimaterial 3D printing, especially in cases involving continuous mixing ratios of base components, and (2) optimization strategies within a spatially high-dimensional design space. The multi-material additive manufacturing community actively seeks to overcome these limitations [3, 7, 12, 13, 14] and calls for specialized computational tools [12]. Traditional constitutive modeling approaches, which involve phenomenologically propos-ing and empirically fitting formulations to a single material response [15, 16, 17], rely on 2workflows that are not automated and are heavily dependent on user expert-knowledge. In light of the universal approximation theorem of neural networks [18, 19], data-driven con-stitutive modeling provides a pathway toward such unified models [20], and has evolved significantly in recent years. Early data-hungry, model-free approaches [21, 22, 23] directly replaced constitutive laws with experimental data or standard machine learning surrogate models [24, 25, 26]. However, when trained on scarce data, these pure data-driven models often suffer from overfitting and poor extrapolation. Consequently, the field has shifted toward physics-augmented methods [27, 28, 29, 30, 31, 32], which embed prior physical knowledge into the data, network architecture, or training process to improve robustness, interpretability, and extrapolation capabilities. These physics-augmented models have been successfully applied to damage mechanics [33], multiphysics simulations [34], and topology optimization [35]. By achieving high predictive accuracy for various material responses while reducing the computational burden of expensive multiscale or high-fidelity simulations [26], they hold great potential for establishing unified constitutive models for functionally graded and digital materials, though this specific application remains an actively growing field [14]. The development and calibration of constitutive laws that recapitulate the response of digi-tal materials become practically infeasible due to the combinatorial nature of mixing a large number of base materials in continuous mixing ratios. As such, physics-augmented machine learning approaches have proven to be a potential solution for this class of problems [36]. Nonetheless, when applying computational frameworks such as the finite element method, standard machine-learning-based models lack explicit, closed-form constitutive expressions from which a Jacobian can be readily assembled. Consequently, evaluating the structural re-sponse typically requires forward-mode automatic differentiation [37] to utilize Jacobian-free Newton-Krylov methods, while optimization tasks, particularly when involving asymmetric Jacobians, may rely on backward-mode automatic differentiation (as demonstrated in Sec-tion 2.2). However, these Jacobian-free methods can result in increased computational time and degraded convergence for highly nonlinear or ill-conditioned problems [38], particularly when the material stability of data-driven constitutive models is not guaranteed. In such scenarios, sparse-regression-based approaches that yield explicit symbolic expressions for 3constitutive laws [39] warrant greater attention, as computational frameworks like FEniCSx 
+
+[40] favor explicit expressions for the efficient symbolic derivation of derivatives. Recent ef-forts have made significant progress in this relatively new direction [41, 42], including recent work [36] that specifically targets physics-augmented modeling to accurately represent and extrapolate in compositional space for digital materials. Effectively designing structures with digital materials requires not only accurate mod-eling but also optimization techniques for both topology and continuous material search spaces. Building upon traditional topology optimization, which seeks to optimally distribute material for maximum performance [43], researchers have developed multi-material and mul-tiscale optimization techniques [44, 45, 46]. Multimaterial topology optimization typically aims to distribute a discrete set of base materials by interpolating between multiple mate-rial phases with distinct properties. Alternatively, multiscale topology optimization expands the design space by concurrently designing microscale architectures and their macroscopic arrangement [47, 48, 49]. While this approach is well-suited to the hierarchical nature of functionally graded and digital materials, the additional scale of simulation introduces sig-nificant computational costs [50, 51] and substantial implementation effort. The archetype of these problems directly maps to the concurrent topology and material distribution opti-mization problem for multimaterial 3D printing. Recent advances in multiscale topology optimization have addressed its high-dimensional and computationally expensive nature by utilizing surrogate, homogenized constitutive laws. These laws often employ a single parameter to represent microscopic structural variations, which is then treated as a macroscopic field variable during optimization. This parameter field can be optimized independently [52] or concurrently with the macroscopic topology [53, 54, 55]. While it is possible to employ a simple empirical property-variable relation-ship [52], most recent approaches incorporate machine-learning-based constitutive laws to accelerate the process and ideally enable scaling to more complex scenarios. For instance, Seo and Min [54] utilized deep generative and convolutional regression models to map la-tent representations to microstructural images and subsequently to linear elastic properties. Vijayakumaran et al. [53] trained an Input Convex Neural Network (ICNN) to directly 4map strain to stress for hyperelastic materials with varying microstructures. However, their approach did not fully resolve the computationally expensive neural network differentiation required for the forward and inverse processes essential for scaling these approaches. More recently, Wei et al. [55] highlighted the importance of explicit constitutive expressions to facilitate simulation and optimization. They used symbolic regression to extract expressions from multiple ICNNs, although this supplementary step introduces additional implemen-tation complexity and a potential loss of accuracy, contrary to the scheme for extreme sparsification of PANNs proposed by Fuhg et al. [42]. Sparsification leads to a direct path-way for the integration of such physics-augmented neural network (PANN) constitutive laws directly into finite element solvers, as recently showcased for multi-modal and multi-fidelity constitutive model development from digital image correlation data and simple experiments [56]. This work aims to provide an end-to-end pipeline for designing 3D-printed multimate-rial structures by combining: (1) sparse regression to learn explicit constitutive laws for digital materials using PANNs, (2) leveraging the symbolic-differentiation-based finite ele-ment framework FEniCSx to promote efficient numerical simulations involving PANN-based constitutive laws, and (3) the concurrent optimization of their topology and material dis-tribution. This workflow emphasizes the use of scarce, low-cost material test data and the derivation-free implementation of constitutive models and optimization definitions, alleviat-ing the burden of laborious empirical trial-and-error processes. The remainder of the paper is organized as follows: Section 2 details the PANN-based constitutive law (Section 2.1) and optimization techniques, including the adjoint state method (Section 2.2), topology op-timization (Section 2.3), and numerical implementation (Sections 2.4 and 2.5). Section 3 focuses on applying this workflow to problems in the design of robotic gripper components, specifically exploring the anisotropic response of contact points on robotic hands under small (Section 3.1) and large (Section 3.2) deformations, alongside the damage-aware optimiza-tion of robotic gripper fingers (Section 3.3). Finally, Section 4 summarizes the findings and discusses limitations and avenues for future development. 52. Theory and implementation 
+
+This section details our design workflow, beginning with a composition-aware, machine-learning-based constitutive law for digital materials (Section 2.1). This is followed by the optimization strategy for topology and material composition using the adjoint state method (Section 2.2 and Section 2.3), the filtering of optimized field variables (Section 2.4), and other key implementation aspects (Section 2.5). The section focuses on the necessary theory for each of the components of the workflow, but also details the implementation choices required for numerical experiments. 
+
+## 2.1. Machine-learning-based constitutive models for digital mate-rial 
+
+2.1.1. PANNs for digital material 
+
+Recent work of the authors [36] proposed a compact, closed-form constitutive law for digital materials using a partial Input Convex Neural Network (pICNN) calibrated from experimen-tal data. The model specifically focused on blends of Agilus with a Digital ABS (RGD-531) at different ratios (termed composition ratio c), given a fixed percentage of another Digital ABS (RGD-515), printed by a Stratasys Objet260 Connex3 printer. Although the original model incorporated both incompressible hyperelasticity and viscoelasticity, the present work focuses exclusively on the hyperelastic quasi-static response with a vision towards integra-tion in design optimization workflows. The original model was trained on 30 sets of uniaxial tension and torsion experiments conducted at three loading rates across five composition ratios. If focusing on the hyperelastic behavior, the requisite training data could have been reduced to just 10 sets of curves. The work in [36] showcased the concurrent discovery and calibration of the pICNN-based constitutive laws, but did not focus on FEM deployment for further optimization tasks. Directly from [36], the incompressible hyperelastic strain energy 6density is expressed as 
+
+ψ(u, c ) = ψN N   ¯I1, ¯I2, c  − ψN N (3 , 3, c )
+
+| {z }
+
+> Normalization
+
++ p (J − 1) 
+
+| {z }
+
+> Incompressibility hard constraint
+
+, (1) where ψN N is the learned expression detailed subsequently. The modified strain invariants are ¯I1 = tr ¯C and ¯I2 = 12
+
+h tr ¯C2 − tr   ¯C2i
+
+, derived from the isochoric right Cauchy-Green tensor ¯C = J−2/3C, which decouples the isochoric deformation from the standard right Cauchy-Green tensor C = FTF. Here, F represents the deformation gradient, J = det( F), and p serves as a Lagrange multiplier field representing hydrostatic pressure to enforce exact incompressibility. The strain energy density ψN N is represented by a pICNN, which combines an input convex neural network (ICNN) with non-convex and fully convex (NCFC) layers, alongside purely non-convex (NC) layers [36]. Owing to an L0 regularization term in the loss function, which strictly penalizes the number of non-zero parameters in the network, ψN N can be explicitly formulated using only 21 parameters: 
+
+ψN N = 0 .083089 ¯I1 + 0 .809351 ln 
+
+
+
+1 + e0.009634 ¯I1
+
+
+
++ 4 .01198 ln 
+
+
+
+1 + e0.033506 ¯I1
+
+h
+
+1 + e−0.207897 ¯I1+0 .135303 ¯I2 (1 + ω)−0.021823 i1.16891 
+
+h
+
+1 + e0.228289 ¯I1−0.204157 ¯I2 (1 + ω)0.049792 i0.733048 
+
+,
+
+(2) where 
+
+ω =  1 + e6.84602 c2.37126  1 + e6.86996 c2.19610  1 + e6.88268 c2.56167  1 + e6.93876 c1.98880 . (3) The terms involving e(·), ln( ·), and 1 + ( ·) originate from Softplus activation functions. This explicit expression enables the exact symbolic derivation of the stress and tangent stiffness tensors. Consequently, it eliminates the need for algorithmic workarounds to accelerate solvers or reliance on computationally expensive Jacobian-free methods that frequently suffer 7from poor convergence. The total strain energy density ψ is normalized by the second term on the right side of Eq. (1) to ensure zero initial stress in the undeformed state (i.e., C = I). The third term introduces a kinematic constraint to enforce exact incompressibility ( J = 1), consequently ensuring that the standard invariants of C equal their isochoric counterparts ( I1 = ¯I1 and 
+
+I2 = ¯I2). As previously established, p serves as the Lagrange multiplier for this constraint. To satisfy the stationary Karush-Kuhn-Tucker (KKT) conditions, p is treated as an inde-pendent primary variable and solved concurrently with the displacement field via a mixed finite element approach utilizing Taylor-Hood elements. From this strain energy, the second Piola-Kirchhoff (PK2) stress is analytically computed as S = 2 ∂ψ/∂ C, which then yields the Cauchy stress σ = J−1FSF T. These derived stress measures are subsequently utilized to train the parameters of ψN N against experimental data. 
+
+2.1.2. Simplification to nearly incompressible model 
+
+Strictly enforcing incompressibility via an independent hydrostatic pressure field often in-troduces severe numerical instabilities, such as volumetric locking or spurious pressure oscil-lations, particularly under complex geometric and boundary conditions. As the aim of the work here is to enable topology and material distribution optimization in complex boundary value problems, a penalty approach is utilized for near incompressibility instead of a fully incompressible scheme. It is noted (as discussed in [36]) that volumetric data were inconclu-sive from the torsional and uniaxial experiments; as such, exact incompressibility was also an approximation. The penalty term modifies the original expression to: 
+
+ψ = ψN N   ¯I1, ¯I2, c  − ψN N (3 , 3, c )
+
+| {z }
+
+> Normalization
+
++ 12κ (J − 1) 2
+
+| {z }
+
+> Incompressibility soft constraint
+
+, (4) where the bulk modulus κ acts as the penalty parameter to be calibrated. To calibrate this parameter, sympy is utilized to symbolically derive the relationship between the first Piola-Kirchhoff (PK1) stress and stretch in the infinitesimal strain regime, and evaluate it at a 8stretch of 1.001 to provide an estimate of the tensile modulus E across various composition ratios c. Subsequently, the relationship between E and c is calibrated through a least-squares regression (Fig. B.4). The fitted relation is expressed as: 
+
+E(c) = 0 .304 c4 − 0.962 c3 + 0 .899 c2 + 0 .399 c + 0 .697 , (5) and the corresponding bulk modulus is calculated via standard isotropic elasticity relations as: 
+
+κ = E(c)3(1 − 2ν), (6) where Poisson’s ratio ν is set to 0 .49 to accurately reflect a nearly-incompressible material response. 
+
+## 2.2. Adjoint state method 
+
+The explicit strain energy density function derived via the pICNN facilitates mechanical simulations (i.e., the forward problem) for newly designed digital material systems. Com-plementing this forward analysis, the adjoint state method introduced in this section enables the efficient gradient computation of an objective function and structural constraints with respect to the spatial material distribution, which is essential for the inverse problem of design optimization. Consider the following constrained minimization problem: min  
+
+> v
+
+J (u, v ),
+
+s.t. f (u; v) = 0 ,
+
+(7) where u is the state variable governed by the state equation f (u; v) = 0, and v represents the design variable field. For simplicity, v is denoted without boldface, although it may represent either a scalar or a vector field. Computing the total derivative of J with respect to v requires the sensitivity of the state variable ( ∂u/∂v ). Evaluating this sensitivity via finite differences is computationally prohibitive for high-dimensional design spaces; the adjoint state method 9circumvents this bottleneck. By introducing a Lagrange multiplier λ (the adjoint state variable), the Lagrangian functional is defined as 
+
+L(u, v, λ) = J (u, v ) + ⟨f (u; v), λ⟩ , (8) where ⟨· , ·⟩ denotes the inner product. The optimal solution requires the stationarity of L
+
+with respect to u, v, and λ, meaning all directional derivatives must vanish: 
+
+DuL = DuJ + ⟨Duf (u; v), λ⟩
+
+= ⟨∇ uJ , δ u⟩ + ⟨∇ uf (u; v)δu, λ⟩ = 0 ,DvL = DvJ + ⟨Dvf (u; v), λ⟩ = 0 ,DλL = f (u; v) = 0 ,
+
+(9) Here, Dyf (x) = ddϵ f (x + ϵδ y) ϵ=0 denotes the Gˆ ateaux derivative with respect to y, where 
+
+δy represents an arbitrary variation in the space of y. The identity Dyf (x) = ⟨∇ yf (x), δ y⟩
+
+is also utilized. While DvL represents the exact derivative of the continuous Lagrangian, numerical optimizers require a discrete array of sensitivities. Therefore, after projecting the continuous derivative onto the finite-dimensional finite element space, the notation ∇vL
+
+explicitly denotes the resulting column vector of nodal gradients, where v is the column vector of nodal design variables. The adjoint state method consists of three steps: 1. (The forward problem) Eq. (9)c is solved for the state variable u, yielding the solution ˜u. To achieve this, if the explicit expression of f is known, the global Jacobian matrix 
+
+J = ∇uf (u; v) is typically assembled, and a Newton-Raphson scheme is employed with either a direct or a Newton-Krylov iterative solver. Alternatively, a Jacobian-free Newton-Krylov (JFNK) iterative solver can be utilized if the Jacobian-vector product (JVP) is directly accessible via forward-mode automatic differentiation. This latter approach is common for complex implicit formulations or standard machine-learning-based constitutive laws [37]. However, in the Jacobian-free case, the lack of an explic-10 itly assembled Jacobian matrix hinders the construction of effective preconditioners, often leading to degraded convergence for highly nonlinear or ill-conditioned systems [38]. 2. (The adjoint problem) Eq. (9)a forms a linear system of equations that is solved for the adjoint variable λ, yielding the solution ˜λ. Solving the weak form in Eq. (9)a requires isolating the arbitrary variation δu within the inner product. This is achieved by introducing an adjoint operator ( ·)∗ such that ⟨∇ uf (u; v)δu, λ⟩ = ⟨δu, (∇uf (u; v)) ∗λ⟩.When the inner product is the standard dot product in Rn, this adjoint operator is simply the matrix transpose, JT. If the global Jacobian was explicitly assembled during the forward problem or if it is symmetric, the solver strategies mentioned in the first step can be safely reused. However, if the Jacobian is asymmetric and not explicitly assembled, solving the adjoint system iteratively requires the vector-Jacobian product (VJP) via backward-mode automatic differentiation of the residual vector 
+
+f at each iteration. This process is generally far more computationally expensive than assembling an explicit sparse Jacobian and computing standard matrix-vector products. 3. (The inverse problem) Substituting the solutions u = ˜ u and λ = ˜λ into Eq. (9)b yields the final gradient of the objective function with respect to the design variable v.The discretized design variable v is subsequently updated via gradient descent: 
+
+v ← v − η∇vL (10) where η is a step size (or learning rate) that can be dynamically scaled to accelerate con-vergence when stable, or reduced to prevent divergence. For optimization problems without inequality constraints, the Barzilai-Borwein method [57] is employed. This approach ap-proximates quasi-Newton methods by capturing the effect of the Hessian through a single scalar step size η that is updated at each iteration. The update of η incorporates exponential smoothing with a smoothing factor of 0.99, which represents the weight applied to the step size from the previous iteration. Alternative optimization algorithms, such as L-BFGS-B or 11 Adam, can also be utilized for the parameter update; however, due to the non-convex nature of topology optimization, different optimizers may converge to distinct local minima. When the optimization problem incorporates inequality constraints: min  
+
+> v
+
+J (u, v ),
+
+s.t. f (u; v) = 0 ,gi(u, v ) ≤ 0, i = 1 , 2, . . . 
+
+(11) The sensitivity of gi with respect to v can be efficiently computed by solving an analo-gous adjoint system for each constraint. Subsequently, the optimization process is driven using algorithms such as the Method of Moving Asymptotes (MMA) [58, 59, 60]. MMA approximates the objective function J and constraint functions gi via locally convex sur-rogates, adapts their curvature based on the historical oscillation of the design variables, and computes the update by solving the Lagrangian dual problem. In this work, a variant of MMA enhanced by the Conservative Convex Separable Approximation (CCSA) [60] is implemented following the implementation of the NLopt package [61]. This formulation eval-uates the updated design variables to verify the conservativeness of the surrogate models, thereby ensuring stricter adherence to the inequality constraints. The update rule for the design variables is expressed as: 
+
+v ← MMA (v, J , g i, ∇vL, ∇vgi) . (12) 
+
+## 2.3. Adjoint-method-based topology optimization 
+
+In this work, the continuous composition ratio is optimized either independently or concur-rently with the structural topology. While applying the adjoint state method to optimize the composition ratio field alone is relatively straightforward, topology optimization requires specific theoretical and algorithmic treatments. 12 2.3.1. Standard formulation 
+
+This section introduces the classic Solid Isotropic Material with Penalization (SIMP) method [62] for topology optimization. This approach parameterizes the structural topology using a continuous density field ρ (which can be optimized concurrently with the composition ratio 
+
+c) to indicate material presence at any given spatial location. The objective function and constraints are written as min  
+
+> ρ
+
+J (u, ρ ) = N
+
+Z 
+
+> Ω
+
+ρϱψ(u)d V
+
+| {z }
+
+> Stored energy
+
+,
+
+s.t. f (u; ρ) = Du
+
+Z 
+
+> Ω
+
+ρϱψ(u)d V −
+
+Z
+
+> ∂Ω
+
+t · udA
+
+
+
+= 0 ,g(ρ) = 
+
+Z
+
+> Ω
+
+(ρ − θ) d V ≤ 0,
+
+(13) where ρ ∈ [ρmin , 1] is the bounded density field with a small positive lower limit to prevent stiffness matrix singularities, θ < 1 is the target volume fraction, and N[x] is an operator that normalizes the enclosed value x to its initial value before the first iteration xinit (N[x] = 
+
+x/x init ). Furthermore, ψ represents the strain energy density, which can originate from a standard phenomenological model or be derived from experimental data via machine learning approaches, as formulated in Eq. (4). Following the standard SIMP approach [62, 63], the strain energy density is scaled by the density field via ρϱψ. Here, ϱ ∈ [2 , 5] serves as the penalization factor, which makes intermediate density values mechanically inefficient relative to their volume contribution, thereby driving the optimized density field toward the discrete binary bounds of 0 and 1. To ensure stable convergence, a continuation method is employed: once the optimization converges for a given ϱ, the penalty factor is incrementally increased based on the fraction of remaining intermediate ’gray’ material until the predefined upper bound is reached (as detailed in Section 2.5). 13 2.3.2. Special treatment for finite deformation 
+
+To enhance numerical stability under finite deformation, the following strategies are em-ployed, specifically tailored to mitigate numerical artifacts within finite element frameworks like FEniCSx that rely on automated symbolic differentiation. 
+
+Material interpolation in void regions . As the density or stiffness of certain regions decreases during topology optimization, elements within these void regions may become severely distorted and ultimately cause non-convergence. This issue is particularly pro-nounced in our near-incompressible formulation, where the stiff volumetric penalty term is highly sensitive to element distortion. To alleviate this, a widely used method [64] interpo-lates between the original material model and a linear elastic model: 
+
+ψinterp (u, c, I) = ψ(Iu, c ) − ψL(Iu) + ψL(u), (14) where ψL = 12 λ(εkk )2 + μεij εij is the strain energy density for linear elasticity (with Lam´ econstants λ and μ, and the infinitesimal strain tensor ε), and I is a smoothed indicator field identifying the void regions: 
+
+I = tanh ( θthres θsharp ) + tanh ( θsharp (ρϱ − θthres )) tanh ( θthres θsharp ) + tanh ( θsharp (1 − θthres )) , (15) where θthres = 0 .01 and θsharp = 500, consistent with the literature [64]. While this expression is functionally equivalent to a standard sigmoid, this specific formulation prevents numerical overflow by utilizing tanh( ·) rather than explicit exp( ·) evaluations. As demonstrated in previous studies [64, 65], this linear interpolation scheme proves effective for cantilever and double-clamped beams. In such scenarios, void regions undergoing large deformations are not fully constrained by boundary conditions or surrounding solid material; consequently, element overlapping and inversion are numerically tolerated, as the elements can deform freely without imparting significant fictitious stresses back into the primary structure. However, when modeling near-incompressible behaviors where void regions are fully en-capsulated by solid material, this linear elastic interpolation becomes fundamentally flawed. 14 Because the infinitesimal strain tensor is not rotationally invariant, it erroneously generates artificial stresses during finite rigid-body rotations. This renders the linear elastic model kinematically incompatible with the primary hyperelastic material, frequently triggering solver divergence once void regions coalesce and the interpolation actively engages. Even if a Saint Venant-Kirchhoff model (which utilizes the rotationally invariant Green-Lagrange strain tensor) is adopted, severe element inversion instabilities under compression could occur, similarly resulting in non-convergence. Therefore, a simple neo-Hookean model is utilized as the robust base for interpolation: 
+
+ψL(F) = 12μ  J−2/3I1 − 3 + 12κ (J − 1) 2 . (16) Note that this formulation omits natural logarithm terms, ensuring the energy remains well-defined across all possible strain invariants, even when elements become severely distorted. Furthermore, computing the strain directly from the penalized displacement field Iu
+
+introduces severe numerical instability. Because both I and u depend on the spatial co-ordinates, the spatial gradient of I generates massive spurious strain components due to the steepness of the indicator function. In in-house finite element implementations, this issue is typically circumvented by explicitly omitting the u ⊗ ∇I term from the tangent stiffness derivation. However, within frameworks like FEniCSx that rely on exact automated symbolic differentiation, it is computationally sufficient to directly scale the displacement gradient instead: 
+
+ψinterp (F, c, I) = ψ
+
+
+
+I + I ∂u
+
+∂X, c 
+
+
+
+− ψL
+
+
+
+I + I ∂u
+
+∂X
+
+
+
++ ψL (F) . (17) In addition, this fictitious material interpolation unintentionally interferes with the opti-mization landscape. Although the energy interpolation is strictly a numerical regularization technique to preserve solver robustness and should not dictate the optimal structural design, it inevitably alters the structural sensitivities via the adjoint state method. This introduces a severe numerical artifact: because the void indicator I depends on the density ρ, the 15 optimizer can exploit this dependency to bias the structural solution toward the fictitious interpolated model simply because it artificially yields a lower objective value. Consequently, the void indicator must be explicitly decoupled from the differentiation chain rule, meaning the adjoint solver must be prohibited from evaluating the sensitivity of I with respect to ρ.This decoupling is achieved by applying an operation to I that effectively blocks the sym-bolic differentiation graph without altering its numerical value—specifically, by projecting I
+
+onto the finite element function space via an independent linear solve prior to the objective evaluation. 
+
+Lower bound of material penalization in topology optimization . In scenarios involving compression, buckling can occur within the optimized members. The forces trig-gering buckling often originate from spurious artificial stresses within the void regions or incremental density updates. If artificial buckling occurs, the structure may uncontrollably oscillate between different bifurcation branches during each density update, causing severe convergence failures for the nonlinear solver and substantially obstructing convergence. To alleviate this, the applied boundary loading is restricted to a moderate magnitude to prevent such instances, while simultaneously enforcing a rigid lower bound of 0 .001 on the stiffness penalization term ρϱ to suppress these void-induced numerical perturbations. 
+
+## 2.4. Filtering of topology and composition ratio distribution 
+
+In topology optimization, the optimized density field may exhibit the checkerboard effect , a numerical artifact where the finite element solution converges to an artificially stiff, alternat-ing pattern of solid and void elements that is physically unrealistic and indicative of spurious numerical oscillations [66]. Furthermore, the solutions often suffer from mesh dependence: refining the finite element mesh yields a fundamentally different structural topology rather than the same design simply at a higher resolution. Similar numerical instabilities can man-ifest in other continuous design variables, such as the composition ratio field investigated in this work. To address these issues, one of three strategies is typically employed: modifying the gra-16 dient or density (the one-field approach), blurring the design field to create a new physical field for material penalization and volume computation (the two-field approach), or further projecting the blurred field using a sharpening function to yield a third physical field (the three-field approach) [43]. Formally, the three-field approach treats a variable v as an under-lying numerical design field, applies a spatial filter to obtain a blurred field ˜ v, and projects ˜v onto a sharper physical field ˆ v. This underlying field v can represent the density field for topology optimization, other continuous design variables (such as the composition ratio) [55, 53], or both simultaneously. This work utilizes a PDE-based filtering approach [66], which formulates the blurring operation as the solution to a Helmholtz-type differential equation. The blurred field ˜ v and the underlying field v satisfy: 
+
+−r2f ∇2 ˜v + ˜ v = v in Ω ,
+
+∇˜v · n = 0 on ∂Ω,
+
+(18) where rf is the filter length scale parameter, and n is the outward surface normal vector. This PDE is expressed in its weak form as: 
+
+Z
+
+> Ω
+
+ r2f ∇˜v · ∇ δv + ˜ vδv − vδv  dV −
+
+Z
+
+> ∂Ω
+
+r2f (∇˜v · n)δv dA = 0 . (19) Applying the Neumann boundary condition causes the boundary integral to vanish, yielding: 
+
+Z
+
+> Ω
+
+ r2f ∇˜v · ∇ δv + ˜ vδv − vδv  dV = 0 . (20) Consequently, the global coefficient matrix only needs to be assembled once at the beginning of the topology optimization process. The discretized linear system is expressed as: 
+
+[ Z 
+
+> Ωe
+
+ r2f ∇NT 
+
+> e
+
+∇Ne + NT 
+
+> e
+
+Ne
+
+ dV
+
+| {z }
+
+> Kf
+
+˜v = [ Z 
+
+> Ωe
+
+NT 
+
+> e
+
+NedV
+
+| {z }
+
+> Mf
+
+v, (21) 17 where S denotes the global finite element assembly operator, Ne represents the element shape function matrix, and ˜ v and v are the global nodal vectors of ˜ v and v, respectively. The assembled global coefficient matrices are thus defined as the filter stiffness matrix Kf
+
+and the mass matrix Mf .When evaluating the total gradient ∇vL, the combination of the adjoint method and symbolic differentiation allows us to directly compute the exact gradient with respect to the filtered field, ∇˜vL. However, this leaves the final step of the chain rule, ∂ ˜v/∂ v, which is governed by the linear system solved during the forward filtering pass: 
+
+∂ ˜v
+
+∂v = K−1f Mf . (22) Exploiting the symmetry of both Kf and Mf , the final gradient is formulated as: 
+
+∇vL =  K−1f Mf
+
+T ∇˜vL = MTf K−Tf ∇˜vL = Mf K−1f ∇˜vL. (23) In practice, this is efficiently evaluated by first solving the adjoint linear system Kf λf = ∇˜vL
+
+for the intermediate adjoint vector λf , and subsequently applying the mass matrix projection 
+
+∇vL = Mf λf .When the underlying design variable is the density field ρ, the three-field approach is employed. To promote a sharp structural boundary suitable for manufacturing, the blurred density ˜ ρ is projected onto a physical density field ˆ ρ using a smooth Heaviside function: ˆρ = tanh ( βτ ) + tanh ( β(˜ ρ − τ )) tanh ( βτ ) + tanh ( β(1 − τ )) , (24) where β = 2 ϱ controls the projection sharpness, and the projection threshold is set to τ = 0 .5. Consequently, the optimization problem is reformulated using the projected physical density 18 ˆρ:min  
+
+> ρ
+
+J (u, ρ ) = N
+
+Z 
+
+> Ω
+
+ˆρϱψ(u)d V
+
+| {z }
+
+> Stored energy
+
+,
+
+s.t. f (u; ρ) = Du
+
+Z 
+
+> Ω
+
+ˆρϱψ(u)d V −
+
+Z
+
+> ∂Ω
+
+t · udA
+
+
+
+= 0 ,g(ρ) = 
+
+Z
+
+> Ω
+
+(ˆ ρ − θ) d V ≤ 0.
+
+(25) Similarly, the projected density ˆ ρ replaces ρ in the void indicator defined in Eq. (15). This PDE-based filtering is concurrently applied to the composition ratio c following the two-field approach. This smooths the spatial transition between different constituent materials, thereby enhancing material compatibility and overall structural integrity [3]. 
+
+## 2.5. Implementation using symbolic-differentiation-based FEniCSx 
+
+When incorporating machine-learning-based constitutive laws alongside complex optimiza-tion objectives and constraints, deriving the analytical expressions required for both the forward problem (solving the governing PDEs) and the inverse problem (evaluating adjoint-based gradients) becomes highly laborious, particularly during the rapid prototyping of new formulations. In this work, the finite element analysis and adjoint state method are im-plemented using FEniCSx (version 0.9) [40]. This framework relies on automated symbolic differentiation, requiring only the weak form of the PDEs and the explicit definitions of the objective and constraint functions. These are formulated using the Unified Form Language (UFL), which natively supports the exact symbolic differentiation of all built-in operators. Nevertheless, situations arise where automated symbolic differentiation cannot traverse implicit operations within the differentiation chain, such as computing the sensitivity of the blurred field ˜ v with respect to the underlying design field v. In such cases, the analytical sen-sitivities are manually derived and implemented to supplement the symbolically generated gradients. The coupled optimization problem for the structural topology and material composition distribution is solved according to Algorithm 1. If either the topology or the composition 19 ratio optimization is omitted, the algorithmic steps related to updating the corresponding design variable are bypassed. While all numerical examples are demonstrated in 2D under the plane strain assumption to reduce computational cost, the theoretical formulations and UFL-based implementations are intrinsically dimension-independent and directly applicable to 3D problems without modification. 
+
+Algorithm 1: Optimization loop for structural topology and material composition  
+
+> 1
+
+Initialize underlying design fields ρ = 1 .0, c = 0 .5, and penalty factor ϱ = 2;  
+
+> 2
+
+for each iteration do  
+
+> 3
+
+Apply the PDE filter by solving the Helmholtz equations for ˜ ρ and ˜ c; 
+
+> 4
+
+Project ˜ ρ onto the physical density ˆ ρ using the smooth Heaviside function;  
+
+> 5
+
+Solve the nonlinear hyperelastic equilibrium f (u; ˆ ρ, ˜c) = 0 for the state variable u; 
+
+> 6
+
+Compute the objective J (u, ˆρ, ˜c) and constraints gi(ˆ ρ, ˜c);  
+
+> 7
+
+Solve the adjoint equations ( ∇uf )T λ(·) = −∇ u(·) to obtain the adjoint variables, where ( ·) represents the objective J or inequality constraints gi; 
+
+> 8
+
+Compute the objective sensitivities ∇ρL, ∇cL, and constraint sensitivities ∇ρgi, ∇cgi
+
+via the adjoint state method and the filter chain rule;  
+
+> 9
+
+Restrict all sensitivities to the range [ −0.01 , 0.01];  
+
+> 10
+
+Update ρ using MMA: ρ ← MMA (ρ, J , g i, ∇ρL, ∇ρgi);  
+
+> 11
+
+Update c using MMA: c ← MMA (c, J , g i, ∇cL, ∇cgi), or via gradient descent with a Barzilai-Borwein step size η: c ← c − η∇cL; 
+
+> 12
+
+Enforce constraints ρ ∈ [ρmin , 1] and c ∈ [0 , 1];  
+
+> 13
+
+if the relative objective value decreases by less than TOL in two consecutive iterations or has not decreased for 50 iterations after 500 iterations then  
+
+> 14
+
+if ϱ < ϱ max and topology optimization is activated then  
+
+> 15
+
+Compute the intermediate density fraction γ = 4
+
+> Vol
+
+R 
+
+> Ω
+
+ˆρ(1 − ˆρ)d V ; 
+
+> 16
+
+Update the penalty factor: ϱ ← min ϱ  1 + 0 .21+ γ/ 2 , ϱ max ; 
+
+> 17
+
+else  
+
+> 18
+
+Terminate the optimization;  
+
+> 19
+
+end  
+
+> 20
+
+end  
+
+> 21
+
+end 
+
+# 3. Results 
+
+In this section, the proposed computational design workflow is applied to problems relevant to 3D printing multimaterial components for robotic grippers for object manipulation, a do-main that traditionally relies heavily on prototyping. The focus is on two classes of problems: 20 (1) Design contact points, such as fingertips, for robotic hands with tunable anisotropic re-sponses, and (2) lightweight resilient design of fingers for robotic grippers that accommodate large deformations, taking into account material limitations. The contact point problem is first analyzed within the infinitesimal strain regime, where only the continuous composition ratio field is optimized to achieve a target anisotropic response (Section 3.1). This frame-work is subsequently extended to the finite deformation regime under more general contact conditions utilizing third medium contact theory (Section 3.2). The second example for the fingers of the robotic gripper addresses the concurrent optimization of macroscopic topology and digital material distribution (Section 3.3), subject to an ultimate tensile stretch con-straint, to demonstrate the distinct efficacy and advantages of this multiscale optimization approach. Specifically, four different optimization scenarios are considered for this multi-objective optimization problem. 
+
+## 3.1. Contact points: Composition optimization for anisotropic re-sponse under small deformation 
+
+The first numerical example, a two-dimensional trapezoidal domain shown in Fig. 1(a), models a localized contact point on a robotic gripper [67]. To optimize grasping performance, the contact point must exhibit a highly anisotropic mechanical response. Specifically, it requires high compliance in the normal direction to conformally adapt to the geometry of the target object under compression. Conversely, it must maintain high stiffness in the tangential direction to maximize shear resistance and securely transmit frictional forces. The geometry of the trapezoidal domain features a fixed bottom boundary measuring 2L in length, with an upper boundary length and total height both measuring L. The do-main is discretized into a structured mesh comprising 9,408 linear quadrilateral plane-strain elements. The upper boundary is simultaneously subjected to a downward displacement of 0.01 L and a leftward displacement of 0 .001 L. The continuous composition ratio distribution 
+
+c is optimized within this small deformation regime. It is noted that topology is not opti-mized in this example, thus the initial geometry remains fixed and the material distribution 21 Displacement control 
+
+> 2L
+> L
+> L0.5 L
+
+(a) (b)        
+
+> Optimized composition ratio 𝑐
+> 00.5 1
+> Filter radius = 0.01 LFilter radius = 0.03 L
+> Filter radius = 0.05 L
+> 0.3 L
+> Reuse for larger deformation
+> Downward disp. only
+
+(c) (d) 
+
+(e) (f) Figure 1: Optimization of the continuous composition ratio c within a trapezoidal domain, modeling a localized contact point for a robotic gripper, to achieve an anisotropic mechanical response. (a) Geometry and boundary conditions of the trapezoidal domain. (b) Horizontal and vertical reaction forces on the top boundary after optimization, normalized with respect to the initial homogeneous design. (c)-(e) Optimized distributions of the composition ratio c utilizing various filter radii to control the spatial transition gradient between material phases. (f) Structural response of the optimized design evaluated under finite deformation, subjected to a prescribed downward displacement. 
+
+c is optimized. To prevent singularities near the prescribed displacement, the underlying design variable c is constrained to 0.5 within a 0 .04 L-thick layer immediately adjacent to the top boundary (although the filtered field ˜ c remains free to vary). In the remaining design domain, the variable evolves from a uniform initial value of 0.5. The optimization problem 22 is formulated as min  
+
+> c
+
+J (u, c ) = N
+
+" Z
+
+> ∂Ωtop
+
+P · n · eydA
+
+#| {z }
+
+> Vertical reaction
+
+− N
+
+" Z
+
+> ∂Ωtop
+
+P · n · exdA
+
+#| {z }
+
+> Horizontal reaction
+
++ 10 s.t. f (u; c) = Du
+
+Z 
+
+> Ω
+
+ψ(u, c )d V −
+
+Z
+
+> ∂Ω
+
+t · udA
+
+
+
+= 0 ,
+
+(26) where P is the first Piola-Kirchhoff stress tensor, n is the reference outward surface normal, and ex and ey are the Cartesian unit basis vectors. The addition of 10 to the objective function is to keep its value positive for the convergence criterion, with no effect on the optimization trajectory. Note that while the objective function is structured to simulta-neously minimize the vertical reaction and maximize the horizontal reaction, this uncon-strained scalarization primarily maximizes the relative difference between the two terms. Consequently, it does not strictly guarantee an absolute decrease in the vertical reaction or an absolute increase in the horizontal reaction independently. The initial step size for the Barzilai-Borwein update is set to 1, and the relative tolerance TOL (in Algorithm 1) for convergence criteria is set to 0.01%. Three distinct filter radii (0 .01 L, 0 .03 L, and 0 .05 L) are employed to smooth the com-position ratio field c, with the resulting optimized material distributions and reaction forces visualized in Fig. 1(b)-(e). After optimization, the horizontal reaction force increases to more than four times its initial magnitude, while the vertical reaction remains relatively constant, successfully fulfilling the desired design criteria. This highly anisotropic behavior is driven by the tailored material distribution (Fig. 1(c)-(e)). The underlying kinematic mechanism becomes apparent when this optimized design is evaluated under finite deformation sub-jected purely to vertical compression, as shown in Fig. 1(f). Under pure vertical loading, the contact point exhibits a coupled lateral shear response. Two stiffer domains undergo localized shear deformation relative to one another, effectively forming a contact-aided com-pliant mechanism [68] that provides enhanced resistance to horizontal forces. Furthermore, as the filter radius increases, the spatial transition within the c field becomes smoother without significantly compromising the amplified horizontal reaction force (Fig. 1(b)). This 23 enhanced smoothness is highly advantageous for practical multi-material additive manu-facturing, as it diffuses severe interfacial stress concentrations and mitigates the risk of delamination between distinct material phases during cyclic grasping operations. 
+
+## 3.2. Contact points: Composition optimization for anisotropic re-sponse under contact and finite deformations 
+
+Extending the first contact point example to a more realistic finite deformation setup under more general contact conditions, a two-dimensional semicircle is considered, with a radius of 0.5L fixed at its base, subjected to compression by an inclined plate at various angles. This interaction is numerically implemented via the third medium contact approach [69, 70]. As detailed in Appendix A, this approach utilizes a fictitious, highly compliant medium that undergoes severe deformation, and implicitly transfers the contact load to the physical body as its local volume approaches zero. In our setup, the contact point is encapsulated by this third medium. The top boundary of the third medium is subjected to a spatially varying downward displacement profile to model the inclined plate, as illustrated in Fig. 2(a). The entire computational domain, including the third medium region, is discretized into 6,627 quadratic quadrilateral plane-strain elements. Note that the third medium approach neces-sitates at least second-order shape functions to properly compute the required higher-order spatial derivatives of the displacement field (see Appendix A). Similar to the previous exam-ple, the composition ratio distribution is optimized spatially in a fixed domain conforming to the shape of the contact point. The computational procedure is divided into two phases: first, incrementally applying the prescribed displacement to the upper boundary of the third medium across 40 load steps until full contact is established; second, optimizing the composition ratio c while maintaining these final boundary conditions. During the first phase, four distinct loading profiles are considered for the upper boundary ∂Ωtop , where x denotes the horizontal coordinate relative 24 L             
+
+> Displacement control
+> 0.25 L0.25 L
+> 0.75 L
+> 0.5 L
+> Strain energy density
+> (Normalized to Case 4)
+> Case 1 Case 2
+> Case 3 Case 4
+> (a) (b) Initial design (deformed)
+> Case 1 Case 2
+> Case 3 Case 4
+> Case 1 Case 2
+> Case 3 Case 4
+> Optimized composition ratio 𝑐
+> 00.5 1
+> (d) Optimized design (e) Optimized design (deformed)
+> (c)
+
+Figure 2: Optimization of the continuous composition ratio c within a semicircular contact point subjected to inclined finite compression. (a) Geometry and boundary conditions of the semicircular domain and the encapsulating third medium. (b) Deformed configurations of the initial homogeneous design under various prescribed displacement profiles, illustrating the resulting strain energy density fields. (c) Horizontal and vertical reaction forces on the fixed bottom boundary after optimization, normalized with respect to the initial homogeneous design. (d) Optimized distributions of the composition ratio c shown in the undeformed state. (e) Optimized designs illustrated in the deformed state. 
+
+to the bottom-left corner of the domain: ∆utop =
+
+
+
+−0.71.5 x, (Case 1) 
+
+−0.51.5 x − 0.12 L, (Case 2) 
+
+−0.31.5 x − 0.24 L, (Case 3) 
+
+−0.11.5 x − 0.36 L, (Case 4) (27) The third medium contact parameters are set to k3rd = 10 −5 and kreg = 10 −3 (in the unit of strain energy density). The resulting deformed configurations of this initial homogeneous design with c = 0 .5 under the four loading cases are illustrated in Fig. 2(b). 25 During the second phase, the optimization problem is formulated similarly to Eq. (26), but the objective reactions are now evaluated at the fixed bottom boundary: min  
+
+> c
+
+J (u, c ) = N
+
+ Z 
+
+> ∂Ωbottom
+
+P · n · eydA
+
+| {z }
+
+> Vertical reaction
+
+− N
+
+ Z 
+
+> ∂Ωbottom
+
+P · n · exdA
+
+| {z }
+
+> Horizontal reaction
+
++ 1 s.t. f (u; c) = Du
+
+Z 
+
+> Ω
+
+ψ(u, c )d V + k3rd 
+
+Z
+
+> Ω3rd
+
+ψ(u)d V + kreg 
+
+Z
+
+> Ω3rd
+
+ψreg dV −
+
+Z
+
+> ∂Ω
+
+t · udA
+
+
+
+= 0 .
+
+(28) The addition of 1 to the objective function is also to ensure positivity of its value. To prevent localized singularities, the underlying design variable c within a 0 .04 L-thick layer adjacent to the boundaries is constrained. Because the structural sensitivities are highly localized near the prescribed boundary conditions, a significantly larger initial step size of η = 20 , 000 is employed for the Barzilai-Borwein update to accelerate convergence. The relative tolerance 
+
+TOL (in Algorithm 1) is set to 0.01%. A Helmholtz filter with a radius of 0 .03 L is applied to the composition ratio field c, and structural topology optimization remains deactivated for this example. Following optimization, and consistent with the trapezoidal case evaluated in the in-finitesimal strain regime, the relative increase in the horizontal reaction force is significantly larger compared to the variation in the vertical reaction (Fig. 2(c)). This indicates that the optimized semicircular contact point exhibits high tangential stiffness to maximize shear resistance, while maintaining high normal compliance to ensure conformal geometric adap-tation. Unlike the trapezoidal strut mechanism, which could conceivably be derived via engineering intuition, the material distributions synthesized for finite inclined compression are highly non-intuitive (Fig. 2(d)-(e)). This demonstrates the efficacy of the proposed end-to-end computational pipeline, revealing that algorithmic material optimization can uncover high-performance compliant architectures that elude traditional, empirical design method-ologies. 26 3.3. Gripper fingers: Joint optimization of material composition and topology under non-failure constraint 
+
+Topology optimization, via controlling the density field ρ, utilizes a high-dimensional design space that can deliver significant changes in macroscopic structural responses. Simultane-ously, it can also yield unmanufacturable designs if fine features fall below the resolution limits of the fabrication process. Conversely, material composition optimization (via the composition ratio c) locally tunes the mechanical properties without altering the structural topology, yet it possesses an inherently more restricted design space. Therefore, concurrently optimizing both ρ and c offers a synergistic approach, yielding superior potential benefits compared to either optimization strategy implemented in isolation. Here, the design of fingers for a soft robotic gripper clamping a target object under fi-nite deformation is investigated. Our objective is to maximize the global stiffness of the 3D-printed fingers, subject to a strict material volume constraint and a reliability constraint on the maximum permissible stretch. As demonstrated in our previous work detailing the pICNN constitutive model [36] trained by experimental data of digital materials, the ulti-mate uniaxial stretch for regions with a low composition ratio c can be up to twice that of regions with a high composition ratio. Consequently, strategically deploying softer materials facilitates adherence to the reliability constraint, albeit at the cost of reduced local stiffness. This intrinsic material tradeoff renders this example a highly practical and demonstrative scenario, requiring the computational pipeline to rigorously balance the competing demands of the objective function and the kinematic constraints. As illustrated in Fig. 3(a), the initial design domain for the topology optimization is an L by L square. The leftmost 0 .4L segment of the top boundary is fully clamped, while the bottommost 0 .4L segment of the right boundary is subjected to a leftward prescribed displacement of 0 .4L. This displacement is applied incrementally across 10 pseudo-timesteps, after which the optimization is executed with the final boundary conditions held constant. The design domain is discretized into a structured, uniform mesh comprising 40,000 linear quadrilateral elements. A Helmholtz smoothing filter with a radius of 0 .03 L is applied to 27 both the density and the composition ratio fields. The design objective is the classic stiffness maximization standard in topology optimiza-tion. For this displacement-controlled scenario, this is equivalent to maximizing the total integral of the strain energy density over the design domain. For the reliability constraint, an I1-based criterion is employed, as the failure of hyperelastic polymers is predominantly governed by molecular chain stretch. The eight-chain model [71] provides a direct relation-ship between I1 and chain stretch, which has been previously utilized to develop damage criteria [72]. The critical threshold Icrit 1 is calibrated and computed based on the ulti-mate uniaxial tensile stretch limits detailed in our previous work on the pICNN model [36]. For composition ratios of c = {0, 0.1755 , 0.4669 , 1.0, 2.0895 }, the critical stretch lim-its are λcrit = {2.05 , 1.80 , 1.79 , 1.73 , 1.45 }, which correspond to critical invariant values of 
+
+Icrit 1 = {5.178 , 4.355 , 4.321 , 4.149 , 3.482 }, as plotted in Fig. B.5. Through a least-squares regression, the continuous relation is obtained: 
+
+Icrit 1 (c) = 0 .224 c2 − 1.125 c + 4 .884 . (29) The fundamental local non-failure condition is expressed as: (I1 − 3) nsafe ≤  Icrit 1 − 3 . (30) This formulation is analogous to local stress constraints extensively investigated within the topology optimization community [58]. Adapting this concept, the aggregated global con-straint is formulated as: 
+
+N
+
+Z 
+
+> Ω
+
+ReLU ˆρ1/ϱ (I1 − 3) nsafe −  Icrit 1 − 3 dV
+
+
+
+≤ 0.25 , (31) where nsafe = 10 is a conservative safety factor accounting for cyclic loading conditions in robotic applications and hyperelastic degradation phenomena such as the Mullins effect. While Ref. [58] enforces pointwise stress constraints (resulting in a highly dimensional con-straint space that necessitates clustering), in this work, the violation is evaluated globally 28 into a single functional constraint. Furthermore, rather than strictly eliminating all local vi-olations (which is often physically unattainable due to severe stress concentrations near the boundary conditions), a relaxed tolerance of 0.25 is permitted as it is utilized in conjunction with a strict safety factor. This effectively targets a 75% area reduction in the high-risk region. The final optimization problem is formulated for the concurrent optimization of structural topology and material composition. To isolate and investigate the specific benefits of a spatially varying composition field, either design variable can be held constant during the optimization process. min  
+
+> ρ,c
+
+J (u, ρ, c ) = −N
+
+Z 
+
+> Ω
+
+max {ˆρϱ, 0.001 }ψ(u, c )d V
+
+| {z }
+
+> Stored energy
+
++ 2 ,
+
+s.t. f (u; ρ, c ) = Du
+
+Z 
+
+> Ω
+
+max {ˆρϱ, 0.001 }ψinterp (u, c, I)d V −
+
+Z
+
+> ∂Ω
+
+t · udA
+
+
+
+= 0 ,g1(u, ρ, c ) = 
+
+Z
+
+> Ω
+
+(ˆ ρ − 0.35) d V ≤ 0,g2(u, ρ, c ) = N
+
+Z 
+
+> Ω
+
+ReLU ˆρ1/ϱ (I1 − 3) nsafe −  Icrit 1 (c) − 3 dV
+
+
+
+≤ 0.25 .
+
+(32) To solve this inequality-constrained problem, the Method of Moving Asymptotes (MMA) is employed with a strict move limit of 0 .01 per iteration for both the density and the composition ratio fields. The relative tolerance TOL (in Algorithm 1) is set to 0.002%. To facilitate a rigorous comparison demonstrating the advantages of simultaneously opti-mizing both structural topology and material distribution, four distinct scenarios are evalu-ated. First, an unconstrained topology optimization (excluding the I1 reliability constraint) is performed to establish a performance baseline. This baseline design also serves as the warm-start initialization for the three subsequent constrained scenarios. In the three fol-lowing scenarios, the I1 constraint is introduced, and optimizations are performed for: (2) the composition ratio field only, (3) the structural topology only, and (4) the concurrent optimization of topology and composition ratio. Fig. 3(b) compares the total strain energy (the stiffness objective to be maximized) across 29 L
+
+L
+
+0.4 L
+
+Displacement 
+
+control 
+
+0.4 L  
+
+> Composition ratio
+> 00.5 1
+
+(a) (b) 
+
+(c) Optimize topology, without I1 constraint (baseline) (d) Optimize composition ratio, with I1 constraint 
+
+(e) Optimize topology, with I1 constraint (f) Optimize topology & composition ratio, with I1 constraint         
+
+> Composition ratio
+> 00.5 1
+> Composition ratio
+> 00.5 1
+> Composition ratio
+> 00.5 1
+> Violates I1constraint
+
+(g) Initial design (a) Topology optimized, 
+
+without I1 constraint (c) 
+
+> Symmetric
+> Symmetric
+
+Topology & composition ratio optimized, 
+
+with I1 constraint (f)    
+
+> I1
+> 33.2 3.4 >3.6
+
+Figure 3: Optimization of the continuous composition ratio and structural topology for a soft robotic finger subjected to finite clamping deformation. (a) Geometry and boundary conditions of the initial design domain. (b) Comparison of the total strain energy (to be maximized) across the four evaluated optimization scenarios. (c)-(f) Optimization results under various strategies. Left panels: The optimized topology (void regions where ˆ ρ < 0.5 are masked for visualization) superimposed with the continuous composition ratio field c. Right panels: Spatial evaluation of the local I1 failure constraint (Eq. (30)), highlighting localized regions of constraint violation. (g) Deformed structural configurations of the initial homogeneous design (a), the unconstrained baseline topology (c), and the concurrently optimized topology and composition field (f), illustrated in a symmetric dual-finger grasping scenario. 
+
+30 each evaluated scenario. By enforcing the I1 reliability constraint, all three constrained sce-narios successfully reduce the spatial area of violation compared to the unconstrained base-line (Fig. 3(c), which serves as the warm-start initialization), albeit by compromising the maximum attainable strain energy (right panels of Fig. 3(d)-(f)). While topology optimiza-tion alone (Fig. 3(e)) yields a higher strain energy than composition ratio optimization alone (Fig. 3(d)), concurrently optimizing both fields (Fig. 3(f)) achieves the superior global struc-tural performance (Fig. 3(b)). While topology optimization drives the macroscopic struc-tural stiffness, the composition ratio optimization locally fine-tunes the material compliance to alleviate stretch concentrations, thereby satisfying the failure constraint more efficiently. As illustrated in Fig. 3(g), the I1 field is distributed much more uniformly throughout the concurrently optimized structure compared to the initial homogeneous design. These re-sults indicate that the concurrent design approach mitigates localized vulnerabilities while maintaining stiffness and volume objectives. 
+
+# 4. Conclusions and discussion 
+
+This work introduced an end-to-end computational framework for the design of multima-terial 3D-printed structures by integrating sparsified physics-augmented neural constitutive models with finite-element-based topology and material distribution optimization. By lever-aging a sparsified constitutive law for digital materials, trained on physical test data, the proposed approach enables direct symbolic differentiation of stresses, tangent operators, objective functions, and adjoint sensitivities within FEniCSx . This removes a key bot-tleneck associated with deploying standard neural constitutive models in nonlinear finite element simulations. The resulting workflow combines data-efficient material modeling, ro-bust nonlinear simulation, PDE-based filtering, adjoint sensitivity analysis, and constrained optimization into a unified pipeline for functionally graded digital materials with targeted structural functionality. The framework was demonstrated on representative soft robotic gripper design prob-lems involving tunable contact response, finite-deformation contact, and damage-aware op-31 timization of gripper fingers. These examples show that continuous composition fields and structural topology can be optimized either independently or concurrently to achieve tar-geted mechanical responses while respecting local material constraints. More broadly, the results highlight the promise of sparse, interpretable machine-learning constitutive models as practical design primitives for multimaterial additive manufacturing. Future work will focus on extending the framework beyond two-dimensional quasi-static hyperelastic exam-ples, accounting for uncertainty and manufacturability constraints that more directly reflect the resolution, mixing, and process limitations of multimaterial 3D printing. 
+
+# Statements and Declarations 
+
+Acknowledgments. The authors declare no funding for this work. 
+
+Author contributions. Xue-Ling Luo: Methodology, Software, Investigation, Writing -Original Draft. Steven Yang: Methodology, Software. Jingye Tan: Methodology, Software. Robert F. Shepherd: Conceptualization, Writing - Review & Editing. Noy Cohen: Concep-tualization, Writing - Review & Editing. Nikolaos Bouklas: Conceptualization, Writing -Review & Editing, Supervision, Project administration. 
+
+Code availability. The developed code is available on GitHub ( https://github.com/ LuoXueling/optimization_of_digital_material_distribution ). 
+
+Competing Interests. The authors declare no competing interests. 
+
+# Appendix A. Theory of the third medium contact ap-proach 
+
+In the numerical examples, the structures are subjected to severe mechanical contact that induces finite deformations. To efficiently model these interactions without introducing the algorithmic complexities of explicit contact mechanics, the third medium contact approach is adopted. The fundamental concept of the third medium approach is to introduce a fictitious, 32 highly compliant hyperelastic domain, Ω 3rd , bridging the physical bodies Ω. This medium physically prevents direct surface-to-surface interpenetration and implicitly transmits con-tact forces through its internal deformation. The total potential energy of the contacting bodies and the third medium is expressed as Π = 
+
+Z
+
+> Ω
+
+ψ(u)d V + k3rd 
+
+Z
+
+> Ω3rd
+
+ψ(u)d V
+
+| {z }
+
+> Contact enforcement
+
++ kreg 
+
+Z
+
+> Ω3rd
+
+ψreg dV
+
+| {z }
+
+> Regularization
+
+−
+
+Z
+
+> ∂Ω3rd
+
+t · udA. (A.1) The second term in Eq. (A.1) represents the degraded strain energy of the third medium [69], which stiffens asymptotically as the medium’s local volume approaches zero ( J → 0), thereby providing the necessary repulsive force to simulate contact. Beyond simulating external loading, this formulation offers significant utility in topology optimization: void regions can be naturally interpreted as the third medium, enabling the simulation of internal void closure (self-contact) without additional algorithmic overhead, although this specific feature is not activated in the present examples. When deployed within a topology optimization framework, literature suggests that the volumetric penalty term of ψ (e.g., κ 
+
+> 2
+
+(J − 1) 2) may be omitted for the third medium in pure plane strain contact problems [69, 70]. However, to maintain consistency between the solid phase and the void (third medium) phase during material penalization, retaining this volumetric term is highly recommended [69, 73]. The third term, specifically the regularization term, mitigates numerical instabilities within the third medium when k3rd is low by penalizing severe spatial gradients in rotation and volumetric deformation. A straightforward choice of the regularization term is 
+
+ψreg = 12H(u) ... H(u) = 12 ∥∇ F∥2 . (A.2) Because artificial energy stored in the third medium exacerbates non-convexity issues (such as oscillations and convergence failures), it must be minimized. Consequently, ref. [69] pro-poses incorporating only the rotational and volumetric deformations into the regularization 33 term: 
+
+ψreg = 12
+
+ ∥∇ R∥2 + ∥∇ J∥2 , (A.3) and simplifies the computationally complicated gradient of the proper orthogonal rotation tensor R = FU −1 (where U is the right stretch tensor) by substituting an alternative rota-tional measure. This tailored regularization demonstrates superior convergence performance and more consistent mechanical behavior. Alternatively, for plane strain conditions, ref. [70] proposes an even simpler formulation to account for rotational gradients: 
+
+ψreg = 12
+
+"
+
+∇
+
+F12 − F21 
+
+F11 + F22 
+
+ 2
+
++ ∥∇ J∥2
+
+#
+
+, (A.4) where this ratio of deformation gradient components explicitly represents the tangent of the local rigid body rotation angle. Evaluating these regularization forms typically requires second-order or higher-order shape functions to adequately capture the higher-order deriva-tives of the displacement field. While ref. [70] introduces auxiliary fields to approximate these gradients via a mixed formulation, thereby alleviating the need for high-order elements and mitigating ill-conditioning, specific meshing strategies are sufficient to ensure convergence. Specifically, (1) quadrilateral elements rather than triangular meshes are utilized to prevent excessive numerical locking and artificial stretching, and (2) larger element sizes are assigned within the third medium to restrict excessive local kinematic flexibility. 34 Appendix B. Supplementary figures 0.0 0.2 0.4 0.6 0.8 1.0 
+
+Composition c
+
+0.7 
+
+0.8 
+
+0.9 
+
+1.0 
+
+1.1 
+
+1.2 
+
+1.3 
+
+> Tensile modulus  E (MPa)
+
+E = 0.304 c4 0.962 c3+0.899 c2
+
++0.399 c+0.697 
+
+Symbolic estimation 
+
+Least squares fitting 
+
+Figure B.4: Symbolic derivation and estimation of tensile modulus under small strain assumption and least squares polynomial fitting. 0.0 0.5 1.0 1.5 2.0 
+
+Composition c
+
+3.50 
+
+3.75 
+
+4.00 
+
+4.25 
+
+4.50 
+
+4.75 
+
+5.00 
+
+5.25 
+
+> Icrit 1
+
+Icrit 1 = 0.224 c2 1.125 c+4.884 
+
+Experimental values 
+
+Least squares fitting 
+
+Figure B.5: Critical I1 values at different composition ratios and their least square fitting. 
+
+35 References 
+
+[1] S.-J. Ahn, H. Lee, K.-J. Cho, 3D printing with a 3D printed digital material filament for programming functional gradients, Nature Communications 15 (1) (2024) 3605. doi:10.1038/s41467-024-47480-5 .[2] L. Rossetti, L. Kuntz, E. Kunold, J. Schock, K. M¨ uller, H. Grabmayr, J. Stolberg-Stolberg, F. Pfeiffer, S. Sieber, R. Burgkart, et al., The microstructure and micromechanics of the tendon–bone insertion, Nature materials 16 (6) (2017) 664–670. [3] A. Pragya, T. K. Ghosh, Soft Functionally Gradient Materials and Structures – Natural and Manmade: A Review, Advanced Materials 35 (49) (2023) 2300912. doi:10.1002/adma.202300912 .[4] N. W. Bartlett, M. T. Tolley, J. T. Overvelde, J. C. Weaver, B. Mosadegh, K. Bertoldi, G. M. Whitesides, R. J. Wood, A 3d-printed, functionally graded soft robot powered by combustion, Sci-ence 349 (6244) (2015) 161–165. [5] S. Kumar, K. M. Reddy, A. Kumar, G. R. Devi, Development and characterization of polymer–ceramic continuous fiber reinforced functionally graded composites for aerospace application, Aerospace Science and Technology 26 (1) (2013) 185–191. [6] B. Saleh, J. Jiang, R. Fathi, T. Al-Hababi, Q. Xu, L. Wang, D. Song, A. Ma, 30 years of function-ally graded materials: An overview of manufacturing methods, applications and future challenges, Composites Part B: Engineering 201 (2020) 108376. [7] K. Li, M. Zhang, Z. Zhang, P. Jin, Y. Wang, W. Yan, L. Zhu, D. Z. Zhang, L. E. Murr, High per-formance realization of functionally graded materials based on integrated optimal design and additive manufacturing: A review, International Materials Reviews 70 (6) (2025) 497–547. [8] N. Muthuram, P. S. Madhav, D. K. Vasan, M. E. Mohan, G. Prajeeth, A review of recent literatures in poly jet printing process, Materials Today: Proceedings 68 (2022) 1906–1920. [9] X. Wei, A. Bhardwaj, C.-C. Shih, L. Zeng, B. Tai, Z. Pei, Experimental investigation of stratasys j750 polyjet printer: Effects of orientation and layer thickness on mechanical properties, in: Interna-tional Manufacturing Science and Engineering Conference, Vol. 58745, American Society of Mechanical Engineers, 2019, p. V001T01A021. [10] C. Wade, D. Beck, R. MacCurdy, Implicit modeling for 3d-printed multi-material computational object design via python, in: Proceedings of the ACM Symposium on Computational Fabrication, 2025, pp. 1–16. [11] L. Smith, T. Hainsworth, Z. Jordan, X. Bell, R. MacCurdy, A seamless workflow for design and fab-rication of multimaterial pneumatic soft actuators, in: 2021 IEEE 17th International Conference on Automation Science and Engineering (CASE), IEEE, 2021, pp. 718–723. [12] A. Nazir, O. Gokcekaya, K. M. M. Billah, O. Ertugrul, J. Jiang, J. Sun, S. Hussain, Multi-material additive manufacturing: A systematic review of design, properties, applications, challenges, and 3d 
+
+36 printing of materials and cellular metamaterials, Materials & Design 226 (2023) 111661. [13] T. Hirano, Modeling and design of micro-structures: focusing on functionally graded materials and future prospects, Frontiers in Materials 12 (2025) 1659727. [14] A. Garg, W. Zheng, R. Raman, L. Li, Machine learning in functionally graded materials and nano fgms: A comprehensive review of predictive modeling for mechanical behavior: A. garg et al., Archives of Computational Methods in Engineering 33 (1) (2026) 533–575. [15] M. Bocciarelli, G. Bolzon, G. Maier, A constitutive model of metal–ceramic functionally graded material behavior: formulation and parameter identification, Computational Materials Science 43 (1) (2008) 16– 26. [16] J. P. Pascon, Large deformation analysis of functionally graded visco-hyperelastic materials, Computers & Structures 206 (2018) 90–108. [17] L. Xue, G. Dui, B. Liu, L. Xin, A phenomenological constitutive model for functionally graded porous shape memory alloy, International journal of engineering science 78 (2014) 103–113. [18] K. Hornik, M. Stinchcombe, H. White, Multilayer feedforward networks are universal approximators, Neural networks 2 (5) (1989) 359–366. [19] L. Lu, P. Jin, G. E. Karniadakis, Deeponet: Learning nonlinear operators for identifying differential equations based on the universal approximation theorem of operators, arXiv preprint arXiv:1910.03193 (2019). [20] J. N. Fuhg, G. Anantha Padmanabha, N. Bouklas, B. Bahmani, W. Sun, N. N. Vlassis, M. Flaschel, P. Carrara, L. De Lorenzis, A Review on Data-Driven Constitutive Laws for Solids, Archives of Com-putational Methods in Engineering 32 (3) (2025) 1841–1883. doi:10.1007/s11831-024-10196-2 .[21] T. Kirchdoerfer, M. Ortiz, Data-driven computational mechanics, Computer Methods in Applied Me-chanics and Engineering 304 (2016) 81–101. doi:10.1016/j.cma.2016.02.001 .[22] S. Tang, G. Zhang, H. Yang, Y. Li, W. K. Liu, X. Guo, MAP123: A data-driven approach to use 1D data for 3D nonlinear elastic materials modeling, Computer Methods in Applied Mechanics and Engineering 357 (2019) 112587. doi:10.1016/j.cma.2019.112587 .[23] X.-L. Luo, J.-Y. Ye, P.-S. Ma, L.-W. Zhang, Data-driven enhanced phase field models for highly accurate prediction of mode i and mode ii fracture, Computer Methods in Applied Mechanics and Engineering 400 (2022) 115535. [24] H.-J. Guo, A data-driven approach to predicting the anisotropic mechanical behaviour of voided single crystals, Journal of the Mechanics and Physics of Solids (2022). [25] D. K. Klein, M. Fern´ andez, R. J. Martin, P. Neff, O. Weeger, Polyconvex anisotropic hyperelasticity with neural networks, Journal of the Mechanics and Physics of Solids 159 (2022) 104703. [26] K. Xu, D. Z. Huang, E. Darve, Learning constitutive relations using symmetric positive definite neural 
+
+37 networks, Journal of Computational Physics 428 (2021) 110072. doi:10.1016/j.jcp.2020.110072 .[27] K. Linka, M. Hillg¨ artner, K. P. Abdolazizi, R. C. Aydin, M. Itskov, C. J. Cyron, Constitutive artificial neural networks: A fast and general approach to predictive data-driven constitutive modeling by deep learning, Journal of Computational Physics 429 (2021) 110010. [28] K. Ciftci, K. Hackl, A physics-informed GAN framework based on model-free data-driven computational mechanics, Computer Methods in Applied Mechanics and Engineering 424 (2024) 116907. doi:10. 1016/j.cma.2024.116907 .[29] J. N. Fuhg, N. Bouklas, On physics-informed data-driven isotropic and anisotropic constitutive mod-els through probabilistic machine learning and space-filling sampling, Computer Methods in Applied Mechanics and Engineering 394 (2022) 114915. [30] J. N. Fuhg, N. Bouklas, R. E. Jones, Stress representations for tensor basis neural networks: alternative formulations to finger–rivlin–ericksen, Journal of Computing and Information Science in Engineering 24 (11) (2024) 111007. [31] V. Tac, F. S. Costabal, A. B. Tepole, Data-driven tissue mechanics with polyconvex neural ordinary differential equations, Computer Methods in Applied Mechanics and Engineering 398 (2022) 115248. [32] X.-L. Luo, C.-C. Lyu, L.-W. Zhang, Physics-informed ensemble learning for robustly extrapolating and revealing fatigue life of composites, Composites Science and Technology (2025) 111302. [33] J. A. Janssen, G. Haikal, E. C. DeCarlo, M. J. Hartnett, M. L. Kirby, A physics-informed general convolutional network for the computational modeling of materials with damage, Journal of Computing and Information Science in Engineering 24 (11) (2024) 111002. [34] X. Luo, J. Huang, L. Shen, H. Wang, Z. Shi, Physics-informed neural networks for constitutive model-ing and multiphysics coupling in viscoelastic materials: Applications to asphalt pavement mechanics, Neural Networks (2026) 108803. [35] K. Garbrecht, M. Aguilo, A. Sanderson, A. Rollett, R. M. Kirby, J. Hochhalter, Interpretable Machine Learning for Texture-Dependent Constitutive Models with Automatic Code Generation for Topological Optimization, Integrating Materials and Manufacturing Innovation 10 (3) (2021) 373–392. doi:10. 1007/s40192-021-00231-6 .[36] S. Yang, M. Levin, G. Anantha Padmanabha, M. Borshevsky, O. Cohen, D. T. Seidl, R. E. Jones, N. Bouklas, N. Cohen, Physics augmented machine learning discovery of composition-dependent con-stitutive laws for 3D printed digital materials, International Journal of Engineering Science 217 (2025) 104381. doi:10.1016/j.ijengsci.2025.104381 .[37] J. Revels, M. Lubin, T. Papamarkou, Forward-mode automatic differentiation in julia, arXiv preprint arXiv:1607.07892 (2016). [38] D. A. Knoll, D. E. Keyes, Jacobian-free newton–krylov methods: a survey of approaches and applica-
+
+38 tions, Journal of Computational Physics 193 (2) (2004) 357–397. [39] S. L. Brunton, J. L. Proctor, J. N. Kutz, Discovering governing equations from data by sparse identifi-cation of nonlinear dynamical systems, Proceedings of the national academy of sciences 113 (15) (2016) 3932–3937. [40] I. A. Baratta, J. P. Dean, J. S. Dokken, M. Habera, J. S. Hale, C. N. Richardson, M. E. Rognes, M. W. Scroggs, N. Sime, G. N. Wells, DOLFINx: the next generation FEniCS problem solving environment, preprint (2023). doi:10.5281/zenodo.10447666 .[41] M. Flaschel, S. Kumar, L. De Lorenzis, Unsupervised discovery of interpretable hyperelastic constitutive laws, Computer Methods in Applied Mechanics and Engineering 381 (2021) 113852. [42] J. N. Fuhg, R. E. Jones, N. Bouklas, Extreme sparsification of physics-augmented neural networks for interpretable model discovery in mechanics, Computer Methods in Applied Mechanics and Engineering 426 (2024) 116973. [43] O. Sigmund, K. Maute, Topology optimization approaches: A comparative review, Structural and multidisciplinary optimization 48 (6) (2013) 1031–1055. [44] X. Yu, J. Griffis, G. Manogharan, A. Panesar, Multi-material additive manufacturing: a computational design perspective, Virtual and Physical Prototyping 20 (1) (2025) e2546671. [45] Z. Li, H. Xu, S. Zhang, J. Cui, X. Liu, Multi-material structures topology optimization for thin-walled tube used by vehicles under static load: A review: Z. li et al., Archives of Computational Methods in Engineering 32 (8) (2025) 4769–4809. [46] X. S. Zhang, G. H. Paulino, A. S. Ramos Jr, Multi-material topology optimization with multiple volume constraints: a general approach applied to ground structures with material nonlinearity, Structural and Multidisciplinary Optimization 57 (1) (2018) 161–182. [47] F. M. Conde, P. G. Coelho, J. M. Guedes, Multi-scale topology optimization of structures with multi-material microstructures using stiffness and mass design criteria, Advances in Engineering Software 187 (2024) 103566. [48] Y. Guo, T. Gang, S. Cheng, Y. Wang, L. Chen, Multi-scale multi-material concurrent topology opti-mization of graded cellular structures, Engineering with Computers 41 (4) (2025) 2737–2764. [49] M. Shimoda, J. Fujita, M. Al Ali, A. Kamiya, Concurrent multiscale and multi-material optimization method for natural vibration design of porous structures, International Journal for Numerical Methods in Engineering 125 (7) (2024) e7424. [50] J. Wu, O. Sigmund, J. P. Groen, Topology optimization of multi-scale structures: a review, Structural and Multidisciplinary Optimization 63 (3) (2021) 1455–1480. [51] P.-S. Ma, X.-C. Liu, X.-L. Luo, S. Li, L.-W. Zhang, Asymptotic homogenization of phase-field fracture model: An efficient multiscale finite element framework for anisotropic fracture, International Journal 
+
+39 for Numerical Methods in Engineering 125 (13) (2024) e7489. [52] I. F. Ituarte, N. Boddeti, V. Hassani, M. L. Dunn, D. W. Rosen, Design and additive manufacture of functionally graded structures based on digital materials, Additive Manufacturing 30 (2019) 100839. 
+
+doi:10.1016/j.addma.2019.100839 .[53] H. Vijayakumaran, J. B. Russ, G. H. Paulino, M. A. Bessa, Consistent machine learning for topology optimization with microstructure-dependent neural network material models, Journal of the Mechanics and Physics of Solids 196 (2025) 106015. doi:10.1016/j.jmps.2024.106015 .[54] M. Seo, S. Min, Novel material representation method via a deep learning model for multi-scale topology optimization, Advances in Engineering Software 174 (2022) 103300. [55] D. Wei, F. Zeng, J. Cui, Y. Wang, Machine learning-based multiscale topology optimization framework for nonlinear materials, International Journal of Mechanical Sciences 314 (2026) 111380. doi:10.1016/ j.ijmecsci.2026.111380 .[56] J. Tan, G. A. Padmanabha, S. J. Yang, N. Bouklas, Towards rapid constitutive model discovery from multi-modal data: Physics augmented finite element model updating (pafemu), arXiv preprint arXiv:2604.07746 (2026). [57] J. Barzilai, J. M. Borwein, Two-Point Step Size Gradient Methods, IMA Journal of Numerical Analysis 8 (1) (1988) 141–148. doi:10.1093/imanum/8.1.141 .[58] E. Holmberg, B. Torstenfelt, A. Klarbring, Stress constrained topology optimization, Structural and Multidisciplinary Optimization 48 (1) (2013) 33–47. doi:10.1007/s00158-012-0880-7 .[59] K. Svanberg, The method of moving asymptotes—a new method for structural optimization, Inter-national Journal for Numerical Methods in Engineering 24 (2) (1987) 359–373. doi:10.1002/nme. 1620240207 .[60] K. Svanberg, A class of globally convergent optimization methods based on conservative convex sepa-rable approximations, SIAM journal on optimization 12 (2) (2002) 555–573. [61] S. G. Johnson, The NLopt nonlinear-optimization package, https://github.com/stevengj/nlopt 
+
+(2007). [62] M. P. Bendsøe, Optimal shape design as a material distribution problem, Structural optimization 1 (4) (1989) 193–202. [63] O. Sigmund, A 99 line topology optimization code written in matlab, Structural and multidisciplinary optimization 21 (2) (2001) 120–127. [64] F. Wang, B. S. Lazarov, O. Sigmund, J. S. Jensen, Interpolation scheme for fictitious domain techniques and topology optimization of finite strain elastic problems, Computer Methods in Applied Mechanics and Engineering 276 (2014) 453–472. doi:10.1016/j.cma.2014.03.021 .[65] S. Deng, H. D. Espinosa, W. Chen, Data-driven multiscale nonlinear topology optimization of func-
+
+40 tionally graded soft composites under large deformations, Computational Mechanics (Dec. 2025). 
+
+doi:10.1007/s00466-025-02730-1 .[66] B. S. Lazarov, O. Sigmund, Filters in topology optimization based on Helmholtz-type differen-tial equations, International Journal for Numerical Methods in Engineering 86 (6) (2011) 765–781. 
+
+doi:10.1002/nme.3072 .[67] F. L. Hammond, J. Weisz, A. A. de la Llera Kurth, P. K. Allen, R. D. Howe, Towards a design optimization method for reducing the mechanical complexity of underactuated robotic hands, in: 2012 IEEE International conference on robotics and automation, IEEE, 2012, pp. 2843–2850. [68] N. D. Mankame, G. Ananthasuresh, Contact aided compliant mechanisms: concept and preliminaries, in: International design engineering technical conferences and computers and information in engineering conference, Vol. 36533, American Society of Mechanical Engineers, 2002, pp. 109–121. [69] O. Faltus, M. Hor´ ak, M. Doˇ sk´ aˇ r, O. Rokoˇ s, Third medium finite element contact formulation for pneumatically actuated systems, Computer Methods in Applied Mechanics and Engineering 431 (2024) 117262. doi:10.1016/j.cma.2024.117262 .[70] P. Wriggers, J. Korelc, Ph. Junker, A third medium approach for contact using first and second order finite elements, Computer Methods in Applied Mechanics and Engineering 436 (2025) 117740. doi: 10.1016/j.cma.2025.117740 .[71] E. M. Arruda, M. C. Boyce, A three-dimensional constitutive model for the large stretch behavior of rubber elastic materials, Journal of the Mechanics and Physics of Solids 41 (2) (1993) 389–412. [72] S. M. Mousavi, J. Mulderrig, B. Talamini, N. Bouklas, A chain stretch-based gradient-enhanced model for damage and fracture in elastomers, Computer Methods in Applied Mechanics and Engineering 444 (2025) 118103. [73] G. L. Bluhm, O. Sigmund, K. Poulios, Internal contact modeling for finite strain topology optimization, Computational Mechanics 67 (4) (2021) 1099–1114. doi:10.1007/s00466-021-01974-x .
+
+41

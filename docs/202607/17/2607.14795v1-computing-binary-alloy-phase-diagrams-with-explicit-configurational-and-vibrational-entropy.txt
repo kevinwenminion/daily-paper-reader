@@ -1,0 +1,676 @@
+Title: Computing binary alloy phase diagrams with explicit configurational and vibrational entropy
+
+URL Source: https://arxiv.org/pdf/2607.14795v1
+
+Published Time: Fri, 17 Jul 2026 01:28:38 GMT
+
+Number of Pages: 22
+
+Markdown Content:
+# Computing binary alloy phase diagrams with explicit configurational and vibrational entropy 
+
+# Sarath Menon 1,2 *, Marvin Poul 2, Tilmann Hickel 3, Jörg Neugebauer 2, Ralf Drautz 1
+
+> 1
+
+ICAMS, Ruhr University Bochum, 44780 Bochum, Germany 
+
+> 2
+
+Max Planck Institute for Sustainable Materials, 40237 Düsseldorf, Germany 
+
+> 3
+
+Bundesanstalt für Materialforschung und -prüfung, 12205 Berlin, Germany 
+
+July 17, 2026 
+
+Abstract. 
+
+Phase stability in multicomponent solid solutions depends on configurational entropy beyond the ideal mixing limit, but capturing it together with vibrational entropy within the same atomistic framework remains challeng-ing. Here, we extend non-equilibrium thermodynamic integration to composition-dependent transformations through an alchemical interpolation of the interactions, combined with Monte Carlo identity exchange moves and molecular dynamics that sample the vibrational and non-ideal configurational entropy along the integration path. We apply the framework to the Au-Cu binary alloy using Atomic Cluster Expansion potentials trained on density functional theory data using the LDA, PBE, and r 2SCAN functionals, and construct composition-temperature phase diagrams directly from atomistic free energies. We find that explicit configurational sampling lowers the AuCu order-disorder transition temperature predicted by the ACE potential trained on LDA data from approximately 810 K to 710 K, closer to the experimental value of 683 K, and substantially widens the stability range of the solid solution. At the same time, the much larger sensitivity to the exchange-correlation functional shows that this level of agreement should not be interpreted as general predictive accuracy. Non-ideal configurational entropy must therefore be sampled explicitly, alongside a careful choice of functional, for a reliable atomistic description of binary phase diagrams. 
+
+# 1. Introduction 
+
+Phase diagrams are central to alloy design and materi-als development [1]. They are typically constructed by combining experimental measurements with thermo-dynamic modeling, as in the CALPHAD approach [2,3]. CALPHAD has proven highly successful for many al-loy systems, particularly when reliable experimental data are available. In many systems of interest, how-ever, experimental information is sparse or unavailable, and a direct route from atomic interactions to phase stability becomes essential [1]. The direct atomistic prediction of phase stability re-quires the calculation of free energies as a function of temperature and composition, typically through ther-modynamic integration and reversible scaling [4 –8]. Efficient implementation of these algorithms [8], com-bined with machine-learning interatomic potentials such as the Atomic Cluster Expansion (ACE) [9, 10], now makes it feasible to cover the long time and length scales required for phase-diagram construction at near density functional theory (DFT) accuracy [11]. Extending these calculations to multicomponent sys-tems introduces a central challenge. Alongside the vi-brational contributions captured by thermodynamic integration, phase stability depends on configurational entropy associated with the distribution of atomic species over lattice sites [12 – 14]. Lattice based methods such as the cluster variation method [15, 16], cluster ex-pansions [17], Monte Carlo sampling [18, 19], and simu-lations in the semi-grand canonical ensemble [20] have established rigorous routes for treating chemical disor-der and non-ideal configurational entropy. In parallel, 
+
+> *Corresponding author: sarath.menon@ruhr-uni-bochum.de
+
+machine learning interatomic potentials have made free energy calculations sufficiently efficient to approach phase diagram construction with near DFT accuracy. They have been used to compute anharmonic free ener-gies, melting temperatures, and composition tempera-ture phase diagrams in automated workflows [11, 21]. For alloys, however, the construction of transferable potentials introduces an additional challenge because the relevant chemical environments vary across compo-sition and phase space. Recent work has therefore em-phasized training strategies that sample diverse chem-ical motifs and enable machine learning potentials to describe alloys over broad composition ranges [16, 21]. Most existing workflows nevertheless make at least one of three simplifications: they fix the composition and perform thermodynamic integration only at that point, they treat configurational entropy at ideal-mixing or lattice-model approximation, or they evaluate con-figurational and vibrational contributions in separate, decoupled steps. To our knowledge, no MLIP-based workflow to date computes full configurational and fully anharmonic vibrational entropy jointly from a sin-gle sampling in which chemical and vibrational degrees of freedom are treated on the same footing and their coupling is retained, while also resolving the composi-tion dependence of the free energy across competing phases. Closing this gap requires combining non-ideal configurational sampling, anharmonic vibrational con-tributions, and composition-dependent free energies within one efficient atomistic workflow. A direct atomistic route is provided by combining thermodynamic integration with hybrid Monte Carlo and molecular dynamics sampling, in which configu-rational and vibrational degrees of freedom are treated 1arXiv:2607.14795v1 [cond-mat.mtrl-sci] 16 Jul 2026 within the same simulation [22]. For construction of phase diagrams, however, such approaches must re-main efficient to cover the large composition tempera-ture space spanned by competing phases. In this work, we extend non-equilibrium thermodynamic integration to composition dependent transformations through an alchemical interpolation of the interactions, combined with atomic identity exchange moves that sample the non-ideal configurational distribution along the inte-gration path. Vibrational and configurational contribu-tions are thereby captured within a single free energy calculation. The method is implemented in an auto-mated workflow that, given an interatomic potential and a set of candidate phases, computes free energies over the relevant temperature composition range and constructs the corresponding phase diagram. Beyond the sampling of configurational entropy, quan-titative phase-diagram predictions also depend on the electronic-structure reference used to train the inter-atomic potential. Phase boundaries are controlled by small free energy differences between compet-ing phases, and systematic errors in the underlying exchange-correlation functional can therefore translate into sizable shifts in transition temperatures and solu-bility limits. We therefore treat the choice of exchange-correlation functional as an explicit part of the analysis and compare phase diagrams obtained from ACE po-tentials trained to LDA, PBE, and r 2SCAN reference data, consistently. We demonstrate the framework on the Au-Cu binary alloy, a system that exhibits order-disorder transitions. Interatomic interactions are described using ACE po-tentials trained on density functional theory data from the LDA, PBE, and r 2SCANexchange-correlation func-tionals, which enables us to assess the sensitivity of the predicted phase diagram to the underlying elec-tronic structure approximation. Using the ACE poten-tial trained on LDA data, we show that explicit con-figurational sampling lowers the AuCu order-disorder transition temperature by approximately 100 K rela-tive to the ideal-mixing approximation, resulting in a value close to the experimental transition temperature of ∼683 K [23], and substantially widens the temper-ature range over which the solid solution is stable, as well as the calculated solubility ranges. This agreement follows from the inclusion of configurational entropy within the ACE-LDA description, but should not be overinterpreted because the predicted melting and or-dering temperatures depend strongly on the choice of exchange-correlation functional, varying by several hundred Kelvins across LDA, PBE, and r 2SCAN, con-sistent with the known over- and underbinding of these approximations [24]. 
+
+# 2. Results 
+
+2.1. Potential validation 
+
+As a first validation of the ACE potentials, we compare their predictions against the convex hulls obtained from the corresponding DFT functionals, as shown in Fig. 1. The convex hull represents the 0 K phase diagram and identifies candidate phases that may compete at finite temperature. For all three functionals considered here, LDA, PBE, and r 2SCAN, the ACE potentials reproduce the phase ordering of the corresponding DFT convex hull. Among the binary compounds, Au 4Cu 2, AuCu, and AuCu 3 appear on the convex hull. A notable exception is the Au 3Cu phase, which appears in the experimental phase diagram but is not predicted to be stable by any of the functionals considered in this work. [25, 26] Prior work found that calculations using hybrid functionals are required to correctly describe the alloy thermodynamics in this system, at significantly increased cost. [25, 27, 28] In addition to the convex hull, we also evaluate further properties, including the elastic constants, energy-volume curves, and phonon dispersion relations, in order to test the transferability of the potentials beyond formation energies alone; these results are provided in the Supplementary Material. Overall, we find excellent agreement for all proper-ties of the potentials with their respective references, despite that none of the compounds are explicitly con-sidered during training set construction. Details of the construction method, ASSYST, are found in sec. 4.5.1 and Ref. [21]. Together with the phase diagrams we present below, this highlights the robustness of the AS-SYST method. 
+
+2.2. Convergence of alchemical transformations 
+
+We next examine the convergence of the proposed methodology for calculating free energy differences as a function of composition. As a representative test case, we consider an alchemical transformation from pure Au in the FCC lattice to an FCC solid solution with xCu = 0.5. This calculation has three independent parameters: the number of MC swap attempts nswap ,the switching time tsw , and the number of MD steps 
+
+nMD between successive swap blocks. We first evaluate the free energy difference for this trans-formation as a function of the number of MC identity exchange moves between Au and Cu. For this purpose, we perform between 10 and 1500 identity exchange attempts per block, with 0.1 ps of MD relaxation time between successive blocks. This corresponds to a to-tal of 5000 to 750000 exchange attempts in each of the forward and reverse switching trajectories. The total switching time is kept fixed at 50 ps for both the for-ward and reverse transformations. The resulting free energy difference for transforming half of the system to Cu is shown in Fig. 2(a). In the figure, the interval within 0.0001 eV/atom of the con-verged value is indicated in dark orange, while the interval within 0.0002 eV/atom is shown in light or-ange. We find that the calculated free energy enters the 0.0002 eV/atom region above ∼50 000 swap attempts and the tighter 0.0001 eV/atom region above ∼200 000 attempts. Based on this analysis, we choose a total of 250000 2Figure 1: Convex hulls of the AuCu system obtained from DFT and reproduced by the corresponding ACE potentials, showing close agreement across all three functionals. (a) ACE-LDA (b) ACE-PBE (c) ACE-r 2SCAN. The compounds Au 4Cu 2, AuCu, and AuCu 3 appear on the convex hull for every functional, while Au 3Cu, which is observed in the experimental phase diagram, is not predicted to be stable by any of them. 
+
+Figure 2: Convergence of the simulation parameters used for the alchemical free energy calculations with MC identity exchange moves. (a) Free-energy difference as a function of the total number of swap moves for the transformation from pure FCC Au to FCC AuCu with xCu = 0.5. The converged free energy difference is shown in dashed dark orange line. A 0.0001 eV/atom interval is shown in dark orange, while 0.0002 eV/atom interval is in light orange. (b) Free-energy difference as a function of switching time for 250000 swap moves. (c) Free-energy difference as a function of MD relaxation time between swap blocks for 250000 swap moves and a switching time of 25 ps. In each panel, the selected parameter value is indicated by the gray dashed line. exchange moves for the production calculations. We note that this convergence conditions are system spe-cific, and would need tuning for a different material system. At this value, the free energy differs from the converged result by only about 0.0001 eV/atom. Such convergence is needed, as even 1 meV/atom difference in free energy can result in more than 50 K change in transition temperatures [11]. This choice provides a suitable compromise between numerical accuracy and computational cost, since further increasing the num-ber of exchange moves leads only to marginal changes in the free energy while substantially increasing the simulation time. With the number of swap moves fixed to the value se-lected above, we next examine the effect of the switch-ing time. For this purpose, we perform calculations with switching times between 2.5 and 50 ps while keep-ing the total number of identity exchange attempts fixed at 250000. The resulting free energy differences are shown in Fig. 2(b). We find that the calculated free energy approaches convergence at around 15 ps, and we therefore choose a switching time of 25 ps for the production calculations. Finally, we investigate the effect of the MD relaxation time between successive blocks of identity exchange attempts. To this end, we vary the number of MD steps between swap blocks from 1 to 25000, while keeping both the total number of exchange attempts and the total switching time fixed. The results are shown in Fig. 2(c). The free energy is insensitive to the MD re-laxation time over the range nMD ≲ 1000 steps, but begins to drift once nMD exceeds a few thousand. In this limit, the swap attempts become too infrequent along the switching trajectory, which leads to insuf-ficient configurational sampling and correspondingly larger errors. 3At the same time, the choice of MD relaxation time has a strong effect on the computational cost. This is because each block of identity exchange attempts requires energy evaluations, whereas the energy dif-ferences for successive swap attempts can be partially reused through caching, i.e., after a successful or at-tempted swap only the environments of the affected atoms need to be reevaluated rather than the full system energy (details in Supplementary Note 1). As a result, grouping more swap attempts between MD segments improves computational efficiency, while for large num-bers of MD steps the overall cost becomes dominated by the MD part of the simulation. Based on this analy-sis, we choose 100 MD steps, corresponding to 0.1 ps of relaxation time between swap blocks. The convergence of the configurational sampling is sys-tem dependent and can vary substantially with the nature of the transformation. In particular, in systems exhibiting demixing or miscibility gaps, a significantly larger number of MC identity exchange moves may be required to obtain converged free energies. In such cases, it is often advantageous to start from a compo-sition that is already close to the target state and for which the free energy is well converged, for example by carrying out a transformation from x = 0.4 to x = 0.5 rather than from x = 0 to x = 0.5. Furthermore, we benchmark the alchemical transforma-tion calculations against semi-grand canonical Monte Carlo with molecular dynamics (SGC-MC/MD) for the Au-Cu FCC solid solution at a chosen temperature, in this case, 700 K. SGC-MC/MD samples the ensem-ble at fixed temperature, pressure, atom count, and chemical-potential difference ∆μ = μAu − μCu , allow-ing the Au fraction X to relax to its equilibrium value at each ∆μ. The free energy of mixing is then recovered by the Legendre transformation of the semi-grand po-tential. The two methods agree on the free energy of mixing to within about 3 meV/atom on average over the entire composition range at 700 K (see Supplemen-tary Note 2). In addition, this provides an opportunity to compare the computational cost of the two approaches. Both SGC-MC/MD and alchemical transformations with the same nswap and nMD , needed at least the same simu-lation time tsw for converged calculations (see Supple-mentary Note 2). The two approaches are complementary, with differ-ent practical trade-offs. Alchemical transformations require a forward and a reverse switching run at each composition (2 ∗ tsw ), whereas SGC-MC/MD obtains a composition from a single run. On the other hand, the active range of the chemical potential in SGC-MC/MD is not known a priori and must be established by a preliminary coarse scan, since at sufficiently negative or positive values of ∆μ the system collapses to a pure element state. The relation between ∆μ and the equilib-rium composition is moreover nonlinear, so an equidis-tant grid in ∆μ does not yield an equidistant grid in 
+
+x, and the chemical potentials of the production runs must be obtained by inverting the initial scan. This can be demanding in systems with narrow single-phase sol-ubility windows, such as AuCu, where small changes in ∆μ produce abrupt changes in x. Alchemical trans-formations, by contrast, allow the target composition to be specified directly, and each integration path re-mains pinned to its reference structure, whereas in SGC-MC/MD a single trajectory can spontaneously phase transform during sampling, so that identifying which phase produced a given (∆μ, x) point can require an explicit order-parameter analysis. The forward and reverse switching also supply a per-point uncertainty estimate from the hysteresis (See Supplementary Note 3). We note that bidirectional scans are likewise needed for SGC-MC/MD in systems with miscibility gaps or competing phases along the transformation path [29]. 
+
+2.3. Order-disorder thermodynamics 
+
+Here, we examine the order-disorder transition in the AuCu system at xCu = 0.5, between the disordered FCC solid solution and the ordered, tetragonal (L1 0) AuCu phase. This transition provides a particularly useful test of the present methodology, since the relative stability of the two phases depends directly on the treatment of configurational entropy. We first calculate the free energy curves of both phases using the ACE-LDA potential, both with and with-out the explicit inclusion of configurational entropy through identity exchange moves. Since the ordered AuCu and the disordered FCC solid solution are struc-turally distinct phases, their free energies are calculated independently, and the crossing of the two curves de-fines a first-order transition. When configurational en-tropy is not included, the predicted transition tempera-ture is approximately 818 K. Upon including configura-tional entropy, the transition temperature decreases to about 721 K, a shift of 97 K relative to the ideal-mixing approximation. This shift demonstrates that explicit configurational sampling has a strong effect on the rela-tive stability of the ordered and disordered phases, and is therefore essential for a quantitative description of the transition. The 721 K value lies close to the experi-mental and CALPHAD-assessed order-disorder tran-sition temperature of ∼683 K [23]; however, this level of agreement should be viewed in the context of the larger functional dependence discussed below rather than as evidence of general predictive accuracy. We note that an uncertainty of 1 meV/atom in the calcu-lated free energies translates into a shift of ∼ 30K in the transition temperature (see Supplementary Note 4). This is smaller than the ∼130 K shift associated with configurational entropy, which therefore is unlikely to be an artifact of the free energy precision. The reduction in transition temperature originates from the additional stabilization of the disordered solid solu-tion when exchange moves are included. In this case, the configurational degrees of freedom are sampled explicitly in the interacting system, so that the free en-ergy of the solid solution is no longer described only through an idealized mixing contribution, but also re-flects the actual energetics of chemically distinct local 4Figure 3: Order-disorder transition in AuCu at xCu = 0.5 between the disordered FCC solid solution and the ordered AuCu phase. (a) Free-energy curves obtained with the ACE-LDA potential, shown with and without configurational sampling through atomic identity-exchange moves. The FCC-MD curve (green) includes only the ideal configurational entropy, whereas the FCC-MCMD curve (orange) includes the full configurational contribution obtained from Monte Carlo sampling. The intersection of the blue and green curves gives the predicted transition temperature under the ideal-mixing approximation, while the intersection of the blue and orange curves gives the transition temperature when configurational effects are accounted for. (b) Free-energy curves obtained with the EAM potential [30]. The intersection of the free energy curves determines the corresponding transition temperature in each case. environments. For comparison, we also calculate the transition tem-perature including configurational entropy using an embedded-atom method (EAM) potential [30]. The EAM transition temperature is substantially lower than the experimental value, but is in close agreement with previous results obtained for the same potential using nested sampling [31]. This comparison shows that the present framework yields results consistent with other approaches that include configurational entropy con-tributions; the residual discrepancy between EAM and experiment originates from the limitations of the model rather than from the methodology. We note that, in the present analysis, the stoichiometric 
+
+AuCu phase is treated as ordered and we do not ex-plicitly account for thermal defects, such as vacancies, that may develop within this phase at elevated temper-atures. This approximation may become less accurate close to the transition, but is entirely restricted to the stoichiometry composition. At off-stoichiometry, we in-clude the identity exchange that sample configurational contributions. Nevertheless, the present methodology, including the temperature-scaling formalism combined with identity exchange moves, can in principle also be extended to sample disorder within the stoichiometric phase itself. 
+
+2.4. Melting transition 
+
+We next consider the melting temperatures, which de-fine the end points of the phase diagram. These are obtained by calculating the free energies of the relevant solid phases and the liquid as a function of temperature, and then identifying the temperature at which the free energies of the two phases are equal. For pure Au, we obtain a melting temperature of 1166 K with the ACE-LDA potential, within few Kelvins of the DFT-LDA reference value of 1181 K [32] but below the experi-mental melting temperature of 1339 K. The choice of exchange-correlation functional has a strong effect on the predicted melting temperature of Au. Using the ACE-PBE and ACE-r 2SCAN potentials, we obtain melt-ing temperatures of 845 K and 886 K, respectively. For pure Cu, the calculated melting temperatures are 1467 K, 1288 K, and 1346 K for the LDA, PBE, and r2SCAN functionals, respectively. These values are again in good agreement with previous DFT-based es-timates, which place the melting temperature at 1494 K for LDA and 1251 K for PBE [33]. Among the func-tionals considered here, the r 2SCAN result is closest to the experimental melting temperature of 1357 K. In con-trast to Au, where LDA performs best, the Cu melting temperature is described most accurately by r 2SCAN, indicating that the ranking of the functionals is not uniform across the elemental end members. Finally, we consider the melting (or T0-, as the solid so-lutions are melting incongruently) temperature of the FCC solid solution at xCu = 0.5. For this composition, we obtain T0-temperatures of 1028 K for LDA, and 884 K for both PBE and r 2SCAN functionals, respectively. For the LDA model, we also compare against the no-swap calculation, in which configurational degrees of freedom are not sampled explicitly through identity ex-change moves. In that case, the predicted melting tem-perature is 951 K. Explicit treatment of configurational entropy therefore improves the agreement with experi-ment (1183 K), although the effect is less pronounced than in the case of the order-disorder transition. This is expected, since at the higher temperatures relevant for melting, the ideal treatment of configurational entropy already provides a more reasonable approximation. 5Figure 4: Melting temperatures of (a) pure Au, (b) pure Cu, and (c) the FCC AuCu solid solution at xCu = 0.5, obtained from the free energy curves of the solid and liquid phases using ACE-LDA. The intersection of the corresponding free energy curves defines the melting temperature in each case. 
+
+2.5. Phase diagrams 
+
+We now compare the complete phase diagrams ob-tained from the atomistic free energy calculations. For each functional, we consider the phases identified on the corresponding convex hull together with the liq-uid phase. The temperature and composition ranges for the individual phases are chosen manually, while the remaining workflow is automated within calphy .Based on these inputs, calphy generates the required temperature-composition grid and performs the free energy calculations for each phase at the relevant state points. For stoichiometric phases, direct nonequilib-rium Hamiltonian interpolation is employed, whereas for off-stoichiometric phases the alchemical transforma-tions described in the Methods section are used. For all phases, we use a temperature grid spacing of 25 K. For the FCC solid solution and the liquid phase, the composition interval is 0.02, while for Au 4Cu 2, AuCu, and AuCu 3 a finer composition interval of 0.01 is em-ployed. The calculations are carried out in a high-throughput manner. At thermodynamic conditions where a phase is no longer metastable, the correspond-ing calculations may fail and are discarded. The re-sulting free energies are then passed to landau , which performs the semi-grandcanonical analysis described in the Methods and constructs the phase diagram. We first consider the phase diagram obtained with the ACE-LDA potential, shown in Fig. 5(a). The calcu-lated diagram reproduces the main topological features of the experimental and CALPHAD-assessed AuCu phase diagram [23]: an FCC solid solution at high tem-perature, three ordered intermetallics on the Au-rich, equiatomic and Cu-rich sides, and a continuous liq-uidus across the composition range. Although the melt-ing temperature of Cu is overestimated due to the un-derlying functional, the order-disorder transition tem-perature as well as the liquidus lines are described well, showing that the present framework is able to recover the main features of the AuCu phase diagram directly from atomistic free energies, without empirical fitting of thermodynamic models. Perhaps the most notable difference from the experimental and CALPHAD phase diagrams is the absence of the Au 3Cu phase. None of the DFT functionals considered here predict Au 3Cu to be stable on the convex hull; instead, Au 4Cu 2 is found as the stable ordered compound on the Au-rich side. We also performed explicit free energy calculations for Au 3Cu and confirmed that it does not become stable at finite temperature within the present description, suggesting that the difference originates already at the level of the underlying energetics rather than from the finite-temperature treatment. We also note that CAL-PHAD descriptions have historically not included the Au 4Cu 2 phase. In Fig. 5(b), we show the corresponding phase diagram obtained with the same ACE-LDA potential but with-out explicit configurational sampling (the no-swap cal-culation; see Methods). Several significant differences are observed. The most important change is the much narrower stability range in temperature of the FCC solid solution. The ideal approximation clearly under-estimates this range. This reflects not only the absence of explicit configurational entropy beyond ideal mix-ing, but also the fact that the energetic contribution associated with local chemical rearrangements is sam-pled more accurately when identity exchange moves are included. Because the non-ideal mixing entropy can only ever be smaller than the ideal one, it follows directly that there is significant, energetically favor-able, enthalpic contributions in the solid solution. Fur-thermore, the solubility ranges of Au 4Cu 2, AuCu, and AuCu 3 are also strongly affected. Without explicit con-figurational sampling, these phases appear much closer to line compounds, whereas the calculations with iden-tity exchange moves recover finite solubility ranges. Explicit configurational sampling is, therefore, essen-tial not only for locating transition temperatures, but also for describing the extent of phase fields in compo-sition space. We finally examine the exchange-correlation functional dependence, which constitutes a central limitation on 6Figure 5: Calculated phase diagrams of AuCu obtained with (a) ACE-LDA, (b) ACE-LDA without explicit configurational sampling (no-swap; ideal-mixing entropy only, see Methods), (c) ACE-PBE, and (d) ACE-r 2SCAN. For comparison, (a) and (b) also show the CALPHAD assessment as dotted lines by [23] [34] using pycalphad [35]. 7the quantitative predictive accuracy of the phase dia-grams. The phase diagrams obtained with ACE-PBE and ACE-r 2SCAN are shown in Fig. 5(c) and Fig. 5(d), respectively. The differences between the functionals are reflected most clearly in the melting temperatures, as discussed in the previous section, and therefore also in the liquidus and solidus lines. Differences are also observed in the order-disorder transition temperatures and in the detailed topology of the phase boundaries. The comparison therefore shows that, in addition to configurational entropy, the choice of the underlying DFT functional has a pronounced impact on the pre-dicted finite-temperature thermodynamics. These dif-ferences are substantially larger than the ∼ 30 K un-certainty associated with a 1 meV/atom free energy precision (see Supplementary Note 4), and therefore re-flect genuine differences between the functionals rather than the free energy precision. Comparing the two ACE-LDA phase diagrams in Fig. 5(a) and (b), only ideal mixing approximation sub-stantially underestimates the stability of the FCC solid solution against both the liquid and the ordered inter-metallics, while both variants overestimate the depth of the liquidus minimum at intermediate compositions relative to the CALPHAD assessment. As discussed above, explicit configurational sampling markedly im-proves the shape of the predicted binodals. Apart from the Au 4Cu 2 phase, which is absent from the CALPHAD description, and the liquidus and solidus on the Cu-rich side, the binodals obtained with ACE-LDA agree well with the CALPHAD assessment up to an approxi-mately constant temperature shift. Finaly, we note that an even more complete description of solubility ranges of the intermetallics may require the explicit inclusion of additional defects, such as vacancies, which we do not include in our framework. 
+
+# 3. Discussion 
+
+In this work, we have developed an atomistic free en-ergy framework for multicomponent materials that explicitly incorporates configurational entropy within thermodynamic integration. By combining nonequilib-rium alchemical transformations with atomic identity exchange moves, the method enables vibrational and configurational contributions to be treated within a sin-gle calculation. The methodology has been implemented in an auto-mated workflow [11, 36] in which the free energy calcu-lations, and the construction of phase diagrams can be carried out in a high-throughput manner. Starting from a given interatomic potential and a set of candidate phases, the workflow automatically evaluates free ener-gies over the relevant temperature-composition range and constructs the corresponding phase diagram. Using AuCu as a representative example, we have ap-plied the method to investigate order-disorder thermo-dynamics, melting transition, and the full composition-temperature phase diagram. Explicit configurational sampling lowers the AuCu order-disorder transition rel-ative to the ideal-mixing approximation. In particular, configurational sampling affects not only the entropic stabilization of disordered phases, but also the effective free energy balance between competing ordered and disordered states through the sampling of chemically distinct local environments. Approaches based only on ideal mixing can therefore miss important features of the phase diagram, especially in systems with strong ordering tendencies or non-ideal chemical correlations. Our methodology also enables the sensitivity of finite temperature thermodynamic predictions to the under-lying DFT description to be assessed systematically. By training ACE potentials on data generated with differ-ent exchange-correlation functionals, we were able to compare how the choice of functional influences melt-ing temperatures, order-disorder transitions, and the re-sulting phase boundaries. Such a direct comparison at the level of full phase diagrams would be prohibitively expensive with DFT alone. A clear outcome of this comparison is that no single functional is uniformly best: LDA describes the Au melting temperature most accurately as compared to experiments, r 2SCAN the Cu melting temperature, and the LDA Cu-rich liquidus is overestimated by ∼120 K owing to the overestimated Cu melting point. This non-uniformity cautions against selecting a functional on the basis of a single property and motivates assessing finite-temperature thermody-namics across functionals. Furthermore, the present approach provides a way to complement existing CALPHAD assessments and experimental phase-diagram data with high-accuracy atomistic predictions based on machine-learning in-teratomic potentials. Rather than replacing these es-tablished approaches, it offers a direct route from the underlying atomic interactions to finite-temperature phase stability, and is therefore particularly useful in systems where experimental information is sparse or where thermodynamic descriptions remain uncertain. In this sense, the framework provides a foundation for predictive phase discovery and accelerated materials design, especially when combined with high through-put workflows and universal machine learning inter-atomic potentials. 
+
+# 4. Methods 
+
+4.1. Non-equilibrium thermodynamic integration for binary alloys 
+
+We show the non-equilibrium thermodynamic integra-tion formalism from Ref. [8] and specialize it to a binary system in which the composition is varied along the integration path at fixed temperature. We consider two Hamiltonians Hi and Hf connected by a linear interpolation, 
+
+H(λ) = ( 1 − λ)Hi + λHf , (1) with interpolation parameter λ ∈ [0, 1 ]. For a switching trajectory of duration tsw , λ(t = 0) = 0 and λ(t =
+
+8Figure 6: Schematic of the alchemical transformation path on a fixed set of sites. Sites designated as type B (red outline) have their interactions continuously interpolated from A (Cu, cyan, λ = 0) to B (Au, orange, λ = 1). (Top) Interpolation at fixed site assignment. This approach, along with ideal mixing approximation, is used for the calculation of phase diagrams which do not include configurational entropy. (Bottom) The same interpolation combined with Monte Carlo identity-exchange moves, which reassign the B label among sites between MD blocks to sample the configurational distribution. 
+
+tsw ) = 1, the dynamic work done by varying λ in time is 
+
+Ws = 
+
+> Ztsw
+> 0
+
+dλ
+
+dt 
+
+∂H(λ)
+
+∂λ dt . (2) Averaging forward and reverse switching trajectories removes the leading dissipative contribution, and the free energy difference between the two endpoints is recovered as 
+
+∆F = Ff − Fi = 12
+
+h
+
+Wsi→ f − Wsf →i
+
+i
+
+. (3) Equations (1)-(3) form the basis of the algorithms im-plemented in calphy [8]. For a binary alloy of species A and B at fixed temper-ature T and total atom number N = NA + NB, with composition x = NB/N and atomic masses mA and mB.The Helmholtz free energy can be written as 
+
+F(T, x) = Fint (T, x)+ kB TN [( 1 − x) ln (1 − x) + x ln x]+ 3kB TN [( 1 − x) ln ΛA + x ln ΛB]+ kB TN (ln N − 1), (4) where ΛA and ΛB are the thermal de Broglie wave-lengths of species A and B, given by ΛA =ph2/(2πmAkB T) and analogously for ΛB. The second line is the ideal-mixing contribution arising from the indistinguishability prefactor 1 /(NA!NB!) in the par-tition function and is independent of the interatomic potential. The third line is the kinetic-energy contribu-tion evaluated with the species-resolved masses. The fourth line, kB TN (ln N − 1), is the Stirling approxima-tion of the indistinguishability factor 1 /N! for the full system. We consider an integration path that connects two bi-nary states at compositions xi and x f , with temperature kept fixed at T throughout. The reference composition 
+
+xi need not correspond to a pure element; the construc-tion applies equally to a pure-A reference ( xi = 0), a pure-B reference ( xi = 1), or any intermediate compo-sition xi ∈ (0, 1 ) for which F(T, xi) is already known. Combining Eq. (1) with Eq. (4), the free energy of the target state is expressed as 
+
+F(T, x f ) = F(T, xi)+ kB TN 
+
+h
+
+(1 − x f ) ln (1 − x f ) + x f ln x f
+
+−(1 − xi) ln (1 − xi) − xi ln xi]+ 3kB TN (x f − xi) [ ln ΛB − ln ΛA]+ 
+
+> Ztsw
+> 0
+
+dλ
+
+dt 
+
+∂U(λ)
+
+∂λ dt , (5) where the analytic mixing and de Broglie terms are eval-uated directly from xi, x f and the species masses, and the work integral is the binary specialization of Eq. (2) along the switching trajectory connecting Hi and Hf .The interaction-dependent term must include sampling of both the atomic positions rrrN and the assignment of species identities σσσN to lattice sites. Standard molecular dynamics samples only rrrN at fixed σσσN ; the extension required to sample σσσN is described in the following section. The simplest and most common choice is xi = 0, since the free energy of a pure element is readily obtained from the standard Frenkel-Ladd path [8]. Once F(T, x f )
+
+has been computed for one composition, it can in turn serve as the reference for a subsequent transformation, enabling a chain of calculations across the composition range that need not return to a pure-element starting point. 9We restrict the discussion to a binary system for clarity. Generalization to k > 2 species is straightforward: the mixing term becomes a multinomial sum ∑i ci ln ci, the de Broglie contribution is summed over all species, and the identity-exchange moves introduced in the next subsection are extended to pick two atoms of any two distinct species. 
+
+4.2. Composition path with identity-exchange sam-pling 
+
+We specify Hi and Hf for the binary transformation and describe how the configurational degrees of free-dom are sampled along the integration path. We first describe the construction for xi = 0, that is, a trans-formation from a pure-A reference state to a binary target at composition x f = x, A → A1−x Bx, at fixed temperature T. The extension to an arbitrary reference composition is summarized at the end of the section. 
+
+4.2.1. Endpoint Hamiltonians 
+
+Both endpoints are simulated on the same set of N
+
+atomic sites and with the same assignment of identi-ties matching the target composition: NA = ( 1 − x)N
+
+atoms are assigned identity A and NB = xN atoms are assigned identity B, distributed randomly over the lattice. The atomic masses mA and mB are assigned according to the identities and remain fixed throughout the simulation. The two endpoint Hamiltonians differ only in how the identities enter the potential: • Hi: all interactions are evaluated with the pure-
+
+A potential, Ui(rrrN ) = U(A)(rrrN ), so that the B
+
+atoms are present in name only and do not feel any chemistry-specific interaction. • Hf : interactions are evaluated with the full binary potential and the assigned identities, 
+
+Uf (rrrN , σσσN ) = U(AB )(rrrN , σσσN ).Along the integration path the interpolated potential is 
+
+U(λ) = ( 1 − λ)Ui + λUf . (6) Physically, the NB atoms designated as species B begin (at λ = 0) interacting exactly as A atoms and are gradu-ally transformed into B atoms as λ → 1. The path thus slowly converts NB of the A atoms into B, as shown in Fig. 6. This continuous transformation of the B identity is implemented in LAMMPS through the fix adapt in-terface to pair styles. Keeping the masses fixed during the integration ensures that the kinetic-energy contri-bution at each value of λ is evaluated with the correct mass distribution, while the analytic de Broglie term in Eq. (5) accounts for the difference between the reference and target compositions. For a transformation between two arbitrary binary com-positions xi and x f , the path slowly converts (x f − xi)N
+
+atoms from A into B (for x f > xi), leaving the remain-ing atoms unchanged. Therefore, the same construction applies with a minor adjustment that the identities and masses are assigned according to the target composi-tion x f , but at λ = 0 the potential treats only a subset of the atoms as B, corresponding to the reference compo-sition xi. The de Broglie correction in Eq. (5) accounts for the corresponding kinetic-energy mismatch, and all subsequent sampling considerations carry over un-changed. 
+
+4.2.2. Configurational sampling 
+
+At each λ ∈ (0, 1 ), the canonical ensemble defined by 
+
+U(λ) involves both atomic positions rrrN and identity assignments σσσN at fixed (NA, NB). To sample σσσN within the non-equilibrium switching protocol, we perform atomic identity-exchange moves between molecular-dynamics segments, as shown in bottom panel of Fig. 6. A trial swap is constructed by picking one atom of type 
+
+A and one of type B at random and exchanging their species identities at fixed positions and momenta. The swap is accepted or rejected according to the standard Metropolis criterion [20, 37]. 
+
+4.2.3. Combined MD/MC switching protocol 
+
+The combined molecular dynamics / Monte Carlo non-equilibrium switching protocol is summarized in Algo-rithm 1 and is controlled by three parameters: the total number of identity-exchange attempts per switching trajectory nswap , the switching time tsw , and the num-ber of MD steps nMD between successive swap blocks. The convergence of the protocol with respect to these parameters is reported in the Results section. 
+
+Algorithm 1 Alchemical sampling with identity-exchange moves  
+
+> 1:
+
+assign identities: NA = ( 1 − x)N as A, NB = xN 
+
+as B 
+
+> 2:
+
+set up Hi (pure-A potential) and Hf (binary A-B
+
+potential)  
+
+> 3:
+
+for n independent runs do  
+
+> 4:
+
+equilibrate at λ = 0 for time teq  
+
+> 5:
+
+nblock = ⌈tsw /(nMD ∆t)⌉ 
+
+> 6:
+
+nsw/block = nswap /nblock  
+
+> 7:
+
+for k = 1, . . . , nblock do  
+
+> 8:
+
+run nMD MD steps with U(λ), ramping λ
+
+continuously at rate ˙ λ = 1/ tsw  
+
+> 9:
+
+accumulate Wsi→ f from Eq. (2)  
+
+> 10:
+
+attempt nsw/block identity-exchange moves at the current λ; accept or reject by the Metropolis criterion  
+
+> 11:
+
+end for  
+
+> 12:
+
+equilibrate at λ = 1 for time teq  
+
+> 13:
+
+repeat the loop in reverse to accumulate Wsf →i 
+
+> 14:
+
+end for  
+
+> 15:
+
+∆F = 12 ⟨Wsi→ f − Wsf →i⟩ 
+
+> 16:
+
+evaluate F(T, x) from Eq. (5) using the analytic mix-ing and de Broglie terms Starting from a reference state at composition xi with known free energy [8], Algorithm 1 provides the free energy of the target binary state at temperature T and 10 composition x f with both vibrational and configura-tional degrees of freedom sampled within a single cal-culation. 
+
+4.3. Phase diagram construction from atomistic free energies 
+
+Given the Helmholtz free energy per atom f (c, T) of competing phases at fixed composition c and tempera-ture T, phase stability can be determined by transform-ing to the semi-grand potential. For a binary alloy, this potential is defined as 
+
+ϕ(∆μ, T) = min  
+
+> c
+
+{ f (c, T) − c ∆μ} , (7) where ∆μ = μAu − μCu is the chemical potential dif-ference between the two species. The stable phase at given (∆μ, T) is the one with the lowest value of ϕ, the semi-grand potential. Equation (7) corresponds to a Legendre transformation of the Helmholtz free energy with respect to compo-sition. This formulation is equivalent to the common tangent construction in (c, T) space, but allows for a direct and numerically stable determination of phase stability on a grid of (∆μ, T) values. For a set of candidate phases {ϕi}, we independently evaluate the semi-grand potential for each phase. Phase boundaries are determined by identifying values of 
+
+(∆μ, T) at which two phases yield equal ϕ, correspond-ing to first-order transitions. Numerical root searches are performed to refine the transition lines. The corresponding coexistence compositions in (c, T)
+
+space are obtained from the thermodynamic identity 
+
+c(∆μ, T) = − ∂ϕ (∆μ, T)
+
+∂∆μ . (8) The resulting coexistence points are mapped back to composition-temperature space to construct the phase diagram. This procedure enables a consistent construc-tion of binary phase diagrams directly from atomisti-cally computed free energies. 
+
+4.4. Workflows for phase diagram construction 
+
+The complete procedure for constructing phase dia-grams from atomistic free energies is automated in a high-throughput workflow. For a binary alloy system, the required user inputs are limited to: (i) the inter-atomic potential, (ii) the set of candidate phases to be considered, and (iii) the temperature and composition ranges for each phase over which the free energies are to be calculated. All subsequent steps are performed automatically. For each phase and composition, the workflow pro-ceeds as follows. First, equilibrium structural proper-ties are determined in the isothermal-isobaric ensemble. The equilibrium volume is obtained from NPT simu-lations at the target temperature. For solid phases, the mean-squared displacements ⟨(∆r)2⟩ are evaluated to determine the harmonic reference parameters required for the Einstein crystal construction. For liquid phases, the equilibrium density is determined and a suitable reference Hamiltonian is defined accordingly. Using these quantities, a reference Hamiltonian Hi is constructed and the corresponding reference free en-ergy is evaluated. Thermodynamic integration is then performed to obtain the free energy of the interacting system at the desired temperature and composition, fol-lowing the formalism described in Secs. 4.1 and 4.2. The free energy calculations are implemented in the calphy 
+
+package [8], which provides automated reference con-struction, thermodynamic integration, and statistical averaging. The resulting free energies F(T, x) for all candidate phases are subsequently processed to determine phase stability using the semi-grandcanonical formulation de-scribed in Sec. 4.3. The numerical evaluation of the Leg-endre transformation, identification of phase bound-aries, and mapping of coexistence compositions are performed using the landau package [21], which im-plements the semi-grandcanonical minimization and root-search procedures required for constructing binary phase diagrams. The separation between calphy and landau enables a modular workflow in which free energy computation and phase stability analysis can be performed indepen-dently. This structure facilitates extension to additional alloy systems and candidate phases without modifica-tion of the underlying formalism. 
+
+4.5. ACE potentials for the AuCu system 
+
+Interatomic interactions are modeled using a machine-learning interatomic potential constructed within the Atomic Cluster Expansion (ACE) framework [9, 10]. ACE expresses the total energy as a linear expansion in symmetry-adapted polynomial basis functions of local atomic environments, providing a systematically im-provable and transferable representation of many-body interactions. When trained on density functional the-ory data, ACE potentials retain ab initio accuracy while enabling molecular dynamics simulations over the time and length scales required for free energy calculations. 
+
+4.5.1. Training data generation with ASSYST 
+
+Training data is generated with the ASSYST method as described in Ref. [21]. It samples training structures from all possible space groups and applies multiple steps of relaxations before randomly sampling struc-tures in the vicinity around these minima. Notably, the structures contain very few atoms, which allows us to relabel structures with energies and forces from different functionals very efficiently. The entire dataset consists of around 32000 structures with 5 atoms per cell on average. The complete list of ASSYST param-eters used for structure generation is given in Table 1. 11 Table 1: Input parameters used for generating the AuCu training dataset with the ASSYST workflow. Step parameter value Crystals Au #Atoms total < 8#Samples 841 Cu #Atoms total < 8#Samples 841 Au/Cu #Atoms/element 1,2,3,4,6 total < 8#Samples 1335 Relaxation ntrace 2Vibrational σrattle 0.5 Å 
+
+nrattle 4Elastic ϵhydro 0.8 
+
+ϵshear 0.2 
+
+nstretch 2
+
+4.5.2. ACE hyperparameters 
+
+ACE potentials were fitted with 1000 functions per ele-ment, an outer cutoff of 6.2 Å, and a linear and Finnis-Sinclair output layer. Structures were weighted by their distance from the training data convex hull. The rela-tive weight of forces to energies was set as 10 %. We used L1-, and L2-norm regularization on the potential coefficients and all three available radial regulariza-tion schemes implemented in pacemaker [10], all with regularization weights of 10 −8. Training proceeded ac-cording to the body-ordered ladder scheme, in steps of 50 basis functions or 5 % of the basis size, whichever is larger. Each ladder step was run for a maximum of 1000 steps. Core-repulsion is handled by switching smoothly to a ZBL potential in the range of 1.5-1.7 Å. The exact location of the cross-over point depends on each po-tential and was chosen to ensure continuously positive curvature of the pair interactions at close distances. 
+
+4.5.3. Exchange-correlation functionals 
+
+The choice of exchange-correlation functional is a key factor in the accuracy of DFT calculations. The Local Density Approximation (LDA) [38] and the Generalized Gradient Approximation (GGA) in the PBE parametrization [39] frequently show opposite trends for equilibrium properties of solids, with LDA overbinding and PBE underbinding, e.g. [40] [24] [41]. Similar trends are also reflected in thermodynamic properties such as melting temperatures [33]. In the case of Au and, in particular, the mixing enthalpies of AuCu, semi-local functionals are known to be especially challenging [25 –28]. In Au, LDA has been shown [42] to yield very good results, on par with much more expensive Random Phase Approximation (RPA) calcu-lations. The more recent SCAN functional [43], and its regularized variant r 2SCAN [44], have been shown to improve the description of lattice parameters and mixing enthalpies compared to earlier semi-local func-tionals. Here, we exploit the efficiency of the methods developed for potential fitting and free energy calcu-lations to examine whether this improved description also persists at elevated temperatures and in the result-ing phase boundaries, which would be prohibitively expensive to assess using direct DFT calculations alone. For this purpose, we parameterize separate ACE po-tentials for each functional, denoted ACE-LDA, ACE-PBE, and ACE-r 2SCAN, using DFT datasets gener-ated consistently within the corresponding exchange-correlation approximation. This enables a direct com-parison of how the underlying functional influences the predicted thermodynamics through the resulting ACE potentials. The quality of the fits is assessed against the corresponding DFT reference data, and detailed bench-marks, including energy and force errors, are provided in the Supplementary Material. 
+
+# 5. Data availability 
+
+The DFT training data and the resulting ACE potentials generated and analyzed during the current study are available from this repository [45]. 
+
+# 6. Code availability 
+
+The calculations reported in this work were carried out using the calphy package for automated free energy calculations and the landau package for phase-stability analysis and phase-diagram construction. ACE inter-atomic potentials were fitted using pacemaker .
+
+# References 
+
+[1] Chew, P. Y., and Reinhardt, A. Phase diagrams— why they matter and how to predict them. The Journal of Chemical Physics , 158 (3), 030902, January 2023. doi:10.1063/5.0131028. [2] Kaufman, L., and Cohen, M. The Martensitic Transformation in the Iron-Nickel System. JOM ,
+
+8(10), 1393–1401, 1956. doi:10.1007/BF03377892. [3] Bigdeli, S., Zhu, L.-F., Glensk, A., et al. An insight into using dft data for cal-phad modeling of solid phases in the third generation of calphad databases, a case study for al. Calphad , 65 , 79–85, 2019. doi:https://doi.org/10.1016/j.calphad.2019.02.008. [4] Watanabe, M., and Reinhardt, W. Direct dynami-cal calculation of entropy and free energy by adia-batic switching. Phys. Rev. Lett. , 65 (26), 3301, 1990. doi:10.1103/PhysRevLett.65.3301. [5] de Koning, M., Antonelli, A., and Yip, S. Optimized Free-Energy Evaluation Using a Single Reversible-Scaling Simu-lation. Phys. Rev. Lett. , 83 (20), 3973, 1999. doi:10.1103/PhysRevLett.83.3973. [6] Grabowski, B., Ismer, L., Hickel, T., et al. Ab ini-tio up to the melting point: Anharmonicity and vacancies in aluminum. Phys. Rev. B , 79 , 134106, 2009. doi:10.1103/PhysRevB.79.134106. 12 [7] Freitas, R., Asta, M., and de Koning, M. Nonequi-librium free-energy calculation of solids using LAMMPS. Comput. Mater. Sci , 112 , 333, 2016. doi:10.1016/j.commatsci.2015.10.050. [8] Menon, S., Lysogorskiy, Y., Rogal, J., et al. Auto-mated free-energy calculation from atomistic sim-ulations. Phys. Rev. Materials , 5(10), 103801, 2021. doi:10.1103/PhysRevMaterials.5.103801. [9] Drautz, R. Atomic cluster expansion for accurate and transferable interatomic poten-tials. Phys. Rev. B, 99 (1), 014104, 2019. doi:10.1103/PhysRevB.99.014104. [10] Lysogorskiy, Y., van der Oord, C., Bochkarev, A., et al. Performant implementation of the atomic cluster expansion (PACE) and application to cop-per and silicon. Npj Comput. Mater. , 7(1), 97, 2021. doi:10.1038/s41524-021-00559-9. [11] Menon, S., Lysogorskiy, Y., Knoll, A. L. M., et al. From electrons to phase diagrams with machine learning potentials using pyiron based automated workflows. npj Computational Materials , 10 (1), 261, 2024. doi:10.1038/s41524-024-01441-0. [12] Walsh, F., Abu-Odeh, A., and Asta, M. Reconsid-ering short-range order in complex concentrated alloys. MRS Bulletin , 48 (7), 753–761, Jul 2023. doi:10.1557/s43577-023-00555-y. [13] Sundman, B., Chen, Q., and Du, Y. A review of calphad modeling of ordered phases. Journal of Phase Equilibria and Diffusion , 39 (5), 678–693, Oct 2018. doi:10.1007/s11669-018-0671-y. [14] Chen, X., Wang, Q., Cheng, Z., et al. Direct obser-vation of chemical short-range order in a medium-entropy alloy. Nature , 592 (7856), 712–716, Apr 2021. doi:10.1038/s41586-021-03428-z. [15] Sanchez, J. M., and Becker, J. D. The role of the cluster variation method in the first principles calculation of phase diagrams. Progress of Theo-retical Physics Supplement , 115 , 131–145, 01 1994. doi:10.1143/PTPS.115.131. [16] Sheriff, K., Xiao, D. Z., Cao, Y., et al. Machine learning potentials for modeling alloys across com-positions. Science Advances , 12 (25), eaea9951, June 2026. doi:10.1126/sciadv.aea9951. [17] van de Walle, A., and Ceder, G. Automat-ing first-principles phase diagram calculations. 
+
+Journal of Phase Equilibria , 23 (4), 348, Aug 2002. doi:10.1361/105497102770331596. [18] Kofke, D. A., and Glandt, E. D. Monte carlo simula-tion of multicomponent equilibria in a semigrand canonical ensemble. Molecular Physics , 64 (6), 1105– 1131, 1988. doi:10.1080/00268978800100743. [19] Kranendonk, W., and Frenkel, D. Free energy cal-culations for solid solutions by computer simu-lations. Molecular Physics , 72 (3), 699–713, 1991. doi:10.1080/00268979100100511. [20] Sadigh, B., Erhart, P., Stukowski, A., et al. Scal-able parallel Monte Carlo algorithm for atomistic simulations of precipitation in alloys. Phys. Rev. B ,
+
+85 (18), 2012. doi:10.1103/physrevb.85.184203. [21] Poul, M., Huber, L., and Neugebauer, J. Auto-mated generation of structure datasets for machine learning potentials and alloys. npj Computational Materials , 11 (1), 174, Jun 2025. doi:10.1038/s41524-025-01669-4. [22] Li, Z., and Scandolo, S. Efficient determina-tion of free energies of non-ideal solid solutions via hybrid Monte Carlo simulations. Computer Physics Communications , 304 , 109307, November 2024. doi:10.1016/j.cpc.2024.109307. [23] Sundman, B., Fries, S. G., and Oates, W. A thermodynamic assessment of the au-cu system. Calphad , 22 (3), 335–354, 1998. doi:https://doi.org/10.1016/S0364-5916(98)00034-0. [24] Csonka, G. I., Perdew, J. P., Ruzsinszky, A., et al. Assessing the performance of recent density func-tionals for bulk solids. Phys. Rev. B , 79 , 155107, Apr 2009. doi:10.1103/PhysRevB.79.155107. [25] Zhang, Y., Kresse, G., and Wolverton, C. Nonlocal first-principles calculations in cu-au and other in-termetallic alloys. Phys. Rev. Lett. , 112 , 075502, Feb 2014. doi:10.1103/PhysRevLett.112.075502. [26] Tian, L.-Y., Levämäki, H., Ropo, M., et al. Exchange-correlation catastrophe in cu-au: A chal-lenge for semilocal density functional approxi-mations. Phys. Rev. Lett. , 117 , 066401, Aug 2016. doi:10.1103/PhysRevLett.117.066401. [27] Levämäki, H., Tian, L., Kokko, K., et al. Gradient-level and nonlocal density functional descrip-tions of cu-au intermetallic compounds. The Eu-ropean Physical Journal B , 91 (6), 128, Jun 2018. doi:10.1140/epjb/e2018-90166-9. [28] Nepal, N. K., Adhikari, S., Bates, J. E., et al. Treating different bonding situations: Revisit-ing au-cu alloys using the random phase ap-proximation. Physical Review B , 100 (4), 2019. doi:10.1103/physrevb.100.045135. [29] Mishin, Y. Atomistic modeling of the 
+
+γ and γ′-phases of the ni–al system. 
+
+Acta Materialia , 52 (6), 1451–1467, 2004. doi:https://doi.org/10.1016/j.actamat.2003.11.026. [30] Gola, A., and Pastewka, L. Embedded atom method potential for studying mechanical proper-ties of binary Cu–Au alloys. Modelling Simul. Mater. Sci. Eng. , 26 (5), 055006, 2018. doi:10.1088/1361-651X/aabce4. [31] Baldock, R. J. N., Bernstein, N., Salerno, K. M., et al. Constant-pressure nested sampling with atomistic dynamics. Phys. Rev. E , 96 (4), 043311, 2017. doi:10.1103/PhysRevE.96.043311. 13 [32] Weck, G., Recoules, V., Queyroux, J.-A., et al. Determination of the melting curve of gold up to 110 gpa. Phys. Rev. B , 101 , 014106, Jan 2020. doi:10.1103/PhysRevB.101.014106. [33] Zhu, L.-F., Grabowski, B., and Neugebauer, J. Efficient approach to compute melting prop-erties fully from ab initio with application to cu. Phys. Rev. B, 96 , 224202, Dec 2017. doi:10.1103/PhysRevB.96.224202. [34] Otis, R., and Liu, Z.-K. pycalphad: Calphad-based computational thermodynamics in python. In 
+
+Zentropy , pp. 373–392, Jenny Stanford Publishing, 2024. doi:10.1201/9781003514466-18. [35] Otis, R., and Liu, Z.-K. pycalphad: Calphad-based computational thermodynamics in python. Journal of Open Research Software , 2017. doi:10.5334/jors.140. [36] Janssen, J., Surendralal, S., Lysogorskiy, Y., et al. pyiron: An integrated development environment for computational materials science. 
+
+Computational Materials Science , 163 , 24 – 36, 2019. doi:https://doi.org/10.1016/j.commatsci.2018.07.043. [37] Metropolis, N., Rosenbluth, A. W., Rosenbluth, M. N., et al. Equation of state calculations by fast computing machines. The Journal of Chemical Physics , 21 (6), 1087–1092, 06 1953. doi:10.1063/1.1699114. [38] Perdew, J. P., and Zunger, A. Self-interaction cor-rection to density-functional approximations for many-electron systems. Phys. Rev. B , 23 , 5048–5079, May 1981. doi:10.1103/PhysRevB.23.5048. [39] Perdew, J. P., Burke, K., and Ernzerhof, M. Generalized gradient approximation made sim-ple. Phys. Rev. Lett. , 77 , 3865–3868, Oct 1996. doi:10.1103/PhysRevLett.77.3865. [40] Staroverov, V. N., Scuseria, G. E., Tao, J., et al. Tests of a ladder of density functionals for bulk solids and surfaces. Phys. Rev. B , 69 , 075102, Feb 2004. doi:10.1103/PhysRevB.69.075102. [41] Zhang, G.-X., Reilly, A. M., Tkatchenko, A., et al. Performance of various density-functional approx-imations for cohesive properties of 64 bulk solids. 
+
+New Journal of Physics , 20 (6), 063020, jun 2018. doi:10.1088/1367-2630/aac7f0. [42] Grabowski, B., Wippermann, S., Glensk, A., et al. Random phase approximation up to the melt-ing point: Impact of anharmonicity and nonlo-cal many-body effects on the thermodynamics of au. Phys. Rev. B , 91 , 201103(R), May 2015. doi:10.1103/PhysRevB.91.201103. [43] Sun, J., Ruzsinszky, A., and Perdew, J. P. Strongly constrained and appropriately normed semilocal density functional. Phys. Rev. Lett. , 115 , 036402, Jul 2015. doi:10.1103/PhysRevLett.115.036402. [44] Bartók, A. P., and Yates, J. R. Regularized scan functional. The Journal of Chemical Physics , 150 (16), 161101, 04 2019. doi:10.1063/1.5094646. [45] of Thermodynamic Properties, A. S., Menon, S., Poul, M., et al. Cuau (revision 84ff9f0), 2026. doi:10.57967/hf/9602. 14 Supplementary Material: Computing binary alloy phase diagrams with explicit configurational entropy 
+
+# Sarath Menon 1,2 *, Marvin Poul 2, Tilmann Hickel 3, Jörg Neugebauer 2, Ralf Drautz 1
+
+> 1
+
+ICAMS, Ruhr University Bochum, 44801 Bochum, Germany 
+
+> 2
+
+Max Planck Institute for Sustainable Materials, 40237 Düsseldorf, Germany 
+
+> 3
+
+Bundesanstalt für Materialforschung und -prüfung, 12205 Berlin, Germany 
+
+July 17, 2026 
+
+# 1. Local-energy evaluation of identity-1
+
+# exchange moves 2
+
+The combined MD/MC switching protocol attempts a 3
+
+large number of identity-exchange moves along each 4
+
+transformation path, and the evaluation of the energy 5
+
+change associated with every trial swap dominates the 6
+
+overall cost. Here we describe how this cost is reduced 7
+
+from a scaling linear in the system size to one indepen-8
+
+dent of it. The corresponding implementation is pro-9
+
+vided in a customized version of LAMMPS [1], avail-10 
+
+able at https://github.com/thermoatoms/lammps .11 
+
+A trial identity-exchange move exchanges the species 12 
+
+identities σa and σb of two atoms a and b at fixed posi-13 
+
+tions and momenta, and is accepted with the Metropo-14 
+
+lis probability 15 
+
+Pacc = min 
+
+h
+
+1, e−β∆Ei
+
+, ∆E = E(σσσ′) − E(σσσ), (1) 16 
+
+where σσσ and σσσ′ denote the identity configurations be-17 
+
+fore and after the swap and β = 1 /kB T. Only the 18 
+
+energy difference ∆E enters the acceptance criterion; 19 
+
+the forces are not required and are evaluated only on 20 
+
+the molecular-dynamics integration steps. This avoids 21 
+
+the full force evaluation that a standard MC step would 22 
+
+otherwise trigger after each trial move, which for many-23 
+
+body machine-learning potentials such as ACE consti-24 
+
+tutes the dominant cost. 25 
+
+The key observation is that ∆E is a strictly local quantity. 26 
+
+For a potential expressed as a sum of per-atom site 27 
+
+energies, 28 
+
+E(σσσ) = 
+
+> N
+
+# ∑
+
+> i=1
+
+εi
+
+ {rrrj, σj}j∈N i
+
+ , (2) 29 
+
+where εi depends only on the atoms in the neighbor 30 
+
+shell Ni of atom i within the cutoff rc, a swap of the 31 
+
+identities of atoms a and b changes εi only for those 32 
+
+atoms whose neighbor shell contains a or b. Defining 33 
+
+the affected set 34 
+
+A = {a, b} ∪ { i : a ∈ N i or b ∈ N i }, (3) 35 
+
+the energy difference reduces to a sum over A alone, 36 
+
+∆E = ∑
+
+> i∈A
+
+εi(σσσ′) − εi(σσσ) . (4) 37 
+
+The total energy is maintained as a cached quantity 38 
+
+and updated incrementally by ∆E after each accepted 39 
+
+> *Corresponding author: sarath.menon@ruhr-uni-bochum.de
+
+move, so that no global energy evaluation is performed 40 
+
+during the swap sequence. Since |A| is bounded by the 41 
+
+local coordination and is independent of N, the cost per 42 
+
+trial swap is reduced from O(N) to O(1). The set A is 43 
+
+constructed from a full neighbor list, which identifies 44 
+
+every atom i that has a or b as a neighbor. 45 
+
+For potentials in which εi is an explicit function of the 46 
+
+local environment, such as ACE, Eq. (3) with the first 47 
+
+coordination shell captures the change exactly. We ver- 48 
+
+ified that the local and full evaluations yield identical 49 
+
+free energy differences to within statistical uncertainty, 50 
+
+confirming that the optimization introduces no system- 51 
+
+atic error. 52 
+
+# 2. Comparison with SGC-MC/MD 53 
+
+To benchmark the alchemical transformation approach, 54 
+
+we compare it against semi-grand canonical Monte 55 
+
+Carlo / molecular dynamics (SGC-MC/MD) simula- 56 
+
+tions of the AuCu FCC solid solution at 1000 K. The 57 
+
+convergence of the SGC-MC/MD sampling is shown 58 
+
+in Figs. 1 and 2 for a representative set of compositions 59 
+
+spanning the full range. 60 
+
+The calculated free energy as well as the free energy of 61 
+
+mixing from the SGC-MC/MD calculations at 1000 K, 62 
+
+and the comparison with alchemical transformations is 63 
+
+shown in Fig. 3 (a) and (b), respectively. 64 
+
+# 3. Dissipation in alchemical transformations 65 
+
+Each alchemical free energy difference is obtained from a forward (increase Au composition in Cu) and a re-verse (decrease Au composition in Cu) switching run. Following the nonequilibrium thermodynamic integra-tion formalism [2], the irreversible work accumulated along each direction, Wfwd and Wbwd , combines into the reversible free energy difference 
+
+∆F = 12 (Wfwd − Wbwd ) ,while their sum measures the dissipated heat, i.e. the departure from a quasi-static path, 
+
+q = 12 (Wfwd + Wbwd ) .Because the dissipation enters Wfwd and Wbwd with 66 
+
+opposite sign in ∆F, the bidirectional average cancels it 67 
+
+to leading order. 68 
+
+Figure 4 shows q for the Cu–Au alchemical transfor- 69 
+
+1Figure 1: Convergence of the Au fraction xAu in the SGC-MC/MD simulations of the AuCu FCC solid solution at 700 K, shown as a function of the number of identity-exchange (swap) moves. Each panel corresponds to a different target composition, ranging from xAu = 0.113 to xAu = 0.903. The gray line shows the instantaneous value, the blue line the cumulative running average, and the horizontal line the converged mean obtained at the end of the run. In all cases the running average settles onto the converged mean within the simulated number of swaps. 2Figure 2: Convergence of the semi-grand canonical potential ϕ (in eV/atom) in the SGC-MC/MD simulations of the AuCu FCC solid solution at 700 K, shown as a function of the number of identity-exchange (swap) moves, for the same compositions as in Fig. 1. The gray line shows the instantaneous value and the blue line the cumulative running average; the horizontal line indicates the converged mean obtained at the end of the run. The running average settles onto the converged mean in every panel, confirming that the SGC-MC/MD sampling is well equilibrated at the chosen number of swaps. 3Figure 3: (a) free energy of mixing for the AuCu FCC solid solution at 1000 K by both alchemical transformations and SGC-MC/MD calculations. (b) free energy of the AuCu FCC solid solution at 1000 K by both alchemical transformations and SGC-MC/MD calculations. A temperature of 1000 K was chosen since the solid solution is stable across the range to enable comparison of both methods. Both methods agree within RMSE of 3.7 meV/atom. mations at 1000 K. It remains below 0.5 meV/atom at 70 
+
+every composition. 71 
+
+Figure 4: Per-point switching dissipation q for the Cu–Au composition-scaling transformations at 1000 K, computed from the forward and reverse switching runs at each composition xAu . The dissipation stays below 0.5 meV/atom throughout. 
+
+# 4. Sensitivity of transition temperatures to 72 
+
+# free energy uncertainty 73 
+
+To assess how uncertainties in the computed free ener-74 
+
+gies propagate to the transition temperatures, we per-75 
+
+formed a first order sensitivity analysis. At the phase 76 
+
+transition, the two competing phases satisfy Gα(T0) = 77 
+
+Gβ(T0), where T0 is the transition temperature. The free 78 
+
+energy difference is ∆G(T) = Gα(T) − Gβ(T). Adding 79 
+
+an offset δ to one phase shifts ∆G, displacing the cross-80 
+
+ing to T0 + ∆T. To first order in δ, 81 
+
+∆T = δ
+
+|d∆G/dT |T0
+
+= δ
+
+|∆S| (5) 82 
+
+where ∆S is the entropy difference between the two 83 
+
+phases at the transition. For a free energy uncertainty 84 
+
+of δ = 1 meV/atom per phase, considering the errors in 85 
+
+the two phases as statistically independent, the uncer- 86 
+
+tainty in the difference ∆G is σ∆G =
+
+q
+
+σ2 
+
+> α
+
++ σ2 
+
+> β
+
+= √2δ, 87 
+
+giving a propagated uncertainty ∆T = √2δ/|∆S|. 88 
+
+Therefore, a noise of 1 meV/atom per phase leads to 89 
+
+melting points uncertainty of approximately ±15˘25 K, 90 
+
+while the FCC solid solution to AuCu order–disorder 91 
+
+transition is more sensitive ( ±29 K). In all cases these 92 
+
+values are substantially smaller than the spread arising 93 
+
+from the choice of exchange–correlation functional, as 94 
+
+well as the effects of configurational entropy. 95 
+
+# 5. Fitting Errors 96 
+
+All three potentials fit the training set very well, with 97 
+
+mean absolute errors (MAE) of 5 m eV and root mean 98 
+
+square errors (RMSE) of 9 m eV , across all references. 99 
+
+Force MAE at ∼ 30 m eV also indicate a good fit. Fig. 5 100 
+
+shows histograms of the energy and force error over all 101 
+
+training points. Due to ASSYST’s wide energy range in 102 
+
+the training data, RMSE are notably larger than MAE 103 
+
+over the whole dataset. As shown in the next section, 104 
+
+low energy structure are better described. 105 
+
+4Figure 5: Histogram of energy and force errors on the training set for all three functionals, LDA (top), PBE (middle), and r 2SCAN (bottom). Counts are given on a log scale and within logarithmic bins to resolve more detail. Vertical lines show minimum, mean absolute, root mean square, maximum errors. 
+
+Figure 6: Energy-volume curves against DFT for a) ACE-LDA, b) ACE-PBE, c) ACE-r 2SCAN over a volumetric strain range -25 % to 40 % for the five stable phases and the experimentally stable Au 3Cu. 56. Energy Volume Curves 106 
+
+Fig. 6 shows the energy volume curves for all three 107 
+
+potentials presented in the main text. Over the full 108 
+
+range of strains tested, the agreement is excellent, with 109 
+
+the energy MAE over all strains of 3 meV/atom, rising 110 
+
+up to 20 meV/atom in the compressive regime. For 111 
+
+equilibrium energy and volume, we observe less than 112 
+
+2 meV/atom and 0.02 3/atom MAE respectively. Fit-113 
+
+ting the equations of state with quintic splines, we also 114 
+
+find very good agreement of the bulk modulus and its 115 
+
+derivative within 2 % and 6 % respectively. 116 
+
+# 7. Elastic Constants 117 
+
+We calculated elastic tensors using elastic [3]. Fig. 7 118 
+
+shows the independent components by phase as bar 119 
+
+plots. For all three potentials, the agreement is good, al-120 
+
+though LDA is slightly worse described at 7 GPa MAE 121 
+
+compared to 3 GPa MAE for PBE and 4 GPa for r 2SCAN 122 
+
+potentials. LDAs larger deviation is largely due to over-123 
+
+estimating C11 and softening C12 in Au, AuCu, and 124 
+
+Au 4Cu 2.125 
+
+# 8. Phonon Density of States 126 
+
+Finally, we compare the density of states (DOS) of 127 
+
+phonons for all three models in fig. 8. Qualitative agree-128 
+
+ment is observed throughout, with some frequency 129 
+
+shifts particularly noticable in Au and AuCu 3. The 130 
+
+calculations were performed using phonopy . [4] 131 
+
+# References 132 
+
+[1] Thompson, A. P., Aktulga, H. M., Berger, R., 133 
+
+et al. LAMMPS - a flexible simulation tool 134 
+
+for particle-based materials modeling at the 135 
+
+atomic, meso, and continuum scales. Com-136 
+
+puter Physics Communications , 271 , 108171, 2022. 137 
+
+doi:10.1016/j.cpc.2021.108171. 138 
+
+[2] Menon, S., Lysogorskiy, Y., Rogal, J., et al. Auto-139 
+
+mated free-energy calculation from atomistic sim-140 
+
+ulations. Phys. Rev. Materials , 5(10), 103801, 2021. 141 
+
+doi:10.1103/PhysRevMaterials.5.103801. 142 
+
+[3] Jochym, P. T., and Badger, C. jochym/elastic: 143 
+
+Maintenance release, May 2018. 144 
+
+doi:10.5281/zenodo.1254570. 145 
+
+[4] Togo, A. First-principles phonon calculations with 146 
+
+phonopy and phono3py. J. Phys. Soc. Jpn. , 92 (1), 147 
+
+012001, 2023. doi:10.7566/JPSJ.92.012001. 148 
+
+6Figure 7: Elastic constants for LDA (red), r 2SCAN (blue), and PBE (green) for the five stable phases and the experimentally stable Au 3Cu. ACE prediction for the independent constants (x-axis) are given as 7Figure 8: Phonon spectra for LDA, PBE, and r 2SCAN (left to right) descriptions of Cu, Au, AuCu 3, Au 3Cu, AuCu (top to bottom). Orange dashed lines show the DFT predictions, blue solid lines the ACE predictions. 8

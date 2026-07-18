@@ -6,47 +6,30 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-17
-- 运行时间：2026-07-17 21:21:26 UTC
+- 最新运行日期：2026-07-18
+- 运行时间：2026-07-18 20:29:31 UTC
 - 运行状态：成功
-- 本次总论文数：9
-- 精读区：5
-- 速读区：4
+- 本次总论文数：3
+- 精读区：0
+- 速读区：3
 
 ### 今日简报（AI）
-今日精选9篇论文，其中5篇精读、4篇速读，重点关注机器学习力场与合金相图两大方向。最值得关注的是满分9.0的两篇：如何用更少标注实现全精度力场训练，以及显式计入构型与振动熵计算二元合金相图。建议优先精读这两篇高分论文，对材料模拟与合金设计有直接启发。
-- 详情：[/202607/17/README](/202607/17/README)
+今日速读3篇论文，聚焦分子性质预测、物理信息神经网络及真菌复合材料多尺度优化。重点关注基于图工具的小语言模型分子性质预测（7.0分）和低分辨率噪声位移数据下的概率物理信息神经网络（7.0分）。建议优先精读这两篇高评分文章，了解图工具与概率方法在科学计算中的前沿应用。
+- 详情：[/202607/18/README](/202607/18/README)
 
 ### 精读区论文标签
-1. [Full-data accuracy with fewer labels for training and fine-tuning machine-learning force fields](/202607/17/2607.14486v1-full-data-accuracy-with-fewer-labels-for-training-and-fine-tuning-machine-learning-force-fields)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用主动学习改进机器学习力场的训练
-2. [Computing binary alloy phase diagrams with explicit configurational and vibrational entropy](/202607/17/2607.14795v1-computing-binary-alloy-phase-diagrams-with-explicit-configurational-and-vibrational-entropy)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用原子团簇展开机器学习势计算合金相图
-3. [SevenNet-Polar for MultiTask Prediction of Energy, Forces, Stress, and Born Effective Charges: Development and Application to ZrO$_2$, Li$_3$PO$_4$, and Perovskites](/202607/17/2607.14827v1-sevennet-polar-for-multitask-prediction-of-energy-forces-stress-and-born-effective-charges-development-and-application-to-zro2-li3po4-and-perovskites)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：机器学习原子间势预测能量、力、应力和Born有效电荷
-4. [Self-organized defect clustering and concentration-dependent vacancy diffusion in MoS$_2$](/202607/17/2607.14951v1-self-organized-defect-clustering-and-concentration-dependent-vacancy-diffusion-in-mos2)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：使用机器学习原子间势分子动力学研究MoS2空位扩散
-5. [Neural operators solve inverse problems for constitutive model discovery](/202607/17/2607.15049v1-neural-operators-solve-inverse-problems-for-constitutive-model-discovery)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：神经算子用于本构模型发现，将测量数据直接映射到材料函数
+- 本次无精读推荐。
 
 ### 速读区论文标签
-1. [Neural-network-based reconstruction of spin and orbital angular momentum from X-ray magnetic circular dichroism spectra](/202607/17/2607.11058v1-neural-network-based-reconstruction-of-spin-and-orbital-angular-momentum-from-x-ray-magnetic-circular-dichroism-spectra)  
+1. [Improving Molecular Property Prediction in Small Language Models Using Graph-based Tools](/202607/18/2607.13115v1-improving-molecular-property-prediction-in-small-language-models-using-graph-based-tools)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：利用神经网络从XMCD谱重建自旋和轨道角动量，属于材料性质预测
-2. [Towards end-to-end optimization in multimaterial 3D printing](/202607/17/2607.13174v1-towards-end-to-end-optimization-in-multimaterial-3d-printing)  
+   evidence：使用语言模型和图工具进行分子性质预测
+2. [Probabilistic Physics-Informed Neural Networks for Estimating Heterogeneous Elastic Properties from Low-Resolution and Noisy Displacement Data](/202607/18/2607.14563v1-probabilistic-physics-informed-neural-networks-for-estimating-heterogeneous-elastic-properties-from-low-resolution-and-noisy-displacement-data)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：用于多材料3D打印优化的神经网络本构模型
-3. [One-Shot Generative Design for Disordered Metamaterials via Self-Organizing Neural Cellular Automata](/202607/17/2607.14475v1-one-shot-generative-design-for-disordered-metamaterials-via-self-organizing-neural-cellular-automata)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：利用神经细胞自动机生成设计无序超材料
-4. [The evolution of AI from image interpretation toward scientific inference in nanoparticle electron microscopy](/202607/17/2607.10388v1-the-evolution-of-ai-from-image-interpretation-toward-scientific-inference-in-nanoparticle-electron-microscopy)  
+   evidence：从位移数据机器学习预测异质弹性性质
+3. [Microstructure-Conditioned Surrogate Models for Graded Multiscale Optimization of Mycelium Composites](/202607/18/2607.13688v1-microstructure-conditioned-surrogate-models-for-graded-multiscale-optimization-of-mycelium-composites)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：综述AI在纳米颗粒电子显微镜中的方法
+   evidence：针对材料微观结构的多尺度优化，使用机器学习代理模型预测性能
 
 
 <div class="dpr-home-promo-card">

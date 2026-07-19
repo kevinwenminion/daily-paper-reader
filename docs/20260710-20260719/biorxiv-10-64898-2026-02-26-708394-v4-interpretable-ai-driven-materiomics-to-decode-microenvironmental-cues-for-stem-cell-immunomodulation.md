@@ -1,0 +1,24 @@
+---
+title: Interpretable AI driven materiomics to decode microenvironmental cues for stem cell immunomodulation
+title_zh: 可解释的人工智能驱动的材料组学解码干细胞免疫调节的微环境信号
+authors: "Pan, C., He, Y., Duan, Y., Chen, K., Wang, Q., Wang, X., Zhang, Y., An, C., Wang, H."
+date: 2026-07-14
+pdf: "https://www.biorxiv.org/content/10.64898/2026.02.26.708394v4.full.pdf"
+tags: ["query:aimat-mlpot"]
+score: 6.0
+evidence: 材料科学研究中的人工智能：AI驱动的材料组学研究干细胞微环境
+tldr: 水凝胶模拟细胞外基质，但微环境线索间多参数交互和非线性关系使干细胞免疫调节的调控机制难以解析。本研究构建了基于甲基丙烯藻酸盐和明胶二元水凝胶的材料组学数据库，涵盖七种关键理化线索，并训练机器学习模型。模型成功预测了增强MSC免疫调节效力的水凝胶配方，识别基质刚度为主要贡献因素。该工作展示了AI在评估微环境线索相对贡献中的实用性，建立了数据驱动的干细胞功能调控研究框架。
+source: biorxiv
+selection_source: fresh_fetch
+figures_json: "[{\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-001.webp\", \"caption\": \"\", \"page\": 0, \"index\": 1, \"width\": 1510, \"height\": 619, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-002.webp\", \"caption\": \"\", \"page\": 0, \"index\": 2, \"width\": 1491, \"height\": 884, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-003.webp\", \"caption\": \"\", \"page\": 0, \"index\": 3, \"width\": 1513, \"height\": 2162, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-004.webp\", \"caption\": \"\", \"page\": 0, \"index\": 4, \"width\": 1405, \"height\": 1208, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-005.webp\", \"caption\": \"\", \"page\": 0, \"index\": 5, \"width\": 1500, \"height\": 669, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-006.webp\", \"caption\": \"\", \"page\": 0, \"index\": 6, \"width\": 1556, \"height\": 2537, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-007.webp\", \"caption\": \"\", \"page\": 0, \"index\": 7, \"width\": 1002, \"height\": 1195, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-008.webp\", \"caption\": \"\", \"page\": 0, \"index\": 8, \"width\": 1520, \"height\": 1672, \"label\": \"Figure\"}, {\"url\": \"assets/figures/biorxiv/biorxiv-10-64898-2026-02-26-708394-v4/fig-009.webp\", \"caption\": \"\", \"page\": 0, \"index\": 9, \"width\": 1527, \"height\": 2120, \"label\": \"Figure\"}]"
+motivation: 微环境线索间复杂交互和非线性关系导致传统方法需大量样本和实验，难以高效解析干细胞免疫调节功能的关键调控因素。
+method: 利用甲基丙烯藻酸盐和明胶二元水凝胶构建包含七种理化线索的材料组学数据库，训练机器学习模型预测MSC免疫调节效力。
+result: 模型成功预测优化水凝胶配方，并定量识别基质刚度为MSC免疫调节效力的最大贡献因素。
+conclusion: 本研究验证了AI驱动材料组学解析微环境线索相对贡献的可行性，为干细胞功能调控提供了数据驱动研究范式。
+---
+
+## 摘要
+模拟细胞外基质的水凝胶构建了包含多种理化信号的微环境，这些信号调控干细胞的命运，特别是其免疫调节和促再生功能。然而，由于复杂的多参数相互作用和非线性关系，阐明微环境信号如何调控细胞命运仍具挑战，这需要大量样本和大量实验工作。在此，我们提出一个材料组学平台，该平台将大规模系统数据集与人工智能（AI）相结合，以评估和预测增强间充质干细胞（MSCs）免疫调节功能的最佳干细胞微环境特征。具体而言，使用由甲基丙烯酰化海藻酸钠和明胶（AMGM）组成的二元水凝胶构建了一个全面的材料组学数据库，该数据库整合了与MSC介导的巨噬细胞极化调控相关的七个关键理化信号。基于该材料组学数据库训练的机器学习模型成功预测了能够增强MSC免疫调节效能的水凝胶配方，并进一步确定基质刚度是AMGM水凝胶体系中对MSC介导的免疫调节贡献最大的理化信号。总之，本研究展示了AI在评估微环境信号相对贡献中的实用性，并为研究干细胞功能的微环境调控建立了一个数据驱动的研究框架。
+
+## Abstract
+Hydrogels that mimic the extracellular matrix create microenvironments containing diverse physicochemical cues that regulate stem cell fate, particularly their immunomodulatory and pro-regenerative functions. However, elucidating how microenvironmental cues regulate cell fate remains challenging because of complex multi-parameter interactions and nonlinear relationships, thereby requiring large numbers of samples and substantial experimental effort. Here, we present a materiomics platform that integrates a large-scale systematic dataset with artificial intelligence (AI) to evaluate and predict optimal stem cell niche features for enhancing the immunomodulatory functions of mesenchymal stem cells (MSCs). Specifically, binary hydrogels composed of methacrylated alginate and gelatin (AMGM) were used to construct a comprehensive materiomics database incorporating seven critical physicochemical cues associated with MSC-mediated regulation of macrophage polarization. Machine learning models trained on this materiomics database successfully predicted hydrogel formulations that enhanced MSC immunomodulatory efficacy and further identified matrix stiffness as the physicochemical cue with the greatest contribution to MSC-mediated immunomodulation within the AMGM hydrogel system. In summary, this study demonstrates the utility of AI for evaluating the relative contributions of microenvironmental cues and establishes a data-driven research framework for investigating microenvironmental regulation of stem cell function.

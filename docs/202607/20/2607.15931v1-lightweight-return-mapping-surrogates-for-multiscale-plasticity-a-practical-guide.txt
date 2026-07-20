@@ -1,0 +1,932 @@
+Title: Lightweight return-mapping surrogates for multiscale plasticity: a practical guide
+
+URL Source: https://arxiv.org/pdf/2607.15931v1
+
+Published Time: Mon, 20 Jul 2026 01:15:30 GMT
+
+Number of Pages: 35
+
+Markdown Content:
+# Lightweight return-mapping surrogates for multiscale plasticity: a practical guide 
+
+# Alireza Daneshyar 1, Leon Herrmann 1and Stefan Kollmannsberger ∗1,2 
+
+> 1Data Science in Civil Engineering, Bauhaus-Universit¨ at Weimar, Germany
+> 2Chair of Computational Modeling and Simulation, Technical University of Munich, School of Engineering and Design, Germany
+
+# Abstract 
+
+This paper presents a practical guide to building lightweight neural-network surrogates for the plastic return-mapping process in concurrent multiscale (FE 2) simulations. Rather than proposing a new architecture, we show how a deliberately simple feed-forward network, structured to mirror the classical return-mapping update, can replace the prohibitively expensive nested fine-scale solves that dominate the cost of conven-tional FE 2 schemes based on FFT homogenization at the meso-scale. We walk through the full workflow: generating training data from incremental homogenization analyses, constructing a compact yet sufficient dataset, embedding material symmetries directly into the mapping, and deploying the trained network as a user-defined material subroutine (UMAT) in a standard finite-element solver—enabling widespread use. A sensitivity study examines the model’s robustness to data density, increment size, and mesh refinement, and we characterize the regimes in which the surrogate holds and where it breaks down. For the macroscopically isotropic, two-dimensional plane-stress setting considered here, the surrogate reproduces the reference re-sponse while reducing the per-analysis cost from hours to seconds with speed-ups up to 30 , 000 over standard FE 2. The approach extends naturally to three dimensions and to weaker symmetry assumptions, given an appropriate sampling strategy and dataset. 
+
+Keywords: deep learning; neural network surrogate; data-driven plasticity; plastic return-mapping; concur-rent multiscale simulation; FFT-based homogenization 
+
+# 1. Introduction 
+
+With the rise of artificial intelligence, neural network-based constitutive modeling is emerging as a revo-lutionary paradigm in continuum mechanics. The future of the field can be envisioned as a vast library of highly accurate neural networks, trained from high-fidelity data, from which an analyst can select the appropriate model for a given simulation. This paradigm could largely render empirical relations obsolete, which are inherently constrained by a limited range of validity and are sometimes difficult or even impossi-ble to generalize to complex scenarios. The shift is therefore from traditional closed-form equations toward data-driven nonlinear function approximators that learn the material response directly from nano-, micro-, or meso-scale models or even from experimental data [1–4]. 
+
+1.1. FE ² multiscale frameworks 
+
+Many physical problems involve complex interactions and behaviors occurring across multiple length scales. This complexity renders standard phenomenological approaches highly challenging and often insufficient [5]. A valid analysis, therefore, requires resolving the strong coupling between different length scales within a numerical model, which is generally infeasible with direct numerical simulation. Multiscale methods bridge this gap by enabling tractable predictions of bulk material behavior directly from the physics of the underlying microstructure [6]. Concurrent multiscale frameworks implement this coupling through a bidirectional transfer of mechanical state between scales. This approach provides the profound advantage  
+
+> ∗Corresponding author
+> Preprint July 20, 2026 1arXiv:2607.15931v1 [math.NA] 17 Jul 2026
+
+that only the constitutive behavior at the finest scale must be explicitly defined [7]. The most established technique within these frameworks is the FE 2 approach [8–10]. It usually employs the Finite Element Method (FEM) at both the macro and fine scales. Therein, a Representative Volume Element (RVE), which is a small fine-scale volume whose effective behavior represents the heterogeneous material, is assigned to each macroscopic integration point. In concurrent FE 2 modeling, a boundary value problem governing the RVE is solved for each integration point of the macroscopic model to determine the local constitutive response [11, 12]. However, this procedure is computationally prohibitive, as solving such problems at every Gauss point creates an immense numerical burden, particularly when the fine-scale material shows a highly nonlinear response [13]. 
+
+1.2. FFT-based approaches 
+
+A significant leap forward was made by Moulinec and Suquet in [14, 15] through an efficient alternative based on the Fast Fourier Transform (FFT). It offers a compelling computational advantage over conventional FEM by replacing the solution of a global system of equations with local calculations over the pixels/voxels of a simple grid [16]. This leads to a reduced memory footprint and an algorithmic complexity of O(n log n)compared to that of FEM, which typically scales as O(n2) due to the assembly and solution of a system of equations [5]. Beyond raw speed, its grid-based formulation offers significant practical utility by operating directly on pixel/voxel data, allowing grayscale images or CT scans to be used as inputs without needing any boundary-conforming meshes. Furthermore, its structure inherently satisfies periodic boundary conditions, whereas FEM requires explicit treatment of periodicity. In addition, derivative computations in real space transform to basic algebraic operations in Fourier space. Augmented by the advent of high-performance parallel FFT libraries [17], the combined benefits in speed, memory, and convenience render the FFT-based approach superior to the FEM-based one [16]. Building on its core advantages, the method has now been successfully applied to a vast range of problems, including recent works on thin plate structures [18], fracture simulation [19], topology optimization [20], micropolar elastoplasticity [21], thermal conductivity [22], and damage growth in composite materials [23], among many others. Despite efficiency gains, the fundamental bottleneck remains, as high-resolution fine-scale simulations are required at every Gauss point in each iteration. This renders multiscale modeling for nonlinear materials computationally intensive and explains why such methods are still barely used in industrial applications [24]. 
+
+1.3. Neural network-based methods 
+
+Machine learning enables systems to learn statistical patterns directly from data rather than relying on explicitly defined rules. Its data-driven nature provides a powerful framework for constructing models of complex systems, especially when the underlying physical principles are abstract, unknown, or difficult to describe [3]. In the context of data-driven constitutive modeling, deep neural networks have become the predominant machine learning approach. As universal function approximators [25, 26], neural networks excel at capturing complex nonlinear relationships and have proven highly effective for demanding regression tasks [1]. Constitutive modeling is particularly well-suited for such a data-driven methodology. The idea of learning the strain-stress map with neural networks rather than deriving it through hand-crafted empirical rules dates back to [27] and gained renewed momentum through the data-driven computing paradigm of [28]. 
+
+1.3.1. Hybrid approaches 
+
+Elastoplasticity is one of the most general constitutive formulations. Its theoretical foundation is structured, built from an elastic law, a yield function, a flow rule, and a hardening model. This structure allows for hybrid approaches, where each component can be independently represented by either a classical phenomenological model or a data-driven formulation [29]. This flexibility was exploited in [30], where the hardening model was replaced by two dedicated neural networks, one for the isotropic part and another for the kinematic part, while the elastic law, yield function, and flow rule were retained in their classical forms. Those neural networks incrementally update the hardening internal variables so that the model can capture complex combined hardening behavior under uniaxial cyclic loading. [31] implemented an alternative hybrid strategy, using one neural network to learn the elastic stress-strain relationship and another to model the plastic flow rule. In [32], the yield function is kept in its phenomenological form, while a single neural network provides  
+
+> Preprint July 20, 2026 2
+
+both the plastic flow rule and the kinematic hardening updates. Tracking the inelastic deformation of porous materials was the goal of the hybrid model in [33]. The elastic response follows a linear law, while an initial yield surface, defined from finite element simulations of periodic RVEs, determines whether and to what extent the elastic limit is violated. A neural network, trained on data from the same finite element analyses, predicts the updated stress state using the principal strains as input. A similar approach was followed in [34], but with neural networks representing both the yield function and the updates of the internal variables. [1] replaced the stress-integration algorithm for J2 associated plasticity under isotropic hardening by a neural network surrogate. Unloading, however, follows a conventional theory-based procedure. Their surrogate is trained on a dataset generated numerically from the classical return-mapping algorithm in principal stress space. In addition to the mentioned research, there are numerous works exclusively aimed at providing data-driven representations using hybrid approaches, including, but not limited to [35–40]. 
+
+1.3.2. Multiscale surrogate models 
+
+These neural network surrogates are particularly valuable in multiscale analysis, where they replace the costly fine-scale RVE simulation at each Gauss point of the macroscopic model. [41] proposed an FE 2 framework in which a recurrent neural network learns the micro-level response for a strain-softening Perzyna viscoplastic material. To capture the history dependence, the network maps strain sequences to stress sequences, trained on a subspace of possible strain paths that includes non-converged Newton–Raphson iterations. Similarly, [42] map the full deformation history to the homogenized stress. But instead of a recurrent architecture, they compress the strain history via Principle Component Analysis and pass the reduced representation through a feed-forward network. [43] developed a physics-constrained surrogate for the macroscopic RVE response within an FE 2 scheme for finite-strain hyperelasticity. [44] followed a similar multiscale strategy, training a surrogate at the micro level for an inelastic problem involving J2 plasticity with isotropic hardening. A related but architecturally distinct family are deep material networks, which replace the RVE with a network of simple mechanistic building blocks, e.g., laminates, whose parameters are fit offline to the linear elastic response and reused unchanged for nonlinear and inelastic loading [45], ideal as general homogenization surrogates. 
+
+1.3.3. Path-dependent models 
+
+Path-dependency can be modelled by recurrent neural networks through the hidden state of the network. This approach was proposed by [46] to map directly from strain to stress sequences, and explored by [47], who combined a feed-forward network for the path-independent elastic response with a recurrent network for the path-dependent elastoplastic behavior. [41] adopted a similar recurrent architecture in their multiscale framework. [48] pursue a related recurrent approach, but with an emphasis on interpretability. Their recurrent neural operator is designed so that learns hidden states correspond to meaningful macroscopic internal variables, building on [48] who prove that non–Markovian homogenized constitutive model can be exactly represented by a finite set of ODE-evolving internal variables. Such recurrent models are particularly valuable when the material law itself is unknown. However, when the goal is computational acceleration of known material laws, as proposed in the present work for multiscale schemes, the standard plasticity internal variables are sufficient to capture path dependence without needing recurrent architectures. By contrast, when the material law is unknown, models are typically enhanced by physics-constrained or physics-augmented formulations [49, 29, 3] to ensure physical reliability of the learned predictions. Relying on internal variables rather than recurrent networks has the added advantage of naturally han-dling variable step sizes, which would otherwise need to be addressed through neural ordinary differential equations [50] or time-resolution-independent neural operators [51]. 
+
+1.4. Outline of the paper 
+
+The primary contribution of the paper at hand is to replace the entire return-mapping components, including the yield function, flow rule, and hardening model, with a single neural network surrogate trained on data generated via FFT-based homogenization. This approach demonstrates the essence of a fully data-driven paradigm for computational plasticity by eliminating the need for explicit analytical definitions in phenomenological constitutive modeling. Accordingly, the remainder of the paper is organized as follows.  
+
+> Preprint July 20, 2026 3
+
+scale transition 
+
+¯ε
+
+¯σ
+
+macro model 
+
+fine-scale structure 
+
+Figure 1: Schematic of the concurrent two-scale coupling: the macro-scale boundary value problem provides the macro strain ¯ ε to the fine-scale model, which returns the homogenized stress ¯ σ.Section 2 outlines the concurrent multiscale framework. Section 3 details the surrogate model, covering the representative volume element, the neural network architecture, the construction of the training dataset, the implementation of the return-mapping algorithm, and the scalability of the presented approach. Section 4 presents the verification of the surrogate against three standard benchmark problems. Section 5 provides a comprehensive sensitivity analysis of the model with respect to mesh size, step size, stress-angle sampling, the proposed paired-increment strategy, and its generalization to out-of-distribution loading. Finally, Section 6 presents some concluding remarks. 
+
+# 2. Concurrent multiscale framework 
+
+The macroscopic behavior of a material is fundamentally governed by its underlying structure at finer scales. This effect is particularly profound in materials with a relatively coarse microstructure, such as concrete or foam-like materials. Therein, the intrinsic multiscale hierarchy demands a bridge between fine-scale structural details and a continuum-level description. Conventional phenomenological models attempt to establish reliable constitutive relations that approximate the influence of fine-scale features such as grains, fibers, or voids. However, when mechanical phenomena exhibit strong and inseparable coupling across multiple scales, these approximate approaches become inadequate. In such complex scenarios, a concurrent multiscale modeling paradigm becomes indispensable for capturing the integrated material response in an accurate sense. As illustrated in Figure 1, this involves passing the local deformation kinematics from the macro-scale model to a fine-scale simulation and upscaling the resulting homogenized stress—computed by solving the underlying heterogeneous boundary value problem at the fine scale—back to the macro-scale simulation. Computational homogenization is the standard methodology for this scale transition. It determines the effective macroscopic behavior of a heterogeneous material by solving a boundary value problem of its under-lying structure subject to periodic boundary conditions. Figure 2 shows an RVE of a manufactured open-cell molybdenum foam as an example of a heterogeneous cellular material used in computational homogeniza-tion studies. Accurate high-resolution modeling of such fine-scale structures inherently demands significant computational resources, as it requires resolving numerous degrees of freedom and solving complex, often nonlinear material laws. As a result, the practical application of such models depends critically on employing robust and efficient numerical algorithms to deliver reliable solutions within a reasonable simulation time. To address the above challenge, the initial FEM approach to computational homogenization, such as those used in [54, 55], was revolutionized by the FFT-based technique of Moulinec and Suquet [14, 15]. Since then, FFT-based homogenization has become the preferred framework for problems with periodic  
+
+> Preprint July 20, 2026 4
+
+(a) (b) 
+
+Figure 2: Manufactured cellular metal material: (a) open-cell molybdenum foam [52, 53] and (b) an example of a two-dimensional RVE with solid phase in white and pore space in black. microstructures [16], which is addressed in detail in Appendix A. 
+
+# 3. Neural network surrogate 
+
+We introduce a surrogate modeling strategy to replace concurrent multiscale simulations with a return-mapping-type stress-update procedure. The key departure from conventional approaches is that our method does not require an a priori analytical definition of the yield surface or plastic potential. Instead, the underlying constitutive response is learned directly by an artificial neural network trained on data generated via FFT-based homogenization of a chosen RVE. 
+
+3.1. Representative volume element 
+
+To enable a robust and efficient data-driven framework, some primary simplifications are introduced. The first and most critical one is the assumption of material isotropy. For an isotropic material, the mechanical response is invariant with respect to direction; consequently, the yield criterion can be expressed solely in terms of stress invariants. However, constructing an RVE that exhibits a truly isotropic macroscopic response is non-trivial. As a simple counterexample, consider an RVE containing a single, centered circular pore. Although geometrically symmetric in isolation, its periodic arrangement creates a lattice-like structure where the spacing between pores differs along different directions, introducing a directional bias. This anisotropy persists if the RVE contains an oriented pattern of features. Achieving an isotropic response requires a statistically representative RVE such that it must be large enough and contain a sufficiently random, non-periodic distribution of inclusions or pores so that directional dependencies are averaged out. Only such an RVE yields a frame-indifferent, isotropic homogenized response. The second simplification is to restrict the analysis to plane stress conditions. This focuses the learning task on a two-dimensional principal stress subspace (¯ σx, ¯σy), eliminating the complexity of the out-of-plane stress component and drastically reduces the data required for training. As illustrated in Figure 3, which shows a three-dimensional yield surface in the Haigh–Westergaard stress space (i.e., the coordinate system having three principal stresses as the axes), the plane-stress yield locus is effectively a cross-section of the full surface at ¯ σz = 0. This simplification, however, does not apply to plane strain settings, as the out-of-plane stress remains an active unknown. An engineering example that obeys these requirements is the RVE of the heterogeneous cellular metal shown in Figure 2b and is investigated in the sequel. It has the topology of a porous matrix (white) embedded in a void phase (black). The solid matrix is modeled as an aluminum alloy with a Young’s modulus E = 70 GPa and Poisson’s ratio ν = 0 .33, obeying J2 plasticity with a yield stress of 200 MPa and  
+
+> Preprint July 20, 2026 5
+
+plane stress yield limit 
+
+yield locus 
+
+¯σx
+
+¯σy
+
+¯σz
+
+¯σz = 0 
+
+¯σx
+
+¯σy
+
+cross-section 
+
+Figure 3: Visualization of an arbitrary three-dimensional yield surface in Haigh–Westergaard stress space and its planar cross-section at ¯ σz = 0 representing its plane stress yield criterion. a linear hardening modulus of 700 MPa. Following this characterization, using a 512 × 512 pixel grayscale image, the homogenized stiffness tensor of the RVE expressed in gigapascals reads ¯C =
+
+
+
+11 .5946 7.0232 0.0834 7.0232 11 .1852 0.0840 0.0834 0.0839 3.9841 
+
+ , (1) which deviates from isotropy, yet exhibits near-isotropic behavior. Despite using such an intricate RVE that possesses a well-distributed, sufficiently random arrangement of pores and is large enough to contain a high number of them, the resulting stiffness tensor still shows slight directional dependence. This demonstrates the importance of meticulous RVE design to achieve a truly isotropic macroscopic response. Here, however, we ignore this minor deviation from isotropy and assume a fully isotropic response with no elastic axial-shear coupling in our surrogate. This allows the stress update to be performed in principal stress space without altering the principal directions during the update. For completeness, we note that ¯C is computed through a standard finite differencing procedure: each column corresponds to the solution of an analysis where all strain components are kept zero except for the component corresponding to that column, which is perturbed by an infinitesimally small value. The column entries of ¯C are then obtained by dividing the resulting stress vector by that infinitesimal perturbation. Beyond the established simplifications, i.e., designing an RVE with sufficiently random features to approx-imate isotropy and restricting the analysis to the two-dimensional principal stress subspace (¯ σx, ¯σy) under plane-stress conditions, a third simplification is the assumption of identical nonlinear response in tension and compression. Although this assumption does not reflect the actual behavior of certain materials such as metallic foams, where compression leads to buckling and collapse of the fine-scale struts, or concrete-like materials and soils that are more sensitive to tension or even cannot withstand it at all, it is reasonable for many others, particularly most bulk metals, which are nearly insensitive to whether the load is tensile or compressive. This assumption of tension–compression symmetry provides a major computational advantage, which will be elaborated in Section 3.3. Based on the chosen RVE, material parameters, and nonlinear constitutive behavior, we construct a three-dimensional representation of the macroscopic yield surface and its evolution due to hardening, as shown in Figure 4. To generate this plot, we perform multiple analyses using different combinations of strain inputs applied to the RVE and extract the corresponding principal stresses ¯ σx, ¯ σy, and the equivalent plastic strain ¯εp
+
+> eq
+
+. The resulting surface is visualized with the principal stresses on the x and y axes and the equivalent plastic strain on the z axis. It should be emphasized that this coordinate system does not correspond to the Haigh–Westergaard stress space, as the z axis represents plastic strain rather than a third principal stress. For additional clarity, a top view of the surface is shown alongside the three-dimensional plot. This view, with axes in megapascals, corresponds to a contour projection of the yield surface onto the stress plane,  
+
+> Preprint July 20, 2026 6
+
+¯σx
+
+¯σy
+
+¯εp
+
+> eq
+
+top view  
+
+> −100 100
+> −100
+> 100
+> 0.000
+> 0.003
+> 0.010
+> 0.020
+> 0.030
+
+¯σx
+
+¯σy
+
+Figure 4: Yield surface obtained from RVE analyses and its evolution with accumulated plastic strain. evolving due to hardening effects. The initial yield surface, corresponding to ¯ εp 
+
+> eq
+
+= 0, exhibits a pointed oval shape elongated along the line ¯ σx = ¯ σy. As plastic strain accumulates, the surface gradually transitions into a smoother, more elliptical form. There are some aspects that can be concluded from this representation. First of all, although the solid phase of the RVE follows J2 plasticity, the contour lines in the two-dimensional plot deviate from a perfect ellipse, indicating that the macroscopic yield surface renders a material at the global level that is not 
+
+J2. The second aspect concerns the associativity of the flow rule. Based on the theoretical framework of computational plasticity, the incremental plastic flow rule is given by ∆ ¯ εp = ∆¯ γ ∂Ψ
+
+∂ ¯σ , (2) where ∆¯ γ is the incremental plastic multiplier and Ψ is a convex function of ¯ σ called the plastic potential [56]. The model is considered to be associative if the plastic potential Ψ coincides with the yield function. Otherwise, the plasticity model is considered to be non-associative. Here, the macroscopic yield function and plastic potential are black-box functions, and we do not have analytical representations of them to assess the associativity of the homogenized macroscopic model. Nevertheless, we can analyze this aspect numerically. To this end, we use the homogenized plastic strain increment ∆ ¯ εp to find the flow direction. However, finding the normal to the yield surface is not as straightforward. The representation in Figure 4 is merely a geometrical visualization, and those yield contours are extracted from numerous numerical analyses performed on the RVE by collecting stress states that correspond to identical equivalent plastic strain ¯ εp
+
+> eq
+
+to construct those contour lines. Hence, to find the normal to the yield surface, we also adopt a geometrical approach. One way to determine the normal at a given point is to identify two neighboring points on the same contour, one to the left and one to the right, that have exactly the same equivalent plastic strain ¯εp
+
+> eq
+
+. A quadratic curve is then interpolated through these three points, and the normal to this curve at the middle point (the point of interest) provides an approximation of the yield surface normal. To compare the evolution of the plastic flow direction with the corresponding normals to the yield surface, we select three representative loading directions. For each case, equal stress increments are applied along a prescribed path in the principal stress plane. To enable interpolation for determining the yield surface normal, additional simulations are performed with perturbations of ±5◦ relative to the main direction. These perturbations provide neighboring points on the same yield contour. For our comparison, we choose three loading directions of −30 ◦, 0 ◦, and 30 ◦. A fixed stress increment of 20 MPa is used in all cases, and the loading is continued until the equivalent plastic strain ¯ εp 
+
+> eq
+
+reaches a value of 0 .04. The resulting stress paths for the three selected loading directions, along with their ±5◦ perturbations, are shown in the top left of Figure 5. The three main cases correspond to loading directions of −30 ◦, 0 ◦, 
+
+> Preprint July 20, 2026 7
+
+and 30 ◦, labeled as (a), (b), and (c), respectively, with their perturbations shaded in gray. Starting from the origin, the stress states initially follow the prescribed linear paths. Once plasticity initiates, they begin to deviate from these directions, resulting in curved trajectories. This occurs under the influence of plastic flow and contrasts sharply with elasticity, where they coincide with the prescribed direction. Another interesting observation is that the angular spread between the ±5◦ perturbations differs across the three cases. For the −30 ◦ direction, the spread remains relatively narrow, it becomes wider for 0 ◦, and even wider for 30 ◦, with the largest separation between the positive and negative perturbations among all three. This trend indicates that the variation in plastic flow direction is less pronounced around −30 ◦, more significant around 0 ◦, and most pronounced around 30 ◦.Finally, we analyze the associativity of the model, i.e., determining whether it exhibits associative or non-associative behavior. To this end, we compare the evolution of the plastic flow direction with the corresponding normals to the yield surface. The results are presented in Figure 5 for loading directions of 
+
+−30 ◦, 0 ◦, and 30 ◦, corresponding to plots (a), (b), and (c), respectively. In each plot, the horizontal axis represents the equivalent plastic strain ¯ εp
+
+> eq
+
+, and the vertical axis shows the angle between the corresponding vector and the ¯ σx axis. The red curve tracks the evolution of this angle for the flow direction, while the black curve corresponds to the normal to the yield surface. In all three cases, the flow direction and the yield surface normal do not coincide, nor do they follow similar trends. The trends also differ from one loading path to another. This clear divergence demonstrates that the homogenized macroscopic model exhibits non-associative plastic behavior, despite the underlying model being associative. As a concluding note, this approach, in which a fixed set of material parameters is used to train a neural network, differs fundamentally from conventional plasticity, where the yield function and plastic potential are analytical functions whose parameters can be adjusted to represent different materials. While the neural network could similarly be trained on a vast dataset encompassing arbitrary combinations of material prop-erties (e.g., varying yield stress and hardening modulus), this generality is arguably unnecessary, especially for combinations that lead to abstract, non-physical material definitions. In practice, engineering materials possess well-defined, fixed properties. A more pragmatic and powerful vision is therefore to develop a com-prehensive library of specialized, high-fidelity neural network surrogates, each one representing a specific, real-world material. In this paradigm, an analyst would select a proven, physics-aware model from the library for direct use in their simulation. 
+
+3.2. Neural network architecture 
+
+The architecture of the neural network is depicted in Figure 6 and inspired by the conventional two-step return-mapping procedure in computational plasticity. This standard algorithm employs two possible sets of equations sequentially, selecting the final solution as the only physically valid one. The first step assumes an entirely elastic increment. Consequently, the equivalent plastic strain ¯ εp 
+
+> eq
+
+is held fixed, and a trial stress state is computed via ¯σtrial n+1 = ¯ σn + ¯C : ∆ ¯ ε, (3) where subscripts n and n + 1 denote the increment number and ∆ ¯ ε is the macroscopic strain increment. In the conventional scheme, if this elastic trial state satisfies the yield criterion (i.e., if it lies within or on the yield surface), it is accepted as the solution. If it violates the criterion, a plastic corrector step follows. This step provides the updated stress ¯ σn+1 and the incremental plastic multiplier ∆¯ γ, so that the plastic consistency condition is satisfied, ensuring the final stress state lies on the updated yield surface. The presented neural network surrogate adopts, therefore, the identical inputs and outputs as its con-ventional return-mapping counterpart. The model takes three inputs, two of which are the trial in-plane principal stresses ¯ σtr x , ¯ σtr y , and the current equivalent plastic strain ¯ εp
+
+> eq
+
+. It returns three outputs, comprising the updated in-plane principal stresses ¯ σx,¯ σy, and the incremental plastic multiplier ∆¯ γ. It is worth noting that in a perfect plasticity scenario, the third input, which is the equivalent plastic strain ¯ εp
+
+> eq
+
+, would be redundant as the outputs would not depend on it. Here, however, the presence of hardening renders this internal variable essential. It serves as a state indicator, signaling how far the material has progressed along its hardening path. Conceptually, it corresponds to the expansion of a hypothetical yield surface—a con-struct that, while not explicitly defined in the presented data-driven model, governs whether a given stress state would cause yielding in the underlying FFT-based fine-scale simulation. The same reasoning applies  
+
+> Preprint July 20, 2026 80.000
+> 0.003
+> 0.010
+> 0.020
+> 0.030
+
+a
+
+b
+
+c
+
+¯σx
+
+¯σy     
+
+> 01234
+> −42
+> −41
+> −40
+> −39
+> −38
+> −37
+> Equivalent plastic strain ×10 −2
+> Angle (degrees)
+
+(a)      
+
+> flow potential
+> yield function
+> 01234
+> −31
+> −30
+> −29
+> −28
+> Equivalent plastic strain ×10 −2
+> Angle (degrees)
+
+(b)      
+
+> flow potential
+> yield function
+> 01234
+> −10
+> −8
+> −6
+> −4
+> −2
+> 0
+> 2
+> Equivalent plastic strain ×10 −2
+> Angle (degrees)
+
+(c) 
+
+> flow potential
+> yield function
+
+Figure 5: Associativity analysis of the homogenized model for: (a) −30 ◦, (b) 0 ◦, and (c) 30 ◦ prescribed loading directions in the principal stress plane. to the third output, i.e., the incremental plastic multiplier. Under perfect plasticity, its magnitude does not affect the stress solution. Its primary role in that scenario would be to query the spatial distribution and intensity of plastic straining within the RVE. The presented physics-inspired choice of the input and output layers allows the neural network architecture to provide a very accurate mapping with only three hidden layers of merely 32 neurons. This configuration is sufficiently expressive for highly nonlinear, path-dependent relations, provided that it is trained on large and diverse training datasets. This design choice allows for shifting the focus from architectural optimization of the network itself to the core challenges of this work: investigating the effects of training data gener-ation, performing sensitivity analyses, and establishing robust guidelines for creating comprehensive yet computationally efficient datasets. We use the open-source PyTorch library [57] to train the neural network. To enhance optimization stability, the activation function is chosen to be the Gaussian Error Linear Unit (GELU) [58] because of its smoothness and differentiability across its entire domain. Furthermore, both inputs and outputs are normalized to compensate for the large dimensional differences between the stress and strain components. This preprocessing prevents the loss landscape from becoming ill-conditioned and ensures that all features are weighted equally during training. The same scaling is retained when integrating the trained surrogate into the finite element solver.  
+
+> Preprint July 20, 2026 9
+
+¯σtr x
+
+¯σtr y
+
+¯εp
+
+> eq
+> input layer
+> hidden layer 1
+> hidden layer 2
+> hidden layer 3
+
+¯σx
+
+¯σy
+
+∆¯ γ
+
+> output layer
+
+Figure 6: Neural network architecture with three inputs, three outputs, and three hidden layers having 32 neurons each. For notational clarity, the superscript ‘ trial ’ is shortened to ‘ tr ’ and increment number subscripts are omitted. 
+
+3.2.1. Physics Constraints 
+
+Embedding physical principles directly into a surrogate reduces the amount of training data required, in-creases the reliability of its predictions, and has become standard practice in data-driven material model-ing [49, 29, 3]. Three main categories of constraints are established: 1. Invariance : The response must be unaffected by rigid-body transformations of the observer (objec-tivity, or frame indifference) and by the symmetry transformations of the material itself (material symmetry), such as isotropy or equal behavior in tension and compression. 2. Thermodynamic consistency : The response must respect the first law (the existence of a free-energy potential ψ from which the stress is derived, σ = ∂ψ/∂ ε) and the second law (non-negative dissipation, D ≥ 0). 3. Material stability : The response should yield a well-posed boundary value problem with a unique solution. This is classically guaranteed by convexity [59] (of the energy in hyperelasticity, or of the yield surface in plasticity), which is desirable for numerical robustness but is not always physically accurate. The simple architecture of Figure 6 already satisfies several of these constraints implicitly. Invariance is ensured by mapping from and to ordered principal stresses. Working in the principal frame enforces objectivity: any rotation of the observer’s frame leaves the principal stresses σ1 ≥ σ2 unchanged, since they are computed from the stress tensor’s eigenvalues. The principal stress ordering enforces isotropy, since the network cannot tell which spatial direction each eigenvalue originally belonged to, and the sign-based folding of the input domain (to be covered in Section 3.3 and visualized by Figure 7) ensures equal tension–compression behavior. This approach is readily extendable to looser symmetry assumptions, such as anisotropy or distinct tension–compression responses. Thermodynamic consistency in plasticity requires the plastic dissipation to be non-negative, 
+
+D = ¯ σ : ∆ ¯ ε p ≥ 0, ∆¯ γ ≥ 0, (4) of which the irreversibility condition ∆¯ γ ≥ 0 is enforced directly through the fallback to standard elasticity when the network predicts ∆¯ γ < 0. The dissipation inequality is satisfied only by the training data, but not imposed on the network. 1 
+
+> 1Importantly, these constraints ensure only physical consistency and not necessarily accuracy for a problem at hand. A simple option, not pursued here, is to use the constraints that are not strongly enforced, i.e., the dissipation inequality and the tension–compression behavior, as indicators of network failure. The network can then report this to the user as a warning.
+> Preprint July 20, 2026 10
+
+¯σx
+
+¯σy
+
+θ
+
+> pure shear
+> pure shear
+> uniaxial tension
+> uniaxial compression
+> equibiaxial tension
+> equibiaxial compression
+
+Figure 7: Training data domain defined by the stress angle θ, varying from −45 ◦ for pure shear stress state to 45 ◦ for equibiaxial stress state. Material stability via convexity of the yield surface is deliberately not enforced. Convexity is overly restrictive for plasticity in homogenized microstructures [60], whose effective yield surfaces need not be convex, as illustrated by the non-convex homogenized surface in Figure 3. 
+
+3.3. Training dataset 
+
+The assumption of identical tensile and compressive behaviors provides a major computational advantage by confining the domain of interest from the full (¯ σx, ¯σy) plane to a 90 ◦ sector. Accordingly, as shown in Figure 7, the training dataset is generated by varying the stress angle θ from −45 ◦ for pure shear stress state to 45 ◦ for equibiaxial stress state. Owing to tension–compression symmetry, any arbitrary stress state can be mapped into this canonical sector. This is done by aligning the principal axis corresponding to the maximum absolute principal stress with the ¯ σx direction. If this aligned stress is compressive, the stress tensor is multiplied by −1 to guarantee that the mapped state resides in the tensile quadrant defined during training. The mapped state is then processed by the trained neural network. Finally, the updated stress is transformed back by re-applying the same sign reversal if necessary. This approach effectively confines the learning domain to a single 90 ◦ sector while allowing the surrogate model to handle the full stress plane. We generate the preliminary training dataset by varying the stress angle θ in 1 ◦ increments across the defined 90 ◦ sector. This fine resolution provides a dense data population for the initial verification of the surrogate model against a concurrent multiscale simulation. To investigate the sensitivity of the model’s performance to data density, we create additional datasets using coarser angular increments (e.g. 2◦ and 5◦). This sensitivity analysis assesses how the size and distribution of the training data influence the neural network’s ability to learn a reliable stress-update mapping. To generate the training dataset, a series of incremental FFT-based homogenization analyses are per-formed, each along a predefined stress-angle path defined by a constant θ. This requires imposing the macroscopic strain increment ∆ ¯ ε at each loading step. However, the stress update procedure does not inherently preserve a prescribed principal stress ratio. This is a natural aspect of the constitutive response and poses no issue for the dataset itself, where any trial stress state can validly map to its corresponding updated state. Yet, it presents a challenge for data generation along a fixed θ path. To ensure that each trial data point corresponds to the intended stress direction given the previously deviated updated stress state, the strain increment ∆ ¯ ε is adjusted at each step via ∆ ¯ ε = ¯C−1 : ( ¯ σtrial n+1 − ¯σn), (5)  
+
+> Preprint July 20, 2026 11
+
+where the previously updated stress ¯ σn generally does not obey the intended stress ratio, yet ¯ σtrial n+1 is the target trial stress state aligned with angle θ.To generate a comprehensive training dataset that enables the surrogate model to accurately handle a wide range of loading increments, a paired-increment strategy is adopted. Each pair consists of an initial, infinitesimally small step that only slightly violates the elastic limit, immediately followed by a substantially larger step that produces noticeable plastic deformation. This approach allows the trained network to accurately interpolate and, to some extent, extrapolate stress updates for arbitrary increment sizes within this range. It is particularly important to resolve the material response near the onset of plasticity, while larger increments are more efficient once plastic flow is well-developed, avoiding an excessive number of steps to capture advanced plastic deformation. Therefore, the magnitude of the larger step is progressively increased. In this way, the critical elastic-to-plastic transition is sampled densely, while the response under significant yielding is also captured effectively. A baseline stress increment of 1 MPa is selected empirically. This value remains constant for the small step in each pair throughout the analysis, whereas the large step is computed by augmenting this baseline with an additional part defined by an increment multiplier that grows with the step number. We define this multiplier as 
+
+α = n2/N, (6) where n is the step number and N is the total number of steps. This multiplier progressively increases during the analysis to ensure the desired resolution across the entire loading history. Upon choosing the increment size, it is applied to the larger principal trial stress, ¯ σtr x , while the smaller principal stress, ¯ σtr y , is scaled according to the chosen value of θ. An incremental analysis comprising 100 steps is performed along each prescribed θ.This strategy serves two main purposes. First, it enables the trained network to interpolate stress updates accurately across a range of increment sizes and to generalize robustly beyond the specific loading paths used in training. Second, it provides high resolution near the yield point while efficiently capturing the nonlinear hardening response at large plastic strains, without requiring an excessive number of analyses. Consequently, the resulting dataset spans the full material response, from incipient yielding to fully developed plastic flow. Figure 8 illustrates this paired-increment strategy for θ = 0 ◦. The red curve shows the trial stress ¯ σtr x
+
+as a function of the equivalent plastic strain ¯ εp
+
+> eq
+
+, while the black curve shows the updated stress ¯ σx. The range spanned by the trial and updated stress in each pair enables the model to learn a wide spectrum of strain increments. We later analyze the influence of this small step in the sensitivity analysis section to demonstrate its importance in providing the neural network with the flexibility to handle different strain increments. Having defined the procedure for adjusting strain increments to align the trial state with the chosen stress angle θ, and having established the details of the paired-increment strategy, the overall process of an incremental FFT-based analysis for generating data along a fixed θ path is summarized in Algorithm 1. 
+
+3.4. Return-mapping algorithm 
+
+The procedure begins by computing the trial stress tensor via the product of the strain increment and the homogenized stiffness tensor, ¯C. The principal stresses are then extracted, and the component with the largest absolute value is designated as ¯ σx, while the other becomes ¯ σy. To ensure the stress state resides within the canonical sector between −45 ◦ and 45 ◦, the tensor is multiplied by −1 if ¯ σx is compressive. This mapped stress state, along with the equivalent plastic strain ¯ εp 
+
+> eq
+
+from the previous converged step, is fed into the trained neural network. The network outputs an updated stress tuple (¯ σx, ¯σy) and the incremental plastic multiplier ∆¯ γ.A fundamental postulate of plasticity is the irreversibility of plastic deformation, which mathematically requires the incremental plastic multiplier ∆¯ γ to be non-negative. This criterion provides an immediate verification of the prediction provided by the neural network. If the value returned by the network satisfies ∆¯ γ ≤ 0, it is interpreted as an indication of purely elastic behavior. In this case, the trial stress state is valid, and the step is considered elastic. Conversely, if ∆¯ γ > 0, the prediction signals plastic growth, and the corresponding updated stress tuple (¯ σx, ¯σy) is accepted as the correct solution. In this case, the updated  
+
+> Preprint July 20, 2026 12
+
+0 0.5 1 1.5 2 2.5 3 3.5 4 4.5
+
+0
+
+25 
+
+50 
+
+75 
+
+100 
+
+125 
+
+150 
+
+175 
+
+200 
+
+Equivalent plastic strain ×10 −2
+
+> Stress (MPa)
+
+¯σtr x
+
+¯σx
+
+Figure 8: Stress versus equivalent plastic strain curves based on the described paired-increment strategy. Filled and hollow circles correspond to the small and large increments, respectively. stress tuple is transformed back by reversing the initial sign inversion if applied, and then rotated back to the global coordinate system using the principal directions computed prior to the update. The equivalent plastic strain ¯ εp 
+
+> eq
+
+is also incremented by ∆¯ γ. Note that unloading would be naturally signaled by a negative ∆¯ γ.As a result, the surrogate model can track this behavior to some extent. However, capturing complicated unloading and reloading paths requires a designated data generation strategy. This feature is not aimed at in this paper and will be pursued in the future. It is crucial to emphasize that, as noted earlier, the training dataset enables the network to handle a wide range of strain increments. Nonetheless, accuracy in any return-mapping algorithm, whether conventional or data-driven, requires that loading increments remain within a reasonable bound. To enforce this, we monitor the output ∆¯ γ. Based on observations from the training data, a practical threshold for this increment can be chosen as 10 −3. If ∆¯ γ exceeds this value, the solver is prompted to reject the current load step and re-attempt it with a reduced load increment (halved in our implementation) to ensure stability and preserve solution accuracy. The return-mapping algorithm presented above is implemented within the Abaqus finite element frame-work via a user-defined material subroutine (UMAT), written in C++ and released as open-source code. The link to this repository, which includes the implementation and supplementary files, is accessible through Section 8, the Data Availability section. 
+
+3.5. Scalability 
+
+The training dataset employed in this work comprises 91 stress angles × 50 increments × 2 (paired) = 9 , 100 data points. To put this number into perspective, a single finite element increment with one global Newton– Raphson iteration requires as many RVE evaluations as there are Gauss points, which amounts to 9 , 100 evaluations for a mesh of only 2 , 275 elements ( ∼48 × 48 grid) with 4 Gauss points per element. Note that this matching of numbers, which corresponds to quite a coarse mesh for a typical finite element analysis, holds only if a one-step analysis is intended and the step is entirely linear over the whole domain (i.e., across all RVEs), such that no more than one global iteration is required. This data efficiency arises directly from the simplifications introduced to demonstrate the viability of simple neural network architectures for accelerating FE 2 simulations. We now consider how relaxing each simplification affects the required number  
+
+> Preprint July 20, 2026 13
+
+Algorithm 1 FFT-based analysis procedure for generating training data along a fixed stress-angle path.  
+
+> 1:
+
+Input: number of steps N , baseline increment ∆ σ, stress angle θ 
+
+> 2:
+
+for n ∈ { 0, 1, . . . , N − 1} do  
+
+> 3:
+
+Define increment size multiplier α: 
+
+> 4:
+
+if n is even then  
+
+> 5:
+
+α ← 0 
+
+> 6:
+
+else  
+
+> 7:
+
+α ← n2/N  
+
+> 8:
+
+end if  
+
+> 9:
+
+Compute trial stress along θ: 
+
+> 10:
+
+¯σtr x ← ¯σx + (1 + α)∆ σ 
+
+> 11:
+
+¯σtr y ← ¯σtr x × tan ( θ) 
+
+> 12:
+
+Compute strain increment ∆ ¯ ε: 
+
+> 13:
+
+∆ ¯ ε = ¯C−1 : ( ¯ σtrial n+1 − ¯σn) 
+
+> 14:
+
+Compute macroscopic strain ¯ ε: 
+
+> 15:
+
+¯ε ← ¯ε + ∆ ¯ ε 
+
+> 16:
+
+goto Algorithm 2 to solve the step  
+
+> 17:
+
+end for 
+
+of training data points. Dropping the assumption of identical tension and compression behavior is the most straightforward exten-sion. In that case, we cannot perform the sign reversal to align the maximum absolute principal stress with the ¯ σx direction, yet we have the free will to choose which principal stress is along ¯ σx and which is along ¯σy. Three possibilities arise: one is that both principal stresses are negative. We thus choose the larger one in magnitude to be along ¯ σy so that the stress angle θ falls between −135 ◦ and −90 ◦. The second case is that one is negative and one is positive, where we choose the positive one to be along ¯ σx so that θ lies in the fourth quadrant. Lastly, if both are positive, we choose the larger one to be along ¯ σx, hence the stress angle 
+
+θ ranges between 0 ◦ and 45 ◦. Consequently, we have a symmetry about the ¯ σx = ¯ σy line, and the stress angle θ varies between −135 ◦ and 45 ◦ in total. This symmetry is exactly what appears in yield surfaces for pressure-sensitive materials like Drucker–Prager, where the trace on the plane stress surface ¯ σz = 0 is different in the first and third quadrants, yet is symmetric about the 45 ◦ line. As a result, dropping the tension-compression symmetry expands the training domain from a 90 ◦ sector to a half-plane with 180 ◦
+
+stress angles, increasing the number of data points to 18 , 100. This remains well within practical limits and does not alter the fundamental scale of the dataset. Moving from two-dimensional plane stress to full three-dimensional stress states increases the number of independent stress components from 3 to 6, which fundamentally raises the complexity of the problem. In the isotropic setting, the response can still be expressed in terms of principal stresses as illustrated in Figure 3, where sampling the three-dimensional yield surface in the Haigh–Westergaard space requires two angular coordinates ( θ, φ ) rather than the single angle θ. There are also symmetry planes that simplify angular sampling. For instance, one may work with stress invariants instead of principal stresses and adopt the Lode coordinate system [61], which is a cylindrical system with the three coordinates ( z, r, β ). In this system, as shown in Figure 9, the z-coordinate aligns with the hydrostatic line ¯ σx = ¯ σy = ¯ σz , the radial coordinate r lies in the deviatoric plane ( π-plane), which is perpendicular to the z-axis, and the Lode angle 
+
+β describes the rotation around the z-axis within the deviatoric plane. Doing so, and having the freedom to assign any permutation of principal stresses to the three Cartesian axes in Haigh–Westergaard space, any arbitrary yield surface can be sampled at most within each 120 ◦ sector of the Lode angle β on a deviatoric plane. Consequently, the sampling domain has 181 × 121 × 50 × 2 ≈ 2.2 · 10 6 data points. However, at the same time, the number of Gauss points per element increases from 4 to 8 in three dimensions, so that the breakeven threshold [62] for a single increment with one Newton–Raphson iteration corresponds to a mesh of ∼275 , 000 elements ( ∼65 × 65 × 65 grid). This scenario, therefore, remains computationally favorable for a single simulation with a single increment and iteration. The situation changes fundamentally when the count of stress components increases due to inelastic anisotropy. In this case, the constitutive response depends on the orientation of the stress tensor relative to  
+
+> Preprint July 20, 2026 14
+
+•
+
+z-axis 
+
+π-plane 
+
+¯σx
+
+¯σy
+
+¯σz
+
+π-plane view 
+
+¯σx ¯σy
+
+¯σz
+
+r
+
+β
+
+Figure 9: The three coordinates ( z, r, β ) in the Lode coordinate system. the material axes, and principal stress states are no longer sufficient to characterize the material behavior. Considering the worst-case scenario with no symmetry at all, all six independent stress components must be accounted for, rendering grid-based sampling infeasible. This moves the breakeven threshold dramatically, and the surrogate model becomes economical only when a large number of simulations are to be performed. The prohibitive data requirements of the fully anisotropic inelastic case can, however, be mitigated by more sophisticated sampling strategies. Latin hypercube sampling and related space-filling techniques offer a more efficient coverage of high-dimensional input spaces than structured grids. Physics-inspired sampling procedures [41, 43] further reduce the sampling effort by tracking only the trajectories that are expected to be relevant for the intended application. Such targeted strategies come at the price of reduced robustness and applicability, as regions of the input space that were not sampled during training may lead to inaccurate predictions. 
+
+# 4. Benchmark verification 
+
+We verify the neural network surrogate by comparing its predictions against results from high-fidelity, concurrent FFT-based multiscale simulations. In this conventional approach, the macroscopic strain at each Gauss point is passed to a fine-scale RVE. Then the periodic boundary value problem governing the RVE, driven by this strain increment, is solved using the FFT-based homogenization scheme outlined in Algorithm 2. The resulting homogenized stress is then upscaled and returned to the macroscopic solver. This iterative two-scale process, which obviously incurs a prohibitive computational cost, is repeated for every Gauss point at each global iteration. In contrast, the surrogate-equipped simulation bypasses this expensive scale transition entirely. For each Gauss point, a trial stress tensor, computed as the product of the strain increment and the homogenized stiffness tensor ¯C, and the current equivalent plastic strain ¯ εp 
+
+> eq
+
+are passed directly to the trained neural network. The network provides the updated stress and the incremental plastic multiplier ∆¯ γ in a single forward pass. Three benchmark numerical examples were selected to comprehensively test the surrogate under varied stress states having different principal stress orientations. The examples are an internally pressurized annu-lus, an end-loaded cantilever beam, and Cook’s membrane problem. To mitigate the extreme computational expense of the concurrent multiscale reference simulations, the macroscopic discretization was kept minimal. We employed eight-noded biquadratic elements with reduced integration, resulting in four Gauss points per element. This setup provides a tractable basis for comparing the accuracy and efficiency of the surrogate against the conventional multiscale approach. We compare the CPU time of simulations using the neural network surrogate against that of the standard concurrent multiscale approach. Beyond raw computational speed, an even more compelling justification for using the surrogate as proposed in this paper lies in the severe memory constraints imposed by the con- 
+
+> Preprint July 20, 2026 15
+
+pressure 
+
+R200 
+
+> 100 mm
+
+30 ◦
+
+meso-structure 
+
+Figure 10: Schematic of the internally pressurized annulus problem and its meso-structure. ventional method. In our concurrent multiscale simulation, each Gauss point carries a staggering 1,048,576 internal variables (512 × 512 pixels times 4 internal variables per pixel: three stress components and one plastic strain component), all of which must be stored and updated throughout the analysis. This places a severe restriction on the finite element discretization, as even on high-performance machines with hundreds of gigabytes of RAM, simulations with more than a handful of elements become infeasible. We perform all computations on a laptop running Arch Linux (kernel 6.18.2), equipped with an AMD Ryzen 7 PRO 6850U CPU operating at 2.7 GHz. For reference, generating the full training dataset with 1 ◦ stress-angle sampling and the paired-increment strategy required 8 hours and 59 minutes, while training the network using PyTorch took only 18 seconds. Note that, as the conventional approach is far more computationally expensive, the comparison of simulation times is inherently one-sided if only the finite element analyses are considered. To provide a fair assessment, one must consider the total cost of the surrogate pipeline (data generation, network training, and finite element simulation) compared to that of the full concurrent multiscale modeling. This comparison demonstrates that, regardless of efficiency (see also Section 3.5), it is reasonable to train such networks even if one wants to use them for just a single analysis, as it enables fine discretizations that would otherwise be infeasible. 
+
+4.1. Internally pressurized annulus 
+
+The first benchmark is an internally pressurized annulus with the geometry and boundary conditions il-lustrated in Figure 10. The annulus has an inner radius of 100 mm, an outer radius of 200 mm, and is subjected to uniform internal pressure. Although the problem is axisymmetric, a 30 ◦ segment is modeled with appropriate symmetric boundary conditions on the truncated edges. The segment is discretized into a 3 ×3 mesh in the radial and circumferential directions, resulting in 9 elements in total. Pressure loading is applied indirectly within a displacement controlled regime by prescribing a total radial displacement of 4 mm at the inner edge. Figure 11 compares the applied pressure versus the radial expansion at the outer edge for both the con-current multiscale model and the neural network surrogate. Figure 12 shows the corresponding equivalent plastic strain distributions upon completion of the analyses. The results exhibit very good agreement. Minor deviations can be attributed to the subtle inherent anisotropy of the RVE in the high-fidelity concurrent multiscale simulation, which is approximated as fully isotropic in the surrogate model. Regarding computa-tional time, the concurrent multiscale simulation required approximately 6 hours and 48 minutes, whereas the neural network surrogate completed the same analysis in approximately 0.8 seconds. This dramatic difference highlights the profound efficiency gain achieved by adopting the data-driven surrogate.  
+
+> Preprint July 20, 2026 16
+
+0 0.25 0.5 0.75 1 1.25 1.5 1.75 2 2.25 
+
+0
+
+5
+
+10 
+
+15 
+
+20 
+
+25 
+
+30 
+
+35 
+
+Radial expansion (mm) 
+
+> Pressure (MPa)
+
+Internally pressurized annulus 
+
+MS 
+
+NN 
+
+Figure 11: Pressure–radial expansion comparison between multiscale (MS) and neural network (NN) models. 
+
+4.2. End-loaded cantilever beam 
+
+The second benchmark is a cantilever beam subjected to a concentrated perpendicular load at its free end. The geometry and boundary conditions are illustrated in Figure 13. In contrast to the previous example, where the principal stress states were almost identical everywhere but the principal orientations varied spatially, this configuration generates a broad spectrum of stress states. Consequently, the stress angle θ
+
+varies from pure tension at the top edge, through pure shear at the neutral axis, to pure compression at the bottom edge. The beam is discretized with 2 elements through its thickness and 10 elements along its length, resulting in 20 elements in total. To reduce computational cost, the first 10 elements (half of the beam) near the free end are assumed to remain elastic. Consequently, their response is computed by directly multiplying the strain with the homogenized stiffness tensor ¯C. Only the remaining 10 elements near the fixed support follow the full 
+
+(a) (b) Figure 12: Plastic strain contours of annulus problem for (a) multiscale and (b) neural network models.  
+
+> Preprint July 20, 2026 17
+
+F
+
+1000 mm 
+
+> 100
+
+meso-structure 
+
+Figure 13: Schematic of the cantilever beam problem. 0 25 50 75 100 125 150 175 200 020 40 60 80 100 120 Displacement (mm) Force (N) End-loaded cantilever beam MS NN Figure 14: Force–displacement comparison between multiscale (MS) and neural network (NN) models. concurrent multiscale modeling. We validated this simplification by a preliminary analysis confirming that the plastic zone does not extend into the elastic region. The problem is solved under displacement control by prescribing a vertical displacement of 200 mm at the neutral axis of the free end. Figure 14 compares the resulting force–displacement curves for the concurrent multiscale model and the neural network surrogate. Figure 15 presents the corresponding equivalent plastic strain contours. The curves show very good agreement, with minor deviations again attributable to the assumed isotropy in the surrogate model versus the subtle anisotropy in the high-fidelity RVE. The strain contours produced by both models are nearly identical, which further confirms the accuracy of the surrogate. Comparing the computa-tion times reveals that the concurrent multiscale simulation required 7 hours and 18 minutes to complete, whereas the neural network surrogate required only 1.1 seconds. This result again demonstrates the sub-stantial efficiency gain achieved by the data-driven approach over the conventional concurrent modeling paradigm. 
+
+4.3. Cook’s membrane problem 
+
+The third example is the classic Cook’s membrane benchmark, widely used to evaluate finite element per-formance under combined bending and shear deformation [56]. As depicted in Figure 16, the geometry is a tapered, skewed panel with unit thickness. The boundary conditions consist of a fully clamped left edge and a uniformly prescribed vertical displacement of 2 mm applied to the right edge. This example challenges the surrogate model with a diverse range of arbitrary stress states, spanning a broad spectrum of the stress  
+
+> Preprint July 20, 2026 18
+
+(a) 
+
+(b) 
+
+Figure 15: Plastic strain contours of cantilever beam problem for (a) multiscale and (b) neural network models. 
+
+F
+
+48 mm 44  16 
+
+meso-structure Figure 16: Schematic of Cook’s problem and its meso-structure. angle θ. The membrane is discretized using a 3 ×3 mesh of eight-noded biquadratic elements, resulting in 9 elements in total. The resulting force–displacement curves for both the multiscale model and the neural network surrogate are compared in Figure 17. The displacement is measured at the upper right vertex of the membrane. The curves again exhibit very good agreement, with minor deviations stemming from the isotropic approximation in the surrogate versus the slight anisotropy in the high-fidelity simulation. The equivalent plastic strain contours, presented for both models in Figure 18, are nearly identical. In terms of computational efficiency, the concurrent multiscale simulation required 5 hours and 13 minutes, while the neural network surrogate completed the same analysis in 0.8 seconds. This dramatic reduction in computational time highlights both the practical advantage of the proposed data-driven approach and the necessity of the paradigm shift from conventional methods to surrogate-based constitutive modeling. 
+
+# 5. Sensitivity analysis 
+
+This section presents three groups of sensitivity analyses to assess the robustness and data requirements of the surrogate model. In the first group, the network trained on the complete dataset is evaluated under varying numerical conditions, including mesh size and loading step size. The mesh sensitivity analysis examines the effect of mesh refinement, which increases the diversity of local stress states and provides a more comprehensive sampling of the stress angle θ spectrum. The step-size sensitivity analysis, on the other hand, examines whether the paired-increment strategy successfully enables the network to handle strain  
+
+> Preprint July 20, 2026 19
+
+0 0.25 0.5 0.75 1 1.25 1.5 1.75 2
+
+0
+
+50 
+
+100 
+
+150 
+
+200 
+
+250 
+
+300 
+
+Displacement (mm) 
+
+> Force (N)
+
+Cook’s membrane problem 
+
+MS 
+
+NN 
+
+Figure 17: Force–displacement comparison between multiscale (MS) and neural network (NN) models. increments across the full range spanned by the training pairs. The second group investigates the sensitivity of the network to the size and composition of the training data. For this purpose, separate networks are trained on a reduced dataset, and their predictions are compared against those of the model trained on the complete dataset. It is important to note that the same neural network architecture employed for the model trained on the full dataset in the previous tests is used here as well. First, the density of stress-angle sampling is varied by generating datasets with coarser increments of 2 ◦ and 5 ◦ in addition to the baseline 1 ◦. This allows us to quantify how much the data generation effort can be reduced before compromising prediction accuracy. We then isolate the role of the paired-increment strategy by training a network exclusively on the larger increments and omitting the initial small steps. This comparison directly assesses whether the paired strategy is essential for equipping the network with the robustness to deal with a continuous spectrum of strain increment magnitudes. Finally, in the third group, the model’s ability to generalize to out-of-distribution loading is evaluated using loading paths that were not included in the training dataset. These cases include non-monotonic loading histories involving repeated loading and unloading, as well as non-proportional loading paths where the loading direction changes during the deformation process. We employ the classical perforated plate problem, a common benchmark for plane-stress elasto-plasticity. The plate dimensions are 20 × 36 mm, with a central circular hole of 10 mm diameter. For all cases except the non-proportional loading, the plate is loaded in uniaxial tension via a uniform prescribed displacement applied to the upper and lower edges. For the latter, to obtain a non-proportional loading path, we first apply a uniform pressure over the face of the hole, and then impose a uniformly distributed tensile load over the top edge of the plate in a subsequent step. Due to symmetry in both geometry and loading, only one quarter of the plate is modeled, as illustrated in Figure 19. Appropriate symmetric boundary conditions are enforced on the truncated edges. 
+
+5.1. Mesh sensitivity 
+
+For the mesh sensitivity analysis, three discretizations, including a coarse, a medium, and a fine mesh using reduced-integration eight-noded biquadratic elements, are considered. The coarse mesh is generated with a seed spacing of 1 mm, resulting in elements with an approximate side length of 1 mm. The medium  
+
+> Preprint July 20, 2026 20
+
+(a) (b) 
+
+Figure 18: Plastic strain contours of Cook’s problem for (a) multiscale and (b) neural network models. mesh uses half that spacing (0.5 mm), and the fine mesh a quarter of the original spacing (0.25 mm). Consequently, the meshes, designated as Mesh 1, Mesh 2, and Mesh 3, comprise 177 elements, 760 elements, and 3146 elements, respectively. Figure 20 presents a comparison of the total applied force over half of one edge versus the prescribed displacement for all three meshes. The curves are virtually indistinguishable. The equivalent plastic strain contour for each mesh is also presented in Figure 21, showing a similar degree of agreement. It must be mentioned here that, from this point onward, the medium mesh, generated by 760 eight-noded biquadratic elements, is the basis for the remaining sensitivity analyses. 
+
+5.2. Step-size sensitivity 
+
+In nonlinear finite element analysis, automatic load stepping is the standard practice to ensure solution robustness and efficiency. This algorithm adapts the load increment size based on the number of Newton– Raphson iterations required for convergence. If the iteration count exceeds a specified limit, the increment is automatically subdivided, and if convergence is achieved too rapidly, the increment size is increased. Commercial solvers like Abaqus implement this capability as their default strategy for incremental nonlinear analysis. In this part of the sensitivity analysis, we assess the robustness of the neural network surrogate with respect to increment size, i.e., its ability to provide consistent stress updates across a range of strain increments without solution deviation. To perform this step-size sensitivity analysis, we temporarily disable two key adaptive features. First, we suppress the UMAT signal that would request increment halving based on the incremental plastic multiplier, and second, we switch from automatic to fixed load increments. The solver is also configured to permit more iterations than usual to avoid premature termination. Doing so, we isolate the effect of increment size. For the perforated plate benchmark, we target a maximum vertical displacement of 0.2 mm at the upper edge and apply it using three different fixed increments, namely 50, 25, and 10 steps. The simulation with 10 steps diverged, so we conducted a manual search for a stable step count. The smallest number of fixed steps that converged was 16. It is important to note that re-enabling adaptive stepping, along with allowing the UMAT to signal for increment subdivision, would prevent such divergence, but we intentionally disable these features here to evaluate the performance of the neural network under a purely fixed scheme. However, this non-adaptive approach is not recommended for general nonlinear analysis. The resulting force–displacement curves for the converged cases (50, 25, and 16 steps) are compared in Figure 22. The curves show very good agreement, indicating that the trained neural network provides consistent and accurate stress updates across a practical range of fixed increment sizes.  
+
+> Preprint July 20, 2026 21 R5
+> 18 mm
+
+10 mm 
+
+meso-structure 
+
+Figure 19: Schematic of the perforated plate problem and its meso-structure. 0 0.05 0.1 0.15 0.2050 100 150 200 Displacement (mm) Force (MPa) Mesh sensitivity Mesh 1 Mesh 2 Mesh 3 Figure 20: Force–displacement response for the three meshes in the mesh sensitivity analysis.  
+
+> Preprint July 20, 2026 22
+
+(a) (b) (c) 
+
+Figure 21: Equivalent plastic strain contours for the mesh sensitivity analysis: (a) Mesh 1, (b) Mesh 2, and (c) Mesh 3. 0 0.05 0.1 0.15 0.2050 100 150 200 Displacement (mm) Force (MPa) Step-size sensitivity 50 steps 25 steps 16 steps Figure 22: Force–displacement response for the three converged step sizes in the step-size sensitivity analysis.  
+
+> Preprint July 20, 2026 23
+
+0 0.05 0.1 0.15 0.2
+
+0
+
+50 
+
+100 
+
+150 
+
+200 
+
+250 
+
+Displacement (mm) 
+
+> Force (MPa)
+
+Stress-angle sampling 
+
+1◦ increments 
+
+2◦ increments 
+
+5◦ increments 
+
+Figure 23: Comparison of force–displacement responses for training datasets with different stress-angle res-olutions. 
+
+5.3. Stress-angle sampling 
+
+This section investigates the sensitivity of the surrogate model to the density of stress-angle sampling within the training data. We compare three sampling strategies, defined by stress-angle increments of 1 ◦, 2 ◦, and 5◦. The first one, which constitutes the full dataset and serves as the baseline, was used for all previous analyses. For the coarser 2 ◦ and 5 ◦ increments, separate neural networks are trained on the correspondingly reduced datasets. The resulting force–displacement curves are presented in Figure 23. As evident from the figure, the response curves produced by the models trained on the reduced datasets deviate from the baseline analysis. Moreover, these coarser sampling strategies produce erroneous stress updates, which lead to premature simulation divergence. These results indicate that a 1 ◦ sampling increment appears to be necessary for ensuring accuracy, and it serves as an effective practical threshold for robust performance across all stress angles. 
+
+5.4. Paired-increment strategy 
+
+This sensitivity analysis evaluates the effectiveness of the proposed paired-increment strategy. To this end, a separate neural network is trained on a reduced dataset that retains only the larger plastic increment and omits the initial small elastic-violating step from each pair. The trained network is then tested under the same three fixed loading schemes (50, 25, and 16 steps) used in the step-size sensitivity analysis. The resulting force–displacement curves are compared against a reference solution, obtained using the network trained on the full paired-increment dataset, in Figure 24. Simulations using the reduced-strategy network failed to complete the loading path, as all three cases diverged at an intermediate step. Moreover, even before divergence, the predicted responses exhibited significant deviation from the reference solution. This outcome demonstrates that the paired-increment strategy, which includes both the initial small step that barely violates the elastic limit and the subsequent larger step that induces noticeable plastic deformation, is essential. This strategy provides the network with the necessary information to accurately perform stress updates under arbitrary magnitudes of strain increments across a wide, yet numerically reasonable, range.  
+
+> Preprint July 20, 2026 24
+
+0 0.05 0.1 0.15 0.2
+
+0
+
+50 
+
+100 
+
+150 
+
+200 
+
+Displacement (mm) 
+
+> Force (MPa)
+
+Paired-increment strategy 
+
+Reference 
+
+50 steps 
+
+25 steps 
+
+16 steps 
+
+Figure 24: Comparison of force–displacement responses from the surrogate model trained on the reduced dataset (different step counts) against the reference curve from the model using the full dataset. 
+
+5.5. Out-of-distribution loading 
+
+5.5.1. Non-monotonic 
+
+For the non-monotonic loading case, repeated loading and unloading are applied. A prescribed displacement of 0.1 mm is first imposed on the upper edge of the plate, after which the plate is unloaded to half of this displacement and subsequently reloaded beyond the initial 0.1 mm. The model accurately predicts both the initial loading and the subsequent unloading. However, during reloading, it fails to converge at the transition from elastic to elastoplastic response. The same procedure is repeated with initial prescribed displacements of 0.14 mm and 0.18 mm, yielding identical behavior. The resulting force–displacement curves for all three cases are compared with the corresponding monotonic loading response in Figure 25. The three cases in the figure correspond to initial prescribed displacements of 0.10, 0.14, and 0.18 mm. The points at which the analyses diverge are indicated by square, circular, and triangular markers, respectively. These results indicate that, although the model can accurately predict unloading, it is unable to represent the stress update correctly during reloading. This behavior stems from the formulation adopted in the present work, where the sign of the plastic strain increment is used as an indicator of plastic evolution. When the plastic strain increment is positive, the updated stress state provided by the network is the valid one, whereas for a negative increment the trial state is retained, which naturally captures unloading. Reloading, however, requires the model to identify the transition from elastic to elastoplastic behavior for material points with an existing plastic history. Since the training dataset only contains this transition for the initial onset of yielding and does not include corresponding transitions following prior plastic deformation, the network is unable to predict the stress evolution accurately in this regime. Consequently, erroneous stress updates lead to loss of convergence. 
+
+5.5.2. Non-proportional 
+
+For the non-proportional loading case, the same perforated plate geometry is employed, but two distinct loading stages are applied to generate different loading paths. In the first stage, a uniform pressure is applied to the inner surface of the hole. In the second stage, this pressure is maintained while a uniformly  
+
+> Preprint July 20, 2026 25
+
+0 0.05 0.1 0.15 0.2
+
+0
+
+50 
+
+100 
+
+150 
+
+200 
+
+Displacement (mm) 
+
+> Force (MPa)
+
+Non-monotonic loading 
+
+Monotonic 
+
+Case 1 
+
+Case 2 
+
+Case 3 
+
+Figure 25: Comparison of force–displacement responses for monotonic and non-monotonic loading cases. distributed tensile load is applied to the upper edge of the plate. Three loading cases are considered, with inner hole pressures of 16, 18, and 20 MPa, followed by the same uniformly distributed tensile load of 10 MPa in the second stage. The equivalent plastic strain contours at the end of the first loading stage are shown in Figure 26 to illustrate the extent of plastic deformation produced by the applied hole pressure. As shown, the 16 MPa case produces only a very small plastic zone. Increasing the pressure to 18 MPa results in a noticeable plastic region, while the 20 MPa case leads to substantial plastic deformation around the hole. During the second loading stage, the first two cases converge successfully, whereas the third case, corre-sponding to an inner hole pressure of 20 MPa, fails to converge shortly after the second stage begins. This behavior is illustrated in Figure 27, where the vertical displacement of the node located at the top of the hole ( θ = 90 ◦) is plotted against pseudo-time. Here, t = 0 to t = 1 corresponds to the first loading stage (hole pressure), while t = 1 to t = 2 represents the second loading stage (tensile loading of the upper edge). The equivalent plastic strain contours at the end of the analysis are also presented in Figure 28. The results indicate that the first two cases converge because the plastic regions generated during the two loading stages remain largely separated. Consequently, most material points that undergo plastic deformation during the second stage have not experienced noticeable prior plastic yielding, and the network encounters conditions not too far from those represented in the training dataset. In contrast, for the 20 MPa case, the plastic region generated during the first stage extends significantly to the right of the hole, causing a substantial overlap with the plastic zone produced during the second stage. As a result, material points with an existing plastic history continue to evolve plastically along a different loading path than those represented in the training data. Since such loading histories are absent from the training dataset, the network produces inaccurate stress updates, ultimately leading to loss of convergence during the early increments of the second loading stage. While such a failure to converge might seem inconvenient at first, it is actually a benefit regarding robustness: The setup does not simply continue with wrong results, but indicates when it gives wrong predictions.  
+
+> Preprint July 20, 2026 26
+
+(a) (b) (c) 
+
+Figure 26: Equivalent plastic strain contours for the non-proportional loading case at the end of the first loading stage: (a) Case 1, (b) Case 2, and (c) Case 3. 0 0.5 1 1.5 202468
+
+·10 −2
+
+diverged Pseudo-time (s) Displacement (mm) Non-proportional loading Case 1 Case 2 Case 3 Figure 27: Vertical displacement of the node located at the top of the hole ( t = 0 to t = 1 corresponds to the first loading stage and t = 1 to t = 2 corresponds the second loading stage).  
+
+> Preprint July 20, 2026 27
+
+(a) (b) 
+
+Figure 28: Equivalent plastic strain contours for the non-proportional loading case at the end of the analysis: (a) Case 1 and (b) Case 2. 
+
+# 6. Concluding remarks 
+
+This work presented a deep learning surrogate model to overcome the main computational bottleneck of concurrent multiscale plasticity, stemming from the prohibitive cost of solving nested fine-scale boundary value problems at each Gauss point. The objective was to replace this expensive procedure with a data-driven constitutive update performed by a neural network that directly learns the constitutive response of a heterogeneous RVE from training data generated via FFT-based homogenization. Three benchmark studies demonstrated that the neural network surrogate reproduces the responses of the high-fidelity concurrent multiscale simulations with very good agreement. Minor discrepancies were attributed to the subtle anisotropy inherent in the RVE in the reference simulations, which is approximated as isotropic in the surrogate formulation. Most notably, the computational time was reduced from several hours to approximately one second per analysis, achieving speed-ups of 23,000–30,000. These results clearly establish the surrogate model as a viable and highly efficient alternative to conventional concurrent multiscale plasticity. Sensitivity studies verified perfect mesh objectivity and revealed only very minor sensitivity to the chosen step size, which is also frequently seen in conventional return-mapping approaches. The investigation of stress-angle sampling revealed that sufficiently dense angular coverage consisting of 1 ◦ increments is essen-tial for stable and accurate stress updates. In addition, the paired-increment strategy is crucial for enabling the network to generalize across a continuous spectrum of strain increments. Omitting this strategy leads to deviation from the reference results and premature divergence. The surrogate is trained on monotonic, pro-portional loading paths, so its predictions degrade for loading outside this distribution, e.g., non-monotonic or non-proportional paths. Within this scope, however, the intended benefit, replacing the fine-scale solve for monotonic-proportional loading, is fully realized. Herein also lies the principal limitation. The stress space must be sampled with sufficient density. For the two-dimensional isotropic case, a modest dataset of 18 , 100 points suffices. Extending to three-dimensional isotropic plasticity increases this by a factor of ∼120. Yet the surrogate remains economical even for a single simulation, as the Gauss point evaluations in a three-dimensional mesh of reasonable size quickly exceed this number. For anisotropic plasticity, however, the dataset grows substantially, and the breakeven threshold shifts dramatically (see Section 3.5 for details). However, such an investment can be justified, as the resulting surrogate constitutes a general-purpose constitutive model applicable across a broad class of simulations.  
+
+> Preprint July 20, 2026 28
+
+Beyond raw computational speed, an even more compelling justification for the surrogate lies in the severe memory constraints imposed by the conventional method. In our simulations, each Gauss point carries over a million internal variables, rendering concurrent simulations even with very coarse meshes infeasible. This demonstrates that training such networks is worthwhile even for a single analysis, as it unlocks simulations that lie far beyond the reach of traditional concurrent multiscale frameworks. 
+
+# 7. Declaration of Competing Interests 
+
+The authors declare no conflicts of interest. 
+
+# 8. Data Availability 
+
+The developed C++ UMAT subroutine, the complete training dataset (including the densest sampling spectrum), the neural network trained on it, and the Abaqus input file for the perforated plate benchmark are all available under an open-source license at https://doi.org/10.5281/zenodo.18522059. This repository provides the essential components to conduct finite element simulations with the surrogate model and facilitates the adoption and extension of the proposed data-driven framework. 
+
+# 9. Funding 
+
+We greatefully aknowledge the funding provided by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) - project number 414265976 - TRR 277 in the project project ”Bridging Scales – From Geometric Part Details to Construction Elements (C01)” which is part of the collaborative research centre “Additive Manufacturing in Construction - The Challenge of Large Scale”. 
+
+# Appendix A. FFT-based homogenization 
+
+In the spirit of Eshelby’s pioneering solution for an ellipsoidal elastic inclusion [63], we establish an equiva-lence between the heterogeneous and homogeneous RVEs shown in Figure 29. It states that the stress field in the heterogeneous RVE with a spatially varying stiffness tensor C(x) can be represented as the stress field of a homogeneous linear elastic reference material, superimposed with a stress polarization field τ (x)that arises from the material mismatch. It reads in mathematical terms as 
+
+σ(x) = C◦ : ε(x) + τ (x), (7) where ε(x) is a spatially varying strain field and C◦ is the stiffness tensor of the reference material, which can be chosen arbitrarily without affecting the final outcome, yet this choice has a direct effect on the convergence [64]. As a rough guideline, a stiffness tensor representing an average of the actual RVE would be a good choice. The stress tensor σ(x) solves the balance of linear momentum for the actual heterogeneous RVE, which, upon substitution of the above formulation, becomes 
+
+∇ · σ(x) = ∇ ·  C◦ : ε(x) + τ (x) = 0. (8) Note that body forces are neglected here, as they are accounted for at the macro scale [65]. Next, we adopt the additive strain decomposition illustrated in Figure 30, so that 
+
+ε(x) = ¯ ε + ˜ ε(x), (9) where ¯ε is a spatially constant macroscopic field and ˜ε(x) is a zero-mean fluctuating field. Since the macroscopic part ¯ ε is constant, its divergence vanishes and the balance of linear momentum leads to the governing equation for the fluctuation field 
+
+∇ · C◦ : ˜ ε(x) = −∇ · τ (x), (10)  
+
+> Preprint July 20, 2026 29
+
+(a) (b) 
+
+heterogeneous model 
+
+reference model 
+
+# C(x) C◦
+
+Figure 29: Conceptual basis of mean-field homogenization via the Eshelby formalism: (a) the actual het-erogeneous medium and (b) the corresponding auxiliary problem on a homogeneous reference medium. with the divergence of the stress polarization acting as a source term. Note that solving this equation requires an iterative solution even for linear elastic problems, as the source term itself depends on the unknown fluctuating strain field. This non-homogeneous partial differential equation, complemented with periodic boundary conditions, gives rise to the implicit integral equation 
+
+ε(x) = ¯ ε − (Γ◦ ∗ τ )( x), (11) where Γ◦ is known as the Lippmann–Schwinger operator. This operator has an explicit form in Fourier space that depends only on the properties of the homogeneous linear elastic reference material through ˆΓ◦
+
+> ijkl
+
+(ξ) = 14μ◦|ξ|2 (δik ξj ξl + δil ξj ξk + δjk ξiξl + δjl ξiξk) − λ◦ + μ◦
+
+λ◦ + 2 μ◦
+
+ξiξj ξkξl
+
+μ◦|ξ|4 , (12) where ξ is the spatial frequency in the Fourier space and λ◦ and μ◦ are the Lam´ e coefficients of the reference material [5]. The existence of this explicit form provides the fundamental motivation for introducing a homogeneous reference medium, an idea rooted in Eshelby’s work. Recasting the above equation in Fourier space is a natural step as it is fully consistent with the periodic boundary conditions of the RVE. In addition, the reduction of the convolution integral to a simple pointwise multiplication in the Fourier domain is a beneficial consequence of this transformation. Note that the convergence of the iterative solver in standard FFT-based homogenization deteriorates with increasing material contrast. It becomes particularly problematic for porous media and breaks down entirely in the limit of infinite contrast. The root of this instability lies in the trigonometric polynomials of the Fourier transform, where the global, edge-to-edge support of the basis functions causes local errors at pore-solid interfaces to propagate throughout the entire domain [66]. A remedy is to rely on finite-difference discretizations, as they have been shown to preserve the well-posedness of the problem and avoid the ill-conditioning arising from high material contrast [16]. One of the most pronounced works belongs to Willot [67], whose methodology has since become a standard discretization scheme in the field [5]. The framework reformulates the Lippmann–Schwinger operator using centered differences on a rotated staggered grid. The present work adopts this well-established approach. For a detailed derivation and the expression of the modified Lippmann–Schwinger operator, readers are referred to the original work [67]. Algorithm 2 summarizes the required steps for solving the periodic boundary value problem on the RVE within the FFT-based homogenization framework. Convergence is reached when the normalized residual of the equilibrium equation falls below a prescribed tolerance, namely 
+
+∥∇ · σ(x)∥∥ ¯σ∥ < ϵ tol , (13) where ¯ σ is the homogenized stress passed to the macro-scale upon convergence. It is computed as the  
+
+> Preprint July 20, 2026 30
+
+total strain 
+
+# ε
+
+macroscopic part 
+
+# ¯ε
+
+fluctuating part 
+
+# ˜ε+
+
+Figure 30: Additive strain decomposition: the total strain field ε is decomposed into the superposition of a spatially constant macroscopic part ¯ ε and a zero-mean fluctuating field ˜ ε.volume average of the stress tensor over the RVE domain Ω as follows: ¯σ = 1vol(Ω) 
+
+Z
+
+> Ω
+
+σ(x) dx. (14) This convergence criterion can be efficiently evaluated in Fourier space as 
+
+P  
+
+> ξ̸=0
+
+∥ξ · ˆσ(ξ)∥2
+
+∥ ˆσ(0)∥2 < ϵ 2tol , (15) where ˆ σ(ξ) denotes the Fourier transform of the stress field [5]. This expression follows from two basic prop-erties of the Fourier transform. The numerator arises from the fact that, in Fourier space, the divergence operator becomes a dot product with the frequency vector. This transformation also involves multiplication by the imaginary unit i, which, however, does not affect the norm and can therefore be omitted. The denom-inator, on the other hand, follows from the fact that the zero-frequency component of a field corresponds to its constant (non-fluctuating) part, i.e., its volume average. 
+
+Algorithm 2 FFT-based solution of the RVE periodic boundary value problem  
+
+> 1:
+
+Input: macroscopic strain ¯ ε 
+
+> 2:
+
+Output: homogenized stress ¯ σ 
+
+> 3:
+
+Initialize: ε0(x) ← ¯ε, k ← 0 
+
+> 4:
+
+repeat  
+
+> 5:
+
+τk(x) ← σk(x) − C◦ : εk(x) 
+
+> 6:
+
+ˆτk(ξ) ← F{ τk(x)} 
+
+> 7:
+
+ˆεk+1 (ξ) ← − Γ◦(ξ) : ˆ τk(ξ) 
+
+> 8:
+
+˜εk+1 (x) ← F −1{ ˆεk+1 (ξ)} 
+
+> 9:
+
+εk+1 (x) ← ¯ε + ˜ εk+1 (x) 
+
+> 10:
+
+k ← k + 1  
+
+> 11:
+
+until convergence It is worth mentioning that the solution procedure is fundamentally a fixed-point iteration. To significantly accelerate convergence, we implement the limited-memory BFGS algorithm [68]. This quasi-Newton method improves the asymptotic convergence rate from linear to superlinear, which dramatically reduces the number  
+
+> Preprint July 20, 2026 31
+
+of iterations required to reach the solution. Despite its efficiency, multiscale computations, especially for nonlinear materials, are still too computationally involved because Algorithm 2 has to be executed at each Gauss point of the global model in every iteration. 
+
+# References 
+
+[1] D. P. Jang, P. Fazily, and J. W. Yoon, “Machine learning-based constitutive model for j2- plasticity,” 
+
+International Journal of Plasticity , vol. 138, p. 102919, 03 2021. [2] L. Herrmann and S. Kollmannsberger, “Deep learning in computational mechanics: a review,” Com-putational Mechanics , vol. 74, pp. 281–331, 08 2024. [3] L. Herrmann, M. Jokeit, O. Weeger, and S. Kollmannsberger, Deep Learning in Computational Me-chanics . An Introductory Course, Springer, 2 ed., 11 2025. [4] U. R¨ omer, S. Hartmann, J.-A. Tr¨ oger, D. Anton, H. Wessels, M. Flaschel, and L. De Lorenzis, “Reduced and all-at-once approaches for model calibration and discovery in computational solid mechanics,” 
+
+Applied Mechanics Reviews , vol. 77, p. 040801, 05 2025. [5] S. Lucarini, M. V. Upadhyay, and J. Segurado, “Fft based approaches in micromechanics: fundamentals, methods and applications,” Modelling and Simulation in Materials Science and Engineering , vol. 30, p. 023002, 12 2021. [6] D. Shin, R. A. Lebensohn, and R. Dingreville, “U-net architected deep material network training with microstructure local field information,” Computational Mechanics , 01 2026. [7] W. Hu, H. Cheng, S. Wang, H. Cheng, Y. Cheng, K. Zhang, and B. Liang, “A coupled fem-fft concurrent multiscale method for the deformation simulation of cfrps laminate,” Composite Structures , vol. 342, p. 118246, 08 2024. [8] F. Feyel, “Multiscale fe2 elastoviscoplastic analysis of composite structures,” Computational Materials Science , vol. 16, pp. 344–354, 12 1999. [9] A. Daneshyar and M. Ghaemian, “Fe2 investigation of aggregate characteristics effect on fracture prop-erties of concrete,” International Journal of Fracture , vol. 226, pp. 243–261, 12 2020. [10] S. Hartmann, P. K. Dileep, and M. Grafenhorst, “A time-adaptive fe2-approach within the method of vertical lines,” Computers & Mathematics with Applications , vol. 151, pp. 222–243, 12 2023. [11] B. G. Christoff, J. H. S. Almeida, M. L. Ribeiro, M. M. Maciel, R. M. Guedes, and V. Tita, “Multiscale modelling of composite laminates with voids through the direct fe2 method,” Theoretical and Applied Fracture Mechanics , vol. 131, p. 104424, 06 2024. [12] Y. Cui and Z. Zhang, “Locking-free monolithic fe2 frameworks for concurrent multiscale modeling,” 
+
+Computer Methods in Applied Mechanics and Engineering , vol. 452, p. 118751, 04 2026. [13] H. Eivazi, M. Alikhani, J.-A. Tr¨ oger, S. Wittek, S. Hartmann, and A. Rausch, “Enhancing multiscale simulations with constitutive relations-aware deep operator networks,” PAMM , vol. 24, p. e202400123, 08 2024. [14] H. Moulinec and P. Suquet, “A fast numerical method for computing the linear and nonlinear mechanical properties of composites,” Comptes Rendus de l’Acad´ emie des sciences. S´ erie II. M´ ecanique, physique, chimie, astronomie , 04 1994. [15] H. Moulinec and P. Suquet, “A numerical method for computing the overall response of nonlinear composites with complex microstructure,” Computer Methods in Applied Mechanics and Engineering ,vol. 157, pp. 69–94, 04 1998.  
+
+> Preprint July 20, 2026 32
+
+[16] M. Schneider, “A review of nonlinear fft-based computational homogenization methods,” Acta Mechan-ica , vol. 232, pp. 2051–2100, 06 2021. [17] L. Dalcin, M. Mortensen, and D. E. Keyes, “Fast parallel multidimensional fft using advanced mpi,” 
+
+Journal of Parallel and Distributed Computing , vol. 128, pp. 137–150, 06 2019. [18] H. Li, Z. Sharif Khodaei, and M. H. Aliabadi, “Fft-based homogenisation for efficient concurrent mul-tiscale modelling of thin plate structures,” Computational Mechanics , vol. 75, pp. 637–653, 02 2025. [19] P. Aranda and J. Segurado, “A crack-length control technique for phase-field fracture in fft homoge-nization,” International Journal for Numerical Methods in Engineering , vol. 126, p. e7664, 01 2025. [20] M. Matsui, H. Hoshiba, K. Nishiguchi, H. Ogura, and J. Kato, “Multiscale topology optimization apply-ing fft-based homogenization,” International Journal for Numerical Methods in Engineering , vol. 126, p. e70009, 02 2025. [21] N. M. Francis, R. A. Lebensohn, F. Pourahmadian, and R. Dingreville, “Micropolar elastoplasticity us-ing a fast fourier transform-based solver,” International Journal for Numerical Methods in Engineering ,vol. 126, p. e7651, 01 2025. [22] F. Gehrig and M. Schneider, “An x-fft solver for two-dimensional thermal homogenization problems,” 
+
+International Journal for Numerical Methods in Engineering , vol. 126, p. e70022, 04 2025. [23] S. Li, G. Fang, B. Wang, and S. Meng, “Combining fft solver and peridynamic non-local damage mod-eling for brittle fracture of composite materials,” Engineering Fracture Mechanics , vol. 315, p. 110852, 02 2025. [24] D. Bishara, Y. Xie, W. K. Liu, and S. Li, “A state-of-the-art review on machine learning-based multi-scale modeling, simulation, homogenization and design of materials,” Archives of Computational Meth-ods in Engineering , vol. 30, pp. 191–222, 01 2023. [25] K. Hornik, M. Stinchcombe, and H. White, “Multilayer feedforward networks are universal approxima-tors,” Neural Networks , vol. 2, pp. 359–366, Jan. 1989. [26] G. Cybenko, “Approximation by superpositions of a sigmoidal function,” Mathematics of Control, Signals and Systems , vol. 2, pp. 303–314, Dec. 1989. [27] J. Ghaboussi, J. H. Garrett, and X. Wu, “Knowledge-Based Modeling of Material Behavior with Neural Networks,” Journal of Engineering Mechanics , vol. 117, pp. 132–153, Jan. 1991. [28] T. Kirchdoerfer and M. Ortiz, “Data-driven computational mechanics,” Computer Methods in Applied Mechanics and Engineering , vol. 304, pp. 81–101, June 2016. [29] J. N. Fuhg, G. Anantha Padmanabha, N. Bouklas, B. Bahmani, W. Sun, N. N. Vlassis, M. Flaschel, P. Carrara, and L. De Lorenzis, “A review on data-driven constitutive laws for solids,” Archives of Computational Methods in Engineering , vol. 32, pp. 1841–1883, 04 2025. [30] T. Furukawa and M. Hoffman, “Accurate cyclic plastic analysis using a neural network material model,” 
+
+Engineering Analysis with Boundary Elements , vol. 28, pp. 195–204, 03 2004. [31] R. E. Jones, J. A. Templeton, C. M. Sanders, and J. T. Ostien, “Machine learning models of plastic flow based on representation theory,” Computer Modeling in Engineering & Sciences , vol. 117, no. 3, pp. 309–342, 2018. [32] M. Stoffel, F. Bamer, and B. Markert, “Neural network based constitutive modeling of nonlinear vis-coplastic structural response,” Mechanics Research Communications , vol. 95, pp. 85–88, 01 2019. [33] C. Settgast, M. Abendroth, and M. Kuna, “Constitutive modeling of plastic deformation behavior of open-cell foam structures using neural networks,” Mechanics of Materials , vol. 131, pp. 1–10, 04 2019.  
+
+> Preprint July 20, 2026 33
+
+[34] C. Settgast, G. H¨ utter, M. Kuna, and M. Abendroth, “A hybrid approach to simulate the homoge-nized irreversible elastic–plastic deformations and damage of foams by neural networks,” International Journal of Plasticity , vol. 126, p. 102624, 03 2020. [35] A. Hartmaier, “Data-oriented constitutive modeling of plasticity in metals,” vol. 13, no. 7, p. 1600, 2020. [36] R. Shoghi and A. Hartmaier, “Optimal data-generation strategy for machine learning yield functions in anisotropic plasticity,” Frontiers in Materials , vol. 9, p. 868248, 04 2022. [37] J. Schmidt, A. Biswas, N. Vajragupta, and A. Hartmaier, “Data-oriented description of texture-dependent anisotropic material behavior,” Modelling and Simulation in Materials Science and En-gineering , vol. 30, p. 065001, 06 2022. [38] P. Fazily and J. W. Yoon, “Machine learning-driven stress integration method for anisotropic plasticity in sheet metal forming,” International Journal of Plasticity , vol. 166, p. 103642, Jul 2023. [39] N. Lange, A. Malik, M. Abendroth, G. H¨ utter, and B. Kiefer, “A comparison of classical phenomeno-logical, hybrid neural network, and high performance rom fe2 models for open-cell foams: Efficiency, accuracy, and flexibility,” GAMM-Mitteilungen , vol. 48, no. 2, p. e70004, 2025. [40] H. Eivazi, J.-A. Tr¨ oger, S. Wittek, S. Hartmann, and A. Rausch, “Equino: A physics-informed neural operator for multiscale simulations,” Journal of Computational Physics , vol. 554, p. 114745, Jun 2026. [41] F. Ghavamian and A. Simone, “Accelerating multiscale finite element simulations of history-dependent materials using a recurrent neural network,” Computer Methods in Applied Mechanics and Engineering ,vol. 357, p. 112594, Dec. 2019. [42] B. Liu, N. Kovachki, Z. Li, K. Azizzadenesheli, A. Anandkumar, A. M. Stuart, and K. Bhattacharya, “A learning-based multiscale method and its application to inelastic impact problems,” Journal of the Mechanics and Physics of Solids , vol. 158, p. 104668, Jan. 2022. [43] K. A. Kalina, L. Linden, J. Brummund, and M. K¨ astner, “Fe ANN : an efficient data-driven multiscale approach based on physics-constrained neural networks and automated data mining,” Computational Mechanics , vol. 71, pp. 827–851, May 2023. [44] B. Li and X. Zhuang, “Multiscale computation on feedforward neural network and recurrent neural network,” Frontiers of Structural and Civil Engineering , vol. 14, pp. 1285–1298, Dec. 2020. [45] Z. Liu, C. Wu, and M. Koishi, “A deep material network for multiscale topology learning and accel-erated nonlinear modeling of heterogeneous materials,” Computer Methods in Applied Mechanics and Engineering , vol. 345, pp. 1138–1168, Mar. 2019. [46] M. Mozaffar, R. Bostanabad, W. Chen, K. Ehmann, J. Cao, and M. A. Bessa, “Deep learning predicts path-dependent plasticity,” Proceedings of the National Academy of Sciences , vol. 116, pp. 26414–26420, Dec. 2019. [47] Y. Heider, K. Wang, and W. Sun, “So(3)-invariance of informed-graph-based deep neural network for anisotropic elastoplastic materials,” Computer Methods in Applied Mechanics and Engineering , vol. 363, p. 112875, 05 2020. [48] K. Bhattacharya, B. Liu, A. Stuart, and M. Trautner, “Learning Markovian Homogenized Models in Viscoelasticity,” Multiscale Modeling & Simulation , vol. 21, pp. 641–679, June 2023. [49] L. Linden, D. K. Klein, K. A. Kalina, J. Brummund, O. Weeger, and M. K¨ astner, “Neural networks meet hyperelasticity: A guide to enforcing physics,” Journal of the Mechanics and Physics of Solids ,vol. 179, p. 105363, Oct. 2023. [50] R. T. Q. Chen, Y. Rubanova, J. Bettencourt, and D. Duvenaud, “Neural Ordinary Differential Equa-tions,” Dec. 2019. arXiv:1806.07366.  
+
+> Preprint July 20, 2026 34
+
+[51] Y. Hollenweger, D. M. Kochmann, and B. Liu, “Temperature-aware recurrent neural operator for temperature-Dependent anisotropic plasticity in HCP materials,” Journal of the Mechanics and Physics of Solids , vol. 211, p. 106553, May 2026. [52] G. Stephani, P. Quadbeck, and O. Andersen, “New multifunctional lightweight materials based on cellular metals – manufacturing, properties and applications,” Journal of Physics: Conference Series ,vol. 165, p. 012061, 05 2009. [53] G. Stephani, O. Andersen, P. Quadbeck, and B. Kieback, “Cellular metals for functional applications–an overview,” in Powder Metallurgy World Congress and Exhibition (PM) 2010 , vol. 2010, p. 95, 2010. [54] R. Becker, “Analysis of texture evolution in channel die compression—i. effects of grain interaction,” 
+
+Acta Metallurgica et Materialia , vol. 39, pp. 1211–1230, 06 1991. [55] T. Nakamura and S. S¨ uresh, “Effects of thermal residual stresses and fiber packing on deformation of metal-matrix composites,” Acta Metallurgica et Materialia , vol. 41, pp. 1665–1681, 06 1993. [56] E. d. S. Neto, D. Peri´ c, and D. R. J. Owen, Computational Methods for Plasticity: Theory and Appli-cations . John Wiley & Sons, 2011. [57] A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury, G. Chanan, T. Killeen, Z. Lin, N. Gimelshein, L. Antiga, A. Desmaison, A. K¨ opf, E. Yang, Z. DeVito, M. Raison, A. Tejani, S. Chilamkurthy, B. Steiner, L. Fang, J. Bai, and S. Chintala, “Pytorch: an imperative style, high-performance deep learning library,” in Advances in Neural Information Processing Systems , vol. 32, (Red Hook, NY, USA), Curran Associates, Inc., 2019. [58] D. Hendrycks and K. Gimpel, “Gaussian Error Linear Units (GELUs),” June 2023. arXiv:1606.08415. [59] D. K. Klein, M. Fern´ andez, R. J. Martin, P. Neff, and O. Weeger, “Polyconvex anisotropic hyperelas-ticity with neural networks,” Journal of the Mechanics and Physics of Solids , vol. 159, p. 104703, Feb. 2022. [60] D. K. Klein, R. Ortigosa, H. T. Roth, K. A. Kalina, J. Mart´ ınez-Frutos, M. K¨ astner, and O. Weeger, “On limitations of polyconvexity,” 2026. [61] W. Lode, “Versuche ¨ uber den Einfluß der mittleren Hauptspannung auf das Fließen der Metalle Eisen, Kupfer und Nickel,” Zeitschrift f¨ ur Physik , vol. 36, pp. 913–939, Nov 1926. [62] R. V. Woldseth, N. Aage, J. A. Bærentzen, and O. Sigmund, “On the use of artificial neural networks in topology optimisation,” Structural and Multidisciplinary Optimization , vol. 65, p. 294, Oct. 2022. [63] J. D. Eshelby, “The determination of the elastic field of an ellipsoidal inclusion, and related problems,” 
+
+Proceedings of the Royal Society of London. A. Mathematical and Physical Sciences , vol. 241, pp. 376– 396, 08 1957. [64] J. C. Michel, H. Moulinec, and P. Suquet, “A computational scheme for linear and non-linear composites with arbitrary phase contrast,” International Journal for Numerical Methods in Engineering , vol. 52, pp. 139–160, 09 2001. [65] C. Gierden, J. Kochmann, J. Waimann, B. Svendsen, and S. Reese, “A review of fe-fft-based two-scale methods for computational modeling of microstructure evolution and macroscopic material behavior,” 
+
+Archives of Computational Methods in Engineering , vol. 29, pp. 4115–4135, 10 2022. [66] M. Schneider, F. Ospald, and M. Kabel, “Computational homogenization of elasticity on a staggered grid,” International Journal for Numerical Methods in Engineering , vol. 105, pp. 693–720, 03 2016. [67] F. Willot, “Fourier-based schemes for computing the mechanical response of composites with accurate local fields,” Comptes Rendus M´ ecanique , vol. 343, pp. 232–245, 03 2015. [68] D. C. Liu and J. Nocedal, “On the limited memory bfgs method for large scale optimization,” Mathe-matical Programming , vol. 45, pp. 503–528, 08 1989.

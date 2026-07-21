@@ -1,0 +1,805 @@
+Title: Correcting DFT formation energies towards experimental accuracy using foundational MLIPs and latent-feature delta-learning
+
+URL Source: https://arxiv.org/pdf/2607.18092v1
+
+Published Time: Tue, 21 Jul 2026 02:05:42 GMT
+
+Number of Pages: 30
+
+Markdown Content:
+## Correcting DFT formation energies towards experimental accuracy using foundational MLIPs and latent-feature delta-learning 
+
+Timo Reents, 1, 2 Marnik Bercx, 1, 2 and Giovanni Pizzi ∗,1, 2 
+
+> 1
+
+PSI Center for Scientific Computing, Theory and Data, Paul Scherrer Institute, 5232 Villigen PSI, Switzerland 
+
+> 2
+
+National Centre for Computational Design and Discovery of Novel Materials (MARVEL), Paul Scherrer Institut, 5232 Villigen PSI, Switzerland 
+
+> ∗
+
+Corresponding author: giovanni.pizzi@psi.ch 
+
+(Dated: July 21, 2026) 
+
+ABSTRACT 
+
+Crystal structure databases curated by high-throughput density functional theory calculations typically serve as the starting point for computational materials discovery efforts. Thermodynamic stability data, such as formation energies and the energy above the convex hull, are important quan-tities to guide the search for novel materials, enabling filtering for (meta)stable structures. Here, we present the thermodynamic stability of the fully open-source, reproducible, and experimentally fo-cused Materials Cloud three-dimensional crystals database (MC3D). We compare against two other DFT databases, the Open Quantum Materials Database (OQMD) and the Materials Project (MP), as well as against experimental formation enthalpies. We then demonstrate how recent foundational machine learning interatomic potentials (MLIPs) trained at the r 2SCAN level (specifically, we test PET-OMATPES here) can be leveraged to improve the agreement of formation energies with exper-iment, reducing the mean absolute error by more than 40% relative to GGA without requiring any additional DFT calculation. Our results validate and extend the established practice of combining PBEsol geometries with meta-GGA energies to the era of foundational MLIPs. Finally, we train classical machine learning models to further correct the formation energies in a delta-learning frame-work, where we use the information-rich latent features of the foundational MLIP. These models further reduce the mean absolute error below 50 meV/atom, bringing it down to values comparable with the experimental uncertainty itself. Notably, compared to purely compositional features, the latent features—combined with carefully tuned regularization—simultaneously reduce the prediction error and limit the impact of the learned corrections on the relative phase stability. 
+
+INTRODUCTION 
+
+In recent years, high-throughput workflow engines [1– 6] have enabled the construction of large databases in the field of computational materials science, including the Materials Project (MP) [7, 8], the Open Quantum Mate-rials Database (OQMD) [9, 10], the Automatic FLOW for Materials Discovery (AFLOW) [11–13], Alexandria [14– 16], and the Materials Cloud three-dimensional crystals database (MC3D) [17, 18] discussed here. Typically, these databases are based on density functional theory (DFT) [19, 20], enabling strong predictive power at rea-sonable computational cost. As the amount of available crystal structure data grows rapidly [21, 22], thermody-namic stability has become an important property for sorting and filtering materials, focusing the search on compounds more likely to exist under experimental con-ditions [23–25]. While meta-GGA functionals, such as SCAN [26], rSCAN [27] and r 2SCAN [28], are known to produce stability results in better agreement with experi-mental references [29–31], outperforming GGA function-als such as PBE [32] and PBEsol [33], and are increas-ingly applied in recent high-throughput studies [15, 34– 37], the majority of data in the aforementioned databases is still calculated at the level of the generalized gradi-ent approximation (GGA) due to its computational effi-ciency, wide adoption in the community, as well as the availability of verified pseudopotentials [38, 39], while the latter are still generally missing for meta-GGA function-als. However, GGA formation energies are known to ex-hibit limited accuracy, e.g. due to the overbinding of diatomic gases [40] and systematic errors in the descrip-tion of compounds with localized electrons, e.g. transi-tion metal oxides [41]. To improve on the known limitations of GGA forma-tion energies with respect to experimental data, various approaches have been developed. The most common is the correction of elemental reference states, known as Fit-ted Elemental Reference Energies (FERE) [42], which addresses overbinding and improves DFT-experiment agreement at the cost of additional empiricism. Differ-ent variations of this approach have been adopted across established databases: the OQMD adjusts elemental ref-erences only for a subset of chemical elements [10], while MP uses a slightly different subset with environment-dependent corrections for oxygen [8, 43], and AFLOW fits corrections based on the local chemical environment of each element [44, 45]. In general, empirical corrections represent a trade-off between improved formation ener-gies and additional uncertainty introduced by the cor-rections themselves. This trade-off becomes particularly relevant when leveraging machine learning (ML) models to predict DFT formation energies [46, 47] or their dif-arXiv:2607.18092v1 [cond-mat.mtrl-sci] 20 Jul 2026 2ferences with respect to experimental data [48], since ML errors are potentially less systematic and do not benefit from error cancellation to the same extent as DFT [49]. In this work, we first compare the newly introduced formation energies of the MC3D database with those re-ported in the established databases OQMD and Materi-als Project. Since MC3D relies on a different DFT code and computational parameters, this analysis contributes to the comparability of DFT codes and downstream databases, extending existing verification efforts [50]. We then address the challenge of improving agreement be-tween DFT calculated formation energies and experi-ment. We show how existing GGA databases can ben-efit from foundational machine learning interatomic po-tentials (fMLIPs) trained at the meta-GGA level, sig-nificantly improving the description of thermodynamic stability without requiring additional DFT calculations. Building on this, we show how the information-rich la-tent features [51, 52] of such fMLIPs can be used to further correct DFT calculated formation energies in a delta-learning framework, reaching a MAE of less than 50 meV/atom with respect to experiment, improving on existing approaches [48, 53]. Finally, we examine how regularization, when carefully tuned, can balance an im-proved accuracy of formation energies with a controlled impact on the relative phase stability. 
+
+> RESULTS Comparison with existing databases
+
+Since we introduce formation energies for MC3D [17] in this work, we start with comparisons against estab-lished databases [8, 10, 54] before addressing the core contributions. Fig. 1 shows pairwise formation energy differences be-tween MP, OQMD, and MC3D (PBE-v1, consistent with the use of the PBE exchange–correlation functional in the other databases). The upper panels compare pure DFT formation energies, the lower panels FERE-corrected [42] ones, i.e., empirically corrected, see the Methods section for more details. While the corrected values are those exposed via public interfaces, the empirical corrections are a major source of inter-database differences. The pure DFT results are therefore particularly informative when comparing across codes and parameter sets, with an inter-quartile range (IQR) of 31–42 meV/atom across all pairs. The MC3D–MP and MC3D–OQMD distributions are nearly symmetric with one main peak and medians close to zero: MC3D–MP shows a slight excess of com-pounds in the −50 to 0 meV/atom region, while MC3D– OQMD has a secondary feature near 30 meV/atom. MP– OQMD, by contrast, shows a pronounced second peak at approximately 50 meV/atom. As shown in Fig. S1, this peak—as well as the skewness in MC3D–OQMD—is driven by oxygen-containing compounds, reflecting dif-ferences in the chosen oxygen reference across databases. A median absolute difference (MAD) of 15–18 meV/atom across all pairs confirms high overall agreement. Inspecting the corrected formation energies, the MC3D–MP pair now shows a bimodal distribution, in contrast to the unimodal pure DFT case. The MP– OQMD results largely agree with [50], though a more negative median and sharper IQR suggest smaller aver-age deviations, likely reflecting the larger dataset used here. The MP correction scheme was also updated (v2023.11.1 vs. v2019.05 in [50]), now applying correc-tions to elemental references as well, bringing it closer to the OQMD approach, though the two databases still correct different sets of elements. The general agreement with Hegde et al. [50] confirms the validity of our anal-ysis. The bimodal MC3D–MP distribution arises from the same mechanism identified in [50] for MP–OQMD: the oxygen correction scheme in MP, as confirmed by Fig. S2a,c, with additional contributions from other el-ements. The MC3D–OQMD distribution is largely pre-served between the pure DFT and FERE-corrected cases, with nearly identical IQR and MAD. The median shifts by ≈ 5 meV/atom towards more negative values, driven by a larger fraction of compounds below −50 meV/atom. These are predominantly Se- and Te-containing com-pounds (Fig. S2b): no FERE corrections are fitted for these elements in OQMD, whereas corrections are applied here, lowering their formation energies. In summary, pure DFT formation energies agree well across databases regardless of code or computational parameters (see SI Fig. S3 and S4 and SI section Comparison of compu-tational parameters in general) especially relative to the typical DFT–experiment deviation. The IQR is sig-nificantly larger for the corrected energies, underscoring that empirical corrections must be carefully constructed and taken into account when comparing materials across databases. 
+
+> MLIPs to improve DFT versus experiment
+
+Having validated the MC3D thermodynamic stabil-ity data against other computational databases, we now compare the DFT calculated formation energies against experimental formation enthalpies (see Methods for dataset details). This comparison is practically impor-tant, as thermodynamic stability is the most widely used descriptor for filtering materials in computational mate-rials science studies [22, 55–60], and it is particularly rel-evant for MC3D, which focuses on experimentally known compounds and is intended to support experimentalists. The GGA functionals PBE and PBEsol have known limi-tations in describing thermodynamic stability [41–43, 45], most prominently the overbinding of molecular oxygen, which leads to overestimated formation energies for ox-ides [41]. The FERE corrections [42] introduced in the 
+
+Methods section can reduce the MAE from approxi-mately 150 to 100 meV/atom (see SI Fig. S5), but intro-duce non-smoothness which is critical for MLIP train-3010 20 30 Percentage of compounds (%)  N = 2816 IQR = 31 Median = -8 MAD = 16 
+
+> N = 2232 IQR = 35 Median = 6 MAD = 18
+> Pure DFT
+> N = 25321 IQR = 42 Median = 9 MAD = 15
+
+−200 0 200 ∆HM C 3D−M P F (meV/atom) 010 20 30 Percentage of compounds (%)  N = 2816 IQR = 133 Median = 48 MAD = 76 
+
+−200 0 200 ∆HM C 3D−OQM D F (meV/atom) 
+
+> N = 2384 IQR = 37 Median = -2 MAD = 18
+
+−200 0 200 ∆HM P −OQM D F (meV/atom) 
+
+> FERE corrected
+> N = 27402 IQR = 153 Median = -64 MAD = 86
+
+FIG. 1. Distribution of the formation energy differences between different databases: MC3D [17], Materials Project [7, 8] and OQMD [10]. (upper panels) The differences of the uncorrected “pure DFT” formation energies. 
+
+(lower panels) The differences across the databases for the empirically corrected formation energies using the FERE approach. Different statistics are shown in the legend: the number of observations N , the inter-quartile range IQR (Q1 − Q3, where Q1
+
+ist the first quartile, equivalent to the 25% percentile, and Q3 the third quartile, equivalent to the 75% percentile), the median and the median absolute difference (MAD), whereby the IQR, median and MAD are given in meV/atom. Only structures with an identical ICSD ID are compared. Moreover, we removed all transition metal compounds containing F or O, since those get a Hubbard U correction in MP which would not be comparable with the MC3D, especially in the pure DFT case. 
+
+ing [61]; furthermore, the remaining MAE is still signifi-cant. A straightforward improvement is the adoption of a more advanced functional beyond GGAs, such as the meta-GGA functionals SCAN [26], rSCAN [27] or r2SCAN [28], which are known to yield formation ener-gies in better agreement with experiment [30, 31]. While many databases remain at the GGA level, large meta-GGA datasets start to become available now [15, 34–37]. In the following, we explore how existing GGA databases can benefit from the latest MLIPs trained at the r 2SCAN level, improving formation energy agreement without re-running the entire database. Fig. 2 (top left) shows the systematic overestimation by GGA formation energies with respect to experimental values, especially for strongly bound systems [30]. The error metrics in Fig. 2 (bottom left) confirm the large MAE ( >170 meV/atom) and a significant positive bias (ME ≈130 meV/atom); PBE and PBEsol perform sim-ilarly poorly on this subset. The small difference in the performance of pure PBE and PBEsol is only due to the presence of different elemental references across the two versions of MC3D. When excluding this aspect, both functionals perform almost identically, see SI Fig. S5. As outlined above, adopting meta-GGA functionals represents the logical next step. Instead of recomput-ing the full database with meta-GGA DFT, we employ MLIPs trained on meta-GGA reference data. Thanks to recent advances in foundational MLIPs, these models can be directly applied to chemically diverse datasets such as MC3D. Fig. 2b shows that zero-shot formation ener-gies [62] from the PET-OMATPES model [63, 64]—one of the top-performing models in community benchmarks at the time of publication [65], trained on the OMAT [66] and MATPES [37] datasets at the r 2SCAN level—reduce the MAE by more than 40% when evaluated at the DFT (GGA) relaxed geometry. For PBE, a small resid-ual bias remains (ME = −28 meV/atom), much im-proved from the +131 meV/atom of pure PBE. For PBEsol, the bias vanishes entirely (ME = 0 meV/atom). Further improvement for PBE is possible by perform-ing full relaxations (constraining the symmetry) with PET-OMATPES (Fig. 2c), which reduces the bias to only 8 meV/atom and the MAE to 81 meV/atom. For PBEsol, the relaxation has little effect: PBEsol was specifically designed for accurate lattice constants [67] and yields volumes close to those of r 2SCAN [30], so the higher-level relaxation changes the structure only marginally, consistently with the vanishing bias already observed in the zero-shot results. In contrast, PBE over-410 50 90 Count                                   
+
+> Pure DFT
+> PBE PBEsol
+> PET-OMATPES r 2SCAN (unrelaxed)
+> At:
+> PBE PBEsol
+> PET-OMATPES r 2SCAN (sym. relaxed)
+> Starting from:
+> PBE PBEsol EXP
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> −4
+> −3
+> −2
+> −10∆Hcalc f (eV/atom)
+> PBE PBEsol
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> PBE PBEsol
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> PBE PBEsol EXP
+> −100 0100 200 300 Error (meV/atom)
+> 215 158 131 233 172 134 130 89 -28 122 84 0
+> PBE PBEsol EXP RMSE MAE ME
+> 120 81 8122 85 3120 81 8
+
+FIG. 2. Comparison of formation energy differences with respect to experiment for several approaches based on PBE, PBEsol and the underlying experimental reference structures EXP. The different approaches “calc” to calculate formation energies are “Pure DFT” calculations (left column) , MLIP predicted formation energies evaluated on DFT-relaxed structures “PET-OMATPES r 2SCAN (unrelaxed)” (center column) , and fully MLIP relaxed structures with corresponding MLIP formation energies “PET-OMATPES r 2SCAN (sym. relaxed)” (right column) , using the PET-OMATPES r 2SCAN MLIP. (Top row) Histograms of the per-structure formation energy difference ∆ Hcalc  
+
+> f
+
+− ∆Hexpt  
+
+> f
+
+at/starting from the PBE relaxed structures (blue), PBEsol relaxed structures (orange) and the experimental source structures EXP (green). EXP is only used for the PET-OMATPES relaxations to investigate to which extent the MLIP relaxations reproduce the ones when starting from the DFT relaxed structures. (Middle row) Scatter plots of the calculated formation energy ∆ Hcalc  
+
+> f
+
+against the same difference with respect to experiment, with each point representing one structure. (Bottom row) Summary error metrics of the differences ∆ Hcalc  
+
+> f
+
+− ∆Hexpt  
+
+> f
+
+with respect to experiment: root mean squared error (RMSE), mean absolute error (MAE), and mean error (ME), for PBE, PBEsol and EXP separately. 
+
+estimates volumes, which explains the (small) negative bias in Fig. 2 (middle column). We also include the re-sults when directly starting from the experimental struc-tures (underlying the PBEsol results) in the last column of Fig. 2, see EXP, showing that the MLIP relaxation es-sentially yields the same agreement in terms of formation energies. Notably, Fig. S6 in the SI further shows that the volume change during PET-OMATPES relaxation is on average actually smaller than the DFT PBEsol one, indicating better agreement in terms of volumes with the experimental structures (we note, though, that the DFT workflows used tighter convergence thresholds, which likely causes certain differences). Moreover, while replac-ing the symmetry-constrained relaxation with an uncon-strained one would slightly improve the error for forma-tion energies (see SI Fig. S7), the symmetry-constrained version is more desirable for an unconstrained architec-ture as it is the case for the PET models [63, 64]. In summary, these results show that foundational MLIPs can already serve as better estimators of forma-tion energies relative to experiment than existing GGA databases. Moreover, our results suggest that even struc-tural relaxation could in principle be replaced by fMLIPs, which is an interesting result of this work as itself. How-ever, even though we started from structures whose relax-ations reached convergence with PBEsol, approximately 4% of the calculations using the fMLIP and starting from the experimental structure did not reach convergence, de-spite using larger convergence thresholds for the MLIP than those adopted in our DFT workflows. Therefore, especially in the context of existing materials databases that already serve properties associated with structures 5relaxed at the PBEsol level, our recommendation is to compute formation energies combining (PBEsol) DFT-relaxed relaxed geometries followed by zero-shot r 2SCAN formation energy calculations using the MLIP. This ap-proach extends to foundational MLIPs the established practice in the DFT community of pairing PBEsol ge-ometries with meta-GGA energies [15].  
+
+> Learning the correction to improve ∆HDFT
+> f
+
+While the previous section showed that foundational MLIPs already significantly improve agreement with ex-periment, we now explore how this can be further im-proved by learning empirical corrections on top. Beyond simple linear corrections [41, 42], Gong et al. [48] showed that a Random Forest model trained on compositional features (structural features performed worse) reduces the MAE from 95.5 to 61.7 meV/atom on a test set of 229 materials. Notably, the starting point had already incorporated linear corrections, making the initial MAE of 95.5 meV/atom comparably low for PBE. Adhikari 
+
+et al. [53] learned corrections from electronic features for both PBE and SCAN, finding no significant improvement for SCAN. Building on the studies above, we extend the ML correction approach using the latent features of foun-dational MLIPs [51, 52, 68]. The three models from the Methods section (Random Forest (RF) [69], Kernel Ridge Regression (KRR) [70] with a RBF and Laplacian (LAP) kernel, Gaussian Process Regression (GPR) [71]) are trained on two targets: (i) δ∆HPBEsol  
+
+> f
+
+, the difference between PBEsol formation energies and experiment, and (ii) δ∆HMLIP  
+
+> f
+
+, the difference between zero-shot r 2SCAN MLIP formation energies (on top of the PBEsol struc-tures) and experiment. For features, we use the Magpie compositional features [72] available in Matminer [73] and the PET-OMATPES latent features (LFs), as described in the Methods section. The Magpie features yield the same correction for each polymorph of a given compo-sition, whereas the LFs assign structure-specific correc-tions and can therefore affect the relative ordering of phases. The reason for considering here also LFs is that, beyond enabling computationally cheap r 2SCAN-level formation energy estimates, foundational MLIPs also provide information-rich latent representations learned from millions of crystal structures [16, 35, 37, 54], making their latent space a powerful input for downstream ML corrections. This is further illustrated in SI Fig. S8: aKPCovR map of the LFs shows that the second principal component captures structural similarity, which is not ex-plicitly induced into the model, while the first correlates with the learned correction, validating that the LFs en-code correction-relevant information. The map further reveals that the maximum number of unfilled d valence orbitals is a discriminating feature along the correction-correlated axis (see SI section Machine learning of for-mation energies for details). Fig. 3a shows the test MAE for each model and feature combination across 30 train-test splits; hyperparameters were selected based on the best average cross-validation MAE across all 30 splits, and each bar reports the av-erage test MAE for models trained with that best hy-perparameter set, with error bars indicating the stan-dard deviation across splits. The δ∆HMLIP  
+
+> f
+
+targets are approximated slightly better than δ∆HPBEsol  
+
+> f
+
+, with the latter showing a 5–10 meV/atom higher MAE on average, though both are essentially within each other’s error bars. Contrary to what is reported in Gong et al. [48], we ob-serve that including LF improves performance noticeably for KRR and GPR (but not for RF). Overall, GPR and KRR achieve the best results: a MAE of 52 meV/atom for δ∆HPBEsol  
+
+> f
+
+and 50 and 49 meV/atom for GPR and KRR on δ∆HMLIP  
+
+> f
+
+, respectively. Furthermore, in con-trast with [53], we find improved agreement for both the PBEsol and PET-OMATPES r 2SCAN based formation energies with respect to experiment. The relative im-provement is larger for PBEsol (178 to 52 meV/atom) than for r 2SCAN (85 to 49 meV/atom), as indicated by the ratio of the purple (PBEsol) and grey (r 2SCAN) tar-get lines to the corresponding bars, see Fig. 3a. This is also expected because r 2SCAN energies are already closer to experiment. Notably, both functionals converge to the same final accuracy of around 50 meV/atom, a common lower bound [34] comparable to the experimental uncer-tainty itself ( ≈25 meV/atom [48], potentially exceeding 70 meV/atom across databases [10]), compared to the ap-proximately 160 meV/atom typical of uncorrected GGA. A critical aspect of empirical corrections is their im-pact on relative phase stability, i.e., whether a material lies on the convex hull or has a finite energy above the hull [48, 53]. Fig. 3b shows the stability flip rate, i.e., the fraction of structures whose stability classification changes upon correction. Here, we consider a material to be stable if it has an energy above hull smaller than a threshold of 25 meV/atom; the stability flip rate as a function of the threshold will be discussed later in the context of Fig. 4b. We validate the use of PET-OMATPES r 2SCAN formation energies as the baseline for δ∆HMLIP  
+
+> f
+
+targets against the Alexandria database (see SI Fig. S9). Since no meta-GGA DFT version of MC3D currently exists, Alexandria serves as the ref-erence and confirms that the MLIP-estimated stability data agrees well with DFT, validating the use of the PET-OMATPES r 2SCAN formation energies and ener-gies above hull as the reference for the stability flip rate analysis. While the MAE differences between models are small (Fig. 3a), the flip rates differ more significantly across models. The flip rates are smaller for the δ∆HMLIP 
+
+> f
+
+than for the δ∆HPBEsol  
+
+> f
+
+baseline. However, when the 
+
+δ∆HMLIP  
+
+> f
+
+-corrected energies and the resulting energies above hull are evaluated against the PBEsol baseline rather than the PET-OMATPES r 2SCAN one, the flip rates become comparable. This suggests that a fraction 6      
+
+> FIG. 3. Performance comparison of different model architectures and feature combinations. aMean absolute error of predicted formation energies. bStability flip rate, defined as the fraction of structures whose stability classification differs between the ML prediction and the reference (either PBEsol or PET-OMATPES r 2SCAN), where we consider as stable materials with an energy above hull smaller than 25 meV/atom. Results are shown for two feature sets (Magpie and Latent Features from PET-OMATPES (LFs)), both for the PBEsol and r 2SCAN targets, and four model classes: Random Forest, Gaussian Process Regression (GPR), and Kernel Ridge Regression with RBF (KRR-RBF), and Laplacian (KRR-LAP) kernels. Error bars indicate standard deviation across 30 different train-test splits. The dotted purple and dashed gray lines correspond to the baseline MAE with respect to experiment for PBEsol and PET-OMATPES r 2SCAN on the test sets, respectively. The dotted black line indicates the experimental uncertainty.
+
+of the flips reflect physically motivated changes already captured by the zero-shot r 2SCAN formation energies, as confirmed by the analysis based on the Alexandria database that is shown in SI Fig. S9 and the discussion of Fig. 5 later on. This is in fact beneficial: those stabil-ity changes are driven by the large-scale PET-OMATPES model trained on millions of structures, rather than by the smaller correction model. 
+
+> Balance accurate formation energies with distortion of relative phase stability
+
+Since the δ∆HMLIP  
+
+> f
+
+target yields the best performance, we focus exclusively on it for the remainder of the anal-ysis. So far, models have been selected based solely on MAE, which favours KRR with either the RBF or LAP kernel. We now examine how regularization, controlled by the α parameter in KRR, mediates the trade-off be-tween formation energy accuracy and distortion of rela-tive phase stability. Fig. 4a shows this trade-off for KRR models with Laplacian and RBF kernels, each paired with Magpie or LF features. The RBF and Laplacian kernels perform similarly overall, but the LAP kernel exhibits stronger implicit regularization: the flip rate remains lower even at the smallest α = 0 .001 value. Notably, LFs enable both a lower MAE and a lower flip rate com-pared to Magpie features, which is a non-obvious result given that purely compositional features were previously found to be beneficial [48]. To provide some additional reference, Fig. S10 in the SI presents the same analy-sis as Fig. 4a but using PBEsol targets instead of the r2SCAN ones. Moreover, it also includes a retrained ver-sion of the model from Gong et al. [48] as a reference point. The comparison highlights that even when start-ing the ML corrections from PBEsol instead of r 2SCAN, our approach based on the LFs still reduces the MAE on the formation energies and can simultaneously reduce the stability flip rate and its uncertainty. Fig. 4b shows the flip rate as a function of the stability threshold. At the strictest threshold (5 meV/atom) with minimal regularization, flip rates can exceed 15%. Higher regularization reduces them below 10% or even 5%, mit-igating a challenge highlighted in earlier work [48]. Since theoretical studies commonly accept materials within an energy window above the convex hull as stable, ac-knowledging that experimentally synthesized materials are found at finite energies above the hull [22, 23, 74], the impact of corrections is generally less severe at larger thresholds. Common window widths are 25– 100 meV/atom [22, 55–60]. The flip rates converge to around 3–4% even at large thresholds, suggesting that 7                                   
+
+> FIG. 4. Regularization impact on the formation en-ergies MAE and stability flip rate. Both panels are based on the PET-OMATPES r 2SCAN data. aTrade-off between formation energy prediction accuracy and stability reliability for KRR models as a function of regularization strength. Each point corresponds to a specific regulariza-tion parameter α, with dashed lines connecting points of the same model–feature combination across increasing αvalues
+> α∈ { 0.001 ,0.01 ,0.1,0.4,0.7,1.0,10 }(generally from left to right). The datapoints highlighted with black edges are the ones that are presented in Fig. 3. The x-axis shows the sta-bility flip rate (fraction of structures whose stability classi-fication changes upon correction) and the y-axis the mean test MAE across 30 train-test splits (error bars: standard deviation). Results are shown for four model–feature combi-nations: KRR with Laplacian and RBF kernels, each paired with Magpie or LF features. bStability flip rate as a func-tion of the stability threshold for the KRR-LAP model with LF features, trained with different regularization parameters
+> α∈ { 0.001 ,0.01 ,0.1,0.4,0.7,1.0,10 }. Shaded bands indicate the variance across the 30 train-test splits. Moreover, the in-set shows the flip rate expected from randomly sampling the distribution of corrections. The dashed vertical line marks the threshold of 25 meV/atom that is used in panel aand Fig. 3b.
+
+the remaining cases represent genuinely required stabil-ity reclassifications rather than correction artifacts. In-creased regularization also significantly reduces the vari-ance of corrections across data splits, see Fig. 4b and SI Fig. S11, though few residual structure-specific arti-facts persist depending on which structures appear in the training set; a detailed analysis is provided in SI section Variation of corrections across data splits .Notably, the corrections cluster into only a small num-ber of discrete modes across splits (typically 3–4), with the dominant cluster covering around 80% of structures, confirming that the variance is structured rather than random (see SI Fig. S12). Larger curated experimental reference datasets are the most promising direction to overcome this limitation. Based on the trade-off in Fig. 4a and b, we select the KRR-LAP-LF model with α = 0 .1. In order to give an intuitive comparison of the magnitude of the the flip rate, we compare it against a random baseline in which the predicted corrections are shuffled across the materials. Here, the assigned predictions are no longer consistent with the actual structures, and very different corrections might be assigned within a given chemical space, which significantly distorts the relative phase stability. In this way, the random sampling serves as a baseline for a model without any systematic error cancellation. This is shown in the inset of Fig. 4b. The random sampling leads to a much higher flip rate of up to 45%, confirming that the learned corrections are far from random [49]. This re-sult thus highlights that our model captures meaningful structure–property relationships, enabling them to im-prove formation-energy predictions while limiting distor-tion of relative phase stability. Finally, Fig. 5 compares the stability flips introduced by the zero-shot PET-OMATPES r 2SCAN formation en-ergies and by the ML corrected ones, both with respect to the original PBEsol data in MC3D. We first notice that the flips introduced by the PET-OMATPES model and the ML corrected ones agree in around 96.5% of the cases (sum of the two diagonal blocks). In 1.5% of the cases, the PET-OMATPES flips are reverted by the ML correc-tion, i.e., the ML corrections on top of PET-OMATPES bring the stability classification back to what was pre-dicted by the PBEsol baseline. Finally, in 2% of the cases, the PET-OMATPES model does not introduce a flip with respect to PBEsol, but the ML corrections on top do. These results confirm what was already moti-vated before: the majority of the flips introduced by the ML corrections were already generated by the un-derlying PET-OMATPES calculation. This motivates again the choice of a two-step correction—first a zero-shot PET-OMATPES r 2SCAN, then learned ML cor-rections on top—over the direct delta-learning approach starting from the PBEsol formation energies, as many of the systematic deviations are already covered by the fM-LIP, which is physically more grounded. Furthermore, in Fig. 5 the background color of each block represents the average difference between the absolute value of the error with respect to experiment of the zero-shot PET-OMATPES formation energies δ∆HMLIP  
+
+> f
+
+, and the ab-solute value of the error after ML correction δ∆HML  
+
+> f
+
+.We can observe that, in each category, the ML cor-rections always further improve (on average) the PET-OMATPES r 2SCAN ones. This aspect is further dis-cussed in Fig. S13 and S14 in the SI, where we show that the PET-OMATPES formation energies are slightly 8closer to experiment than the ML corrected ones only in 4% of the cases. no flip flip ML corrected vs PBEsol no flip flip PET-OMATPES r 2SCAN vs PBEsol p = 91.6% ∆ =+33 meV/atom p = 2.0% ∆ =+53 meV/atom p = 1.5% ∆ =+62 meV/atom p = 4.9% ∆ =+36 meV/atom 
+
+> 010 20 30 40 50 60 ∆: Mean  |δ∆HMLIP
+> f | − | δ∆HML
+> f | (meV/atom)
+
+FIG. 5. Comparison of stability-classification flips induced by zero-shot and ML-corrected PET-OMATPES formation energies. The heatmap shows stability-classification changes relative to the PBEsol baseline for the zero-shot PET-OMATPES r 2SCAN formation ener-gies, and those with an additional ML correction. The color scale indicates the average difference in agreement with ex-periment between the two approaches, which is also indicated by the ∆ value within each cell. Positive values correspond to a better agreement of the ML corrected formation ener-gies with respect to experiment compared to the zero-shot PET-OMATPES r 2SCAN ones, i.e., |δ∆HML  
+
+> f
+
+| is smaller than 
+
+|δ∆HMLIP  
+
+> f
+
+|. The fraction p of the structures falling in each category is also indicated. The data is aggregated over the 30 test sets that were analyzed throughout this work. 
+
+Comparing with existing approaches 
+
+We finally briefly compare the ML corrected version of the zero-shot PET-OMATPES r 2SCAN formation ener-gies to the well-established FERE approach [10, 42, 43], a linear correction scheme commonly applied to GGA databases. Fig. 6 shows the distribution of |δ∆Hcorr  
+
+> f
+
+| −|δ∆Hpure DFT  
+
+> f
+
+| for FERE-part (FERE corrections only fitted to a set of elements, see SI section FERE cor-rections ), FERE-all (FERE corrections fitted to all ele-ments), and ML (our best model KRR-LAP-LF discussed in the previous section), i.e., how the error with respect to experiment of the different correction methods changes compared to the error of pure DFT. While all three meth-ods improve the majority of compounds, they differ no-tably in how often and how severely they degrade indi-vidual predictions. FERE-all worsens 32% of test com-pounds (mean degradation 79 meV/atom among those worsened), despite achieving a lower overall MAE than FERE-part; this reflects over-fitting of corrections to sparse elements in the training data. FERE-part worsens 22% of compounds (mean degradation 107 meV/atom). The ML correction worsens 23% of compounds, compara-ble to FERE-part, but with a much smaller mean degra-dation of only 37 meV/atom. Overall, the ML approach reduces the MAE more substantially than either FERE variant and limits the magnitude of degradation for the minority of compounds it fails to improve. Fig. S15 and S16 in the SI further visualize the agreement of the different approaches with respect to experiment. °0.6 °0.4 °0.2 0.0 0.2      
+
+> |±¢Hcorr
+> f|°|±¢Hpure DFT
+> f|(eV/atom)
+> FERE-part
+> FERE-all
+> ML (this work)
+> Gain over pure DFT Loss over pure DFT
+
+FIG. 6. Comparison of the ML approach introduced in this work against the established FERE approach. 
+
+Per-compound change in absolute deviation from experiment, 
+
+|δ∆Hcorr  
+
+> f
+
+| − | δ∆Hpure DFT  
+
+> f
+
+|, for different correction methods “corr”: FERE-part, FERE-all, and ML (KRR-LAP-LF, this work). Negative values (green background) indicate improve-ment over the pure DFT values, positive values (red back-ground) indicate degradation. Box plots show the median (vertical line), IQR (box), and 1.5 ×IQR whiskers; individual data points are overlaid with vertical jitter. 
+
+The values in Fig. 6 correspond to the data split with the best test MAE of the ML model. However, as shown in SI Fig. S17-S19, the same trend also holds for the split with the highest test MAE, confirming the results are not an artifact of a specific data split. Moreover, the higher errors are also observed for the pure DFT values, indi-cating that the reduced performance is driven by certain structures that exhibit much larger errors in general, see SI section Comparison of FERE and ML correc-tions for details. 
+
+DISCUSSION 
+
+In summary, we introduced thermodynamic stability data to the MC3D database and validated it against the established databases Materials Project and OQMD. Given that MC3D is based on a different DFT code, different pseudopotentials, and different computational parameters than the VASP-based databases, the good agreement confirms the robustness of the methods 9adopted in the community, contributing to existing ver-ification efforts [38, 50, 75]. The comparison also under-scores that the main source of inter-database deviations in formation energies are the different empirical correc-tion schemes applied across databases. The central contribution of this work is the improve-ment of formation energy agreement with experiment. We show that zero-shot r 2SCAN formation energies from the foundational MLIP PET-OMATPES already reduce the MAE by more than 40% relative to GGA, without any additional DFT calculations. This improvement is particularly pronounced when combined with PBEsol-relaxed geometries: since PBEsol lattice constants are already close to those of r 2SCAN, MLIP relaxation has little effect and the zero-shot evaluation at DFT geome-tries is nearly optimal. This confirms—and extends to fMLIPs—the established practice of pairing PBEsol ge-ometries with meta-GGA energies [15]. Furthermore, we also benchmarked that performing structural relax-ations of the original experimental source structures di-rectly with the fMLIP (instead of DFT PBEsol) essen-tially yields results with the same accuracy in terms of formation energies, and an agreement in terms of exper-imental volumes that is marginally better than PBEsol. Going beyond zero-shot MLIP energies, we train classi-cal ML models (KRR, Random Forest, and GPR) in a delta-learning framework to predict the residual between calculated or estimated formation energies and experi-ment. Using the latent features of PET-OMATPES as in-put, our best models achieve a MAE below 50 meV/atom (and potentially even less, depending on the data split) both for the PBEsol and r 2SCAN targets, becoming com-parable to the experimental uncertainty itself. Notably, the latent features simultaneously reduce the MAE and the stability flip rate compared to purely compositional features. We further show that carefully tuned regular-ization controls the impact of ML corrections on relative phase stability. Finally, we validate the ML corrections against established FERE empirical corrections, confirm-ing that the ML approach not only reduces the average deviation from experiment more substantially, but also limits the magnitude of degradation for the minority of compounds it fails to improve. 
+
+> METHODS Calculation details
+
+In this work, we introduce formation energies to the Materials Cloud three-dimensional crystals database [17], a fully reproducible and open-source DFT curated database of three-dimensional inorganic crystal struc-tures with a particular focus on experimentally known compounds. Here, we focus on the versions PBE-v1 and PBEsol-v1 of MC3D. All DFT calculations are performed using SIRIUS-enabled [76] Quantum ESPRESSO version 7.1 [77, 78] together with the PBE [32] and PBEsol [33] pseudopoten-tials (SSSP PBE Efficiency v1.1.0 and SSSP PBEsol Ef-ficiency v1.1.0, respectively) from the SSSP library [39]. The current MC3D [17] is based on standard GGA func-tionals without Hubbard corrections (the absence of a Hubbard U correction can actually be beneficial when training MLIPs, see [61]). A k-point spacing of 0.15 ˚ A−1
+
+is used to sample the Brillouin zone following the default protocol of the AiiDA Quantum ESPRESSO plugin [79]. Starting from experimental references, structural param-eters and atomic positions are relaxed until forces and en-ergies converge below 10 −4 Ry/bohr and 10 −5 Ry/atom, respectively. We refer the reader to the original MC3D publication [17] for details on the curation process, and to Nascimento et al. [80] for the selection of computational parameters. Formation energies are calculated from the converged relaxation results. 
+
+> Reference data
+
+a. Experimental references To assess the perfor-mance of the DFT calculated formation energies, we use the experimental references collected by Wang et al. [43] and published in the matminer package [73] as the expt formation enthalpy kingsbury dataset [43, 81– 87]. To increase the amount and diversity of experimen-tal reference data, which is typically the limiting factor in data-driven studies, we combine this with the exper-imental references used by Kirklin et al. [10], yielding 2726 unique compounds in total. For our analyses, we removed compounds satisfying at least one of the following criteria, balancing data quality against dataset size: 
+
+• The compound is an elemental phase (new size: 2649) 
+
+• The experimental uncertainty estimate exceeds 10%. If no uncertainty is reported, the compound is retained. (new size: 2386) 
+
+• The DFT formation energy (from OQMD) and experimental reference differ by more than 0.5 eV/atom, removing only a few outliers. (new size: 2373) 
+
+• The compound appears in both datasets and the two sources differ by more than 150 meV/atom. (new size: 2356) Since MC3D does not contain all compounds, merg-ing with the experimental references yields 1552 (PBE) and 1384 (PBEsol) compounds, of which 1297 overlap. When merging calculated data with experimental refer-ences, spacegroup information is used where available; otherwise the lowest-energy polymorph at a given com-position is selected. 10 
+
+b. Reference computational databases In addition to the comparison with experimental data, the MC3D for-mation energies are compared against the established high-throughput databases Materials Project [7, 8] and Open Quantum Materials Database [10]. We query the OQMD v1.5 (locally hosted) and MP v2023.11.1, and match structures by their ICSD ID. Compounds without a matching ID are excluded, and no additional structure-based duplicate detection is applied. MP and OQMD rely on the VASP DFT code [88, 89], in contrast to MC3D which uses SIRIUS-enabled Quantum ESPRESSO. This involves differences in pseudopotentials, which play a cen-tral role in the precision of the results. Differences in computational parameters across databases are further discussed in SI section Comparison of computational parameters .
+
+> DFT formation energies
+
+To estimate the thermodynamic stability of materials in MC3D, we calculate the formation energy ∆Hf (A1 
+
+> n1
+
+. . . A NnN ) = Etot (A1 
+
+> n1
+
+. . . A NnN ) −
+
+> N
+
+X
+
+> i=1
+
+niμ(Ai),
+
+where Etot is the total energy of the compound consist-ing of chemical elements A1, A 2, . . . A N , and ni is the number of sites occupied by element Ai in the unit cell. The chemical potential μ(Ai) is given by the DFT to-tal energy per atom of the most stable elemental poly-morph in MC3D. This definition is strictly valid at 0 K, whereas experimental formation energies are typ-ically measured under standard conditions. The result-ing finite-temperature error is typically of the order of a few tens of meV/atom, which is below the MAE between DFT and experiment, and is therefore neglected [10, 43]. As discussed in the introduction, GGA formation ener-gies have known systematic limitations. We adopt the FERE corrections [42] in the database comparison and as a baseline for the ML corrections; details on the fit-ting procedure and comparison with ML corrections are provided in SI sections FERE corrections and Com-parison of FERE and ML corrections , respectively. Formation energies without empirical corrections are la-belled Pure DFT throughout this work. 
+
+> Machine learning models and training
+
+In the analysis related to the ML correction of for-mation energies, we train the following ML models as provided by scikit-learn : Random Forest (RF), 
+
+Gaussian Process Regression (GPR) and Kernel Ridge Regression (KRR). We test a laplacian (LAP) and RBF kernel for the latter. The adopted framework follows a delta-learning approach, i.e., the model tries to learn the difference between the calculated formation energy and experiment, which can be applied as a cor-rection after successful training. The dataset of 1384 structures with experimental ref-erences is divided into a 80/20 train-test split. In order to estimate the uncertainty, particularly relevant for such a small dataset where individual materials might signifi-cantly alter the learned corrections, this split is generated across 30 different seeds. For each of the train-test splits, we perform 5-fold cross validation on the training set to find the best hyperparameters for each model. Further-more, the best set of hyperparameters is used to calculate the test error for each seed. A stratified split was used for the hyperparameter optimization and train-test splits, based on the number of elements per structure, to ensure that each split covers the same (representative) fraction of unaries, binaries etc. Two feature sets are used: (i) purely compositional features from Magpie [72] and (ii) structural features derived from the latent space of the PET-OMATPES model [63, 64], following the extraction approach of Chorna et al. [68]. fMLIPs learn information-rich rep-resentations when trained to predict energies and forces across a broad chemical range, making their latent space a natural source of structural descriptors. We evalu-ate both last-layer (LL) features and backbone (BB) features. The latter are extracted after the message-passing iterations and before the final multilayer percep-tron (MLP) layers, that are typically used in MLIPs as the so-called readout layers. As BB features consistently outperform LL features, they are used throughout and referred to as latent features (LF) in the current work. 
+
+> ACKNOWLEDGMENTS
+
+This research was supported by the NCCR MAR-VEL, a National Centre of Competence in Research, funded by the Swiss National Science Foundation (grant number 205602). This work was supported by a grant from the Swiss National Supercomputing Centre (CSCS) on the Swiss share of the LUMI system under project 465000416. Moreover, we acknowledge the use of the Merlin7 cluster run by the Paul Scherrer Institute PSI. M.B. and G.P. acknowledge financial support by the SwissTwins project, funded by the Swiss State Secre-tariat for Education, Research and Innovation (SERI). We thank Prof. Nicola Marzari for guidance and in-teresting discussions of the results. 
+
+> DATA AVAILABILITY
+
+The data will be made publicly available on the Mate-rials Cloud Archive [18] at https://doi.org/10.24435/ materialscloud:yb-gw upon publication. 11 
+
+CODE AVAILABILITY 
+
+The code will be made publicly available upon publi-cation. 
+
+AUTHOR CONTRIBUTIONS 
+
+G.P. and M.B. conceived the project. T.R. contributed to the planning of the project, implemented the code, and performed the calculations and analyses, under the supervision of G.P. T.R. wrote the initial version of the manuscript with input from M.B. and G.P. All authors discussed the results and contributed to editing and the final version of the manuscript. 
+
+COMPETING INTERESTS 
+
+The authors declare no competing financial or non-financial interests. 
+
+[1] S. P. Huber, S. Zoupanos, M. Uhrin, L. Talirz, L. Kahle, R. H¨ auselmann, D. Gresch, T. M¨ uller, A. V. Yakutovich, C. W. Andersen, F. F. Ramirez, C. S. Adorf, F. Gargiulo, S. Kumbhar, E. Passaro, C. Johnston, A. Merkys, A. Ce-pellotti, N. Mounet, N. Marzari, B. Kozinsky, and G. Pizzi, Scientific Data 7, 300 (2020), number: 1. [2] M. Uhrin, S. P. Huber, J. Yu, N. Marzari, and G. Pizzi, Computational Materials Science 187 , 110086 (2021). [3] A. S. Rosen, M. Gallant, J. George, J. Riebesell, H. Sa-hasrabuddhe, J.-X. Shen, M. Wen, M. L. Evans, G. Pe-tretto, D. Waroquiers, G.-M. Rignanese, K. A. Persson, A. Jain, and A. M. Ganose, Journal of Open Source Soft-ware 9, 5995 (2024). [4] A. Jain, S. P. Ong, W. Chen, B. Medasani, X. Qu, M. Kocher, M. Brafman, G. Petretto, G.-M. Rignanese, G. Hautier, D. Gunter, and K. A. Persson, Concurrency and Computation: Practice and Experience 27 , 5037 (2015), eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1002/cpe.3505. [5] K. Mathew, J. H. Montoya, A. Faghaninia, S. Dwarakanath, M. Aykol, H. Tang, I.-h. Chu, T. Smidt, B. Bocklund, M. Horton, J. Dagdelen, B. Wood, Z.-K. Liu, J. Neaton, S. P. Ong, K. Persson, and A. Jain, Computational Materials Science 139 , 140 (2017). [6] A. Ganose, J. Riebesell, J. George, J.-X. Shen, A. S. Rosen, A. Ashok Naik, N. Winner, M. Wen, R. Guha, M. Kuner, G. Petretto, Z. Zhu, M. Hor-ton, H. Sahasrabuddhe, A. Kaplan, J. Schmidt, C. Er-tural, R. Kingsbury, M. McDermott, R. Goodall, A. Bonkowski, T. Purcell, D. Z¨ ugner, and J. Qi, ato-mate2 (2024). [7] A. Jain, G. Hautier, C. J. Moore, S. Ping Ong, C. C. Fischer, T. Mueller, K. A. Persson, and G. Ceder, Com-putational Materials Science 50 , 2295 (2011). [8] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, and K. A. Persson, APL Materials 1, 011002 (2013). [9] J. E. Saal, S. Kirklin, M. Aykol, B. Meredig, and C. Wolverton, JOM 65 , 1501 (2013). [10] S. Kirklin, J. E. Saal, B. Meredig, A. Thompson, J. W. Doak, M. Aykol, S. R¨ uhl, and C. Wolverton, npj Com-putational Materials 1, 1 (2015), number: 1. [11] S. Curtarolo, W. Setyawan, G. L. W. Hart, M. Jahnatek, R. V. Chepulskii, R. H. Taylor, S. Wang, J. Xue, K. Yang, O. Levy, M. J. Mehl, H. T. Stokes, D. O. Demchenko, and D. Morgan, Computational Materials Science 58 , 218 (2012). [12] S. Curtarolo, W. Setyawan, S. Wang, J. Xue, K. Yang, R. H. Taylor, L. J. Nelson, G. L. W. Hart, S. Sanvito, M. Buongiorno-Nardelli, N. Mingo, and O. Levy, Com-putational Materials Science 58 , 227 (2012). [13] C. E. Calderon, J. J. Plata, C. Toher, C. Oses, O. Levy, M. Fornari, A. Natan, M. J. Mehl, G. Hart, M. Buon-giorno Nardelli, and S. Curtarolo, Computational Mate-rials Science 108 , 233 (2015). [14] J. Schmidt, N. Hoffmann, H.-C. Wang, P. Borlido, P. J. M. A. Carri¸ co, T. F. T. Cerqueira, S. Botti, and M. A. L. Marques, Advanced Materials 35 , 2210788 (2023). [15] J. Schmidt, H.-C. Wang, T. F. T. Cerqueira, S. Botti, and M. A. L. Marques, Scientific Data 9, 64 (2022). [16] J. Schmidt, T. F. Cerqueira, A. H. Romero, A. Loew, F. J¨ ager, H.-C. Wang, S. Botti, and M. A. Marques, Ma-terials Today Physics 48 , 101560 (2024). [17] S. P. Huber, M. Minotakis, M. Bercx, T. Reents, K. Eimre, N. Paulish, N. H¨ ormann, M. Uhrin, N. Marzari, and G. Pizzi, Digital Discovery 5, 1114 (2026). [18] L. Talirz, S. Kumbhar, E. Passaro, A. V. Yakutovich, V. Granata, F. Gargiulo, M. Borelli, M. Uhrin, S. P. Huber, S. Zoupanos, C. S. Adorf, C. W. Andersen, O. Sch¨ utt, C. A. Pignedoli, D. Passerone, J. VandeVon-dele, T. C. Schulthess, B. Smit, G. Pizzi, and N. Marzari, Scientific Data 7, 299 (2020). [19] P. Hohenberg and W. Kohn, Physical Review 136 , B864 (1964). [20] W. Kohn and L. J. Sham, Physical Review 140 , A1133 (1965). [21] T. Cavignac, J. Schmidt, P.-P. D. Breuck, A. Loew, T. F. T. Cerqueira, H.-C. Wang, A. Bochkarev, Y. Lyso-gorskiy, A. H. Romero, R. Drautz, S. Botti, and M. A. L. Marques, arXiv preprint arXiv:2512.09169 (2025). [22] A. S. Parackal, F. Trybel, F. A. Faber, and R. Armiento, arXiv preprint arXiv:2601.21393 (2026). [23] W. Sun, S. T. Dacek, S. P. Ong, G. Hautier, A. Jain, W. D. Richards, A. C. Gamst, K. A. Persson, and G. Ceder, Science Advances 2, e1600225 (2016). [24] J. Meng, M. S. Sheikh, R. Jacobs, J. Liu, W. O. Nachlas, X. Li, and D. Morgan, Nature Materials , 1 (2024). [25] H.-C. Wang, S. Botti, and M. A. L. Marques, npj Com-putational Materials 7, 1 (2021). [26] J. Sun, A. Ruzsinszky, and J. Perdew, Physical Review Letters 115 , 036402 (2015). 12 
+
+[27] A. P. Bart´ ok and J. R. Yates, The Journal of Chemical Physics 150 , 161101 (2019). [28] J. W. Furness, A. D. Kaplan, J. Ning, J. P. Perdew, and J. Sun, The Journal of Physical Chemistry Letters 11 ,8208 (2020). [29] Y. Zhang, D. A. Kitchaev, J. Yang, T. Chen, S. T. Dacek, R. A. Sarmiento-P´ erez, M. A. L. Marques, H. Peng, G. Ceder, J. P. Perdew, and J. Sun, npj Computational Materials 4, 1 (2018). [30] R. Kingsbury, A. S. Gupta, C. J. Bartel, J. M. Munro, S. Dwaraknath, M. Horton, and K. A. Persson, Physical Review Materials 6, 013801 (2022). [31] E. B. Isaacs and C. Wolverton, Physical Review Materials 
+
+2, 063801 (2018). [32] J. P. Perdew, K. Burke, and M. Ernzerhof, Physical Re-view Letters 77 , 3865 (1996). [33] J. P. Perdew, A. Ruzsinszky, G. I. Csonka, O. A. Vydrov, G. E. Scuseria, L. A. Constantin, X. Zhou, and K. Burke, Physical Review Letters 100 , 136406 (2008). [34] R. S. Kingsbury, A. S. Rosen, A. S. Gupta, J. M. Munro, S. P. Ong, A. Jain, S. Dwaraknath, M. K. Horton, and K. A. Persson, npj Computational Materials 8, 1 (2022). [35] M. C. Kuner, A. D. Kaplan, K. A. Persson, M. Asta, and D. C. Chrzan, npj Computational Materials 11 , 352 (2025). [36] C. Malosso, F. Bigi, P. Pegolo, J. W. Abbott, P. Loche, M. Rossi, M. Ceriotti, and A. Mazitov, arXiv preprint arXiv:2603.02089 (2026). [37] A. D. Kaplan, R. Liu, J. Qi, T. W. Ko, B. Deng, J. Riebe-sell, G. Ceder, K. A. Persson, and S. P. Ong, arXiv preprint arXiv:2503.04070 (2025). [38] E. Bosoni, L. Beal, M. Bercx, P. Blaha, S. Bl¨ ugel, J. Br¨ oder, M. Callsen, S. Cottenier, A. Degomme, V. Dikan, K. Eimre, E. Flage-Larsen, M. Fornari, A. Garcia, L. Genovese, M. Giantomassi, S. P. Huber, H. Janssen, G. Kastlunger, M. Krack, G. Kresse, T. D. K¨ uhne, K. Lejaeghere, G. K. H. Madsen, M. Marsman, N. Marzari, G. Michalicek, H. Mirhosseini, T. M. A. M¨ uller, G. Petretto, C. J. Pickard, S. Ponc´ e, G.-M. Rig-nanese, O. Rubel, T. Ruh, M. Sluydts, D. E. P. Van-poucke, S. Vijay, M. Wolloch, D. Wortmann, A. V. Yaku-tovich, J. Yu, A. Zadoks, B. Zhu, and G. Pizzi, Nature Reviews Physics 6, 45 (2024), number: 1. [39] G. Prandini, A. Marrazzo, I. E. Castelli, N. Mounet, and N. Marzari, npj Computational Materials 4, 1 (2018). [40] S. Grindy, B. Meredig, S. Kirklin, J. E. Saal, and C. Wolverton, Physical Review B 87 , 075150 (2013). [41] L. Wang, T. Maxisch, and G. Ceder, Physical Review B 
+
+73 , 195107 (2006). [42] V. Stevanovi´ c, S. Lany, X. Zhang, and A. Zunger, Phys-ical Review B 85 , 115104 (2012). [43] A. Wang, R. Kingsbury, M. McDermott, M. Horton, A. Jain, S. P. Ong, S. Dwaraknath, and K. A. Persson, Scientific Reports 11 , 15496 (2021), number: 1. [44] R. Friedrich, D. Usanmaz, C. Oses, A. Supka, M. Fornari, M. Buongiorno Nardelli, C. Toher, and S. Curtarolo, npj Computational Materials 5, 1 (2019), number: 1. [45] R. Friedrich and S. Curtarolo, The Journal of Chemical Physics 160 , 042501 (2024). [46] G. Hautier, S. P. Ong, A. Jain, C. J. Moore, and G. Ceder, Physical Review B 85 , 155208 (2012). [47] G. G. C. Peterson and J. Brgoch, Journal of Physics: Energy 3, 022002 (2021). [48] S. Gong, S. Wang, T. Xie, W. H. Chae, R. Liu, Y. Shao-Horn, and J. C. Grossman, JACS Au 2, 1964 (2022). [49] C. J. Bartel, A. Trewartha, Q. Wang, A. Dunn, A. Jain, and G. Ceder, npj Computational Materials 6, 1 (2020). [50] V. I. Hegde, C. K. H. Borg, Z. Del Rosario, Y. Kim, M. Hutchinson, E. Antono, J. Ling, P. Saxe, J. E. Saal, and B. Meredig, Physical Review Materials 7, 053805 (2023). [51] R. A. Gouvˆ ea, P.-P. De Breuck, T. Pretto, G.-M. Rig-nanese, and M. J. L. Santos, npj Computational Materi-als 12 , 67 (2026). [52] S. Y. Kim, Y. J. Park, and J. Li, npj Computational Materials 10.1038/s41524-026-02167-x (2026). [53] S. Adhikari, C. J. Bartel, and C. Sutton, arXiv preprint arXiv:2307.07609 (2023). [54] M. K. Horton, P. Huck, R. X. Yang, J. M. Munro, S. Dwaraknath, A. M. Ganose, R. S. Kingsbury, M. Wen, J. X. Shen, T. S. Mathis, A. D. Kaplan, K. Berket, J. Riebesell, J. George, A. S. Rosen, E. W. C. Spotte-Smith, M. J. McDermott, O. A. Cohen, A. Dunn, M. C. Kuner, G.-M. Rignanese, G. Petretto, D. Waroquiers, S. M. Griffin, J. B. Neaton, D. C. Chrzan, M. Asta, G. Hautier, S. Cholia, G. Ceder, S. P. Ong, A. Jain, and K. A. Persson, Nature Materials 24 , 1522 (2025). [55] A. A. Emery and C. Wolverton, Scientific Data 4, 170153 (2017). [56] P. Priya and N. R. Aluru, npj Computational Materials 
+
+7, 90 (2021). [57] R. Woods-Robinson, D. Broberg, A. Faghaninia, A. Jain, S. S. Dwaraknath, and K. A. Persson, Chemistry of Ma-terials 30 , 8375 (2018). [58] T. Mueller, G. Hautier, A. Jain, and G. Ceder, Chemistry of Materials 23 , 3854 (2011). [59] S. Kirklin, J. E. Saal, V. I. Hegde, and C. Wolverton, Acta Materialia 102 , 125 (2016). [60] M. Aykol, S. S. Dwaraknath, W. Sun, and K. A. Persson, Science Advances 4, eaaq0148 (2018). [61] T. Warford, F. L. Thiemann, and G. Cs´ anyi, arXiv preprint arXiv:2601.21056 (2026). [62] H. Yu, M. Giantomassi, G. Materzanini, J. Wang, and G. Rignanese, Materials Genome Engineering Advances 
+
+2, e58 (2024). [63] S. N. Pozdnyakov and M. Ceriotti, arXiv preprint arXiv:2305.19302 (2024). [64] F. Bigi, P. Pegolo, A. Mazitov, and M. Ceriotti, arXiv preprint arXiv:2601.16195 (2026). [65] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, and K. A. Persson, Nature Machine Intelligence 7, 836 (2025). [66] L. Barroso-Luque, M. Shuaibi, X. Fu, B. M. Wood, M. Dzamba, M. Gao, A. Rizvi, C. L. Zitnick, and Z. W. Ulissi, arXiv preprint arXiv:2410.12771 (2024). [67] G. I. Csonka, J. P. Perdew, A. Ruzsinszky, P. H. T. Philipsen, S. Leb` egue, J. Paier, O. A. Vydrov, and J. G. ´Angy´ an, Physical Review B 79 , 155107 (2009). [68] S. Chorna, D. Tisi, C. Malosso, W. B. How, M. Ce-riotti, and S. Chong, Advanced Intelligent Systems 8,10.1002/aisy.202501497 (2026). [69] L. Breiman, Machine Learning 45 , 5 (2001). [70] K. P. Murphy, Machine learning: a probabilistic perspec-tive , 4th ed., Adaptive computation and machine learn-ing series (MIT Press, Cambridge, Mass., 2013) chapter 14.4.3, pp. 492-493. 13 
+
+[71] C. E. Rasmussen and C. K. I. Williams, Gaussian Pro-cesses for Machine Learning (The MIT Press, 2005). [72] L. Ward, A. Agrawal, A. Choudhary, and C. Wolverton, npj Computational Materials 2, 16028 (2016). [73] L. Ward, A. Dunn, A. Faghaninia, N. E. R. Zimmermann, S. Bajaj, Q. Wang, J. Montoya, J. Chen, K. Bystrom, M. Dylla, K. Chard, M. Asta, K. A. Persson, G. J. Sny-der, I. Foster, and A. Jain, Computational Materials Sci-ence 152 , 60 (2018). [74] C. J. Bartel, A. W. Weimer, S. Lany, C. B. Musgrave, and A. M. Holder, npj Computational Materials 5, 1 (2019). [75] K. Lejaeghere, G. Bihlmayer, T. Bj¨ orkman, P. Blaha, S. Bl¨ ugel, V. Blum, D. Caliste, I. E. Castelli, S. J. Clark, A. Dal Corso, S. de Gironcoli, T. Deutsch, J. K. Dewhurst, I. Di Marco, C. Draxl, M. Dulak, O. Eriksson, J. A. Flores-Livas, K. F. Garrity, L. Gen-ovese, P. Giannozzi, M. Giantomassi, S. Goedecker, X. Gonze, O. Gr˚ an¨ as, E. K. U. Gross, A. Gulans, F. Gygi, D. R. Hamann, P. J. Hasnip, N. A. W. Holzwarth, D. Iu¸ san, D. B. Jochym, F. Jollet, D. Jones, G. Kresse, K. Koepernik, E. K¨ u¸ c¨ ukbenli, Y. O. Kvashnin, I. L. M. Locht, S. Lubeck, M. Marsman, N. Marzari, U. Nitzsche, L. Nordstr¨ om, T. Ozaki, L. Paulatto, C. J. Pickard, W. Poelmans, M. I. J. Probert, K. Refson, M. Richter, G.-M. Rignanese, S. Saha, M. Scheffler, M. Schlipf, K. Schwarz, S. Sharma, F. Tavazza, P. Thunstr¨ om, A. Tkatchenko, M. Torrent, D. Vanderbilt, M. J. van Set-ten, V. Van Speybroeck, J. M. Wills, J. R. Yates, G.-X. Zhang, and S. Cottenier, Science 351 , aad3000 (2016). [76] A. Kozhevnikov, M. Taillefumier, and S. Pintarelli, SIR-IUS, https://github.com/electronic-structure/SIRIUS, accessed: 2024-06-12. [77] P. Giannozzi, S. Baroni, N. Bonini, M. Calandra, R. Car, C. Cavazzoni, D. Ceresoli, G. L. Chiarotti, M. Cococ-cioni, I. Dabo, A. D. Corso, S. d. Gironcoli, S. Fabris, G. Fratesi, R. Gebauer, U. Gerstmann, C. Gougoussis, A. Kokalj, M. Lazzeri, L. Martin-Samos, N. Marzari, F. Mauri, R. Mazzarello, S. Paolini, A. Pasquarello, L. Paulatto, C. Sbraccia, S. Scandolo, G. Sclauzero, A. P. Seitsonen, A. Smogunov, P. Umari, and R. M. Wentzcov-itch, Journal of Physics: Condensed Matter 21 , 395502 (2009). [78] P. Giannozzi, O. Andreussi, T. Brumme, O. Bunau, M. B. Nardelli, M. Calandra, R. Car, C. Cavazzoni, D. Ceresoli, M. Cococcioni, N. Colonna, I. Carnimeo, A. D. Corso, S. d. Gironcoli, P. Delugas, R. A. DiStasio, A. Ferretti, A. Floris, G. Fratesi, G. Fugallo, R. Gebauer, U. Gerstmann, F. Giustino, T. Gorni, J. Jia, M. Kawa-mura, H.-Y. Ko, A. Kokalj, E. K¨ u¸ c¨ ukbenli, M. Lazzeri, M. Marsili, N. Marzari, F. Mauri, N. L. Nguyen, H.-V. Nguyen, A. Otero-de-la Roza, L. Paulatto, S. Ponc´ e, D. Rocca, R. Sabatini, B. Santra, M. Schlipf, A. P. Seitso-nen, A. Smogunov, I. Timrov, T. Thonhauser, P. Umari, N. Vast, X. Wu, and S. Baroni, Journal of Physics: Con-densed Matter 29 , 465901 (2017). [79] AiiDA-QuantumESPRESSO, https://github.com/aiidateam/aiida-quantumespresso, accessed: 2024-06-12, version 4.4.0. [80] G. de Miranda Nascimento, F. J. dos Santos, M. Bercx, D. Grassano, G. Pizzi, and N. Marzari, npj Computa-tional Materials 10.1038/s41524-026-02097-8 (2026). [81] G. Kim, S. V. Meschel, P. Nash, and W. Chen, Scientific Data 4, 10.1038/sdata.2017.162 (2017). [82] G. Kim, S. Meschel, P. Nash, and W. Chen, Experimental formation enthalpies for intermetallic phases and other inorganic compounds (2017). [83] O. Kubaschewski, C. Alcock, and P. Spencer, Materials Thermochemistry , 6th ed. (Pergamon Press, 1993). [84] M. W. Chase, Nist-janaf thermochemical tables (1998). [85] K. Rzyman, Z. Moser, A. Miodownik, L. Kaufman, R. Watson, and M. Weinert, Calphad 24 , 309 (2000). [86] CRC Handbook, CRC Handbook of Chemistry and Physics, 88th Edition , 88th ed. (CRC Press, 2007). [87] S. Grindy, B. Meredig, S. Kirklin, J. E. Saal, and C. Wolverton, Physical Review B - Condensed Matter and Materials Physics 87 , 1 (2013). [88] G. Kresse and J. Furthm¨ uller, Physical Review B 54 ,11169 (1996). [89] G. Kresse and J. Furthm¨ uller, Computational Materials Science 6, 15 (1996). [90] B. A. Helfrecht, R. K. Cersonsky, G. Fraux, and M. Ce-riotti, Machine Learning: Science and Technology 1,045021 (2020). 14 
+
+## Supplemental Materials: Correcting DFT formation energies towards experimental accuracy using foundational MLIPs and latent-feature delta-learning   
+
+> S1. DATABASE COMPARISON A. Formation energies – O containing compounds
+
+Fig. S1 presents again the DB comparison of the pure DFT results, see main text Fig. 1, highlighting compounds that contain oxygen. One can observe that the bimodal distributions shown in the main text are mostly caused by the oxygen containing compounds. −200 0 200 ∆HM C 3D−M P F (meV/atom) 010 20 Percentage of compounds (%)  contains O no O 
+
+−200 0 200 ∆HM C 3D−OQM D F (meV/atom) 
+
+−200 0 200 ∆HM P −OQM D F (meV/atom)  
+
+> SUPPLEMENTARY FIG. S1. Distribution of formation energy differences between the databases MC3D, MP and OQMD. The color code distinguishes compounds containing oxygen and those that do not contain oxygen. The sum of the two histograms yields the bimodal distribution shown in Fig. 1 in the main text.
+> B. Elements inducing differences between databases
+
+Fig. S2 presents the conditional probability of finding deviating formation energies in databases (within a specified interval), given that the compound contains a certain element.  
+
+> C. Comparison of computational parameters
+
+One of the key differences in the computational parameters adopted by different high-throughput databases are the k-point sampling to integrate the Brillouin zone and the cutoffs for the wavefunctions and charge density.  
+
+> 1. k-points
+
+OQMD uses a k-point sampling of 6000 kpoints per reciprocal atom, whereas Materials Project adopts a sampling of 1000 k-points per reciprocal atom. However, MC3D follows a slightly different approach by defining a minimum distance of 0.15 ˚ A−1 between subsequent k-points along each reciprocal space direction to determine the k-mesh. Fig. S3 shows how the k-meshes generated with the MC3D and Materials Project parameters compare across a set of crystal structures. In general, the chosen parameters in the MC3D tend to produce denser k-grids. Moreover, the density of k-points in MC3D was not only chosen to produce dense grids, but carefully tuned to yield optimal results in combination with the chosen smearing [80]. For the comparison of the MC3D and the Materials Project with respect to the adopted k-grid, we query the structures and computational details from the Materials Project. Afterwards, we take these input structures and generate the k-mesh using the MC3D setup. The distribution of the total number of kpoints is visualized in Fig. S3 15 Se I S Cl O Br Te Bi Ag HElement 020 40 60 80 100 P(deviating  | contains element) (%) 
+
+a) 50 meV /atom < ∆HM C 3D−M P, F ERE F
+
+Se Te Nb Mo Zr Mg Rb Sb Cu Sn Element 020 40 60 80 100 P(deviating  | contains element) (%) 
+
+b) ∆HM C 3D−OQM D, F ERE F < −50 meV /atom 
+
+> Se Tb Te Br ICl SOCs H
+
+Element 020 40 60 80 100 P(deviating  | contains element) (%) 
+
+c) ∆HM P −OQM D, F ERE F < −50 meV /atom 
+
+SUPPLEMENTARY FIG. S2. Conditional probability P (∆ HD1−D2 
+
+> F
+
+∈ I | Ai in A1 
+
+> n1
+
+. . . A NnN ) that the formation energy dif-ference between two databases D1 and D2 falls within a certain energy range I, given that a compound A1 
+
+> n1
+
+. . . A NnN
+
+contains a certain element Ai. The dashed black line indicates the probability independent of the element. We only include elements which have an overall percentage of more than 2%. a 50meV /atom < ∆HM C 3D−M P, F ERE F ,
+
+b ∆HM C 3D−OQM D, F ERE F < −50meV /atom, c ∆HM P −OQM D, F ERE F < −50meV /atom. 0 1000 2000 3000 4000 5000 Total number of k-points 010 20 30 40 Percentage of compounds (%) 
+
+MC3D MP Median MC3D: 343 Median MP: 64 
+
+SUPPLEMENTARY FIG. S3. Comparison of the total number of k-points, calculated as the product of the components of the Monkhorst-Pack mesh. The color distinguishes between MC3D and MP, and the dashed lines indicate the median values. Moreover, both distributions are normalized separately, i.e. they both sum up to 100%. 16  
+
+> 2. Plane-wave cutoffs
+
+Regarding the cutoffs for the wavefunctions and charge density, Materials Project and OQMD use a constant cutoff that is chosen to be 25% larger than the highest recommended one over all pseudo potentials. In contrast to these constant cutoffs, the MC3D follows the SSSP [39] protocol where a set of recommended cutoffs for each element were established. For materials composed of different elements, the wavefunction ( Ewf c cut ) and charge density ( Erho cut ) cutoff is chosen as the maximum of each cutoff type across all elements present in the compound, e.g. for MgZnAg 2:
+
+Ewf c cut (MgZnAg 2) = max 
+
+n
+
+Ewf c cut (Mg) , E wf c cut (Zn) , E wf c cut (Ag) 
+
+o
+
+Erho cut (MgZnAg 2) = max Erho cut (Mg) , E rho cut (Zn) , E rho cut (Ag) 
+
+(S1) While this approach is very reasonable in general, and imposes a good balance between computational costs and convergence of the results, one needs to carefully check the convergence behavior of relative properties involving values that were calculated with different computational parameters. This is the case for formation energies for which the energy difference of a material and its elemental references is calculated. Revisiting the example of MgZnAg 2
+
+mentioned before, one realizes that not all parts that are involved in the calculation of the formation energy are calculated at the same cutoffs. Since the compound cutoffs are chosen as the maximum among the elemental cutoffs, there is typically at least one elemental reference that was calculated with a different cutoff combination. Table S1 presents the cutoffs of Mg, Zn and Ag as well as the resulting cutoffs for different compounds consisting of (all or a subset of) these elements. It is immediately clear that, for this example but generally in several cases, the elemental references and the various compounds are not calculated at the same cutoffs.                            
+
+> Ewf c cut (Ry) Erho cut (Ry) Mg 30 240 Zn 40 320 Ag 50 200 ZnAg 50 (Ag) 320 (Zn) MgZn 40 (Zn) 320 (Zn) MgAg 50 (Ag) 240 (Mg) MgZnAg 250 (Ag) 320 (Zn) SUPPLEMENTARY TABLE S1. Upper part: Ewf c cut and Erho cut for elements Mg, Zn and Ag, as specified in the SSSP PBE Efficiency v1.3.0 [39] library. Lower part: Ewf c cut and Erho cut for different materials consisting of the elements Mg, Zn and Ag. In addition to the cutoffs, each cell presents in brackets the element that has determined the cutoff, i.e., the element that exhibits the largest cutoff among the elements that are present in the compound.
+
+To this end, we generate all possible cutoff combinations that occur across the MC3D database and recalculate the required elemental references to ensure that we have total energy values for all materials and their corresponding elemental references that have been calculated with a consistent cutoff value. The obtained energy values with the adjusted cutoffs are applied to the final formation energies as another type of correction, similar to the FERE approach discussed in the main text. Finally, we want to note that while it is reasonable from a theoretical perspective and based on the previously presented results to use consistent cutoffs when evaluating formation energies, the adjustment of the cutoffs does not improve the agreement between the DFT formation energies and the experimental references. The difference might be indeed reduced for certain compounds, however on average the MAE remains nearly constant. Moreover, when applying a FERE correction, the adjustment of the cutoffs is not relevant, as the differences are anyway absorbed and incorporated by the FERE corrections themselves. However, in case of the FERE-part formation energies, and especially when dealing with the pure DFT ones, the adjustment of the cutoffs has an effect. Fig. S4 shows the distribution of the differences between the formation energies including the cutoff corrections and the ones that are calculated with the default SSSP cutoffs. As outlined above, the impact is relatively small and the majority of compounds exhibits differences below 10 meV/atom. Nonetheless, a set of outliers can be observed, e.g. compounds containing W. Careful analysis showed that this is due to the W cutoffs in the efficiency version of SSSP not being large enough. Indeed, while the tested properties [39] in the SSSP protocol are converged, the total energy still varies significantly when increasing the cutoff. Since the total energy of the elemental reference is the property that is relevant for the calculation of the formation energies, this affects most of the W-containing compounds. 17 01000 2000 3000 4000 5000 6000 7000 Count 0 10 20 30 40 50 Formation energy difference (meV/atom) 
+
+SUPPLEMENTARY FIG. S4. Formation energy difference for all compounds in the MC3D PBE-v1 without and after applying the cutoff corrections. ∆ Hdef F and ∆ Hadj F represent the formation energy based on the SSSP default cutoffs and the adjusted cutoffs, respectively. 18  
+
+> S2. FERE CORRECTIONS
+
+Fitting of elemental references In this work, we adopt the fitting of the elemental references [42] based on two different sets: all elements that we call FERE-all and a subset consisting of H, N, O, F, Cl, Br, I, S, Se, Te, P, Sn, Sb that we call FERE-part . The final set of elements used for FERE-part was determined by comparing different elemental sets. We combined the elements that are used in case of OQMD and MP (see [10] and [50]) and removed those elements that would only receive a small correction. Moreover, we also compared this approach of applying the corrections to all compounds containing those elements with the conditional one adopted in MP, i.e. only applying the corrections to compounds for which a certain element is contained as an anion. To limit the extent of empiricism, we also tested the approach of only applying the FERE corrections to compounds for which the corresponding element is present as an anion [43]. Nonetheless, the performance in terms of MAE differs only by 2 meV/atom between the different methods. To obtain the corrections applied to the elemental references, the following least-squares problem is solved via linear regression 
+
+Ax = b, (S2) whereby the columns of A correspond to the elements that should be corrected and each row contains the relative amount of the corresponding element in a certain compound. Moreover, b contains the difference between pure DFT and experimental formation energies for each compound. As previous work has shown that the FERE approach is generally stable with respect to overfitting [31], the full dataset of 1511 compounds (after removing compounds with an energy above hull larger than 100 meV/atom [43]) is used to determine the corrections. The filtering of highly unstable structures (according to PBE) is performed to avoid fitting to outliers. The resulting corrections per element are presented in table S2. Comparing this to the values obtained by the other high-throughput databases, we observe a relatively high agreement with the ones from OQMD and certain deviations compared to MP.                                             
+
+> SUPPLEMENTARY TABLE S2. FERE corrections for the MC3D (PBE version), MP and OQMD databases. MP fits different corrections for oxygen based on the local environment, therefore, multiple values are listed for oxygen. All values are presented in eV/atom. Element MC3D FERE correction MP FERE correction OQMD FERE correction H−0.121 −0.179 0.067 N−0.264 −0.361 −0.113 O−0.357 (−0.687, −0.465, −0.161) −0.359 F−0.387 −0.462 −0.237 Cl −0.319 −0.614 −0.355 Br −0.274 −0.534 −0.289 I−0.133 −0.379 −0.165 S−0.290 −0.503 −0.275 Se −0.172 −0.472 -Te −0.196 −0.422 -P−0.301 -−0.244 Sn −0.254 -−0.112 Sb −0.135 −0.192 -
+> 1. PBE vs. PBEsol after FERE corrections
+
+In the main text, we observed a small difference in the performance of the pure PBE and PBEsol formation energies. We checked this deviation and, as we show below, the difference in terms of MAE is related to a small difference in the available elemental references in the two versions of the MC3D. Indeed, when only considering structures that are present in both versions (and most importantly, considering the same elemental reference structures when calculating the formation energies), one obtains the results shown in Fig. S5, where the two GGA functionals show a very similar performance with respect to the experimental references. 19 02468Percentage of compounds (%)  MAE (eV/atom) PBE: 0.149 PBEsol: 0.149 
+
+a) 
+
+PBE PBEsol 
+
+−0.4 −0.2 0.0 0.2 0.4 0.6∆HDF T f − ∆Hexpt f (eV/atom) 02468Percentage of compounds (%)  MAE (eV/atom) PBE: 0.102 PBEsol: 0.105 
+
+b) 
+
+SUPPLEMENTARY FIG. S5. a Distribution of the differences between the pure DFT formation energies ∆ HDF T f , obtained with PBE and PBEsol, and the experimental reference formation energies ∆ Hexpt f . b Same as before, but with DFT formation energies corrected using the FERE-part approach. 20 
+
+S3. MLIP VS. DFT VS. EXP 
+
+Fig. S6 shows the relative volume change with respect to the initial experimental structure for the DFT results from the PBEsol-v1 version of MC3D and the PET-OMATPES relaxed version based on r 2SCAN. As one can notice, the MLIP relaxations exhibit a marginally better agreement with the initial experimental structures than the DFT relaxed ones using the PBEsol functional. This further highlights that the fMLIPs trained at the meta-GGA level can reach a precision and accuracy that might motivate an actual drop-in replacement of DFT with MLIPs in certain materials-science workflows. Nonetheless, especially in less explored regions of the structural space and for more advanced properties, DFT still remains the method of choice. −30 −20 −10 0 10 20 30 Relative volume change wrt. experiment (%) 01000 2000 3000 Number of structures 
+
+> r2SCAN (UPET-OMATPES) r2SCAN median PBEsol median PBEsol (DFT)
+
+SUPPLEMENTARY FIG. S6. Relative volume change with respect to the experimental source structures for PET-OMATPES r2SCAN relaxations and DFT PBEsol relaxations. 21 Fig. S7 extends Fig. 2 in the main text by also presenting the results for unconstrained relaxations using PET-OMATPES. Even though the error metrics with respect to the experimental formation enthalpies can be further reduced compared to the symmetry constrained relaxation, especially in the context of an unconstrained MLIP architecture (such as the PET architecture [63]) the symmetry constrained relaxation is likely the safer option [64] for high-throughput applications where it is not possible to verify each structure. 10 50 90 Count                                             
+
+> Pure DFT
+> PBE PBEsol
+> PET-OMATPES r 2SCAN (unrelaxed)
+> At:
+> PBE PBEsol
+> PET-OMATPES r 2SCAN (sym. relaxed)
+> Starting from:
+> PBE PBEsol EXP
+> PET-OMATPES r 2SCAN (unconstrained relaxed)
+> Starting from:
+> PBE PBEsol EXP
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> −4
+> −3
+> −2
+> −10∆Hcalc f (eV/atom)
+> PBE PBEsol
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> PBE PBEsol
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> PBE PBEsol EXP
+> −600 −300 0300 600 ∆Hcalc f−∆Hexpt f(meV/atom)
+> PBE PBEsol EXP
+> −100 0100 200 300 Error (meV/atom)
+> 215 158 131 233 172 134 130 89 -28 122 84 0
+> PBE PBEsol EXP RMSE MAE ME
+> 120 81 8122 85 3120 81 8
+> 106 79 9108 80 9106 78 9
+
+SUPPLEMENTARY FIG. S7. Comparison of formation energy differences with respect to experiment for several approaches based on PBE, PBEsol and the underlying experimental reference structures EXP. The different approaches “calc” to calculate formation energies are “Pure DFT” calculations (first column) , MLIP predicted formation energies evaluated on DFT-relaxed structures “PET-OMATPES r 2SCAN (unrelaxed)” (second column) and fully MLIP relaxed structures with corresponding MLIP formation energies, symmetry constrained “PET-OMATPES r 2SCAN (sym. relaxed)” (third column) and uncon-strained “PET-OMATPES r 2SCAN (unconstrained relaxed)” (fourth column) , using the PET-OMATPES r 2SCAN MLIP. 
+
+(Top row) Histograms of the per-structure formation energy difference ∆ Hcalc  
+
+> f
+
+− ∆Hexpt  
+
+> f
+
+at/starting from the PBE relaxed structures (blue), PBEsol relaxed structures (orange) and the experimental source structures EXP (green). EXP is only used for the PET-OMATPES relaxations to investigate to which extent the MLIP relaxations reproduce the ones when starting from the DFT relaxed structures. (Middle row) Scatter plots of the calculated formation energy ∆ Hcalc  
+
+> f
+
+against the same difference with respect to experiment, with each point representing one structure. (Bottom row) Summary error metrics of the differences ∆ Hcalc  
+
+> f
+
+− ∆Hexpt  
+
+> f
+
+with respect to experiment: root mean squared error (RMSE), mean absolute error (MAE), and mean error (ME), for PBE, PBEsol and EXP separately. 
+
+S4. MACHINE LEARNING OF FORMATION ENERGIES A. Low dimensional representation of the structure-corrections relation 
+
+Here, we try to gain some further insights into the learned corrections. To this end, we train a Kernel Principal Covariates Regression (KPCovR) model [90], using the same hyperparameters for the KRR model discussed before. The only difference: here we use a 50/50 train test split, to increase the sample size for the actual analysis. The idea of KPCovR model is to combine the advantages of a low dimensional representation, like PCA, with the actual regression of a KRR model. By optimizing the combined loss, one might be able to obtain a low-dimensional representation that shows the structural variance but also an ideally high correlation of the principal components with the regression target. Fig. S8a shows a 2D PCovR map of the test set structures, whereby the color code indicates the learned correction. A clear correlation between the first principal component P C 1 and the correction value can be observed, with high (low) P C 1 values corresponding to lower (higher) corrections. Moreover, since we start from the PET-OMATPES estimated formation energies, less systematic biases that could be related to certain anionic features are observed. Nonetheless, one can observe some correlation between simple 22               
+
+> SUPPLEMENTARY FIG. S8. Kernel PCovR map of the MC3D structures projected onto two principal components. The kernel PCovR uses a Laplacian kernel (consistent with the model selection in the main text) with a mixing parameter α= 0 .5optimized to balance variance preservation (PCA-like) and alignment with the formation energy correction (KRR-like). a
+> Structures colored by the formation energy correction ∆ Hcorr
+> f.bThe same projection colored by the maximum number of unfilled delectrons Ndacross the elements in each compound. cThe same projection colored by material family (nitride, intermetallic, halide, oxide, and other).
+
+features and P C 1: For example, as shown in Fig. S8b, the maximum number of unfilled d valence orbitals across the elements of a given structure shows some clustering in the low dimensional representation. Almost all structures with no d valence orbitals cluster in the positive region of P C 1, corresponding to corrections δcorr ≤ 0. Similarly, the structures with the highest values of unfilled d orbitals cluster around intermediate values ( −0.3 ≤ P C 1 ≤ 0.2) and the intermediate numbers of unfilled d valence orbitals tend to get the largest positive corrections ( P C 1 ≤ − 0.3). While P C 1 is highly correlated to the regression target, P C 2 mostly captures the structural similarity incorporated in the latent features of the PET model which were used as input features. Fig. S8c shows the 2D map colored by different material groups (nitrides, intermetallics (Inter.), halides and oxides). As one can see, while most of the families almost cover the full range of P C 1, i.e., the materials class does not directly correlate with a certain range of corrections, a clustering in the P C 2 dimension can be observed. Despite the overlap of the halides and intermetallics, which becomes slightly more separated when projecting more structures, one can clearly see the clustering of the oxides between 0 .6 ≤ P C 2 and also the nitrides (which are underrepresented in this subset) that cluster in the upper left region of the map, i.e. obtaining positive corrections.  
+
+> B. PBEsol vs. SCAN flip rate reference based on Alexandria
+
+Fig. S9 presents the energy-above-hull flip rate obtained when comparing DFT results at the PBEsol and meta-GGA (in this case SCAN ) level. The data is based on the Alexandria database and taken from reference [15], since there is currently no meta-GGA version of the MC3D available. Fig. S9a compares the flip rate for the 175k materials from the Alexandria database and the one discussed in the main text, when using PET-OMATPES to estimate the formation energies at the r 2SCAN level based on a MLIP on top of the PBEsol relaxed structures. One observes a clear difference in the trend, the Alexandria flip rates peaks at 75 meV/atom whereas the MC3D one peaks at 0 meV/atom. However, as shown in Fig. S9b, this can mostly be attributed to the differences in the underlying distribution of materials. If the Alexandria dataset is subsampled so that the energy-above-hull values with PBEsol follow a similar distribution as the ones in MC3D, one can see that the flip rates become very similar to the ones obtained for MC3D and PET-OMATPES. Even though the results are not fully compatible in terms of functional/method (the Alexandria data provides a PBEsol and SCAN version, whereas for MC3D we have a PBEsol version and the MLIP-based r 2SCAN version), the main purpose of this analysis is to confirm the general validity of the MLIP estimations beyond comparison against 23 experimental references. Moreover, the good agreement of the flip rates justifies that the MLIP r 2SCAN formation energies can indeed be used as a reference for the flip rate when analyzing the ML corrections discussed in section 
+
+Balance accurate formation energies with distortion of relative phase stability of the main text, as the MLIP-introduced flips follow the same trend that would be expected from DFT. 0.00 0.05 0.10 0.15 0.20 Stability threshold (eV/atom) 0510 15 20 Flip rate (%) 
+
+a) Flip rate Alexandria Flip rate MC3D Flip rate Alexandria (subsampled) 
+
+0.00 0.05 0.10 0.15 0.20 Stability threshold (eV/atom) 020 40 60 80 100 Fraction stable (%) 
+
+b) 
+
+> Alexandria PBEsol Alexandria SCAN MC3D PBEsol MC3D UPET-OMATPES Alexandria PBEsol (subsampled) Alexandria SCAN (subsampled)
+
+SUPPLEMENTARY FIG. S9. a) Stability flip rate comparing DFT formation energies based on PBEsol and meta-GGA (SCAN for Alexandria and r 2SCAN calculated with PET-OMATPES for MC3D). The stability flip rate is the fraction of structures for which the stability classification changes between the two formation energy sets. The flip rate is shown as a function of the stability threshold, i.e. materials with an energy above hull below (above) this value are classified as stable (unstable). We compare the flip rates for the Alexandria database, the MC3D (see main text) and a subsampled version of the Alexandria database that follows the distribution of the energies above hull of the MC3D (from panel b). b) The fraction of stable structures as a function of the stability threshold for the PBEsol and meta-GGA version of each of the databases. 
+
+C. Learning from PBEsol 
+
+SUPPLEMENTARY FIG. S10. Trade-off between formation energy prediction accuracy and stability reliability for KRR models as a function of regularization strength. Each point corresponds to a specific regularization parameter α, with dashed lines connecting points of the same model–feature combination across increasing α values α ∈ { 0.001 , 0.01 , 0.1, 0.4, 0.7, 1.0, 10 }
+
+(generally from left to right). The x-axis shows the stability flip rate (fraction of structures whose stability classification changes upon correction) and the y-axis the mean test MAE across 30 train-test splits (error bars: standard deviation). Results are shown for four model–feature combinations: KRR with Laplacian and RBF kernels, each paired with Magpie or LF features. In contrast to Fig. 4a in the main text, this one is based one PBEsol data. The black diamond shows the performance when retraining the model from reference [48] on the data used in this study. 24  
+
+> D. Variation of corrections across data splits
+
+Fig. S11 presents the spread of the corrections across the 30 train-test splits of the dataset by showing the fraction of structures that exhibit a standard deviation of the corrections that is above a given threshold. One observes that only few cases obtain significantly different corrections based on the dataset split. As shown in the figure, these artifacts due to the overfitting of the formation energies can be significantly reduced with an increased regularization strength. 0.05 0.10 0.15 0.20 0.25 Threshold τ on per-structure σcorr across seeds (eV/atom) 10 −2      
+
+> 10 −1
+> 10 0
+> 10 1
+> 10 2
+> Structures with  σcorr  > τ  (%)
+> alpha
+> 0.001 0.01 0.1 0.4 0.7 110
+> SUPPLEMENTARY FIG. S11. Fraction of structures that exhibit a standard deviation of the predicted corrections σcorr
+> that is above a certain threshold τ.Here, we only focus on the KRR-LAP-LF model and the color distinguishes different regularization strengths α.
+
+While the vast majority of structures obtains corrections that are consistent across the different train-test splits, there is still a small fraction that show significant variations across the different data splits. On the one hand, this could be an indication of overfitting and on the other hand it might be related to specific outliers in the training set, due to the small amount of experimental reference data (which is of course related to the overfitting). In Fig. S12, we further investigate how the corrections vary across the data splits. First of all, one observes in Fig. S12a that for the majority of structures, the corrections cluster in only 3 or 4 clusters. Moreover, as shown in Fig. S12b, the largest cluster contains around 80% of the corrections in case of 3 or 4 clusters. Even for cases in which the corrections are distributed over multiple clusters, the large majority is still covered by the largest and second largest cluster. This is further supported by Fig. S12c, which presents the fraction of clusters with only one or two members. In addition to the distribution shown as a violin plot, we also plot the expected fraction when assuming that the corrections are part of two major clusters and all the other corrections belong to clusters with only one or two members. As can be seen in the figure, the observed data agrees very well with the expectation. This analysis confirms that some data splits (e.g. the presence/absence of certain structures in the training set) can lead to differing predictions. However, from a committee and majority vote perspective, the models agree largely on a certain correction. Hence, we stick to the model with α = 0 .1 that had been selected based on the discussion in the main text, as the uncertainty observed in the corrections could be mitigated by a committee of models. Nonetheless, as it can be seen in Fig. S11, increasing the regularization (e.g. to α = 0 .4) also helps. 25 
+
+SUPPLEMENTARY FIG. S12. a) Distribution of the number of clusters that can be found in the corrections across the 30 data splits. Only structures with a standard deviations across the corrections of more than 0.025 eV/atom are included. Acluster is determined based on a greedy single-linkage approach, i.e., corrections with a difference smaller than 10 meV/atom to the previous member (starting from a sorted list) are added to the same cluster. b) Fraction of the largest and second largest cluster grouped by the number of clusters. c) Fraction of small clusters, i.e. those with only one or two members, for each number of clusters. The blue line shows the expected fraction when assuming that the corrections are grouped into two main clusters and additional small ones. 26 
+
+E. ML corrections vs MLIP r 2SCAN 
+
+Fig. S13 shows the comparison of the improvement or degradation (with respect to experiment) of the PET-OMATPES r 2SCAN zero-shot formation energies and the ML-corrected ones, relative to the PBEsol baseline. In 96% of the cases, the ML-corrected ones outperform the zero-shot formation energies. Fig. S14 further divides the categories from Fig. S13 into potential stability flips, essentially combining Fig. 5 in the main text with Fig. S13. This figure helps to further observe that the ML corrections are almost always better than the zero-shot PET-OMATPES r 2SCAN formation energies, and that most of the stability flips of the ML-corrected model (compared to PBEsol) are already induced by the physically more grounded MLIP. Degradation Improvement ML vs PBEsol Degradation Improvement PET-OMATPES r 2SCAN vs PBEsol p = 17.3% ∆ =+34 meV/atom p = 13.3% ∆ =+78 meV/atom p = 4.0% ∆ = −40 meV/atom p = 65.5% ∆ =+28 meV/atom 
+
+> −60
+> −40
+> −20 020 40 60 ∆: Mean  |δ∆HMLIP
+> f | − | δ∆HML
+> f | (meV/atom)
+
+SUPPLEMENTARY FIG. S13. Heatmap showing the improvement or degradation of the formation energies (with respect to experiment) relative to the PBEsol baseline for the zero-shot PET-OMATPES r 2SCAN formation energies, and the further ML-corrected ones. The color scale indicates the average difference in agreement with experiment between the two approaches, which is also indicated by the ∆ values in each cell. Positive values correspond to a better agreement of the ML corrected formation energies with respect to experiment compared to the zero-shot PET-OMATPES r 2SCAN ones, i.e., |δ∆HML  
+
+> f
+
+| is smaller than |δ∆HMLIP  
+
+> f
+
+|. The fraction p of the structures falling in each category is also indicated. The data is aggregated over the 30 test sets that were analyzed throughout this work. 27 ML worse (no flip) ML worse (bad flip) ML better (no flip) ML better (good flip) ML vs PBEsol r2SCAN worse (no flip) r2SCAN worse (bad flip) r2SCAN better (no flip) r2SCAN better (good flip) PET-OMATPES r 2SCAN vs PBEsol  p = 16.29% ∆ =+34 p = 0.18% ∆ =+2 p = 12.76% ∆ =+77 p = 0.13% ∆ =+86 p = 0.36% ∆ =+53 p = 0.45% ∆ =+20 p = 0.29% ∆ =+100 p = 0.10% ∆ =+120 p = 3.78% ∆ = −41 p = 60.04% ∆ =+27 p = 0.75% ∆ =+59 p = 0.01% ∆ = −37 p = 0.18% ∆ = −33 p = 0.22% ∆ =+34 p = 4.48% ∆ =+38 p = 17.3% p = 13.3% p = 4.0% p = 65.5% 
+
+−100 
+
+−50 050 100 ∆: Mean  |δ∆HMLIP 
+
+> f | − | δ∆HML
+> f | (meV/atom)
+
+SUPPLEMENTARY FIG. S14. Heatmap showing the improvement or degradation of the formation energies (with respect to experiment) relative to the PBEsol baseline for the zero-shot PET-OMATPES r 2SCAN formation energies, and the further ML-corrected ones. Each cell is further sub-divided according to the potential flip of the stability classification compared to the PBEsol baseline. The color scale indicates the average difference in agreement with experiment between the two approaches, which is also indicated by the ∆ value in each cell. Positive values correspond to a better agreement of the ML corrected formation energies with respect to experiment compared to the zero-shot PET-OMATPES r 2SCAN ones, i.e., |δ∆HML  
+
+> f
+
+| is smaller than |δ∆HMLIP  
+
+> f
+
+|. The white boxes in the center of the cells of the outer 2 × 2 matrix report the total fraction of structures belonging to the corresponding outer group. The fraction p of the structures falling in each category is also indicated. The data is aggregated over the 30 test sets that were analyzed throughout this work. 28 
+
+S5. COMPARISON OF FERE AND ML CORRECTIONS 
+
+In the following, we extend the comparison of the ML corrections against the established and widely adopted FERE-like corrections. In particular, we compare the performance of the approaches on two test sets: the test set that yields the best MAE for the ML model, and the test set (with another seed) that yields the worst performance for the ML model. 
+
+A. Best test split 
+
+Fig. S15 shows the distribution of errors with respect to experiment of the different methods. It is very clear that the ML corrections outperform all other methods, significantly reducing all error metrics (ME, MAE, RMSE) compared to the pure DFT and the FERE corrections. −0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 0510 15 20 Percentage of compounds (%)  MAE = 0.166 ME = +0.132 RMSE = 0.218 
+
+PBEsol uncorrected 
+
+−0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 
+
+> MAE = 0.107 ME = +0.008 RMSE = 0.137
+
+FERE-part 
+
+−0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 
+
+> MAE = 0.092 ME = +0.000 RMSE = 0.123
+
+FERE-all 
+
+−0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 
+
+> MAE = 0.045 ME = -0.006 RMSE = 0.067
+
+ML KRR-Laplacian α = 0 .1
+
+SUPPLEMENTARY FIG. S15. Distributions of formation energy residuals with respect to experiment ( δ∆Hf = ∆ Hcalc  
+
+> f
+
+−
+
+∆Hexpt  
+
+> f
+
+) on the best test split ( N = 277) for (a) uncorrected (pure) DFT with PBEsol, (b) FERE-part, (c) FERE-all, and (d) ML KRR-LAP-LF (this work). The vertical dashed line marks zero error and the MAE and ME are annotated in each panel. 
+
+Fig. S16 shows the parity plots of the different methods. While the FERE corrections can indeed remove the systematic bias (as also reflected in the ME in the previous figure) and also improve the correlation, they still show a noticeable spread, similar to the one of the pure DFT. Only the ML corrections can remove the systematic bias and also significantly reduce the spread. −4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10∆Hcalc f (eV/atom)  
+
+> MAE = 0.166 eV/atom ME = +0.132 eV/atom RMSE = 0.218 eV/atom
+> R2= 0.953
+> PBEsol uncorrected
+
+−4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10 MAE = 0.107 eV/atom ME = +0.008 eV/atom RMSE = 0.137 eV/atom  
+
+> R2= 0.981
+> FERE-part
+
+−4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10 MAE = 0.092 eV/atom ME = +0.000 eV/atom RMSE = 0.123 eV/atom  
+
+> R2= 0.985
+> FERE-all
+
+−4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10 MAE = 0.045 eV/atom ME = -0.006 eV/atom RMSE = 0.067 eV/atom    
+
+> R2= 0.996
+> ML KRR-Laplacian α= 0 .1
+
+SUPPLEMENTARY FIG. S16. Parity plots of calculated vs. experimental formation energies for the different methods on the best test split. The diagonal represents perfect agreement. 29 
+
+B. Worst test split 
+
+In this subsection, we show the same analyses as before, but this time evaluated on the test split that yields the worst MAE for the ML model. Even though the performance of the ML model is worse on this test set, it still outperforms the FERE corrections, as can be seen in Fig. S17 and Fig. S18. Furthermore, even if the improvements of the error metrics are slightly reduced with respect to the previous test split, the ratios are still similar. It is interesting to note that the error of the pure DFT also follows the same trend. This indicates that the reduced performance is driven by certain structures that exhibit much larger errors in general. Hence, the variation is less of a model artifact, as it is also observed for DFT. −0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 0510 15 20 Percentage of compounds (%)  MAE = 0.180 ME = +0.143 RMSE = 0.265 
+
+PBEsol uncorrected 
+
+−0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 
+
+> MAE = 0.123 ME = +0.023 RMSE = 0.205
+
+FERE-part 
+
+−0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 
+
+> MAE = 0.109 ME = +0.011 RMSE = 0.182
+
+FERE-all 
+
+−0.5 0.0 0.5
+
+δ∆Hf (eV/atom) 
+
+> MAE = 0.065 ME = +0.006 RMSE = 0.145
+
+ML KRR-Laplacian α = 0 .1
+
+SUPPLEMENTARY FIG. S17. Distributions of formation energy residuals with respect to experiment ( δ∆Hf = ∆ Hcalc  
+
+> f
+
+−
+
+∆Hexpt  
+
+> f
+
+) on the worst test split ( N = 277) for (a) uncorrected (pure) DFT with PBEsol, (b) FERE-part, (c) FERE-all, and (d) ML KRR-LAP-LF (this work). The vertical dashed line marks zero error and the MAE and ME are annotated in each panel. −4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10∆Hcalc f (eV/atom)  
+
+> MAE = 0.180 eV/atom ME = +0.143 eV/atom RMSE = 0.265 eV/atom
+> R2= 0.931
+> PBEsol uncorrected
+
+−4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10 MAE = 0.123 eV/atom ME = +0.023 eV/atom RMSE = 0.205 eV/atom  
+
+> R2= 0.959
+> FERE-part
+
+−4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10 MAE = 0.109 eV/atom ME = +0.011 eV/atom RMSE = 0.182 eV/atom  
+
+> R2= 0.968
+> FERE-all
+
+−4 −2 0∆Hexpt f (eV/atom) 
+
+−4
+
+−3
+
+−2
+
+−10 MAE = 0.065 eV/atom ME = +0.006 eV/atom RMSE = 0.145 eV/atom    
+
+> R2= 0.979
+> ML KRR-Laplacian α= 0 .1
+
+SUPPLEMENTARY FIG. S18. Parity plots of calculated vs. experimental formation energies for the different methods on the worst test split. The diagonal represents perfect agreement. 
+
+Finally, Fig. S19 shows the per-compound improvement on the test split that yields the worst performance of the ML model. This figure can be compared with Fig. 6 in the main text, which instead presents the same analysis for the best test split. Even on this worst test split, the ML model outperforms the FERE corrections by improving the absolute error more significantly and, when it degrades the error, it does so to a smaller extent compared to the FERE corrections. 30 °0.6 °0.4 °0.2 0.0 0.2
+
+|±¢Hcorr  
+
+> f
+
+| ° |±¢Hpure DFT  
+
+> f
+
+| (eV/atom) 
+
+> FERE-part
+> FERE-all
+> ML (this work)
+
+Gain over pure DFT Loss over pure DFT 
+
+SUPPLEMENTARY FIG. S19. Per-compound change in absolute deviation from experiment, |δ∆Hcorr  
+
+> f
+
+| − | δ∆Hpure DFT  
+
+> f
+
+|, for different correction methods “corr”: FERE-part, FERE-all, and ML (KRR-LAP-LF). Negative values (green background) indicate improvement over the pure DFT values, positive values (red background) indicate degradation. Box plots show the median (vertical line), IQR (box), and 1.5 ×IQR whiskers; individual data points are overlaid with vertical jitter. The test set corresponding to the worst MAE for the ML model (KRR-LAP-LF) is shown here.

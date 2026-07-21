@@ -1,0 +1,445 @@
+Title: Instability-Avoiding Active Learning for Cluster Expansions in Complex Multielement Materials
+
+URL Source: https://arxiv.org/pdf/2607.16486v1
+
+Published Time: Tue, 21 Jul 2026 00:14:03 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+# JournalName Instability-Avoiding Active Learning for Cluster Expansions in Complex Multielement Materials †
+
+Michael J. Waters, a and James M. Rondinelli ∗a
+
+The high efficiency of cluster expansions make them appealing for studying chemical disorder in complex composition spaces such as in multi-principal element alloys (MPEAs). Several works have attempted to address the rapidly growing training cost with number of chemical species through active learning, transfer learning, and chemical embedding. However, many composition spaces have large regions where the host lattice becomes dynamical unstable, which are often avoided a priori so as to not generate expensive but inapplicable training data. Here, we demonstrate a procedure for integrating stability classification within an active learning workflow to autonomously avoid calculations for unstable structures. Our workflow augments the stability classification procedure with Mahalanobis distance-based structure selection to ensure model robustness by training set diversification. We benchmark our methods by training a cluster expansion for the complex FCC MPEA spanning the Ni-Fe-Cr-Al-Ti-Si alloy space, in which only Ni and Al are thermodynamically stable as FCC. 
+
+# 1 Introduction 
+
+Multi-principal element alloys (MPEAs) are promising for high-temperature 1, low-temperature 2, nuclear 3, functional 4, and even catalytic applications 5. In such cases, their performance is tied to properties that are modulated by chemical short range order-ing (SRO) at the atomic scale such as: ductility 6, stacking fault energies 7, fatigue life 8 radiation resistance 9, and magnetism 10 .Motivated by the growing evidence that SRO also affects aqueous corrosion processes, we focus here on the relationship between SRO and passivation. Previously, Xie et al. showed that in Fe/Ni-Cr alloys, Cr site percolation, which is modulated by SRO, is required for the formation of a protective passivating oxide 11,12 . In MPEAs, however, multiple passivating species may be present, each with distinct effectiveness and complex interactions that influence both SRO and the concentration-dependent percolation thresholds. To investigate SRO-passivation behavior in a multi-passivator MPEA, we selected the FCC Fe-Ni-Cr-Al-Ti-Si composition space. This system expands the Fe-Ni-Cr base of austenitic stainless steels by incorporating Al, Ti, and Si as additional earth-abundant pas-sivating elements, while retaining the FCC parent lattice. The chemical and configurational complexity of such MPEAs presents significant challenges for computational materials science. Both the number of distinct chemical interaction permutations and the number of uniform-composition grid points increase rapidly with number of alloying elements considered (Section 1 of the Support-ing Information, SI). To enable a tractable search of equilibrium  
+
+> aDepartment Materials Science and Engineering, Northwestern University, Evanston, Illinois, USA. Tel: +1 847-491-3198; E-mail: jrondinelli@northwestern.edu
+
+ordering and SRO across this space, we use the established strat-egy of fitting a cluster expansion (CE) model to ab initio data, followed by Monte Carlo (MC) simulations 13 .In a CE, the configurational Hamiltonian is decomposed into contributions from N-body clusters (pairs, triplets, quadruplets, 
+
+etc. ) of lattice sites, with each unique species decoration of a cluster contributing an independent interaction parameter. The re-sulting cluster functions form a complete basis across both species and lattice decorations and serve as the input vector for the CE model. For computational tractability, the expansion is truncated in body order and, when formulated for real-space, by limiting the spatial extent of the cluster interactions. Although CEs most commonly represent thermodynamic potentials, e.g ., the internal energy for MC simulations, the framework is general 14 . Any in-tensive property can be expanded to capture its dependence on the underlying lattice decorations. Examples include band gap 15 
+
+and tensorial properties such as strain 14,16,17 .The key advantage of CE for sampling large MPEA composi-tion spaces lies in their computational efficiency. Because they use a purely decoration-based Hamiltonian, millions of MC trials can be performed across thousands of compositions at relatively low cost. CE construction typically relies on ab initio (usually DFT) relaxations on small supercells, representing unique crystal-
+
+Table 1 The number symmetrically inequivalent supercells (SIS) of the primitive FCC lattice for various orbit (supercell) sizes. Total SIS = 47 , 720 
+
+for atoms in orbits 1–6 
+
+Atoms in orbit ( N) 1 2 3 4 5 6Unique SIS ( N) 6 30 150 1,350 3,984 42,200 JournalName ,[year],[vol.],  
+
+> 1–13 |1arXiv:2607.16486v1 [cond-mat.mtrl-sci] 17 Jul 2026
+
+lographic orbit decorations. We refer to these as symmetrically inequivalent supercells (SIS). Although alternative training-set generation schemes exist 18–20 , SIS-based enumeration remains at-tractive because the associated DFT calculations are comparatively less expensive. Prior to CE fitting, however, relaxed structures must be screened. Structures that relax far from the ideal lattice, which indicate dynamical instability rather than small equilibrium displacements, are excluded. Additionally, structures lying far above the convex hull are often discarded or given lower weight during fitting 21 . In a six-component FCC alloy space, the number of SIS grows rapidly with orbit size (Table 1, Table S1), making indiscriminate DFT evaluations impractical. Therefore, the first design goal of our workflow is to reduce the DFT-simulation burden by intelligently selecting the most informative training structures. To this end, we employ an active learning strategy based on an ensemble of CE models. The ensemble variance, i.e. , the dis-agreement between the model predictions, is used as an uncer-tainty metric for ranking prospective structures. Alternatively, prior works have demonstrated the effectiveness of Bayesian ac-tive learning and compressed sensing approaches for improving CE training 20,22–26 . While we rely on enumerated structures, candi-date configurations may also be generated via simulated annealing or direct optimization for maximum model uncertainity or orthogo-nality in cluster-function space 18,20,27 . Additional methodological details are available in Refs. 18,20,22–24,28–30 .Active learning shows great efficiency in particular for well-behaved alloys, where the target lattice is dynamically stable across compositions and relevant intermetallics correspond to ordered decorations of that lattice. However, the Fe-Ni-Cr-Al-Ti-Si space is poorly behaved as an FCC alloy system. Only Ni and Al are stable in FCC, while FCC Cr and Si are highly unfavorable (Table 2), and multiple non-FCC intermetallics such as the B2 NiAl and FeTi are present. Consequently, many actively selected SIS are likely to relax away from FCC or remain trapped in unphysically high-energy metastable states. Both outcomes lead to filtered structures and therefore wasteful DFT calculations. This motivates our second design goal: incorporating instability avoidance directly into candidate structure selection, with parity to post-DFT filtering, in a generalizable manner. This can be critical to prevent some active learning workflows from selecting under-sampled, unstable structures with increasing bias in each iteration as their uncertainty metrics remain large relative to those of stable structures. For energetic filtering, low-energy structures   
+
+> Table 2 Formation energies relative to the convex hull from OQMD 31,32
+> (meV/atom). A value of 0 indicates the phase is on the convex hull (thermodynamically stable)
+
+Element FCC BCC HCP Diamond Cubic Fe 161 0 86 1244 Ni 0 91 23 1198 Cr 394 0 406 2076 Al 0 96 33 747 Ti 70 114 14 2116 Si 537 523 508 0can be identified using the current CE iteration to predict hull proximity, an approach widely adopted in tools such as Alloy-Theoretic Automated Toolkit (ATAT) 21,33 and CLEASE 18 .Predicting lattice stability a priori is more challenging. Here we introduce a second CE not of energy, but of the average atomic displacement from ideal FCC. This displacement model predicts the mean post-relaxation displacement, based on the assumption that average displacements grow as compositions or local order-ing approach the limits of dynamical stability. This approach is lattice agnostic and does not require any a posteriori knowledge of stability regimes. To further ensure robustness, actively se-lected structures are augmented with Mahalanobis distance biased sampling to promote data diversity. Six-element composition spaces remain exceptionally large for cluster expansions trained on ab initio data. To our knowledge, only three prior works report ab initio -based CEs for six or more components 34–36 , all involving more well-behaved alloy systems. Accordingly, the focus of this work is to present an active learning workflow for CE construction that explicitly incorporates instability avoidance. We detail the complete workflow: (1) the overall active learning loop, (2) ensemble CE model formulation and training, (3) active structure selection, filtering criteria, and Mahalanobis distance-based data diversification, (4) DFT calculation details, and (5) implementation considerations. We analyze the training yields, CE model performances, the effectiveness of average atomic displacement as a stability classifier, and data diversification. We conclude by assessing the final model quality and potential im-provements. 
+
+# 2 Workflow 
+
+2.1 Overview 
+
+The distinguishing feature of our workflow is the explicit pre-DFT targeting of structures likely to survive post-DFT filtering, thereby minimizing wasted DFT calculations. To realize this, our active learning loop is organized as into seven steps, illustrated schemati-cally in Figure 1. Entry into the loop begins with Step 0, where an initial set of structures is selected according to predefined criteria. In Step 1, the selected structures are relaxed using DFT calcula-tions. Step 2 maps the relaxed structures back onto decorations of the ideal lattice. This mapping also yields both the discrete latttice decoration and the associated atomic displacements from ideal lattice sites. In Step 3, the relaxed structures are filtered according to two post-DFT criteria: formation energy relative to the thermodynamic convex hull and average atomic displacement. These filters determine whether a structure is admissible for train-ing the energy CE and/or displacement CE models. In Step 4, structures that pass the filtering criteria are added to the training data for the energy CE and/or displacement CE models. Step 5 consists of training ensemble models for both the energy CE and displacement CE using the updated datasets. In Step 6, all candidate structures are evaluated using the trained CE models to predict hull energy, mean atomic displacement, and their models’ uncertainties. To close the active learning loop, Step 7 uses two parallel paths, A and B, to select new structures for DFT evaluation based on predictions from the previous step, the post-DFT filtering   
+
+> 2|1–13 JournalName ,[year],[vol.],Train CE Models Energy CE Model Displacement CE Model Relax Structures with DFT Excluding: • High hull energy • Far from FCC
+
+Post-DFT Filtering Pre-DFT Down Selection of Candidate Structures 
+
+> Exclusion criteria coupled to post-DFT filtering
+
+Monte Carlo    
+
+> simulations with final
+> energy CE model
+> Displacement training set Energy training set Add (new) structures that pass filtering to: Selection of initial structures from all candidates: Arbitrarily Or By a posteriori
+> criteria Evaluate energy
+> and displacement
+> CE models for all candidate structures
+> Active Learning Loop
+
+Structure Mapping 
+
+↔
+
+> mapping yields atomic displacements
+> Path B
+> Selects remaining 10% of candidates
+> Low Energy Structure Down Selection
+> Restrict to energy window above predicted convex hull Unbiased extrema selection by Mahalanobis distance in whitened PCA basis
+
+Enforcing a robust training set La -Stable ttice Selection 
+
+> Candidates selected using displacement model as lattice stability proxy
+> Maximal Energy Uncertainty Selection
+> Candidates with highest variance in energy model predictions select
+> Path A
+> 90% of candidate structures for DFT relaxation are selected on Path A Selection-Filter coupling (A2) Relaxed structure Ideal structure
+
+Fig. 1 Schematic of the active learning workflow, with initial structure selection as the entry point to the loop. The pre-DFT structure selection step, which is designed to maximize throughput by targeting structures likely to pass post-DFT filtering, is highlighted. (Inset) Overview of the candidate structure selection strategy. In primary Path A, candidates are first filtered by predicted energy relative to the convex hull, then by predicted FCC stability using the displacement model, before the remaining structures are ranked and selected based on energy uncertainty. In the secondary Path B, structures are selected solely based on their Mahalanobis distance from the existing training dataset to promote data diversity. 
+
+criteria, and the current training training dataset distribution. Step 7 is fully detailed in the active structure selection and filtering section below. 
+
+2.2 Model Formulation and Training 
+
+The cluster function vector space is defined by all symmetry-inequivalent clusters permutations on an ideal FCC lattice with lattice parameter a = 3.6 ˚A. For pairs, triplet, quadruplet, and quin-tuplet clusters, the corresponding cutoff radii used in this work are 8.0 ˚A, 4.5 ˚A, 3.6 ˚A, and 3.6 ˚A, respectively. These cutoffs cor-respond to maximum neighbor shells of the 9 th , 7 th , 3 rd , and 1 st 
+
+nearest neighbors, respectively. With these truncation choices, the number of unique cluster permutations for each body order is 150 (pairs), 495 (triplets), 415 (quadruplets), and 600 (quintuplets), respectively. Our ensemble cluster model is constructed using bootstrap ag-gregating, with the final prediction taken as the average over the ensemble. The predicted property is given by: 
+
+Q = ¯JT Γ ,
+
+where Q is the targeted scalar property (mixing energy or average atomic displacement in this work), ¯J is a column vector of the aver-aged cluster interaction parameters (effective cluster interactions, ECIs, multiplied with their cluster multiplicities), and Γ is the cluster function vector, also referred to as the cluster correlation vector 25 or basis function vector 20 ). The uncertainty in the ensemble prediction is quantified by the standard deviation of model outputs, which can be written as 
+
+σ 2
+
+Q = ΓT ΣJΓ ,
+
+where σQ is the standard deviation of the predicted property and 
+
+ΣJ is the symmetric covariance matrix of cluster interaction param-eters vectors across the ensemble, ΣJ = Cov (J, J).
+
+2.3 Active Structure Selection and Filtering 
+
+To enter the active learning loop, an initial dataset is required (Step 0). Although a priori model-based initialization schemes are possible, we adopt a general and unbiased approach by selecting all SIS of size four and smaller (1,536 total structures). These structures are relaxed using DFT (Step 1). After which, a structure-mapping procedure determines the extent to which each relaxed structure deviates from the ideal FCC lattice (Step 2). Structures that relax sufficiently far from the ideal lattice are filtered out (Step 3) prior to inclusion in the training datasets (Step 4). Structural instability is quantified using two metrics: ( i) the average atomic displacement, δavg , and ( ii ) the maximum atomic displacements, 
+
+δmax , relative to the ideal lattice. Contributions from cell rotation, uniform cell volume changes, and net atomic translations are removed before computing these quantities. Likewise, structures that are energetically unlikely to be relevant for the temperatures of interest in subsequent MC simulations are also filtered using the energy above the convex hull, Ehull , or hull energy. The criteria used for post-DFT filtering and pre-DFT selection for both the energy and displacement models are summarized Table 3. JournalName ,[year],[vol.],
+
+1–13 | 3Table 3 Selection criteria (pre-DFT, using predicted values) and filtering criteria (post-DFT, using DFT values) for the energy and displacement models 
+
+Hull Energy, Ehull (meV/atom) Displacement, δ (˚ A) Selection criteria (predicted) Ehull + σE < 200 δavg + σδ < 0.2
+
+Filters for energy model (DFT) Ehull < 200 δavg < 0.2, δmax < 0.4
+
+Filters for displacement model (DFT) Ehull < 400 δavg < 0.4, δmax < 0.8
+
+Once the initial energy and displacement models are trained (Step 5), the active learning loop proceeds by evaluating all candi-date structures using the current ensemble models (Step 6). These predictions inform the pre-DFT down selection of 1,000 structures (per loop) in Step 7, which is carried out via two complementary selection paths, A and B. Path A comprises structures selected to maximize informational gain while explicitly targeting those likely to pass post-DFT filtering. Using the current iteration of ensemble models, candidates predicted to exceed tolerance thresholds (Ta-ble 3) for average atomic displacement (A1) or energy above the predicted convex hull (A2) are excluded. Among the remaining candidates, those with the largest predicted energy uncertainty are selected for DFT calculations (A3). This first Path A accounts for 90% of the selected structures in each iteration. To further reduce the likelihood of discarding structures after DFT relaxations, the selections cutoffs are made conservative by incorporating by predicted ensemble uncertainties. Specifically, only candidate structures satisfying a predicted hull energy plus energy uncertainty less than the post-DFT energy filter threshold of 200 meV/atom are retained (see row 1, Table 3). The degree of conservativeness can be adjusted by scaling the ensemble uncer-tainty contribution. After applying both energy and displacement selection criteria, the remaining candidates are ranked by energy uncertainty, and the 900 structures with the highest uncertainty form the uncertainty-selected subset. The displacement model employs more permissive post-DFT filtering thresholds than the energy model, with cutoff values doubled relative to those used for the energy model. This choice reflects the role of the displacement model as a stability classifier rather than a high-accuracy predictor. The post-DFT displacement filters include a maximum displacement cutoff set to 2× the aver-age displacement cutoff. While this 2:1 is consistent with trends observed in the maximum:average ratio in our data set, in practice, the maximum displacement criterion excludes few additional struc-ture beyond those filtered by the average average displacement metric alone. Path B comprises the remaining 10% of structures and is focused on improving data diversity. Here, whitened principal component analysis (WPCA) is performed on the cluster function vectors of the current training set. This transformation enables scoring of candidate structures by their unbiased distance to the train-ing set distribution, quantified by the Mahalanobis distance, and allows tracking of the dimensional span of the sampled configu-rational space. The biasing scheme strongly rewards projections along poorly sampled directions in the cluster-function vector space while weakly weighting directions that are already well represented. The resulting selection behavior is similar to struc-ture orthogonalization procedures used in compressed sensing approaches 26 . For Path B, candidate structures not already se-lected via Path A are ranked purely by their Mahalanobis distance from the existing energy training set distribution, and the top 100 structures are selected. Additional details of the WPCA-based selection procedure are provided in the SI, Section 3. Beyond enhancing data diversity, the Path B structure selection serves as a safeguard against any potential failure modes of ac-tive learning, in which reliance on an evolving model to select new training data can lead to self-reinforcing biases. Conversely, selection schemes driven solely by extremal criteria may increas-ingly target low-yield structures as the training set expands. The reduced training data yield expected from the diversity-selected group is therefore considered an acceptable tradeoff for improved robustness, particularly since this path affects only 10% of the selected structures per iteration. 
+
+2.4 DFT Parameters 
+
+Density functional theory (DFT) calculations were performed with the Vienna Ab initio Simulation Package, VASP , (version 6.2.1) using the Perdew-Burke-Ernzerhof (PBE) exchange-correlation functional 37 . The PBE pseudopotentials used were Ni:02Aug2007, Fe:06Sep2000, Ti pv:07Sep2000m Ni:02Aug2007, Fe:06Sep2000, and Ti pv:07Sep2000 from the set of pseudopotentials provided with VASP . All calculations were initialized in a ferromagnetic configuration, with an initial 2 μB applied to each atom. Since large cell shape changes were anticipated for a subset of the structures during relaxation, ionic relaxations were inten-tionally limited to a small number of steps per run to allow for refreshing of the planewave basis and updating of the k-point grid. 
+
+Γ-centered k-point grids were employed and selected to maintain a minimum reciprocal space k-point density of 20,000 ˚A3. This value was chosen as a compromise between maintaining energy continuity during cell relaxation-induced k-point grid updates and overall computational cost. Prior to relaxation, all enumerated structures were perturbed to break ideal lattice symmetry. Cell vectors were perturbed by mul-tiplication with a matrix A = I + ε, where I is the identity matrix and the elements of the symmetric matrix, ε were drawn from a normal distribution with a standard deviation of 0.07. After cell perturbation, atomic Cartesian coordinates were displaced ran-domly using normally distributed displacements with a standard deviation of 0.2 ˚A. The perturbed structures are then relaxed until the maximum force on any atom was less than of 5 meV ˚A−1. Struc-ture relaxations were aborted after 500 iterations. Structures that failed to achieve the maximum atomic force criterion for relaxation convergence were excluded from all datasets. Such failure were commonly associated with large cell shape changes that would map poorly onto the target FCC lattice and were therefore un-  
+
+> 4|1–13 JournalName ,[year],[vol.],
+
+suitable for the CE training. All remaining structure-independent DFT input parameters are provide in the SI (Table S2). We also note that the interpretation of effective cluster interaction (ECIs) is challenging for such a high-dimensional model. Accordingly, these plots are provided in Figures S2, S4, and S6, while alternative visualization approaches for complex systems remain an area for future work. 
+
+2.5 Implementation Details 
+
+The workflow is built on the modular framework provided by the 
+
+icet package 28 , which is used for cluster function vector space construction, structure mapping, and SIS generation via structure enumeration. The atomic simulation environment ( ASE ) 38 is used for DFT job management, and ASE databases are used to tag, track, and organize training data. Model training and fitting are carried out using the trainstation package 39 .Ensemble model training (Step 5) was performed using 
+
+trainstation ’s EnsembleOptimizer module. Each ensemble contained 100 individual CE models. All models are fit using LASSO regularization with a minimal regularization parameter of α = 10 −4, which was found necessary to prevent numerical instabilities in under-determined fitting scenarios. Lower values of 
+
+α resulted in convergence failures during optimization. For each individual model within the ensemble, bootstrap ag-gregating is performed by randomly selecting 90% of the available training dataset for fitting. The remaining 10% of structures are assigned to that model’s test set. The ensemble cross-validation root-mean-square error (CV RMSE) is reported as the mean CV RMSE across all individual models in the ensemble. 
+
+# 3 Results 
+
+3.1 Yields 
+
+To characterize the dataset generated by the active learning work-flow, we decompose the collected structures into a hierarchy of sub-sets defined by increasingly strict criteria. Of the actively selected SIS, those that completed DFT relaxation within the allotted num-ber of ionic optimization steps are classified as relaxed structures. From this set, structures that can be mapped back onto an FCC lat-tice form the FCC-mappable subset. Within the FCC-mappable set, structures that both displacement- and hull energy-based filtering criteria listed in bottom row of Table 3 constitute the displacement training set . Applying the stricter displacement criteria used for the energy model defines the FCC-stable subset. Finally, structures that satisfy both the displacement and hull energy filtering criteria for the energy model, middle row of Table 3, form the energy training set .The overall yields for each of these subsets are summarized in Table 4. Despite the fact that only two of the six constituent elements are stable in the FCC structure and that numerous non-FCC intermetallic phases are known in this composition space, we observe a surprisingly high mean yield of 66.82% FCC-stable structures following DFT relaxation. The average yield of energy training data is lower, at 46.02% (5,309 structures), reflecting the additional energetic filtering requirements. To better understand this discrepancy, subset yields are resolved  
+
+> Table 4 Structure yields at successive filtering stages of the active learning workflow. Yields are reported relative to the total number of selected structures.
+
+Subset Structures ( N) Yield (%) Selected 11,536 100.00 Relaxed 11,403 98.85 FCC-mappable 10,084 87.41 Displacement training set 9,024 78.22 FCC-stable 7,708 66.82 Energy training set 5,309 46.02 0 2 4 6 8 10 Active Learning Loop Iteration # 020 40 60 80 100 Percent of Selected Structures (%) 
+
+Relaxed FCC-Mappable Displacement Training Set FCC-Stable Energy Training Set     
+
+> Fig. 2Percentage yield of actively selected structures belonging to each dataset subset as a function of active learning iteration. JournalName ,[year],[vol.],
+> 1–13 |5
+
+DFT Mixing Energy (meV/atom)  
+
+> 1000
+> 800
+> 600
+> 400
+> 200
+> 0200 4,095 3,283 1,744 750 187 24 1
+
+Ni 
+
+> 3,871 3,334 1,957 715 189 17 1
+
+Fe  
+
+> 1000
+> 800
+> 600
+> 400
+> 200
+> 0200 3,641 3,562 1,863 801 194 22 1
+
+Cr 
+
+> 4,404 3,337 1,572 553 184 33 1
+
+Al        
+
+> 00.2 0.4 0.6 0.8 1Atom Fraction Atom Fraction 1000
+> 800
+> 600
+> 400
+> 200
+> 0200 3,705 3,347 2,087 727 183 34 1
+
+Ti      
+
+> 00.2 0.4 0.6 0.8 1.0
+> 4,624 3,419 1,469 432 117 22 1
+
+Si 
+
+DFT Mean Displacement (Å)  
+
+> 00.1 0.2 0.3 0.4 0.5 4,095 3,283 1,744 750 187 24 1
+
+Ni 
+
+> 3,871 3,334 1,957 715 189 17 1
+
+Fe  
+
+> 00.1 0.2 0.3 0.4 0.5 3,641 3,562 1,863 801 194 22 1
+
+Cr 
+
+> 4,404 3,337 1,572 553 184 33 1
+
+Al        
+
+> 00.2 0.4 0.6 0.8 1Atom Fraction Atom Fraction 00.1 0.2 0.3 0.4 0.5 3,705 3,347 2,087 727 183 34 1
+
+Ti      
+
+> 00.2 0.4 0.6 0.8 1
+> 4,624 3,419 1,469 432 117 22 1
+
+Si 
+
+a. b. Fig. 3 Distributions of DFT-level properties for FCC-mappable structures resolved by elemental composition. (a) Mixing energy and (b) mean atomic displacement from ideal FCC, shown as histograms (or violin plots) for bins of atomic fraction of each element. Horizontal bars indicate the minimum, median, and maximum values within each bin. Bin edges are defined in intervals of 1/6, such that the first bin contains structures with zero concentration of the selected element and the final bin contains structures composed entirely of that element. The total number of structures per bin, which varies by up to three orders of magnitude, is indicated in gray to provide context for the distribution statistics. 
+
+by active learning loop number (Figure 2). The initial selection of small SIS (size ≤ 4) exhibits particularly high FCC-stable yields, followed by a decline during the first active learning iteration and a partial recovery in subsequent loops. We attribute this behavior to the limited ability of smaller supercells to accommodate long-wavelength unstable modes (when present), in contrast to larger supercells that can more readily accommodate such instabilities. After the initial recovery, all subset yields remain relatively stable with loop number except for the except the energy training set which shows a steady decline in yield. Because the FCC-stable yield, which already satisfies the average displacement criterion associated with the energy model, remains approximately con-stant, this decline must be associated primarily with energetic filtering. We therefore hypothesize that the yield reduction arises from progressive depletion of available SIS configurations that fall within the targeted energy window near the convex hull as the model improves. To examine elemental correlations underlying these trends, we decompose the DFT-level FCC-mappable subset into atom-fraction-binned histograms for each element, shown in Figure 3. Histogram bins are defined using exclusive lower and inclusive upper bounds, 
+
+i.e. , xlow < x ≤ xhigh . The first bin in each histogram corresponds to structures lacking the given element, while subsequent bins track the trend effect of increasing elemental concentration from the most dilute limit (in the set) toward the pure-element limit. For DFT-level mixing energies (Figure 3a), increasing concentra-tions of Ni, Fe, and Al have relatively modest effects on the median mixing energies. Cr has low mixing energies with the other el-ements, leading to progressively lower median mixing energies as the Cr fraction increases. Ti shows a pronounced minimum in median mixing energy near 1/3 atomic fraction, consistent with its strong tendency to form intermetallic compounds. Si exhibits an even stronger propensity for silicide formation, with the median mixing energy occurring near 50% Si. The DFT-level mean displacement from ideal FCC is shown in Figure 3b. The most striking feature is the sharp increase in dis-placement above 20% Si, clearly highlighting the destabilizing role of Si in the FCC lattice in this alloy space. Increasing concentra-tions of Ni, Fe, and Cr tend to reduce median displacements, while Ti increases them. Al exhibits a peak in displacement near 50% concentration, which may be associated with a tendency to form B2-type phases with Ni and Fe and a tetragonal analog with Ti. Consistent with these trends, the total number of FCC-mappable structures with Si concentrations above 20% (2,501 structures) is substantially lower than for the same concentration range applied to the other elements: Ni 3,159, Fe 3,332, Cr 3,342, Al 2,798,   
+
+> 6|1–13
+
+JournalName ,[year],[vol.],and Ti 3,470. This reduction is due to both increased lattice instabilities, leading to unmappable structures, and the active avoidance of high-displacement configurations during the pre-DFT selection. 
+
+3.2 Performance Progression 
+
+With each active learning iteration, the addition of newly relaxed structures improves the predictive performance of the ensemble models, as reflected by the steadily decreasing cross-validation (CV) scores in Figure 4. In addition to ensemble models, we also fit models using an adaptive LASSO scheme with logarithmically vary-ing levels of L1 regularization to find the cross-validation-optimal (CV-optimal) model at each learning loop. While the ensemble models provide uncertainty sensitivity through variance across members and implicit regularization through averaging, apply-ing strong regularization during ensemble fitting would suppress inter-model variance and thereby degrade overall uncertainty esti-mates. Thus, the CV-optimal regularized models give a soft lower bound on the best achievable CV performance attainable with a given training set. This comparison is useful for assessing when model accuracy has reached a level sufficient to terminate the active learning loop. In principle, a Bayesian formulation could simultaneously provide both uncertainty estimates and appropri-ate regularization within the a single model, as demonstrated in Refs. 22–24 . Because the present workflow is agnostic to the under-lying model formulation, incorporation of such approaches is left for future work. Finally, we also report CV-optimal models trained on a superset of data assembled from multiple previous training attempts ( ∼ 2×
+
+the final dataset size) as an estimate of the asymptotic lower bound on achievable CV error. Except for these superset models, all CV scores are computed using only the data available at each learning loop, reflecting the actionable, in-progress model performance rather than retrospective analysis. For the ensemble energy models, the largest improvements occur during approximately the first five learning loops, after which improvements continue more gradually. This behavior is expected for a chemically and configurationally complex system. In contrast, the ensemble displacement models rapidly improve and then stagnate. The corresponding CV-optimal regularized dis-placement models start close to the superset model performance and show only marginal improvement with additional training data. The rapid recovery in FCC-stable yields observed in Fig-ure 2 is therefore most likely due to the rapid improvement of the displacement model during the early learning loop iterations (Figure 4b). This rapid improvement is likely due to two primary factors: (1) the displacement models use more permissive filter-ing thresholds, resulting in a larger volume of usable training data added per learning loop. (2) The average atomic displace-ment is an intrinsically simpler property to model than mixing energy. As evidence for the latter, the CV-optimal superset energy model has 527 non-zero parameters derived from 9,984 training structures, while the corresponding displacement model contains 410 non-zero parameters trained on 17,310 structures. The CV-optimal superset energy model has more than double the number 0
+
+10 
+
+20 
+
+30 
+
+40 
+
+50 
+
+60 
+
+70 
+
+80 RMS (meV/atom) 
+
+# Cross Validation Progression 0 2 4 6 8 10 Active Learning Loop Iteration # 0.00 0.05 0.10 0.15 0.20 0.25 RMS (Å) 
+
+> CV-Optimized Adaptive-LASSO Models Ensemble Models - Bootstrap CV Superset CV-Optimized Model
+
+# b. a.   
+
+> Fig. 4Evolution of cross-validation performance as a function of active learning loop iteration for (a) mixing energy models and (b) average atomic displacement models.
+
+of parameters per training structure, highlighting its greater repre-sentational complexity and slower convergence behavior. 
+
+3.3 Stability Classified by Displacement 
+
+The combination of displacement CE models with explicit thresh-olds is equivalent to constructing a structural stability classifier model. This classifier excludes structures that are likely to relax far from the FCC lattice prior to DFT evaluation, thereby reducing wasted computational effort. To quantify classifier performance, we employ common classification metrics: precision, recall, and 
+
+F1 score defined as: 
+
+Precision = Truly Unstable Falsely Unstable + Truly Unstable Recall = Truly Unstable Falsely Stable + Truly Unstable 
+
+F1 = 2 Precision · Recall Precision + Recall ,
+
+where truly unstable denotes structures correctly classified as un-stable while falsely stable denotes structures incorrectly predicted to be stable. The four possible outcomes of the classification are shown in the confusion matrix in Figure 5a. Among these out-comes, falsely stable structures are unusable and lead directly to wasteful DFT calculations. In contrast, falsely unstable structures are less consequential, since they remain in the candidate pool JournalName ,[year],[vol.],                   
+
+> 1–13 |70246810 Learning Loop Iteration Number
+> 0
+> 20
+> 40
+> 60
+> 80
+> 100 % of Structures of Type  Recall Predicted Stable From CE Wasteful DFT Calculations From DFT  Found Stable Found Unstable Predicted Unstable Falsely Unstable Truly Unstable Falsely Stable Truly Stable
+> a. b. c. d.
+> 0246810 Learning Loop Iteration Number
+> 0
+> 20
+> 40
+> 60
+> 80
+> 100 F1 Score 0246810
+> 020
+> 40
+> 60
+> 80
+> 100 % of Structures of Type
+> Ensemble Models CV-Optimized Adaptive-LASSO Models Superset CV-Optimized Model Auxiliary Dataset Precision
+
+Fig. 5 Stability classification performance based on predicted average atomic displacement. (a) Confusion matrix defining stability classification outcomes. (b) Precision, (c) recall, and (d) F1 score as a function of active learning iteration for ensemble-based classifiers, per-loop CV-optimal models, and the superset CV-optimal model. Metrics are evaluated using only the auxiliary dataset not included in model training. 
+
+and may be reconsidered in subsequent learning iterations. Achieving high recall is the primary objective of the stability classifier. The ensemble-based displacement classifiers consistently achieve high recall because the classification incorporates a toler-ance factor proportional to the predicted uncertainty defined in Table 3. In contrast, stability classification based on the per-loop CV-optimal models or the superset CV-optimal model performs noticeably worse. These regularized models do not provide uncer-tainty estimates, preventing conservative thresholding and under-scoring the importance of uncertainty-aware model formulations for pre-DFT filtering. 
+
+3.4 Diversification 
+
+As part of the Mahalanobis distance-based data diversification strategy, we explicitly track the dimensional span of the training datasets in cluster-function space across active learning iterations. Specifically, we examine the complementary metric: number of un-sampled dimensions remaining in the training set as a function of learning loop iteration. Results for both the displacement training set and the energy training set, which is a subset of the former, are shown in Figure 6. The displacement training set rapidly expands its coverage of cluster-function space and achieves full dimen-sional spanning by the ninth learning loop. In contrast, the energy training set continues to improve, increasing its coverage through-out the workflow, and reaches a final 95 unsampled dimensions, corresponding to 5.7% of the total space. For reference, the CV-optimal superset energy training dataset contains only 41 unsampled dimensions (2.5%), reflecting the ben-efit of substantially larger training data volume. As expected, the superset displacement training dataset inherently spans the full cluster-function space, since the displacement training set itself already achieves complete coverage. These results demonstrate that the Mahalanobis-based diversification strategy is effective at 0 2 4 6 8 10 Learning Loop Iteration # 0200 400 600 800 1000 # Unsampled Dimensions  Energy Training Set Displacement Training Set All Datasets Energy Training Set 010 20 30 40 50 60 % Unsampled Dimensions 
+
+Fig. 6 Evolution of training data coverage in cluster-function space as a function of active learning iteration. Shown is the number of unsampled (unspanned) dimensions for the displacement and energy training sets, illustrating the effect of Mahalanobis-distance-based diversification on dataset completeness. 
+
+systematically expanding the sampled configuration space, partic-ularly for the displacement model, and provides steady improve-ment for the more selectively filtered energy training set. 
+
+3.5 Ultimate Models 
+
+The final ensemble energy model achieves a cross validation (CV RMSE score of 35.4 meV/atom. The parity plot of predicted ver-sus DFT-calculated hull energies shows that the model systemati-cally under-predicts energy above the convex hull for structures more than ∼100 meV/atom above the hull (Figure 7a). Thus, the model slightly overestimates thermodynamic stability in the high-energy regime. The element-resolved distributions of mixing energy errors shows strong correlations with composition (Fig-ure 7b). In particular, errors increase significantly with increasing Si content, reflecting the difficulty of accurately modeling the strong compound-forming behavior of Si. At high concentrations of Ni and Fe, the mixing energy error also increase. While com-positional regions dominated by a single element are inherently under-sampled due to combinatorial constraints, this effect alone cannot explain the observed trends, as similar behavior is not seen for weakly magnetic elements. This suggests that magnetic inter-actions in Ni- and Fe-rich compositions as a likely contributing factor. In simpler compositions spaces, it is common to compare pre-dicted and DFT binary convex hulls, Given the 15 binary systems present in this work, however, these comparisons are presented in Figure S3 for brevity. A consistent trend is that the relative errors are larger for binaries with small mixing energy scales like Ti-Cr and smaller for those with high mixing energy binaries like Ti-Al. This behavior is expected in binaries like Ti-Cr because the intrinsic magnitude of mixing energies is comparable to the model CV error, and because compositional edges (binary limits of the 6-component simplex) are comparatively under-sampled. Excluding high-Si configurations from the training set is unlikely to significantly improve model performance. The RMSE prediction   
+
+> 8|1–13
+
+JournalName ,[year],[vol.],0 100 200 300 400 Energy Above DFT Hull (meV/atom) 0100 200 300 400 Energy Above LCM Hull (meV/atom) 
+
+> 100
+> 50
+> 050 100 Mixing Energy Error (meV/atom) Mixing Energy Error (meV/atom) Mixing Energy Error (meV/atom)
+
+Ni Fe  
+
+> 100
+> 50
+> 050 100
+
+Cr Al        
+
+> 0.0 0.2 0.4 0.6 0.8 1.0 Atom Fraction Atom Fraction 100
+> 50
+> 050 100
+
+Ti      
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+
+Si 
+
+> b. a.
+
+Fig. 7 (a) Parity plot (shown as a density heat map) comparing predicted and DFT-calculated energies above the convex hull. (b) Mixing energy prediction errors resolved by elemental composition, shown as histograms binned by atomic fraction; horizontal bars indicate the minimum, median, and maximum values within each bin for the FCC-stable subset. 
+
+error for all training structures is 22.5 meV/atom compared to 21.9 meV/atom when restricted to structures with ≤ 20% Si, indicating that Si-related error contributions are not dominant in the overall CV metric. The final ensemble displacement model achiveve a CV RMSE of 0.084 ˚A. The parity plot in Figure 8a shows a slight systematic over-prediction of average atomic displacement. On a relative scale, the displacement model exhibits lower predictive accuracy than the energy model despite having a larger training set. This behav-ior is expected because average atomic displacement is a derived scalar quantity representing underlying vector displacements and does not correspond to a conventional intensive thermodynamic property. Consequently, it is less naturally suited to representation within a cluster expansion framework. Nonetheless, the displace-ment model provides sufficient predictive fidelity to effectively identify unstable structures and reduce the number wasteful DFT 0.0 0.1 0.2 0.3 0.4 DFT Mean Displacement (Å) 0.0 0.1 0.2 0.3 CE Model Mean Displacement (Å) 
+
+> 0.2
+> 0.1
+> 0.0 0.1 0.2 Mean Displacement Error (Å) Mean Displacement Error (Å)
+
+Ni Fe  
+
+> 0.2
+> 0.1
+> 0.0 0.1 0.2
+
+Cr Al        
+
+> 0.0 0.2 0.4 0.6 0.8 1.0 Atom Fraction Atom Fraction 0.2
+> 0.1
+> 0.0 0.1 0.2
+
+Ti      
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+
+Si Mean Displacement Error (Å) 
+
+> a. b.
+
+Fig. 8 Performance of the final ensemble displacement model. (a) Parity plot comparing predicted and DFT-calculated average atomic dis-placements from the ideal FCC lattice. (b) Prediction errors in average displacement resolved by elemental composition, shown as histograms binned by atomic fraction with horizontal bars indicating minimum, me-dian, and maximum for the FCC-mappable subset. 
+
+calculations. Furthermore, it may serve as a useful indicator of regions in the Monte Carlo simulations where the assumed FCC lattice becomes unstable. To estimate asymptotic model performance, we also trained CV-optimal models using a superset dataset combining active learning data with auxiliary data from prior workflow development. Al-though these models are not direct products of the present work-flow, their larger training sets allow approximation of achievable accuracy. The distributions of the superset data are similar to those obtained through active learning. As the highest accuracy models in this study, the superset models are used for future materials simulations. The superset energy model was trained on 9,984 structures and achieves an optimal CV RMSE of 27.7 meV/atom using adaptive-LASSO regularization with α = 5 × 10 −5 is used. Regularization reduces the model to 527 nonzero parameters. Per-JournalName ,[year],[vol.],  
+
+> 1–13 |9
+
+formance metrics and binary convex hulls analogous to those in Figure 7 and Figure S3 are provided in Figures S4 and S5. The superset energy model exhibits similar behavior, with a mild ten-dency to under-predict hull energies ( i.e. , overestimate stability) as seen in Figure S4a. The elemental mixing energy error distribu-tions are largely consistent with those of the ensemble model, with noticeable differences only in high-composition bins containing fewer than 100 structures (Figure S4b). The superset displacement model, trained on 17,310 structures, achieves a CV RMSE of 0.069 ˚A with adaptive-LASSO L1 regular-ization ( α = 5 × 10 −4). Regularization yields a model with 410 non-zero parameters. As shown in Figure S6, the superset displace-ment model displays similar trends to the ensemble displacement model, including a tendency to over-predict displacements and nearly identical element-resolved error distributions. Assessing the significance of the achieved CV errors of 35.4 meV/atom (final ensemble model) and 27.7 meV/atom (superset model) is nontrivial. While such values would be considered large for cluster expansions in simpler alloy systems, it remains unclear what level of accuracy is ultimately achievable in a six-component space that includes multiple regions of structural instability. Di-rect comparison is further complicated by the limited number of prior studies addressing cluster expansions with six or more components. At the time of writing, we are aware of only three such studies. In the first, Nataraj et al. 34 developed a cluster expansion for the AlHfNbTaTiZr BCC system, although a CV score was not reported. However, their cluster expansion for the 5 element subset without Al achieved a CV of 7.8 meV/atom. Importantly, in this composi-tional space Nb and Ta are stable in BCC, while Ti, Zr, and Hf can be thermally stabilized in BCC, indicating a relatively well-behaved lattice. In the second study, M ¨uller and Natarajan 35 constructed both linear and neural network cluster models for the VNbTaCr-MoW BCC system using 2,874 structures in their dataset. They achieve a CV 5.9 meV/atom with 246 ECIs in their linear model, although notably all six elements are stable as BCC. In the third study, Lee et al. 36 extended the work of M ¨uller and Natarajan 35 
+
+to a 10-component system (TiZrHfVNbTaCrMoW with vacancies) using a chemical embedding neural-network cluster expansion. With a dataset of 9,419 structures, they achieved a CV of 7.5 meV/atom. The latter two works highlight the effectiveness of chemical embedding approaches in reducing the dimensionality of the ECI space for large composition spaces. In contrast to these studies, the considerably higher CV errors observed in the present work are most plausibly attributed to the presence of extensive regions of structural instability in the Fe-Ni-Cr-Al-Ti-Si composition space. Near the boundaries of lattice stability, atomic relaxations involve moderate but non-negligible displacements that are only partially captured by a cluster ex-pansion defined on an ideal lattice. This leads to a fundamental limitation that the cluster basis remains only indirectly sensitive to the configurational energetics associated with emerging insta-bility. This behavior can be understood as lying between two limiting cases: In the first limit, the mapping between ideal lat-tice decorations and relaxed structures is poor, resulting in weak correlations between cluster functions and equilibrium energies. In this case, the CE performs poorly across the entire alloy space. In the second limit, relaxed structures remain close to the ideal lattice decorations, and the CE provides an accurate and efficient representation of the energetics. The current alloy system lies in the intermediate regime, where partial lattice instability degrades, but does not fully invalidate, the CE representation. The imperfect predictive capability of the displacement model further supports this interpretation. The lack of identifying directly comparable studies highlights the both the difficulty of the present problem and the need for methodologies, such as the one developed here, that explicitly accounts for instability during model construction. 
+
+3.6 Alternative Active Learning Workflows 
+
+Our use of ensemble models and candidate structure generation via enumeration was motivated by simplicity of implementation and low per-structure computational cost. Following candidate down selection, structures are ranked by their predicted energy variance. However, Van de Walle and Ceder suggest that the ex-pected variance reduction is a better metric 21 , as it directly targets improvement in model accuracy rather than uncertainty alone. Bayesian formulations of both variance and expected variance reduction have been developed by Mueller and Ceder 23,24 , as well as an alternative formulation by Chen et al. 22 . These approaches provide formal, closed-form statistical measures for structure se-lection and naturally balance exploration and exploitation. Given these advantages, we suggest that future implementations adopt Bayesian selection strategies. Related developments in Bayesian compressive sensing 25,26 and cluster decomposition methods 30 
+
+further point to promising directions for improving model effi-ciency in high-dimensional composition spaces. Regardless of the model and selection metric, the generation of candidate structures remains a critical component of any active learning workflow. In addition to enumeration, random structure generation combined with duplicate filtering provides a simple al-ternative for building candidate pools. More targeted approaches include simulated annealing of “probe” structures optimize specific objectives, such as minimizing mixing energy 18 , maximizing vari-ance reduction 18 , or targeting specific regions in cluster-function space 18,20 . A particularly promising direction is the formulation of multi-objective candidate selection strategies. Such approaches could simultaneously prioritize structures that improve model accuracy, lie near the convex hull, exhibit low predicted displace-ment, and expand the sampled cluster-function space. Developing efficient algorithms to balance these competing objectives repre-sents an important opportunity for future work in active learning for complex alloy systems. 
+
+3.7 Improvements 
+
+Analysis of the ensemble model improvement rates and the num-ber of non-zero parameters relative to training set size in the CV-optimal superset models indicate that displacement models are significantly less complex than energy models. This suggests that, when used solely as a tool for sampling efficiency, displacement (or instability) models could be simplified by reducing the number of included clusters. Such reduced-complexity models would con-  
+
+> 10 |1–13 JournalName ,[year],[vol.],
+
+verge more rapidly and could improve early-stage active learning by more effectively avoiding unstable structures. More generally, other scalar properties such as the norm of the lattice strain tensor, which maps equilibrium cell vectors back to the ideal lattice cell vectors, could be treated analogously to energy within existing CE frameworks. Higher-fidelity representa-tions are also possible, including direct expansion of lattice strain tensors or atomic displacement vectors, which could augment or replace the present scalar displacement models for detecting the onset of instability. For lattice strain tensors, each expand-ing tensor element as scalar will yield symmetry violating tensors with redundant parameters 14 . Thus, symmetry adapted forms of lattice strain tensor cluster expansion are preferable in selecting an existing formulation+implementation. The Alloy Theoretic Automated Toolkit ( ATAT ) is capable of fitting symmetry-adapted cluster expansions for bulk tensorial properties with the theoretical approach developed in Ref. 14 . Garrity further developed specific formulations for strain-cluster and strain-displacement coupling models 40 . The most ready to incorporate implementation seems to be the configuration plus strain (CPS) cluster expansion for-malism in CASM 16,17,41,42 , which provides an efficient route for constructing symmetry-adapted expansions in strain order param-eter subspaces. Extending beyond scalar quantities, improving predictive fidelity by explicitly modeling equilibrium atomic displacement vectors is a natural next step. Implementations of symmetry-adapted cluster expansion of atomic vector quantities are not common and usually involve the expansion of the potential energy surface in terms of configurations and atomic displacements, i.e. , using atomic displacement vectors as inputs rather than predicted quanti-ties. Examples include hiPhive 43 , which expands force constants, and spring cluster 40 , which incorporates expansions of force constants, chemical configuration, and magnetism, and CASM 42,44 ,which can expand the potential energy surface in chemical configu-ration and atomic displacements. Within these model formulations, equilibrium atomic displacements can found by minimizing the potential energy by local geometric optimization. A potentially more direct approach is suggested by the collective cluster deformation (CCD) formalism introduced in Ref. 44 . In this framework, the potential energy is expanded as sum of the products of the mode amplitudes of the CCD (named collective deformation amplitudes [CDA]) and their respective energy co-efficients, The mode energy coefficients are cluster expanded in chemical configuration. The associated ECIs for each mode energy coefficient are the model parameters determined by fitting. To adapt this framework for constructing rigorous models for pre-dicting atomic displacement vectors, it seems the straightforward forward route is to cluster expand the CDA themselves in chemical configuration. Such an approach could enable direct prediction of displacement fields while retaining symmetry consistency. Magnetism represents another important avenue for improve-ment. Although all DFT calculations in this work were initialized as ferromagnetic, the resulting projected magnetic moments in Figure S1 indicate that most configurations relax to weakly or non-magnetic states, with Fe exhibiting a broad distribution spanning multiple spin states and magnetic orders. Incorporating magnetic degrees of freedom directly into the cluster expansion Hamilto-nian was avoided here to limit workflow complexity. However, the inclusion of magnetic information in the dataset provides an op-portunity for future development of magnetic cluster expansions. Finally, the generality of our workflow means that other cluster expansion model formalisms can easily be substituted so long as they also produce reliable uncertainty estimates. For this, we suggest one of the Bayesian approaches, as they naturally combine uncertainty quantification and regularization. These methods could be further enhanced by incorporating chemical embedding 35 
+
+and by integrating candidate structure generation strategies such as simulated annealing of probe structures 18 to directly optimize model improvement. 
+
+# Conclusions 
+
+We have developed a general active learning workflow for clus-ter expansion models that autonomously targets low-energy and structurally stable configurations. This is achieved by augmenting a conventional energy-based cluster expansion with an auxiliary model of average atomic displacement, which serves as an effective proxy for lattice stability during pre-DFT structure selection. We demonstrated our workflow in the FCC Fe-Ni-Cr-Al-Ti-Si composi-tion space, which presents substantial challenges due to extensive regions of dynamical instability. Despite these challenges, and without relying on any a priori composition space restrictions, the workflow achieves a high average yield of 66.82% FCC-stable structures following DFT relaxation. The resulting six-component cluster expansion represents, to our knowledge, one of the largest composition spaces explored with a linear cluster expansion model without chemical embed-ding. Furthermore, the dataset of 22,938 DFT-relaxed structures constitutes one of the largest reported for cluster expansion stud-ies. We have made the dataset publicly available to support further development and benchmarking of active learning and cluster expansion methodologies. Finally, we identified several avenues for future improvement. These include incorporating additional stability descriptors beyond average atomic displacement, leveraging recent advances in cluster expansion formulations ( e.g. , tensorial or symmetry-adapted ap-proaches), and adopting Bayesian model frameworks that provide unified uncertainty quantification and regularization. Together, these directions offer promising pathways toward more robust and efficient modeling of complex, multi-component alloy systems. 
+
+# Author contributions 
+
+Michael J. Waters: conceptualization, methodology, software, data curation, formal analysis, investigation, visualization, and writing — original draft. James M. Rondinelli: writing — review and edit-ing, funding acquisition, project administration, and supervision. 
+
+# Conflicts of interest 
+
+There are no conflicts to declare. 
+
+# Data availability 
+
+The datasets supporting this study are openly available at Zenodo (DOI: 10.5281/zenodo.20302412). Three datasets are provided. JournalName ,[year],[vol.],  
+
+> 1–13 |11
+
+The first contains the full set of 47,720 symmetrically inequivalent supercells (SIS) enumerated for the six-element system with up to six atoms per cell. The second contains a subset of 22,938 struc-tures from the enumerated set that have been relaxed using DFT, along with their corresponding total energies, mixing energies, forces, and atom-projected magnetic moments. The third dataset consists of the ideal mappings of 19,806 structures to the FCC lattice, including mixing energies and the mapped displacements from ideal. These mapped structures correspond to the subset of DFT-relaxed structures where mapping was possible. 
+
+# Acknowledgments 
+
+The authors gratefully acknowledge funding from the Office of Naval Research through the Multidisciplinary University Research Initiative (MURI) program under award number N00014-20-1-2368. This research used resources of the National Energy Re-search Scientific Computing Center, a DOE Office of Science User Facility supported by the Office of Science of the U.S. Depart-ment of Energy under Contract No. DE-AC02-05CH11231 using NERSC award BES-ERCAP0028012. This research was supported in part through the computational resources and staff contribu-tions provided for the Quest high performance computing facility at Northwestern University which is jointly supported by the Of-fice of the Provost, the Office for Research, and Northwestern University Information Technology. We thank Paul Erhart and his group for helpful discussions and for their assistance with the icet 
+
+software, which forms the foundation of the workflow developed in this work. 
+
+# Notes and references 
+
+1 S. Praveen and H. S. Kim, Advanced Engineering Materials ,2018, 20 , 1700645. 2 B. Gludovatz, A. Hohenwarter, D. Catoor, E. H. Chang, E. P. George and R. O. Ritchie, Science , 2014, 345 , 1153–1158. 3 E. J. Pickering, A. W. Carruthers, P. J. Barron, S. C. Middle-burgh, D. E. J. Armstrong and A. S. Gandy, Entropy , 2021, 23 ,98. 4 X. Wang, W. Guo and Y. Fu, J. Mater. Chem. A , 2021, 9, 663– 701. 5 Y. Shen, L. Sementa, D. D. Johnson, A. Fortunelli, Q. An and W. A. I. Goddard, Journal of the American Chemical Society ,2025, 147 , 14541–14553. 6 Y. Wu, F. Zhang, X. Yuan, H. Huang, X. Wen, Y. Wang, M. Zhang, H. Wu, X. Liu, H. Wang, S. Jiang and Z. Lu, Journal of Materials Science & Technology , 2021, 62 , 214–220. 7 J. Ding, Q. Yu, M. Asta and R. O. Ritchie, Proceedings of the National Academy of Sciences , 2018, 115 , 8919–8924. 8 Y. Zhang, D. Han and X. Li, International Journal of Fatigue ,2021, 149 , 106266. 9 Z. Zhang, Z. Su, B. Zhang, Q. Yu, J. Ding, T. Shi, C. Lu, R. O. Ritchie and E. Ma, Proceedings of the National Academy of Sciences , 2023, 120 , e2218673120. 10 F. Walsh, M. Asta and R. O. Ritchie, Proceedings of the National Academy of Sciences , 2021, 118 , e2020540118. 11 Y. Xie, D. M. Artymowicz, P. P. Lopes, A. Aiello, D. Wang, J. L. Hart, E. Anber, M. L. Taheri, H. Zhuang, R. C. Newman and K. Sieradzki, Nature Materials , 2021, 20 , 789–793. 12 A. Roy, K. Sieradzki, J. M. Rondinelli and I. D. McCue, Physical Review B , 2024, 110 , 085420. 13 Q. Wu, B. He, T. Song, J. Gao and S. Shi, Computational Materials Science , 2016, 125 , 243–254. 14 A. van de Walle, Nature Materials , 2008, 7, 455–458. 15 X. Xu and H. Jiang, The Journal of Chemical Physics , 2019, 150 ,034102. 16 S. S. Behara, J. C. Thomas, B. Puchala and A. Van der Ven, 
+
+Phys. Rev. Mater. , 2024, 8, 033801. 17 D. Jung, S. S. Behara and A. Van der Ven, Acta Materialia ,2025, 299 , 121369. 18 J. H. Chang, D. Kleiven, M. Melander, J. Akola, J. M. Garcia-Lastra and T. Vegge, Journal of Physics: Condensed Matter ,2019, 31 , 325901. 19 S. Rigamonti, M. Troppenz, M. Kuban, A. H ¨ubner and C. Draxl, 
+
+npj Computational Materials , 2024, 10 , 195. 20 P. Ekborg-Tanner, P. Rosander, E. Fransson and P. Erhart, PRX Energy , 2024, 3, 042001. 21 A. van de Walle and G. Ceder, Journal of Phase Equilibria , 2002, 
+
+23 , 348. 22 H. Chen, S. Samanta, S. Zhu, H. Eckert, J. Schroers, S. Cur-tarolo and A. van de Walle, Computational Materials Science ,2024, 231 , 112571. 23 T. Mueller and G. Ceder, Phys. Rev. B , 2010, 82 , 184107. 24 T. Mueller and G. Ceder, Phys. Rev. B , 2009, 80 , 024103. 25 L. J. Nelson, G. L. W. Hart, F. Zhou and V. Ozoli n¸ˇ s, Phys. Rev. B, 2013, 87 , 035125. 26 L. J. Nelson, V. Ozoli n¸ˇ s, C. S. Reese, F. Zhou and G. L. W. Hart, 
+
+Phys. Rev. B , 2013, 88 , 155105. 27 P. M. Larsen, A. R. Kalidindi, S. Schmidt and C. A. Schuh, Acta Materialia , 2017, 139 , 254–260. 28 M. ˚Angqvist, W. A. Mu ˜noz, J. M. Rahm, E. Fransson, C. Dur-niak, P. Rozyczko, T. H. Rod and P. Erhart, Advanced Theory and Simulations , 2019, 2, 1900015. 29 E. Fransson, F. Eriksson and P. Erhart, npj Computational Ma-terials , 2020, 6, 135. 30 L. Barroso-Luque and G. Ceder, npj Computational Materials ,2024, 10 , 158. 31 J. E. Saal, S. Kirklin, M. Aykol, B. Meredig and C. Wolverton, 
+
+JOM , 2013, 65 , 1501–1509. 32 S. Kirklin, J. E. Saal, B. Meredig, A. Thompson, J. W. Doak, M. Aykol, S. R ¨uhl and C. Wolverton, npj Computational Materi-als , 2015, 1, 15010. 33 A. van de Walle, M. Asta and G. Ceder, Calphad , 2002, 26 ,539–553. 34 C. M. Nataraj, A. van de Walle and A. Samanta, Journal of Phase Equilibria and Diffusion , 2021, 42 , 571–577. 35 Y. L. M ¨uller and A. R. Natarajan, npj Computational Materials ,2025, 11 , 60. 36 D. K. J. Lee, Y. L. M ¨uller and A. R. Natarajan, Modeling the Equilibrium Vacancy Concentration in Multi-Principal Element Alloys from First-Principles , 2025, https://arxiv.org/abs/   
+
+> 12 |1–13 JournalName ,[year],[vol.],
+
+2509.21944 .37 J. P. Perdew, K. Burke and M. Ernzerhof, Phys. Rev. Lett. , 1996, 
+
+77 , 3865–3868. 38 A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dułak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. Jensen, J. Ker-mode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Sch ¨utt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng and K. W. Jacobsen, Journal of Physics: Condensed Matter , 2017, 
+
+29 , 273002. 39 E. Fransson and P. Erhart, trainstation — Convenient training of linear models , 2020, https://trainstation. materialsmodeling.org/ .40 K. F. Garrity, Phys. Rev. B , 2019, 99 , 174108. 41 J. C. Thomas and A. Van der Ven, Journal of the Mechanics and Physics of Solids , 2017, 107 , 76–95. 42 B. Puchala, J. C. Thomas, A. R. Natarajan, J. G. Goiri, S. S. Behara, J. L. Kaufman and A. Van der Ven, Computational Materials Science , 2023, 217 , 111897. 43 F. Eriksson, E. Fransson and P. Erhart, Advanced Theory and Simulations , 2019, 2, 1800184. 44 J. C. Thomas and A. V. d. Ven, Phys. Rev. B , 2013, 88 , 214111. JournalName ,[year],[vol.],

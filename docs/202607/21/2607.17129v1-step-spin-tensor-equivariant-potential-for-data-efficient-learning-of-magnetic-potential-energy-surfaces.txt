@@ -1,0 +1,1297 @@
+Title: STEP: Spin Tensor Equivariant Potential for Data-Efficient Learning of Magnetic Potential Energy Surfaces
+
+URL Source: https://arxiv.org/pdf/2607.17129v1
+
+Published Time: Tue, 21 Jul 2026 01:00:36 GMT
+
+Number of Pages: 19
+
+Markdown Content:
+## STEP: Spin Tensor Equivariant Potential for Data-Efficient Learning of Magnetic Potential Energy Surfaces 
+
+Yuanqing Gao, 1 Wen-Hao Luo, 1 Lei Zhang, 1 and Kun Cao 1, ∗
+
+> 1
+
+Center for Neutron Science and Technology, Guangdong Provincial Key Laboratory of Magnetoelectric Physics and Devices, State Key Laboratory of Optoelectronic Materials and Technologies, School of Physics, Sun Yat-Sen University, Guangzhou, 510275, China 
+
+Accurate and efficient modeling of magnetic potential energy surfaces remains challenging be-cause spin-polarized first-principles calculations for diverse non-collinear spin-lattice configurations are computationally demanding. Here we introduce the Spin Tensor Equivariant Potential (STEP), a magnetic machine-learning interatomic potential that treats vector magnetic moments as contin-uous geometric degrees of freedom and embeds them in an equivariant representation. By coupling the central spin representation to its local spin-lattice environment through a Center-Environment Tensor Product, STEP introduces a physics-informed bias while preserving translational invariance and SO(3) equivariance and supporting feature-level time-reversal symmetrization. Learning-curve analysis on monolayer CrI 3 shows that STEP achieves pronounced data efficiency, with higher-order tensor channels and iterative center-environment couplings leading to steep learning curves for en-ergy, force, and magnetic force errors. On public FeAl, CrN, and Fe benchmarks, STEP achieves competitive or improved accuracy compared with recent magnetic machine-learning potentials. Us-ing a compact but representative CrI 3 dataset, STEP reproduces phonon dispersions and magnon spectra with high fidelity, capturing subtle anisotropic magnetic interactions. For Fe 2Mo 3O8, STEP further provides a quantitative description of magnon–phonon hybridization and reproduces its characteristic magnon polaron dispersion. Finally, spin dynamics simulations driven by STEP yield Curie temperatures for monolayer CrI 3 and bcc Fe in good agreement with experiments. These results establish STEP as a physically informed, data-efficient, and scalable framework for modeling spin-lattice coupling, magnetic excitations, and finite-temperature magnetic behavior. 
+
+I. INTRODUCTION 
+
+Machine-learning interatomic potentials (MLIPs) have transformed atomistic modeling by approaching first-principles accuracy at a fraction of the computational cost, thereby enabling large-scale simulations of complex phenomena[1–5]. Extending this success to magnetic ma-terials, however, remains particularly challenging[6, 7]. In such systems, the potential energy surface depends not only on atomic coordinates but also on local magnetic degrees of freedom. Variations in the magnetic degrees of freedom can induce extremely subtle energy changes, which are often governed by competing exchange in-teractions, magnetic anisotropy, and spin-orbit coupling (SOC) effects. Recent years have witnessed several important ad-vances in magnetic machine-learning potentials[6]. One line of work extends traditional local-expansion frame-works to magnetic systems, as exemplified by magnetic moment tensor potentials (mMTP)[8] and magnetic vari-ants of the atomic cluster expansion (ACE)[9], where magnetic moments are introduced as explicit variables in hand-crafted descriptors or systematically improvable many-body basis expansions. These approaches provide controllable and often interpretable representations, but their flexibility is closely connected to the chosen de-scriptor design and basis truncation. A second line of  
+
+> ∗caok7@mail.sysu.edu.cn
+
+work introduces deep neural-network potentials for spin-lattice systems. For example, DeePSPIN[10] demon-strated that non-collinear magnetic potential energy sur-faces can be learned in a unified deep-learning frame-work, notably through a pseudo-atom representation of magnetic degrees of freedom. More recently, equivari-ant message-passing models such as MAGNet[7] and magnetic MACE (mMACE)[11] have shown that con-tinuous magnetic moments can be incorporated directly into symmetry-preserving neural architectures, substan-tially improving the modeling of non-collinear mag-netism. SpinGNN++[12] further highlighted the impor-tance of embedding magnetic interaction structure and time-reversal-related constraints into the network design. Despite this progress, data-efficient learning remains a central challenge for magnetic machine-learning po-tentials. Generating spin-polarized first-principles data spanning diverse magnetic states and atomic structures is computationally demanding, particularly when non-collinear spin configurations must be sampled jointly with variations in atomic positions and lattice param-eters to describe spin-lattice coupling. Models trained on such data must also respect the required symmetries and resolve the subtle energy variations associated with magnetic interactions. Architectures without a repre-sentation tailored to the local coupling between a mag-netic moment and its spin-lattice environment may re-quire larger and more diverse datasets to learn the rele-vant magnetic interactions. This consideration motivates an approach that couples the central spin representation to an aggregated local spin-lattice environment and pro-arXiv:2607.17129v1 [cond-mat.mtrl-sci] 19 Jul 2026 2vides symmetry-allowed channels for describing various magnetic interactions. In this work, we introduce the Spin Tensor Equivari-ant Potential (STEP), a magnetic machine-learning in-teratomic potential that treats local magnetic moments as continuous geometric degrees of freedom and embeds them in an equivariant representation space [13]. Its key operation is a Center-Environment Tensor Product that couples the central spin representation to an aggre-gated local spin-lattice environment. The resulting cou-pled representation provides symmetry-allowed channels for learning isotropic exchange, antisymmetric exchange, and more general magnetic interactions. STEP preserves translational invariance and SO(3) equivariance, while global spin-reversal invariance is imposed at the energy level through feature symmetrization. We evaluate STEP across empirical scaling tests, pub-lic benchmark datasets, and representative spin-lattice applications. Learning-curve analysis on monolayer CrI 3 shows that higher-order tensor channels and it-erative center-environment couplings substantially im-prove data efficiency for energy, force, and magnetic force predictions. On public FeAl, CrN, and elemen-tal Fe datasets [14–16], STEP achieves competitive or improved accuracy compared with recent magnetic machine-learning potentials. We further demonstrate that STEP reproduces phonon and magnon spectra of monolayer CrI 3, captures magnon–phonon hybridization in Fe 2Mo 3O8 semi-quantitatively, and drives large-scale spin-dynamics simulations yielding Curie temperatures for monolayer CrI 3 and body-centered-cubic (bcc) Fe close to experiment. These results establish STEP as a physically informed and data-efficient framework for modeling spin-lattice coupling, magnetic excitations, and finite-temperature magnetic behavior.   
+
+> II. THE STEP FRAMEWORK A. Magnetic Feature Embedding
+
+To integrate scalar chemical identities and continu-ous vector magnetic moments into a unified equivariant framework, STEP employs a magnetic embedding strat-egy guided by physical considerations. Unlike conven-tional graph neural networks that either separate scalar node features from directional vectors or rely on explicit normalization schemes, our approach maps the initial atomic states into a high-dimensional irreducible repre-sentation (irreps) space while remaining well-defined in the non-magnetic limit. For an atom i with atomic number Zi and local mag-netic moment Si, the initial scalar chemical embedding 
+
+h(0) chem ,i ∈ RC is first generated via a learnable linear map-ping of the one-hot encoded atomic species. In magnetic systems, especially itinerant magnets, the magnitude of the local magnetic moment is not necessarily rigidly fixed and may exhibit longitudinal spin fluctuations. To ac-count for this behavior, we evaluate the squared magni-tude of the spin vector, normalized by a system-specific reference scale Sref , and process it through a multilayer perceptron (MLP) to generate a nonlinear modulation weight: 
+
+ws(|Si|2) = MLP 
+
+ |Si|2
+
+S2ref 
+
+
+
+. (1) By expressing this modulation as a function of |Si|2
+
+rather than |Si|, we avoid the non-differentiability as-sociated with the norm at the origin. This choice is also consistent with the Landau-type perspective that ther-modynamic quantities are often expanded in even pow-ers of the magnetization near the non-magnetic limit [17], thereby providing a smooth dependence of the embedding on the spin amplitude. To encode the orientational information of the spin vec-tor while preserving a smooth dependence on longitudi-nal spin fluctuations and the non-magnetic limit, STEP constructs the angular magnetic features directly from the scaled spin vector. Specifically, it computes the solid spherical harmonics Yℓm (Si) as: 
+
+Yℓm (˜Si) = |˜Si|ℓYℓm 
+
+˜Si
+
+|˜Si|
+
+!
+
+, ˜Si = Si
+
+Sref 
+
+. (2) In practice, the solid spherical harmonics are evaluated through their equivalent polynomial form in the Carte-sian components of the spin vector, so that the repre-sentation remains well-defined at ˜Si = 0[13, 18]. Since solid spherical harmonics are homogeneous polynomials of degree ℓ, they also provide a smooth geometric basis for subsequent tensor-product operations. Finally, the scalar chemical feature modulated by the longitudinal fluctuation is aggregated with the solid spherical harmonics via a broadcasted tensor product to formulate the complete initial magnetic feature: 
+
+h(0)  
+
+> i, (ℓ,m,c )
+
+=
+
+
+
+h(0) chem ,i,c ⊙ ws,c (|Si|2)
+
+
+
+⊗ Y ℓm (˜Si). (3) Here, i indexes atoms, c = 1 , . . . , C labels feature chan-nels, and ( ℓ, m ) labels the angular-momentum order and component of the spin spherical harmonics. The sym-bol ⊙ denotes channel-wise multiplication, while the final product with Yℓm is implemented as a broadcasted tensor product over the channel and angular components. This initialization couples the species-dependent chem-ical information with the symmetry properties of the magnetic degrees of freedom, providing the initial equiv-ariant features for the subsequent high-order message passing.  
+
+> B. Center-Environment Tensor Product Message Passing
+
+While conventional SO(3)-equivariant message-passing neural networks have demonstrated exceptional perfor-mance in modeling standard interatomic potentials[4, 5], 3Magnetic  Embedding 
+
+path A 
+
+(a) Global Workflow  
+
+> STEP Layers
+> ×k
+
+path B 
+
+Shared Weights 
+
+Shared Weights 
+
+Readout 
+
+# Bessel Basis 
+
+# + MLP 
+
+# Aggregation 
+
+(b)  STEP  Layer 
+
+# Interaction 
+
+:Positive path  :Negative path  :T-invariant path 
+
+Gate & Skip 
+
+FIG. 1. Overall architecture of the Spin Tensor Equivariant Potential (STEP). (a) The global workflow illustrates the concurrent processing of the positive (+ s) and negative ( −s) spin paths. The feature-level time-reversal symmetry is enforced by averaging the output representations before the layer-wise readouts. (b) Detailed schematic of a single STEP layer, highlighting the Center-Environment Tensor Product (Center-Env TP) message passing. The model constructs physically meaningful many-body interactions by taking the geometric tensor product between the aggregated environmental field and the center atomic feature, naturally capturing complex spin-lattice couplings. 
+
+they typically update the central atomic state by linearly superposing aggregated neighborhood messages. In mag-netic systems, however, the potential energy surface is shaped by nontrivial couplings between local magnetic degrees of freedom and their spin-lattice environment, which are not naturally captured by simple additive up-dates alone. To systematically capture this underly-ing physics, our interaction block is constructed to per-form Center-Environment Tensor Product message pass-ing while maintaining strict SO(3) equivariance. At layer t, the feature associated with atom i is denoted by 
+
+h(t) 
+
+> i
+
+∈ F := 
+
+> ℓmax
+
+M
+
+> ℓ=0
+
+Rmℓ ⊗ Vℓ, (4) where Vℓ is the irreducible representation of SO(3) of an-gular momentum order ℓ, and mℓ is its multiplicity. The subsequent interaction layers preserve this rotationally organized feature structure up to learnable equivariant linear maps. The direct sum ⊕ indicates that features of different angular orders are stored as separate irreducible representation channels. For an edge j → i, where i denotes the central atom and j ∈ N (i) denotes one of its neighboring atoms, we define the relative spatial geometry 
+
+rij = xj − xi + sij ,rij = ∥rij ∥,
+
+ˆrij = rij 
+
+rij 
+
+,
+
+(5) where sij is the periodic-image shift. The geometric edge message m(t) 
+
+> ij
+
+transmitted from neighbor j to central atom i is abstractly computed as 
+
+m(t) 
+
+> ij
+
+= T (t)
+
+W (t)h(t) 
+
+> j
+
+, Y (ˆ rij ), ω (t)(rij )
+
+
+
+, (6) where W (t) is an SO(3)-equivariant linear map, Y (ˆ rij )4denotes the spherical-harmonic basis on the edge direc-tion, and ω(t)(rij ) is a learnable radial weight. In prac-tice, this mechanism evaluates the algebraic tensor multi-plication explicitly using the Clebsch-Gordan coefficients 
+
+C [13, 18]: 
+
+m(t) 
+
+> ij, (ℓo,m o,c )
+
+= ω(t)(rij )c
+
+× X
+
+> mi,m f
+
+C(ℓo,m o)(ℓi,m i),(ℓf ,m f )˜h(t)
+
+> j, (ℓi,m i,c )
+
+Y mf 
+
+> ℓf
+
+(ˆ rij ).
+
+(7) Here, ( ℓi, m i), ( ℓf , m f ), and ( ℓo, m o) label the input fea-ture, edge spherical-harmonic, and output irrep compo-nents, respectively, while c denotes the corresponding fea-ture channel. In this expression, ˜h(t) 
+
+> j
+
+= W (t)h(t) 
+
+> j
+
+, and the radial weight ω(t)(rij )c acts as the physical analogue of the distance-dependent exchange couplings (e.g., J(rij )). It is dynamically parameterized by a continuous MLP op-erating on a Bessel basis expansion of the interatomic dis-tance. Subsequently, these pairwise messages are explic-itly normalized by the square root of the average neigh-bor count p⟨N ⟩ to maintain numerical stability during deep network propagation, yielding the aggregated local environment field: 
+
+m(t) 
+
+> i
+
+= X 
+
+> j∈N (i)
+
+1
+
+p⟨N ⟩ m(t) 
+
+> ij
+
+. (8) Here, N (i) denotes the neighbor list of atom i, and ⟨N ⟩ is the average number of neighbors used for normalization. The central operation of the layer is a bilinear cou-pling between the aggregated environment feature and the central on-site feature, 
+
+v(t) 
+
+> i
+
+= B(t)
+
+L(t)env m(t) 
+
+> i
+
+, L (t)ctr h(t)
+
+> i
+
+
+
+, (9) where L(t)env and L(t)ctr are SO(3)-equivariant linear maps and B(t) is a learnable equivariant bilinear map realized by a fully connected tensor product. Equation (9) should be interpreted as a coupling between environmental co-variant features and central covariant features . This op-eration provides a symmetry-constrained bilinear basis in the latent feature space, from which the network can learn the complex combinations relevant to the target magnetic energy landscape. The representation-theoretic motivation of Eq. (9) is straightforward. Whenever ℓ = 1 channels are present in the coupled features, the tensor-product decomposition 
+
+V1 ⊗ V1 ∼= V0 ⊕ V1 ⊕ V2 (10) implies that the bilinear interaction naturally generates scalar, vector, and rank-two channels. In Cartesian no-tation, for any two vectors a, b ∈ R3,
+
+a ⊗ b = 13 (a · b)I
+
+| {z }
+
+> ℓ=0
+
++ 12 (a ⊗ b − b ⊗ a)
+
+| {z }
+
+> ℓ=1
+
++ 12 (a ⊗ b + b ⊗ a) − 13 (a · b)I
+
+| {z }
+
+> ℓ=2
+
+.
+
+(11) Thus, within the latent space, the center-environment tensor coupling naturally provides the irreducible rota-tional channels needed to encode isotropic scalar cou-plings, antisymmetric ℓ = 1 couplings, and symmetric rank-two anisotropic couplings. While the decomposition of vector channels ( V1 ⊗ V1) provides an intuitive parallel to conventional two-spin interactions, it is important to emphasize that our implementation fully evaluates tensor products across all supported representation orders (e.g., 
+
+V2 ⊗ V1, V2 ⊗ V2). These higher-order channels system-atically expand the latent space beyond simple pairwise vector couplings, providing the representational capac-ity required to capture complex local anisotropies and higher-order many-body spin interactions.  
+
+> C. Equivariant Gating and Residual Interaction Update
+
+To introduce additional nonlinear expressivity beyond equivariant linear maps and bilinear tensor products, the bilinearly coupled feature v(t) 
+
+> i
+
+is passed through an equiv-ariant gated nonlinearity [19]. Let 
+
+v(t) 
+
+> i
+
+= v(t) 
+
+> i, sc
+
+⊕ v(t)
+
+> i, ns
+
+, (12) where v(t) 
+
+> i, sc
+
+collects all true scalar channels ( ℓ = 0) and 
+
+v(t) 
+
+> i, ns
+
+collects all non-scalar tensor channels ( ℓ > 0). The gated nonlinearity Φ (t) has the generic form: Φ(t)
+
+v(t)
+
+> i
+
+
+
+= ϕ(t)sc 
+
+
+
+v(t)
+
+> i, sc
+
+
+
+⊕
+
+h
+
+ϕ(t)g
+
+
+
+g(t)
+
+> i
+
+
+
+⊙ v(t)
+
+> i, ns
+
+i
+
+, (13) where ⊙ denotes channel-wise multiplication. Specifi-cally, for the pure scalar channels ( ℓ = 0), the network ap-plies standard smooth nonlinearities, implemented here using the SiLU activation function ϕ(t)sc . For non-scalar tensor channels ( ℓ > 0), applying standard component-wise nonlinear functions directly would in general break rotational equivariance. To avoid this issue, the preced-ing linear layer outputs an auxiliary set of scalar gates 
+
+g(t) 
+
+> i
+
+, which are mapped to the (0 , 1) range via a sig-moid activation, i.e., ϕ(t)g (g(t) 
+
+> i
+
+) = σ(g(t) 
+
+> i
+
+). Since mul-tiplication by an SO(3)-invariant scalar commutes with the group action on each non-scalar irrep channel, this gating mechanism introduces nonlinear representational capacity while strictly preserving continuous rotational equivariance. 5Finally, the nonlinearly activated interaction features are integrated with the pre-interaction state through a residual skip connection to formulate the layer update: 
+
+h(t+1)  
+
+> i
+
+= P (t)Φ(t)
+
+v(t)
+
+> i
+
+
+
++ S(t)h(t) 
+
+> i
+
+, (14) with P (t) and S(t) denoting learnable SO(3)-equivariant linear maps. The second term provides a residual up-date that propagates transformed central-atom features in parallel with the center-environment contribution. This skip pathway preserves low-order local information, including scalar magnetic-amplitude features, and im-proves optimization stability by allowing such informa-tion to be carried directly across layers.  
+
+> D. Feature-Level Time-Reversal Symmetry and Energy Readout
+
+In the absence of external time-reversal-odd fields, the magnetic potential energy should be invariant under a global reversal of all magnetic moments, 
+
+E({Si}) = E({− Si}). (15) To impose this constraint at the model level, STEP em-ploys a feature-level time-reversal symmetrization before the final energy readout. Let h(t) 
+
+> i
+
+({S}) denote the hidden feature of atom i at layer t obtained from a forward pass with magnetic mo-ments {S}. Since the total energy is a rotational scalar, the energy readout is performed only on the ℓ = 0 chan-nels. We denote the projection onto these scalar channels by Π 0. To enforce global time-reversal symmetry, STEP evaluates the scalar features for both the original mag-netic configuration and its globally reversed counterpart, and then averages them: ¯z(t) 
+
+> i
+
+= 12
+
+h
+
+Π0h(t) 
+
+> i
+
+({S}) + Π 0h(t) 
+
+> i
+
+({− S})
+
+i
+
+. (16) This operation removes the time-reversal-odd component of the scalar latent representation before it enters the energy readout. Equivalently, the symmetrized feature satisfies ¯z(t) 
+
+> i
+
+({S}) = ¯ z(t) 
+
+> i
+
+({− S}), (17) which is sufficient to make any subsequent scalar readout invariant under global reversal of the magnetic moments. The atomic energy is obtained using a layer-wise scalar readout. For each interaction depth t, an independent multilayer perceptron f (t) maps the symmetrized scalar feature ¯ z(t) 
+
+> i
+
+to an atomic energy contribution: 
+
+Ei =
+
+> L
+
+X
+
+> t=0
+
+f (t) 
+
+¯z(t)
+
+> i
+
+
+
+. (18) The total energy is then written as 
+
+E = X
+
+> i
+
+Ei + X
+
+> i
+
+Eshift  
+
+> zi
+
+, (19) where Eshift  
+
+> zi
+
+is a species-dependent reference energy shift. Because the same readout functions are applied to the symmetrized scalar features and because Eq. (17) holds by construction, the predicted energy satisfies 
+
+E({Si}) = E({− Si}) (20) exactly, up to numerical precision. This symmetry is imposed at the feature level rather than through data augmentation. The layer-wise readout provides a physically moti-vated hierarchy of magnetic energy contributions. The 
+
+t = 0 term accesses the initial local magnetic em-bedding, including scalar information associated with the on-site magnetic amplitude before any neighbor-hood convolution. Deeper readout terms incorporate progressively enriched spin-lattice environments gener-ated by the equivariant message-passing and center-environment tensor-product interactions. In this way, STEP combines local Landau-like magnetic-amplitude contributions with environment-dependent exchange-like and many-body spin-lattice couplings within a unified symmetry-preserving energy model.  
+
+> E. Training and Optimization
+
+STEP is trained using a joint loss function that com-bines the total energy, forces, unit-cell virial tensor, and magnetic forces. Specifically, the total loss L is defined as a weighted sum of the mean absolute error (MAE) terms between the density functional theory (DFT) reference values and the corresponding model predictions: 
+
+L = λE LE + λF LF + λV LV + λM LM , (21) where λE , λF , λV , and λM are system-specific weights used to balance the contributions of the different target quantities. To ensure that the predicted derivatives are consistent with the learned potential energy surface, the forces ˆFi, virial tensor ˆW, and magnetic forces ˆFMj are obtained from the predicted total energy ˆE by automatic differentiation [4, 5]: ˆFi = − ∂ ˆE∂ri
+
+, ˆW = − ∂ ˆE∂ϵ , ˆFMj = − ∂ ˆE∂Mj
+
+, (22) where ri, ϵ, and Mj denote the atomic position, global strain tensor, and local magnetic moment, respectively. Throughout this work, “force” refers to the negative energy gradient with respect to the atomic position, whereas “magnetic force” refers to the negative energy gradient with respect to the local magnetic moment. The 6individual loss components are defined as follows: 
+
+LE = 1
+
+N ˆE − E , (23) 
+
+LF = 13N
+
+> N
+
+X
+
+> i=1
+
+X
+
+> α∈{ x,y,z }
+
+ˆFi,α − Fi,α , (24) 
+
+LV = 19
+
+X
+
+> α,β ∈{ x,y,z }
+
+ˆWαβ − W αβ , (25) 
+
+LM = 13Nmag Nmag 
+
+X
+
+> j=1
+
+X
+
+> α∈{ x,y,z }
+
+ˆF M (⊥) 
+
+> j,α
+
+− F M (⊥) 
+
+> j,α
+
+, (26) where N and Nmag denote the total number of atoms and the number of magnetic atoms in the structure, respec-tively, while E, Fi,α , Wαβ , and F Mj,α are the corresponding DFT reference values, the parenthesized superscript ( ⊥)indicates an optional projection. The magnetic force in STEP is defined as the nega-tive energy gradient with respect to the full local mag-netic moment vector, so it naturally contains both lon-gitudinal and transverse components. Accordingly, the magnetic-force loss LM can be evaluated using the full vector magnetic force in the general case. For rigid-spin applications, where the local moment magnitude is con-strained and only transverse spin fluctuations are active, we can optionally use the projected magnetic force 
+
+FM ⊥ = FM − (FM · em)em,
+
+where em = M/|M| is the unit vector along the lo-cal magnetic moment. This projected loss penalizes the transverse components relevant to Landau-Lifshitz spin dynamics[20], while the full-vector formulation remains available for systems with longitudinal moment fluctua-tions. The model parameters are optimized using the Adam optimizer[21] with the AMSGrad[22] variant. To improve training stability, we employ a plateau-based learning-rate scheduler, which reduces the learning rate by a predefined decay factor when the validation loss shows no improvement for a specified number of consecutive epochs (patience). An early-stopping criterion is also used to terminate training once the validation loss no longer improves, thereby mitigating overfitting. The specific hyperparameters—including the initial learning rate, batch size, loss weights (λE , λ F , λ V , λ M ), and scheduler patience—are tuned separately for different target materials. Such system-dependent configuration is motivated not only by differences in dataset size and convergence behavior, but also by differences in the dom-inant underlying physical mechanisms. For example, the training setup for two-dimensional CrI 3 should account for the stronger role of spin-orbit coupling and local mag-netic anisotropy, whereas that for three-dimensional bulk Fe must better accommodate its more itinerant magnetic character. This flexibility in the joint loss formulation also enables property-specific optimization. For instance, the study of local harmonic vibrational properties (e.g., phonon spectra) benefits from high accuracy in restor-ing forces and virials near equilibrium, whereas simu-lations of finite-temperature magnetic phase transitions (e.g., Curie temperature) place greater emphasis on the accuracy of the spin-dependent energy landscape. By ad-justing the relative loss weights accordingly, the training can be biased toward the physical observables most rel-evant to the target application. Finally, global random seeds are fixed to ensure reproducible dataset splitting and network initialization. To further augment the numerical stability and the out-of-distribution generalization capability of the model, several advanced stabilization techniques are integrated. We incorporate an exponential moving average (EMA) of the model weights[23]. During the validation phase and final inference, these smoothed EMA weights are evaluated, effectively mitigating the optimization noise inherent in complex highly non-linear energy landscapes. Gradient clipping is also systematically applied to pre-vent exploding gradients during backpropagation. Prior to training, the network undergoes a physics-informed, data-driven initialization: the baseline energy shift and the root-mean-square (RMS) force scale are pre-computed directly from the training set. Additionally, to stabilize the computation of solid spherical harmon-ics, the input magnetic moments are dynamically scaled by a material-specific reference value Sref . This reference is derived from the maximum atomic magnetic moment present in the dataset augmented by a safety padding factor, ensuring that the high-order polynomial features remain numerically well-behaved throughout the training lifecycle.    
+
+> III. RESULTS A. Benchmarks on public datasets
+> 1. FeAl
+
+We evaluate STEP on the publicly available FeAl benchmark dataset [15] and compare its performance with the reported results of mMTP[8], MACE[5], and mMACE[11]. To facilitate comparison, we choose the ar-chitectural hyperparameters of STEP to be as close as possible to those used in the reported benchmark, es-pecially in terms of hidden feature dimension, angular resolution, radial resolution, and interaction cutoff. Specifically, STEP uses three message-passing layers with 64 hidden channels. The spatial spherical harmonics are expanded up to lmax pos = 3, and the magnetic-moment spherical harmonics are expanded up to lmax mag = 1. The radial embedding uses 8 Bessel basis functions with a polynomial cutoff, and the cutoff radius is set to rcut =5.0 ˚ A. The radial network and the layer-wise energy readout network both use a hidden width of 64. Only Fe atoms are treated as magnetic atoms, while Al atoms 7-0.2 
+
+> -0.1
+> 0.0
+> 0.1
+> 0.2
+
+DFT Energy - Element Baseline (eV/atom) 
+
+-0.2 
+
+-0.1 
+
+0.0 
+
+0.1 
+
+0.2 
+
+> STEP Energy - Element Baseline (eV/atom)
+
+RMSE = 2.564 meV/atom 
+
+MAE = 1.802 meV/atom 
+
+Baseline-shifted Energy Parity 
+
+10 0 2 × 10 0 3 × 10 04 × 10 0 6 × 10 0
+
+Count 
+
+> -1.0
+> -0.5
+> 0.0
+> 0.5
+> 1.0
+
+DFT Force (eV/ Å)
+
+-1.0 
+
+-0.5 
+
+0.0 
+
+0.5 
+
+1.0 
+
+> STEP Force (eV/ Å)
+
+RMSE = 10.523 meV/ Å
+
+MAE = 5.665 meV/ Å
+
+Force Parity 
+
+10 0 10 1 10 2 10 3
+
+Count 
+
+> 0
+> 10
+> 20
+> 30
+
+DFT Stress (GPa) 
+
+-5 
+
+0
+
+5
+
+10 
+
+15 
+
+20 
+
+25 
+
+30 
+
+> STEP Stress (GPa)
+
+RMSE = 0.117 GPa 
+
+MAE = 0.060 GPa 
+
+Stress Parity 
+
+10 0 10 1 10 2 10 3
+
+Count 
+
+FIG. 2. Parity plots of STEP on the FeAl benchmark dataset. The predicted energy, forces, and stress are compared with the corresponding DFT reference values. -0.05 
+
+> 0.00
+> 0.05
+> 0.10
+> 0.15
+
+DFT Energy - Element Baseline (eV/atom) 
+
+-0.05 
+
+0.00 
+
+0.05 
+
+0.10 
+
+0.15 
+
+> STEP Energy - Element Baseline (eV/atom)
+
+RMSE = 1.064 meV/atom 
+
+MAE = 0.767 meV/atom 
+
+Baseline-shifted Energy Parity 
+
+> -5.0
+> -2.5
+> 0.0
+> 2.5
+> 5.0
+
+DFT Force (eV/ Å)
+
+-6 
+
+-4 
+
+-2 
+
+0
+
+2
+
+4
+
+6
+
+> STEP Force (eV/ Å)
+
+RMSE = 28.646 meV/ Å
+
+MAE = 16.171 meV/ Å
+
+Force Parity 
+
+> -10
+> -5
+> 0
+> 5
+> 10
+
+DFT Stress (GPa) 
+
+-10 
+
+-5 
+
+0
+
+5
+
+10 
+
+> STEP Stress (GPa)
+
+RMSE = 0.114 GPa 
+
+MAE = 0.075 GPa 
+
+Stress Parity 
+
+> -1
+> 0
+> 1
+
+DFT MagForce (eV/ B)
+
+-1.5 
+
+-1.0 
+
+-0.5 
+
+0.0 
+
+0.5 
+
+1.0 
+
+1.5 
+
+> STEP MagForce (eV/  B)
+
+RMSE = 11.655 meV/ B
+
+MAE = 6.027 meV/ B
+
+MagForce Parity (Full Gradient) 
+
+10 0 2 × 10 0 3 × 10 04 × 10 0 6 × 10 0
+
+> Count
+
+10 0 10 1 10 2 10 3
+
+> Count
+
+10 0 10 1 10 2
+
+> Count
+
+10 0 10 1 10 2 10 3 10 4
+
+> Count
+
+FIG. 3. Parity plots of STEP on the CrN benchmark dataset. The predicted energy, forces, stress, and magnetic forces are compared with the corresponding DFT reference values. 
+
+FIG. 4. Parity plots of STEP-full over the complete original Fe dataset. The predicted energy, forces, and magnetic forces are compared with the corresponding DFT reference values. 8are treated as non-magnetic atoms. Figure 2 shows the parity plots of the predicted en-ergy, force, and stress against the DFT reference val-ues on the FeAl dataset. The predictions lie close to the diagonal, indicating that STEP accurately repro-duces the DFT energy landscape and its derivatives. Ta-ble I compares the root-mean-square errors (RMSEs) ob-tained by STEP with the corresponding RMSEs reported for mMTP [8], MACE[5], and mMACE[11] on the FeAl benchmark. STEP achieves the lowest errors in energy, force, and stress among the compared methods.                     
+
+> TABLE I. Benchmark comparison on the FeAl dataset. RMSE mMTP MACE mMACE STEP Energy (meV/atom) 4.03 13.86 2.69 2.564
+> Force (meV/˚ A) 48 52 11 10.523
+> Stress (GPa) 0.79 0.93 0.26 0.117
+> Magnetic force (meV/ μB)––––
+> 2. CrN
+
+We further evaluate STEP on the publicly available CrN benchmark dataset[14] and compare its performance with the reported results of mMTP[8], MACE[5], and mMACE[11]. To maintain consistency and facilitate comparison, we use the identical capacity-controlling ar-chitectural hyperparameters as detailed for the bench-mark on FeAl, including the interaction cutoff, hidden feature dimension, and angular resolution. Cr atoms are treated as magnetic atoms, while N atoms are treated as non-magnetic atoms. Figure 3 shows the parity plots of the predicted energy, force, stress, and magnetic force against the DFT refer-ence values on the CrN dataset. The predictions are close to the diagonal, indicating that STEP can accurately reproduce the DFT energy landscape, including forces, stresses, and magnetic forces. Table II compares the RMSEs obtained by STEP with the corresponding val-ues reported for mMTP[8], MACE[5], and mMACE[11] on the CrN benchmark. STEP achieves the lowest errors in energy, stress, and magnetic force, while maintaining a force error close to mMACE.                     
+
+> TABLE II. Benchmark comparison on the CrN dataset. RMSE mMTP MACE mMACE STEP Energy (meV/atom) 1.7 31.2 1.21 1.064
+> Force (meV/˚ A) 108 219 24 28.646 Stress (GPa) 0.4 1.29 0.25 0.114
+> Magnetic force (meV/ μB)64 –19 11.655
+> 3. Fe
+
+To evaluate STEP on elemental Fe, a prototypical itinerant magnetic system, we use the publicly avail-able dataset reported in Ref. [16]. The dataset contains approximately 35,000 configurations generated through structural and magnetic perturbations and active learn-ing, covering diverse atomic environments and variations in both orientations and magnitudes of local Fe magnetic moments. We train two models with the same architec-ture: STEP-full uses the complete dataset with a 90:10 training–validation split, whereas STEP-5k uses 5,000 representative configurations selected from the complete dataset by principal component analysis (PCA)[24] fol-lowed by farthest-point sampling (FPS)[25], divided into 4,500 training and 500 validation configurations. In both cases, the validation configurations are excluded from gradient-based parameter updates. Both models employ two message-passing layers, 8 hid-den channels, magnetic and latent equivariant features up to lmax = 2, and a cutoff radius of 4 .5 ˚ A. They are evaluated over the complete original dataset using iden-tical RMSE definitions. The parity plots correspond to STEP-full, while all subsequent phonon, magnon, and finite-temperature calculations use the same STEP-5k checkpoint without task-specific retraining. Figure 4 demonstrates close agreement between the STEP-full predictions and the DFT reference values for energy, force, and magnetic force across the complete original dataset. Table III compares the RMSEs of STEP-full and STEP-5k evaluated over the complete original dataset with the training errors reported for DeePSPIN-DZP [16]. STEP-full achieves the lowest er-rors. Reducing the model-development subset to 5,000 representative configurations increases the corresponding STEP-5k errors. Nevertheless, these STEP-5k errors re-main lower than the reported DeePSPIN-DZP training errors by approximately 70.9%, 42.4%, and 70.5% for en-ergy, force, and magnetic force, respectively. Because the results were not obtained using identical data partitions and evaluation protocols, this compari-son is not a strictly controlled head-to-head benchmark. Nevertheless, the low RMSEs of STEP-5k when evalu-ated over the complete original dataset provide comple-mentary evidence of STEP’s practical sample efficiency.                 
+
+> TABLE III. Benchmark comparison on the complete origi-nal Fe dataset. The DeePSPIN-DZP values are the reported training errors, whereas both STEP models are evaluated over the complete original dataset. RMSE DeePSPIN-DZP STEP-full STEP-5k
+> E(meV/atom) 6.88 1.283 1.999
+> F(meV/˚ A) 106.0 46.368 61.014
+> FM(meV/ μB)28.6 6.974 8.440
+
+We further examine collective lattice excitations in bcc 9H P N             
+
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> 12 Frequency (THz)
+> 50 K 1200 K STEP 0 K
+> FIG. 5. Harmonic phonon dispersion of bcc Fe predicted by STEP at 0 K, compared with finite-temperature reference spectra at 50 K and 1200 K from an unpublished study [26]. ΓNPΓHN0100 200 300 400 500 600
+> ω (meV)
+> STEP Pajda et al. Buczek et al.
+> FIG. 6. Magnon dispersion of ferromagnetic bcc Fe along the common high-symmetry path Γ–N–P–Γ–H–N. The STEP prediction is compared with the magnetic-force-theorem re-sults reported by Pajda et al. [27] and Buczek et al. [28]. For direct comparison, the reference curves are replotted along the same sequence of symmetry-line segments, with the point denoted by Π in Ref. [28] labeled as P here.
+
+Fe. As shown in Fig. 5, the harmonic phonon dispersion predicted by STEP at 0 K captures the overall shape of the phonon branches along Γ–H–P–Γ–N. The STEP spec-trum is systematically stiffer than the finite-temperature reference spectra at 50 K and 1200 K [26], consistent with the expected phonon softening at elevated temperatures. Because the reference spectra include finite-temperature anharmonic and magnetic-disorder effects, this compari-son is intended to be qualitative. Nevertheless, the phys-ically reasonable phonon dispersion indicates that STEP provides a reliable description of the local curvature of the energy surface with respect to atomic displacements in bcc Fe. We further examine the magnon dispersion of ferro-magnetic bcc Fe predicted by STEP, as shown in Fig. 6. For comparison, we include the results by Pajda et al. [27] and Buczek et al. [28], which were obtained based on the Heisenberg model and magnetic force theorem (MFT)[29]. Noticeable differences are present not only between STEP and the MFT results, but also between the two MFT results themselves, particularly in the high-energy region and around the H point. Relative to the result of Buczek et al. , STEP gener-ally predicts higher magnon energies over much of the Brillouin-zone path, whereas it predicts a softer disper-sion near H compared with the result of Pajda et al. 
+
+This discrepancy may arise from the fact that the mag-netic force theorem is based on the Heisenberg model, whereas our approach does not rely on any empirical model Hamiltonian. In addition, Pajda et al. [27] at-tributed the local minimum near H to a Kohn anomaly induced by long-range Ruderman-Kittel-Kasuya-Yoshida (RKKY) interactions and showed that this region is sen-sitive to the number of exchange shells included, with the calculated magnon bandwidth at H changing from 441 meV to 550 meV when the number of shells was in-creased from 15 to 172. The differences among STEP and the two MFT results reflect the sensitivity of the high-energy magnon spectra to details of methodology. Nev-ertheless, the agreement in the overall energy scale and dispersion structure indicates that STEP captures the magnetic interactions governing spin-wave excitations in bcc Fe. Taken together, the STEP-full parity plots and the comparison among DeePSPIN-DZP, STEP-full, and STEP-5k establish the accuracy of STEP on the public Fe dataset. More importantly, the compact-data model retains low RMSEs evaluated over the complete original dataset and captures the main features of both phonon and magnon dispersions despite being developed from only 5,000 representative configurations. Together with the finite-temperature results below, these findings pro-vide complementary evidence of the sample efficiency and physical transferability of STEP.  
+
+> B. Data Efficiency and Empirical Scaling Analysis
+
+To evaluate the data efficiency of the STEP model, we investigate its scaling behavior, namely the systematic reduction of the prediction error ε with the training set size N , expressed as ε ∝ N α [4, 30]. Here, L denotes the number of STEP interaction layers, and lmax denotes the maximum angular order retained in the magnetic-moment spherical harmonics and latent equivariant fea-ture channels. As a representative system exhibiting pronounced anisotropic magnetic interactions and magnetocrystalline anisotropy, with a Curie temperature of approximately 45 K, monolayer CrI 3 is a well-known ferromagnetic insulator[31–33]. We constructed a dataset for this ma-terial to validate our STEP framework. The full dataset comprises 3290 structures, as detailed in Appendix A. The dataset was divided into 2700 training, 290 vali-10 100                            
+
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 −1
+> 10 0
+> Energy MAE (meV/atom)
+> (a) Energy
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 1
+> 4 × 10 0
+> 6 × 10 0
+> 2 × 10 1
+> 3 × 10 1
+> Force MAE (meV/Å)
+> (b) Force
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 −1
+> 10 0
+> Magnetic force MAE (meV/ μB) (c) Magnetic force
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 −1
+> Energy MAE (meV/atom)
+> (d) Energy
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 1
+> Force MAE (meV/Å)
+> (e) Force
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 −1
+> 2 × 10 −1
+> 3 × 10 −1
+> Magnetic force MAE (meV/ μB) (f) Magnetic force
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 −1
+> Energy MAE (meV/atom)
+> (g) Energy
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 1
+> Force MAE (meV/Å)
+> (h) Force
+> 100
+> 250
+> 500
+> 1k
+> 1.8k
+> 2.7k
+> Training set size
+> 10 −1
+> 2 × 10 −1
+> 3 × 10 −1
+> 4 × 10 −1
+> 6 × 10 −1
+> Magnetic force MAE (meV/ μB) (i) Magnetic force
+> Different lmax at fixed layers = 2
+> Different layers at fixed lmax = 2
+> Capacity Trade-off: lmax vs Layers
+> Fixed layers = 2
+> lmax=0
+> lmax=1
+> lmax=2
+> lmax=3
+> Fixed lmax = 2
+> layers=1
+> layers=2
+> layers=3
+> Trade-off
+> L=1, lmax = 2
+> L=2, lmax = 1
+> L=2, lmax = 2 (Control)
+> L=2, lmax = 3
+> L=3, lmax = 2
+
+FIG. 7. Learning curves of STEP on the monolayer CrI 3 dataset. (a–c) Scaling curves of energy, force, and magnetic force for different lmax at fixed L = 2. The scalar model ( lmax = 0) exhibits a failure to resolve magnetic force scaling. (d–f) Scaling behavior across varying layers L at fixed lmax = 2, showing the benefit of increasing interaction depth. (g–i) Architectural trade-off analysis comparing configurations with broadly similar parameter counts or per-epoch training costs, highlighting the different effects of increasing interaction depth and tensorial order. 
+
+dation, and 300 test configurations. We further utilize a nested dataset splitting strategy on the CrI 3 dataset, constructing training subsets from N = 100 to 2700 such that smaller sets are strict subsets of larger ones. The test MAEs for energy, forces, and magnetic forces were evaluated on the same fixed test set of 300 configurations. The results demonstrate that the magnetic tensor or-der ( lmax ) is critical for capturing magnetic interactions. With the network depth fixed at L = 2, a pure scalar network ( lmax = 0) fails to reduce the magnetic force er-ror as more data is provided ( α ≈ 0.000), indicating that invariant scalar representations are insufficient for map-ping the complex, orientation-dependent magnetic force landscape [13]. The introduction of higher-order tensors (lmax ≥ 1) immediately enables systematic error reduc-tion. Specifically, the lmax = 3 configuration achieves steep scaling exponents of −0.318, −0.275, and −0.365 for energy, force, and magnetic force errors, respectively. The number of interaction layers L also plays a de-cisive role in determining the learning efficiency, espe-cially for magnetic forces. The comparison between 
+
+L = 1 , l max = 2 and L = 2 , l max = 1 , 2 further high-lights the importance of the iterative center-environment tensor product. Despite having access to higher-order tensor channels, the single-layer L = 1 , l max = 2 model exhibits an almost negligible magnetic-force scaling expo-nent ( −0.034). By contrast, introducing a second inter-action layer improves the exponent to about −0.27, even for lmax = 1. This indicates that the efficient learning of magnetic forces is not governed solely by angular reso-lution, but also relies critically on repeated coupling be-tween the central spin representation and its spin-lattice environment. Since magnetic forces correspond to gra-dients of the energy with respect to magnetic degrees of freedom, this behavior provides evidence that the STEP center-environment tensor product facilitates the learn-ing of local magnetic energy gradients. Increasing the depth further to L = 3 results in even more efficient over-all learning, with the force slope reaching −0.341 and the magnetic force error remaining consistently low at large training-set sizes. To examine architectural trade-offs under broadly comparable computational capacity, we compare model configurations selected to have either similar parameter counts or similar per-epoch training costs. For energy and force, increasing the network depth (e.g., L = 2 → 311 at lmax = 2) yields steeper scaling slopes and lower ab-solute errors than increasing the tensorial order (e.g., 
+
+lmax = 2 → 3 at L = 2). For magnetic forces, increasing 
+
+lmax instead produces the steeper learning curve ( −0.365 versus −0.273), whereas the deeper L = 3 model main-tains lower absolute errors over the sampled training-set range. This suggests that while higher angular resolution specifically accelerates the learning of magnetic interac-tions, iteratively applying the STEP center-environment tensor product (increasing L) yields lower absolute er-rors over the sampled training-set range, remaining a highly effective and robust strategy for minimizing over-all prediction errors under constrained computational re-sources.                                    
+
+> TABLE IV. Summary of fitted power-law exponents from em-pirical learning curves for different STEP configurations on the CrI 3dataset. Model ( L, l max )Energy Force Magnetic force
+> L= 1 , l max = 2 −0.224 −0.082 −0.034
+> L= 2 , l max = 0 −0.079 −0.188 0.000
+> L= 2 , l max = 1 −0.329 −0.189 −0.268
+> L= 2 , l max = 2 −0.289 −0.251 −0.266
+> L= 2 , l max = 3 −0.318 −0.275 −0.365
+> L= 3 , l max = 2 −0.381 −0.341 −0.273
+> C. Compact-data validation on monolayer CrI 3
+
+CrI 3 also provides a representative test for evaluating whether STEP can consistently describe both structural and magnetic properties within a unified framework. To evaluate STEP under data-constrained conditions, we trained the model on a compact subset of 900 representa-tive configurations, selected from the full 3290-structure DFT dataset using PCA[24] and FPS[25], as described in Appendix A. The structural and magnetic coverage of this subset is summarized in Fig. 12 in Appendix A. For the training on monolayer CrI 3, the STEP model was constructed using two equivariant message-passing layers with a cutoff radius set to 8 .0 ˚ A. The magnetic-moment spherical harmonics and latent equivariant fea-ture channels were expanded up to lmax = 2. Edge angu-lar features were used in the message-passing tensor prod-ucts and projected into the same latent feature space. For the radial embedding, we employed 8 radial basis functions. The radial filter weights were generated by a two-layer MLP with a hidden structure of 8 → 64 → 64. The layer-wise energy readout networks each comprised a two-layer MLP (8 → 64 → 1). During training, the dataset was randomly partitioned into training and vali-dation sets with a 9:1 ratio. As shown in Fig. 8(d), the predicted energies, forces, and magnetic forces are all in close agreement with the DFT references, indicating that the model captures the local energy landscape with high fidelity for both atomic and spin degrees of freedom. Notably, this pre-dictive accuracy is achieved using only the compact 900-configuration dataset, highlighting the data efficiency of the physically structured STEP representation. We fur-ther examine collective excitations in CrI 3. Figure 8(c) shows the phonon dispersion of ferromagnetic CrI 3 along the high-symmetry path Γ–M–K–Γ. The STEP results agree well with the DFT phonon spectrum over the full frequency range, reproducing the main acoustic and op-tical branches along the selected path, which indicates that STEP provides a reliable description of the local curvature of the energy surface with respect to atomic displacements. We then analyze the magnon spectrum obtained from the learned magnetic energy landscape. As shown in Fig. 8(b), the magnon dispersion along Γ– K–K′–Γ ex-hibits finite gaps at Γ, K, and K′. The gap at Γ in-dicates magnetic anisotropy in the effective magnetic Hamiltonian, while the finite gaps at K and K′ further show that the learned magnetic Hamiltonian goes be-yond purely isotropic Heisenberg exchange interactions, successfully capturing the characteristic magnon-gap fea-tures induced by anisotropic exchange couplings [34]. These results indicate that STEP captures the subtle anisotropic interactions associated with SOC in CrI 3. 
+
+> D. Magnon polarons in Fe 2Mo 3O8
+
+Fe 2Mo 3O8 is a polar honeycomb antiferromagnet crys-tallizing in the P6 3mc structure ( a = 5.773 ˚ A, c = 10.054 ˚A)[35, 36]. Below TN ∼ 60 K, ferrimagnetic Fe-O layers arising from unequal tetrahedral (Fe t = 4.21 μB ) and oc-tahedral (Fe o= 4.83 μB ) Fe 2+ moments stack antiferro-magnetically along the c axis[35]. Its strong spin-lattice coupling has made it a model system for exploring topo-logical magnon polarons[37, 38]: when a magnon branch and a phonon branch approach each other in both en-ergy and momentum, strong hybridization between the two excitations opens a finite gap at the nominal cross-ing point and produces two separated mixed branches [37, 38]. Reproducing this anticrossing behavior is there-fore a direct probe of whether the learned potential cap-tures the strong coupling between atomic displacements and spin fluctuations. For this analysis, we used the trained STEP energy sur-face to construct the linearized coupled spin-lattice dy-namics around the magnetic ground state of Fe 2Mo 3O8.Denoting the atomic displacement from equilibrium by u
+
+and the transverse spin fluctuation by χ, the energy was expanded to second order as 
+
+E = E0 + 12 uT Kuu u + 12 χT Kχχ χ + uT Kuχ χ, (27) where E0 is the equilibrium energy, Kuu is the force-constant matrix, Kχχ is the transverse magnetic stiff-ness matrix, and Kuχ is the spin-lattice cross Hessian 12 b
+
+# d
+
+# a c
+
+FIG. 8. Validation of STEP on monolayer CrI 3. (a) Side and top views of the ferromagnetic ground-state monolayer CrI 3
+
+structure. Arrows indicate the local Cr magnetic moments in the ground-state spin configuration, while Cr and I atoms are shown in different colors. (b) Magnon dispersion along Γ–K–K ′–Γ obtained from the learned magnetic energy landscape. Finite gaps are observed at Γ, K, and K ′, indicating spin-anisotropic interactions beyond an isotropic Heisenberg description. (c) Phonon dispersion along the high-symmetry path Γ–M–K–Γ, compared with the spin-polarized DFT reference. STEP reproduces the main acoustic and optical branches with good overall agreement. (d) Parity plots over the 900-configuration compact dataset, comparing STEP predictions with DFT reference energies, forces, and projected magnetic forces. ba c
+
+FIG. 9. Magnon–phonon coupling in Fe 2Mo 3O8 predicted from the linearized STEP energy surface. (a) Crystal and ground state magnetic structure, with inequivalent Fe t and Fe o sites indicated. (b) Uncoupled magnon and phonon spectra obtained with Kuχ = 0. (c) Hybridized spectrum obtained with the full spin-lattice cross Hessian Kuχ , showing avoided crossings characteristic of magnon polaron. 13 coupling atomic displacements to transverse spin fluctu-ations. Introducing the mass-normalized phonon coordi-nate x = M 1/2u, we define 
+
+Dph = M −1/2Kuu M −1/2, G = M −1/2Kuχ , (28) where Dph is the phonon dynamical matrix and G is the mass-normalized spin-lattice coupling matrix. The cor-responding linearized equations of motion are ¨x = −Dph x − Gχ, ˙χ = J  G†x + Kχχ χ , (29) where J is the local precession matrix for the transverse spin variables. Equivalently, by introducing v = ˙ x, the coupled problem can be written as a unified first-order eigenvalue problem, 
+
+ddt 
+
+xvχ
+
+ =
+
+ 0 I 0
+
+−Dph 0 −G
+
+J G† 0 J Kχχ 
+
+xvχ
+
+ . (30) Solving the eigenvalue problem associated with Eq. (30) yields the coupled magnon–phonon spectrum. Setting 
+
+G = 0 recovers the uncoupled phonon and magnon branches, whereas retaining G yields the hybridized modes. The detailed construction of the transverse spin coordinates and Hessian blocks is given in Appendix C. Figure 9 summarizes the resulting spectrum. In the absence of the cross term, the calculated magnon and phonon branches intersect along the selected momentum path. After the spin-lattice cross Hessian is included, the degeneracy at the crossing is lifted and the two branches repel each other, leaving a finite gap at the original in-tersection. This behavior is the expected spectral finger-print of magnon polarons. Importantly, the gap appears without introducing an explicit model Hamiltonian. It follows from the local curvature of the STEP potential energy surface with respect to both lattice and spin co-ordinates. It is worth noting that our calculated results should be interpreted as a semi-quantitative reproduction of the experimental magnon polaron spectra. To obtain a correct antiferromagnetic ground state, the underlying DFT+ U calculations were performed with a large U = 6 eV, which makes both the phonon and magnon spectra notably softer than experimental values. The Fe 2Mo 3O8 dataset used here contains only 97 DFT configurations, as detailed in Appendix B, and was designed primarily to test whether STEP can learn the spin-lattice energy surface from a limited amount of first-principles data. Over this full 97-configuration dataset, STEP achieves an energy MAE of 1.101 meV/atom, indi-cating that the sampled local energy landscape is fitted with high accuracy. Within this scope, the emergence of the magnon polaron spectra demonstrates that STEP captures the essential cross response encoded in Kuχ . To-gether with the CrI 3 phonon and magnon benchmarks, this result supports the use of STEP as a unified poten-tial for systems where magnetic and lattice degrees of freedom are intrinsically coupled.  
+
+> E. Finite-temperature magnetic phase transitions
+
+Another stringent test of a magnetic machine-learning potential is whether it remains reliable not only for static energies and forces, but also for finite-temperature mag-netic phase transitions in systems with distinct magnetic characters. Owing to its efficiency and scalability, STEP can be applied to large-scale finite-temperature spin dy-namics simulations. Here we consider two representative examples, monolayer CrI 3 and bcc Fe. Monolayer CrI 3
+
+is a prototypical magnet with local magnetic moments, whereas bcc Fe is a high-Tc itinerant ferromagnet with non-negligible longitudinal spin fluctuations across its magnetic phase transition. The contrast between these two systems therefore provides a stringent test of the extent to which STEP can describe finite-temperature magnetism across qualitatively different systems.         
+
+> 1. Monolayer CrI 320 40 60
+> Temperature (K)
+> 1
+> 2
+> Magnetization (  B)
+> (a)
+> CrI 3
+> 0500 1000 1500
+> Temperature (K)
+> 0
+> 1
+> 2
+> Magnetization (  B)
+> (b)
+> Fe
+> with LF
+> without LF
+> FIG. 10. Magnetization per magnetic atom of (a) monolayer CrI 3and (b) bcc Fe. For bcc Fe, results with and without longitudinal fluctuations (LF) are both presented for com-parison.
+
+We first examine the finite-temperature magnetic phase transition of monolayer CrI 3. Spin dynamics simu-lations were performed on a 20 × 20 × 1 supercell with in-plane lattice parameters a = b = 6 .9685 ˚ A and γ = 120 ◦.As CrI 3 is a magnet with well-defined local magnetic mo-ments, its thermally driven magnetic phase transition is expected to be dominated by transverse spin fluctuations. We therefore fixed the amplitude of each local magnetic moment to be 3 μB . The simulated temperature depen-dence of the magnetization is given in Fig. 10(a), in-dicating a ferromagnetic to paramagnetic transition at 
+
+Tc ∼ 55 K, in good agreement with reported theoreti-cal and experimental results [39, 40]. These results show that STEP captures the essential finite-temperature re-sponse of CrI 3 as an anisotropic two-dimensional magnet with local magnetic moments.  
+
+> 2. bcc Fe
+
+Since bcc Fe is an itinerant ferromagnet, longitudi-nal spin fluctuations (LSF) in the magnitudes of local 14 magnetic moments become increasingly important at el-evated temperatures, and the rigid spin approximation may consequently overestimate the stability of the fer-romagnetic phase [41]. To explicitly consider the effect of LSF, we performed generalized Langevin spin dynam-ics simulations [41]. Conventional spin dynamics simula-tions without LSF were also carried out for comparison. Further details of the spin dynamics formalism and sim-ulation protocol are provided in Appendix D. As shown in Fig. 10(b), compared to the experimental Tc of 1043 K [42], simulations with rigid spin obtain a Tc ∼1500 K, significantly overestimating the Tc by about 50%. Includ-ing LSF reduces the Tc to ∼1000 K, in good agreement with the experiments. 0               
+
+> 5
+> 10
+> 15
+> Distribution (%)  400 K 800 K
+> 01234
+> Mi(B)
+> 0
+> 5
+> 10
+> 15
+> Distribution (%)  1000 K
+> 01234
+> Mi(B)
+> 1200 K
+> FIG. 11. Distribution of local magnetic moments Miin bcc Fe, shown for 400, 800, 1000, and 1200 K.
+
+To quantitatively show the LSF, we plot the distribu-tion of local magnetic moments at representative temper-atures (see Fig. 11). At 400 K, the distribution of Mi is narrow and centered around the ground state value, indi-cating that the system remains in a robust ferromagnetic state with only weak LSF. As the temperature increases to 800 and 1000 K, the distribution becomes markedly broader, showing that thermal spin fluctuations in Fe cannot be described solely by rotations of rigid local mo-ments. Instead, longitudinal fluctuations become increas-ingly important when approaching Tc.Above Tc, at 1200 K, the distribution develops a clear low-moment tail extending toward zero moment. This behavior indicates that the thermal destruction of ferro-magnetism in Fe is accompanied not only by orientational disorder, but also by collapse of local moments on a sub-set of sites. In this sense, the present results directly support the view that longitudinal spin fluctuations are an essential ingredient for a realistic finite-temperature description of itinerant magnets. Taken together, our re-sults show that STEP provides a physically consistent description of itinerant magnetism in bcc Fe.  
+
+> IV. CONCLUSIONS
+
+We have introduced the Spin Tensor Equivariant Potential (STEP), an equivariant magnetic machine-learning potential that treats vector magnetic moments as continuous geometric degrees of freedom and cou-ples the central magnetic representation to an aggre-gated local spin-lattice environment through a Center-Environment Tensor Product. Together with equivari-ant gating, residual interaction updates, and feature-level time-reversal symmetrization, this construction provides a unified energy model from which forces, stresses, and magnetic forces are obtained by differentiation. Across public FeAl, CrN, and Fe benchmarks, STEP achieves competitive accuracy under the respective eval-uation protocols. Learning curves on monolayer CrI 3
+
+show that both higher-order tensor channels and it-erative center-environment coupling improve the learn-ing of magnetic energy gradients. The resulting po-tentials reproduce the main phonon and magnon fea-tures of monolayer CrI 3 and bcc Fe and provide a semi-quantitative description of magnon–phonon hybridiza-tion in Fe 2Mo 3O8. Finite-temperature spin dynamics further yields transition-temperature estimates near 55 K for monolayer CrI 3 and 1000 K for bcc Fe, while the comparison between fixed- and variable-length simula-tions demonstrates the importance of longitudinal mo-ment fluctuations in itinerant Fe. These results establish STEP as a data-efficient and physics-informed framework for coupled spin-lattice energetics, magnetic excitations, and finite-temperature magnetic simulations. 
+
+> Appendix A: Generalized dataset for monolayer CrI 3
+
+All density functional theory (DFT) calculations were performed using the Vienna ab initio Simulation Pack-age (VASP)[43, 44]. Spin-orbit coupling (SOC) effects were included. The projector-augmented wave (PAW) method[45, 46] was employed together with the Perdew-Burke-Ernzerhof (PBE)[47] exchange-correlation func-tional. The important van der Waals interactions in CrI 3
+
+were accounted for using the DFT-D3 correction with Becke-Johnson damping[48]. A plane-wave energy cutoff of 500 eV and a 2 × 2 × 1 k-point grid were used. A self-consistent effective Hubbard U[49] value of 1.7 eV[33] was applied to the localized Cr 3d electrons, as determined from linear-response calculations[50]. The training dataset was generated through a combi-nation of structural perturbations and active learning. Starting from the ground state 3 × 3 × 1 supercell of CrI 3 (72 atoms), we applied in-plane lattice scaling in the range [0.98, 1.02] with an interval of 0.02. A vacuum layer of 19.8 ˚ A was added in the out-of-plane direction to eliminate spurious interactions between periodic images of the two-dimensional material. For each scaling factor, 1000 random atomic displacements with a maximum am-plitude of 0.1 ˚ A were generated. The resulting structures 15 3.00 3.05 3.10 3.15 3.20 3.25 3.30 
+
+> uB
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> Count
+
+a Mean magmom per structure    
+
+> mean=3.173
+> median=3.179
+> 3.1 3.2 3.3 3.4
+> uB
+> 0
+> 10
+> 20
+> 30
+> 40
+> Count
+
+b Max magmom per structure      
+
+> mean=3.260
+> median=3.252
+> 2.9 3.0 3.1 3.2 3.3 3.4
+> uB
+> 0
+> 200
+> 400
+> 600
+> 800
+> Count
+
+c All atom magmom distribution      
+
+> mean=3.173
+> median=3.174
+> -4.04 -4.02 -4.00 -3.98 -3.96 -3.94
+> eV/atom
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> 70
+> Count
+
+d Energy per atom     
+
+> mean=-4.014
+> median=-4.020
+> 100 105 110 115 120
+> A^3/atom
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> Count
+
+e Volume per atom    
+
+> mean=110.590
+> median=111.607
+> 3.0 3.1 3.2 3.3
+> Mean magmom (uB)
+> -4.04
+> -4.02
+> -4.00
+> -3.98
+> -3.96
+> -3.94
+> Energy/atom (eV)
+
+f Energy vs Magmom(color=volume)     
+
+> Mean magmom
+> Mean energy
+> 100
+> 105
+> 110
+> 115
+> 120
+> Vol/atom (A^3)
+> 1.0 1.5 2.0 2.5 3.0
+> eV/A
+> 0
+> 10
+> 20
+> 30
+> 40
+> Count
+
+g Max force per structure      
+
+> mean=1.718
+> median=1.667
+> 0.4 0.6 0.8 1.0 1.2 1.4
+> eV/A
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> Count
+
+h Mean force per structure     
+
+> mean=0.670
+> median=0.641
+> 100 105 110 115 120
+> Volume per atom (A^3/atom)
+> -4.04
+> -4.02
+> -4.00
+> -3.98
+> -3.96
+> -3.94
+> Energy per atom (eV)
+
+i Energy vs Volume(orange = lowest-E structures) 
+
+> All structures
+> Top-50 lowest-E
+> Top-50 mean=110.1084
+
+FIG. 12. Distribution of structural and magnetic properties in the CrI 3 training dataset. a –c, Distributions of the mean magnetic moment per structure ( a), the maximum magnetic moment per structure ( b), and the absolute magnetic moments of all individual magnetic atoms ( c), demonstrating a robust coverage of local spin fluctuations around the ferromag-netic ground state. d,e, Histograms of the potential energy per atom ( d) and the volume per atom ( e). f, Correlation between the energy and the mean magnetic moment, with the point color indicating the volume per atom. The dashed lines represent the dataset averages. g,h, Distributions of the maximum ( g) and mean ( h) force within each structure, ensuring sufficient gradient information for force-field parameterization. i, Energy–volume phase space of the dataset. The top-50 lowest-energy configurations are highlighted in orange, showing the sampling density near the theoretical equilibrium state. 
+
+were then sparsified and diversified using the farthest-point sampling method implemented in NepTrainKit[51], yielding 150 representative structures with combined lat-tice scaling and atomic perturbations. We first performed DFT calculations on these 150 per-turbed structures in the ferromagnetic spin configuration to obtain energies and related properties, forming the ini-tial dataset. Using the Neuroevolution-potential (NEP) framework[52, 53], we trained a preliminary model on these structures. Based on this model, we conducted molecular dynamics (MD) simulations on the 3 × 3 ×
+
+1 CrI 3 supercell under non-magnetic conditions. Two thermal protocols were employed: (i) continuous heat-ing from 100 K to 500 K followed by continuous cooling back to 100 K, and (ii) stepwise heating and cooling with each 100 K interval held for 1 ns. In both cases, the out-of-plane box dimension was fixed at 19.8 ˚ A throughout the simulations. From these trajectories, 320 structures were collected and subjected to DFT calculations in the ferromagnetic configuration. For all 470 structures obtained so far (150 perturbed + 320 from MD), we generated additional spin configura-tions as follows: for each structure, two random spin con-figurations were created for every Cr atom with a max-imum deviation of 90 ◦ from the primary axis, and four completely random magnetic orders were also produced. DFT calculations with the same accuracy were performed on all these spin-configured structures. This process ulti-mately produced the complete dataset of 3290 structures encompassing a wide variety of spin configurations. For the compact 900-configuration subset used in the main CrI 3 validation, the distributions of magnetic mo-ments, energies, volumes, and force magnitudes are sum-marized in Fig. 12, confirming that the selected subset retains broad structural and magnetic coverage. As illustrated in the data distribution profiles (Fig. 12), 16 this compact dataset effectively encompasses a broad structural and magnetic phase space. Specifically, the potential energy spans from −4.05 to −3.94 eV/atom, and the atomic volume varies significantly from 99 .88 to 122 .73 ˚ A3/atom, capturing the essential energy vari-ations associated with lattice expansion, compression, and other structural changes. Furthermore, the dataset contains diverse spin-lattice coupling environments: the magnitude of the atomic magnetic moments fluctuates around an average of 3 .17 μB , with individual atomic mo-ments ranging from 2 .89 to 3 .46 μB . The structures also exhibit a robust distribution of forces (mean value ∼ 0.67 eV/˚ A, maximum up to 3 .20 eV/˚ A), providing sufficient gradient information for accurate force-field parameteri-zation. 
+
+> Appendix B: Dataset for Fe 2Mo 3O8
+
+Consistent with the calculations performed on CrI 3,DFT single-point calculations on Fe 2Mo 3O8 were carried out using VASP[43, 44] with the PAW method[45, 46] and PBE exchange-correlation functional[47]. SOC ef-fects were included self-consistently. To correctly stabi-lize the antiferromagnetic (AFM) ground state, the on-site Coulomb interaction U and exchange interaction J for the Fe 3d orbitals were treated using the fully rota-tionally invariant LSDA+U approach[49] introduced by Liechtenstein et al.[54], with U = 6 eV and J = 0 eV. Owing to the default Wigner-Seitz sphere integration vol-ume in the pseudopotentials, the calculated magnetic mo-ments in Fe 2Mo 3O8 are smaller than the experimental values (Fe t = 3.78 μB and Fe o = 3.81 μB in our calcu-lations). This underestimation has also been noted in previous studies by Chang et al.[55]. The dataset was constructed as follows. Experimental lattice constants were employed, with two types of super-cells ( 2 ×1×1 and a 1 ×1×2) generated to balance compu-tational cost and magnetic configuration sampling. For each type of supercell, 50 structures with random atomic displacements (maximum amplitude 0.1 ˚ A) were created. Each structure was initialized with a fully random orien-tation of the magnetic moments. Single-point DFT cal-culations were performed on the resulting 100 structures. After excluding 4 structures that failed to converge, and including the ground-state AFM configuration, a total of 97 structures were collected as the final dataset. 
+
+> Appendix C: Magnon–phonon spectra from the STEP energy surface
+
+The coupled magnon–phonon spectrum was obtained by linearizing the learned STEP energy surface around the relaxed antiferromagnetic reference configuration. Let R0 and {S0 
+
+> i
+
+} denote the equilibrium atomic posi-tions and magnetic moments. Atomic displacements are defined as u = R − R0. For each magnetic atom, the spin fluctuation is projected onto the local tangent plane perpendicular to S0 
+
+> i
+
+,
+
+δSi = χi1ei1 + χi2ei2, eia · S0 
+
+> i
+
+= 0 , (C1) where {ei1, ei2} is a local orthonormal transverse basis and χ collects all transverse spin coordinates. Keeping only the harmonic terms gives 
+
+E = E0 + 12 uT Kuu u + 12 χT Kχχ χ + uT Kuχ χ, (C2) with 
+
+Kuu = ∂2E∂u ∂u , Kχχ = ∂2E∂χ ∂χ , Kuχ = ∂2E∂u ∂χ , (C3) evaluated at ( R0, {S0 
+
+> i
+
+}). The three Hessian blocks were evaluated from the differentiable STEP energy surface, so that the force-constant, magnetic-stiffness, and spin-lattice coupling matrices are mutually consistent deriva-tives of the same learned potential energy surface. The lattice part is converted to the standard phonon form by the mass-normalized coordinate x = M 1/2u:
+
+Dph = M −1/2Kuu M −1/2, G = M −1/2Kuχ . (C4) The linearized Newton equation for the lattice variables is therefore ¨x = −Dph x − Gχ. (C5) The transverse spin dynamics is written in first-order pre-cessional form, ˙χ = J  G†x + Kχχ χ , (C6) where J is a block-diagonal antisymmetric matrix deter-mined by the local spin precession convention. Combin-ing Eqs. (C5) and (C6) with v = ˙ x gives 
+
+ddt 
+
+xvχ
+
+ =
+
+ 0 I 0
+
+−Dph 0 −G
+
+J G† 0 J Kχχ 
+
+xvχ
+
+ . (C7) For a normal mode with time dependence exp( iωt ), Eq. (C7) becomes a matrix eigenvalue problem with eigenvalues λ = iω . The positive-frequency branches ex-tracted from these eigenvalues give the coupled magnon– phonon spectrum. In the calculations shown in Fig. 9, the uncoupled reference spectrum was obtained by set-ting G = 0, while the hybridized spectrum was obtained by retaining the full spin-lattice cross Hessian G.
+
+> Appendix D: Details of spin molecular dynamics simulations
+
+Spin-molecular dynamics simulations were performed using the semi-implicit B (SIB) integration scheme im-plemented in LAMMPS [56, 57]. In all simulations, the lattice degrees of freedom were kept fixed, and the spin-dynamics time step was set to 1 .0 fs. 17 
+
+1. CrI 3
+
+For monolayer CrI 3, a 20 × 20 × 1 supercell containing 3200 atoms was employed. The in-plane lattice constant was 6 .9685 ˚ A. The simulation cell length along the out-of-plane direction was 20 .7559 ˚ A, providing vacuum sep-aration between periodic images of the monolayer. Rigid spin dynamics was employed, with the magnitude of each local magnetic moment set to 3 μB . The spin system was coupled to a transverse Langevin thermostat with a damping parameter of 0 .1. At each temperature, the sys-tem was equilibrated for 20 ps and subsequently sampled for 100 ps. Near the magnetic phase-transition region, the sampling time was extended to 200 ps to improve statistical accuracy. 
+
+2. bcc Fe 
+
+For bcc Fe, a 10 × 10 × 10 supercell constructed from the conventional cubic unit cell was employed, corre-sponding to a cubic simulation cell with a side length of 28 .6304 ˚ A. Longitudinal fluctuations of local magnetic moments were included using the generalized Langevin spin-dynamics formalism. The local magnetic moment is decomposed as 
+
+mi = miˆsi, |ˆsi| = 1 , (D1) where mi and ˆ si denote the moment magnitude and di-rection, respectively. The effective magnetic field is cal-culated as 
+
+Heff  
+
+> i
+
+= − ∂E ∂mi
+
+. (D2) The generalized Langevin dynamics combines stochas-tic transverse spin dynamics with longitudinal relaxation of the moment magnitude. The transverse dynamics fol-lows the stochastic Landau–Lifshitz equation integrated using the SIB scheme proposed by Mentink et al. ,[56] whereas the longitudinal dynamics follows the variable-length Langevin spin formalism introduced by Ma and Dudarev.[41] The transverse spin dynamics is given by 
+
+dˆsi
+
+dt = − γ
+
+1 + α2
+
+> t
+
+h
+
+ˆsi ×  Heff  
+
+> i, ⊥
+
++ ηi,T 
+
+
+
++ αtˆsi × ˆsi ×  Heff  
+
+> i, ⊥
+
++ ηi,T 
+
+ i
+
+,
+
+(D3) where 
+
+Heff  
+
+> i, ⊥
+
+= Heff  
+
+> i
+
+−  Heff  
+
+> i
+
+· ˆsi
+
+ ˆsi. (D4) Here, γ is the gyromagnetic ratio, αt is the transverse damping coefficient, and ηi,T denotes the transverse ther-mal noise. The longitudinal dynamics of the moment magnitude is described by 
+
+dm i
+
+dt = γLHeff  
+
+> i, ∥
+
++ ξi,L , (D5) where 
+
+Heff  
+
+> i, ∥
+
+= Heff  
+
+> i
+
+· ˆsi. (D6) 
+
+ACKNOWLEDGMENTS 
+
+This work was supported by the National Key R&D Program of China (Grant No. 2023YFB4603801), Na-tional Natural Science Foundation of China (Grant Nos. 12474249,U25A20193), Guangdong Provincial Key Laboratory of Magnetoelectric Physics and Devices (No. 2022B1212010008). 
+
+[1] J. Behler and M. Parrinello, Generalized neural-network representation of high-dimensional potential-energy sur-faces, Phys. Rev. Lett. 98 , 146401 (2007). [2] A. P. Bart´ ok, M. C. Payne, R. Kondor, and G. Cs´ anyi, Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons, Phys. Rev. Lett. 104 , 136403 (2010). [3] L. Zhang, J. Han, H. Wang, R. Car, and W. E, Deep potential molecular dynamics: A scalable model with the accuracy of quantum mechanics, Phys. Rev. Lett. 120 ,143001 (2018). [4] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, E (3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials, Nature communications 13 , 2453 (2022). [5] I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Cs´ anyi, Mace: Higher order equivariant message pass-ing neural networks for fast and accurate force fields, Advances in neural information processing systems 35 ,11423 (2022). [6] T. S. Kostiuchenko, A. V. Shapeev, and I. S. Novikov, Interatomic interaction models for magnetic materials: recent advances, Chinese Physics Letters 41 , 066101 (2024). [7] Z. Yuan, Z. Xu, H. Li, X. Cheng, H. Tao, Z. Tang, Z. Zhou, W. Duan, and Y. Xu, Equivariant neural net-work force fields for magnetic materials, Quantum Fron-tiers 3, 8 (2024). [8] I. Novikov, B. Grabowski, F. K¨ ormann, and A. Shapeev, Magnetic moment tensor potentials for collinear spin-polarized materials reproduce different magnetic states of bcc fe, npj Computational Materials 8, 13 (2022). [9] R. Drautz, Atomic cluster expansion of scalar, vectorial, and tensorial properties including magnetism and charge transfer, Physical Review B 102 , 024104 (2020). 18 
+
+[10] T. Yang, Z. Cai, Z. Huang, W. Tang, R. Shi, A. Godfrey, H. Liu, Y. Lin, C.-W. Nan, M. Ye, et al. , Deep learn-ing illuminates spin and lattice interaction in magnetic materials, Physical Review B 110 , 064427 (2024). [11] C. H. Ho, C. van der Oord, J. P. Darby, T. Keane, R. L. Benson, C. R. Espinoza, R. Kulkarni, E. Spinu, M. Pa-panikolaou, R. Tomsett, et al. , Equivariant many-body message passing interatomic potentials for magnetic ma-terials, arXiv preprint arXiv:2604.08143 (2026). [12] H. Yu, B. Liu, Y. Zhong, L. Hong, J. Ji, C. Xu, X. Gong, and H. Xiang, Physics-informed time-reversal equivariant neural network potential for magnetic materials, Physical Review B 110 , 104427 (2024). [13] M. Geiger and T. Smidt, e3nn: Euclidean neural net-works, arXiv preprint arXiv:2207.09453 (2022). [14] A. S. Kotykhov, M. Hodapp, C. Tantardini, K. Kravtsov, I. Kruglov, A. V. Shapeev, and I. S. Novikov, Actively trained magnetic moment tensor potentials for mechan-ical, dynamical, and thermal properties of paramagnetic crn, Physical Review B 111 , 094438 (2025). [15] A. S. Kotykhov, K. Gubaev, M. Hodapp, C. Tantar-dini, A. V. Shapeev, and I. S. Novikov, Constrained dft-based magnetic machine-learning potentials for magnetic alloys: a case study of fe–al, Scientific reports 13 , 19728 (2023). [16] D. Zheng, X. Peng, Y. Huang, Y. Wang, D. Zhang, Z. Huang, Z. Cai, L. Zhang, M. Chen, B. Xu, et al. , In-tegrating deep-learning-based magnetic model and non-collinear spin-constrained method: methodology, imple-mentation and application, npj Computational Materials (2026). [17] L. D. Landau and E. M. Lifshitz, Statistical physics: vol-ume 5 , Vol. 5 (Elsevier, 2013). [18] N. Thomas, T. Smidt, S. Kearnes, L. Yang, L. Li, K. Kohlhoff, and P. Riley, Tensor field networks: Rotation-and translation-equivariant neural networks for 3d point clouds, arXiv preprint arXiv:1802.08219 (2018). [19] M. Weiler, M. Geiger, M. Welling, W. Boomsma, and T. S. Cohen, 3d steerable cnns: Learning rotationally equivariant features in volumetric data, Advances in Neu-ral information processing systems 31 (2018). [20] T. L. Gilbert, A phenomenological theory of damping in ferromagnetic materials, IEEE transactions on magnetics 
+
+40 , 3443 (2004). [21] D. P. Kingma and J. Ba, Adam: A method for stochastic optimization, arXiv preprint arXiv:1412.6980 (2014). [22] S. J. Reddi, S. Kale, and S. Kumar, On the convergence of adam and beyond, arXiv preprint arXiv:1904.09237 (2019). [23] B. T. Polyak and A. B. Juditsky, Acceleration of stochas-tic approximation by averaging, SIAM journal on control and optimization 30 , 838 (1992). [24] I. T. Jolliffe and J. Cadima, Principal component anal-ysis: a review and recent developments, Philosophical transactions of the royal society A: Mathematical, Phys-ical and Engineering Sciences 374 , 20150202 (2016). [25] G. Imbalzano, A. Anelli, D. Giofr´ e, S. Klees, J. Behler, and M. Ceriotti, Automatic selection of atomic finger-prints and reference configurations for machine-learning potentials, The Journal of chemical physics 148 (2018). [26] B. Xu, (2026), private communication. [27] M. Pajda, J. Kudrnovsk` y, I. Turek, V. Drchal, and P. Bruno, Ab initio calculations of exchange interactions, spin-wave stiffness constants, and curie temperatures of fe, co, and ni, Physical Review B 64 , 174402 (2001). [28] P. Buczek, A. Ernst, and L. M. Sandratskii, Different di-mensionality trends in the landau damping of magnons in iron, cobalt, and nickel: Time-dependent density func-tional study, Physical Review B—Condensed Matter and Materials Physics 84 , 174418 (2011). [29] A. I. Liechtenstein, M. Katsnelson, V. Antropov, and V. Gubanov, Local spin density functional approach to the theory of exchange interactions in ferromagnetic met-als and alloys, Journal of Magnetism and Magnetic Ma-terials 67 , 65 (1987). [30] J. Kaplan, S. McCandlish, T. Henighan, T. B. Brown, B. Chess, R. Child, S. Gray, A. Radford, J. Wu, and D. Amodei, Scaling laws for neural language models, arXiv preprint arXiv:2001.08361 (2020). [31] J. Dillon Jr and C. Olson, Magnetization, resonance, and optical properties of the ferromagnet cri3, Journal of Ap-plied Physics 36 , 1259 (1965). [32] B. Huang, G. Clark, E. Navarro-Moratalla, D. R. Klein, R. Cheng, K. L. Seyler, D. Zhong, E. Schmidgall, M. A. McGuire, D. H. Cobden, et al. , Layer-dependent ferro-magnetism in a van der waals crystal down to the mono-layer limit, Nature 546 , 270 (2017). [33] S. Sarkar and P. Kratzer, Magnetic exchange interactions in bilayer cr x 3 (x= cl, br, and i): A critical assessment of the dft+ u approach, Physical Review B 103 , 224421 (2021). [34] L. Chen, J.-H. Chung, B. Gao, T. Chen, M. B. Stone, A. I. Kolesnikov, Q. Huang, and P. Dai, Topological spin excitations in honeycomb ferromagnet cri 3, Physical Re-view X 8, 041028 (2018). [35] D. Bertrand and H. Kerner-Czeskleba, ´Etude structurale et magn´ etique de molybdates d’´ el´ ements de transition, Journal de Physique 36 , 379 (1975). [36] S. McAlister and P. Strobel, Magnetic order in m2mo3o8 single crystals (m= mn, fe, co, ni), Journal of Magnetism and Magnetic Materials 30 , 340 (1983). [37] S. Bao, Z.-L. Gu, Y. Shangguan, Z. Huang, J. Liao, X. Zhao, B. Zhang, Z.-Y. Dong, W. Wang, R. Kajimoto, 
+
+et al. , Direct observation of topological magnon polarons in a multiferroic material, Nature Communications 14 ,6093 (2023). [38] F. Wu, S. Bao, J. Zhou, Y. Wang, J. Sun, J. Wen, Y. Wan, and Q. Zhang, Fluctuation-enhanced phonon magnetic moments in a polar antiferromagnet, Nature Physics 19 , 1868 (2023). [39] B. Huang, G. Clark, E. Navarro-Moratalla, et al. , Layer-dependent ferromagnetism in a van der waals crystal down to the monolayer limit, Nature 546 , 270 (2017). [40] B. Rzepkowski, M. Kupczynski, P. Potasz, and A. Wos, Dmrg and monte carlo studies of cri 3 magnetic phases and the phase transition, Physical Review B (2022). [41] P.-W. Ma and S. L. Dudarev, Longitudinal magnetic fluc-tuations in langevin spin dynamics, Phys. Rev. B 86 ,054416 (2012). [42] J. Crangle and G. M. Goodman, The magnetization of pure iron and nickel, Proceedings of the Royal Society of London. A. Mathematical and Physical Sciences 321 ,477 (1971). [43] G. Kresse and J. Furthm¨ uller, Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set, Computational materials science 
+
+6, 15 (1996). 19 
+
+[44] G. Kresse and J. Furthm¨ uller, Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set, Physical Review B 54 , 11169 (1996). [45] P. E. Bl¨ ochl, Projector augmented-wave method, Physi-cal Review B 50 , 17953 (1994). [46] G. Kresse and D. Joubert, From ultrasoft pseudopoten-tials to the projector augmented-wave method, Physical Review B 59 , 1758 (1999). [47] J. P. Perdew, K. Burke, and M. Ernzerhof, Generalized gradient approximation made simple, Physical review let-ters 77 , 3865 (1996). [48] S. Grimme, S. Ehrlich, and L. Goerigk, Effect of the damping function in dispersion corrected density func-tional theory, Journal of computational chemistry 32 ,1456 (2011). [49] S. L. Dudarev, G. A. Botton, S. Y. Savrasov, C. Humphreys, and A. P. Sutton, Electron-energy-loss spectra and the structural stability of nickel oxide: An lsda+ u study, Physical Review B 57 , 1505 (1998). [50] M. Cococcioni and S. De Gironcoli, Linear response ap-proach to the calculation of the effective interaction pa-rameters in the lda+ u method, Physical Review B 71 ,035105 (2005). [51] C. Chen, Y. Li, R. Zhao, Z. Liu, Z. Fan, G. Tang, and Z. Wang, Neptrain and neptrainkit: Automated ac-tive learning and visualization toolkit for neuroevolution potentials, Computer Physics Communications , 109859 (2025). [52] K. Song, R. Zhao, J. Liu, Y. Wang, E. Lindgren, Y. Wang, S. Chen, K. Xu, T. Liang, P. Ying, et al. ,General-purpose machine-learned potential for 16 ele-mental metals and their alloys, Nature Communications 
+
+15 , 10208 (2024). [53] K. Xu, H. Bu, S. Pan, E. Lindgren, Y. Wu, Y. Wang, J. Liu, K. Song, B. Xu, Y. Li, et al. , Gpumd 4.0: ahigh-performance molecular dynamics package for ver-satile materials simulations with machine-learned poten-tials, Materials Genome Engineering Advances 3, e70028 (2025). [54] A. I. Liechtenstein, V. I. Anisimov, and J. Zaanen, Density-functional theory and strong interactions: Or-bital ordering in mott-hubbard insulators, Phys. Rev. B 
+
+52 , R5467(R) (1995). [55] Y. Chang, Y. Weng, Y. Xie, B. You, J. Wang, L. Li, J.-M. Liu, S. Dong, and C. Lu, Colossal linear magne-toelectricity in polar magnet fe 2mo 3o8, Phys. Rev. Lett. 
+
+131 , 136701 (2023). [56] J. H. Mentink, M. V. Tretyakov, A. Fasolino, M. I. Kat-snelson, and T. Rasing, Stable and fast semi-implicit in-tegration of the stochastic landau–lifshitz equation, J. Phys.: Condens. Matter 22 , 176001 (2010). [57] A. P. Thompson, H. M. Aktulga, R. Berger, D. S. Bolin-tineanu, W. M. Brown, P. S. Crozier, P. J. in ’t Veld, A. Kohlmeyer, S. G. Moore, T. D. Nguyen, R. Shan, M. J. Stevens, J. Tranchida, C. Trott, and S. J. Plimpton, LAMMPS: A flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales, Computer Physics Communications 271 , 108171 (2022).

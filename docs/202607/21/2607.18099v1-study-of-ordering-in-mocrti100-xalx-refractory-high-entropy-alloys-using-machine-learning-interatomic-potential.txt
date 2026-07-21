@@ -1,0 +1,507 @@
+Title: Study of ordering in (MoCrTi)_100-xAl_x refractory high-entropy alloys using machine learning interatomic potential
+
+URL Source: https://arxiv.org/pdf/2607.18099v1
+
+Published Time: Tue, 21 Jul 2026 02:06:09 GMT
+
+Number of Pages: 19
+
+Markdown Content:
+# Study of ordering in (MoCrTi) 100 −xAl x refractory high-entropy alloys using machine learning interatomic potential 
+
+Jiyao Zhang a, Klemens Lechner a, Markus Maßwohl b, Petra Spoerk-Erdely b, David Holec a
+
+> aDepartment of Materials Science, Montanuniversität Leoben, Franz-Josef-Strasse 18, Leoben, 8700, Austria
+> bInstitute of Materials Science, Joining and Forming, Graz University of Technology, Kopernikusgasse 24/I, Graz, 8010, Austria
+
+Abstract 
+
+Refractory high-entropy alloys have emerged as promising candidates for high-temperature applications due to their exceptional mechanical properties. Understand-ing the thermodynamic mechanisms underlying chemical ordering in these complex sys-tems is critical for optimizing their performance. In this work, by utilizing a universal machine learning interatomic potential with hybrid Monte Carlo and molecular dynam-ics simulations, the temperature-dependent thermodynamics and mechanical properties of (MoCrTi) 100 −xAl x system have been investigated. The heat capacities and short-range order parameters reveal distinct order-disorder transition behaviors. While the Mo 25 Cr 25 Ti 25 Al 25 and Mo 32 Cr 32 Ti 32 Al 4 alloys exhibit a single transition dominated by the synergistic ordering of B2-type atomic pairs, the Mo 28 Cr 28 Ti 28 Al 16 and Mo 30 Cr 30 Ti 30 Al 10 
+
+alloys display two separate transitions: a low-temperature stage driven by specific pairs (Mo–Al in Mo 28 Cr 28 Ti 28 Al 16 ; Al–Al in Mo 30 Cr 30 Ti 30 Al 10 ) and a high-temperature stage governed by the remaining pairs. Structural analysis indicates that in the low-temperature ordered B2 phase, Mo and Al share one sublattice while Cr and Ti share the other. Fur-thermore, the relationship between ordering and mechanical stiffness has been identified. Ordering significantly enhances the elastic constants and moduli, and gives rise to a non-monotonic compositional dependence. Unlike random solid solutions, where stiff-ness increases monotonically with decreasing Al content, ordered configurations exhibit a non-monotonic trend, peaking at the Mo 30 Cr 30 Ti 30 Al 10 alloy. This enhancement is at-tributed to an optimized population of stiff atomic pairs induced by strong short-range order. These findings provide fundamental insights into the interplay between composi-tions, chemical ordering, and mechanical performance, offering guidance for the design of refractory high-entropy alloys. 
+
+Keywords: Refractory high entropy alloys, Short-range order, Machine learning interatomic potential, Monte Carlo simulation 
+
+1. Introduction 
+
+The aerospace industry increasingly demands refractory alloys capable of withstand-ing extreme thermal environments. Refractory high entropy alloys (RHEAs), composed of principal elements with high melting points, have emerged as promising candidates to arXiv:2607.18099v1 [cond-mat.mtrl-sci] 20 Jul 2026 meet these challenges. Since the initial report of NbMoTaW(V) RHEAs by Senkov et al. [1, 2] in the 2010s, RHEAs have attracted significant research attention [3]. Notably, RHEAs exhibit high-temperature mechanical performance superior to that of traditional Ni-based superalloys [4], positioning them as ideal materials for next-generation elevated temperature applications. Early RHEAs’ development focused on single-phase solid so-lutions. Systems such as ZrNbTiVHf [5] and HfNbTiZr [6] typically form stable single-phase body-centered cubic (BCC, Strukturbericht designation A2, space group Im ¯3m)microstructures due to the high mutual solubility of their constituent refractory metal elements. However, the introduction of specific elements, particularly Al, tends to induce multiphase microstructures in Ta/Nb–MoCrTiAl systems. While complex phases can introduce enhancement as well as brittleness, controlled precipitation strengthening has shown great potential. For instance, Yang et al. [7] demonstrated that the precipitation-strengthened Ta 27 .3Mo 27 .3Ti 27 .3Cr 8Al 10 (at.%) alloy, characterized by a disordered A2 ma-trix and ordered B2 (space group P m ¯3m) precipitates, exhibits substantially higher creep resistance (minimum creep rate reported four orders of magnitude lower) compared to other single-phase A2 TiZrHfNbTa or B2 NbMoCrTiAl RHEAs. Nevertheless, precise phase control remains a challenge. Müller et al. [8] reported the formation of brittle Laves phases (e.g., Cr 2Nb, Strukturbericht designation C15, space group F d ¯3m) and A15 (space group P m ¯3n) phases in Nb/Ta–MoCrTiAl systems, noting that suppressing these detrimental phases requires reducing Cr and Ta/Nb contents. In this context, the MoCr-TiAl system presents a distinct advantage. Laube et al. [9, 10] found that this system can suppress Laves phase formation while retaining B2 phase which is beneficial to the high-temperature performance. By varying the Al content, the volume fraction of B2 phase in the A2 matrix can be tailored to optimize mechanical properties: increasing Al typically raises the B2 phase fraction and thus improves strength, but it often reduces ductility [9, 10]. Consequently, by achieving a balanced, coherent B2/A2 microstructure (often referred to as a superalloy-like structure), it is possible to optimize the strength-ductility trade-off. However, a detailed understanding of the underlying atomic-scale mechanisms gov-erning these order-disorder transitions and configuration stability is missing. The multi-principal elements nature of RHEAs makes theoretical modeling particularly challenging. Traditional approaches, such as cluster expansion and the embedded atom method, are prone to overfitting [11]. Furthermore, first-principles Density Functional Theory (DFT) calculations are computationally prohibitive for large-scale RHEAs simulations due to the substantial resources required [11]. The past decades have brought great progress in machine learning (ML), which has encouraged its application in materials science. For in-stance, Li et al. [12] developed a machine learning interatomic potential using the spectral neighbor analysis potential (SNAP) approach to study the complex strengthening mecha-nisms in the NbMoTaW alloy. This potential has also been utilized to investigate the hier-archical energy landscape of screw dislocation motion in RHEAs [13]. Similarly, Gubaev et al. [14] developed two ML-based potentials, a moment tensor potential (MTP) and a Gaussian moment neural network (GM-NN), which accurately capture atomic interactions in the TaVCrW system. While these ML-based models are significantly more accurate than conventional embedded-atom method (EAM) potentials (also fitted in Ref. [14]), they are typically developed for specific alloy systems and require extensive DFT training datasets (e.g., over 6000 configurations [14]), limiting their transferability. Fortunately, 2the rapid advancement of data-driven materials science and large-scale databases, such as the Materials Project [15], has facilitated the development of universal Machine Learning Interatomic Potentials (uMLIPs) [16]. These universal models offer a promising solution to HEA modeling challenges by effectively learning from ab-initio data across the periodic table, enabling efficient simulations of chemically complex compositions [17]. In this research, we employ a combination of atomistic modeling techniques, including molecular dynamics (MD), Monte Carlo (MC), and DFT, to investigate the short-range order (SRO) in (MoCrTi) 100 −xAl x RHEAs as a function of composition and temperature. First, we detail the atomistic simulation protocols, SRO characterization methods, and heat capacity calculations. Next, we analyze the heat capacity curves and investigate the correlation between SRO parameters and the order/disorder transition. Finally, the impact of SRO evolution on the mechanical properties of the RHEAs is determined. 
+
+2. Computational methods 
+
+2.1. Hybrid Monte Carlo/molecular dynamics simulations 
+
+Hybrid MC/MD simulations were conducted using the Atomic Simulation Envi-ronment (ASE) [18] combined with the uMLIP GRACE-1L-OAM model developed by Bochkarev et al. [19]. The GRACE-1L-OAM model offers an optimal balance between ac-curacy and computational efficiency [16], and GRACE uMLIP’s reliability has been exten-sively validated in prior studies [16, 20]. To systematically investigate the influence of alu-minum content on the order-disorder transition, four alloy compositions with decreasing Al concentrations were selected: Mo 25 Cr 25 Ti 25 Al 25 , Mo 28 Cr 28 Ti 28 Al 16 , Mo 30 Cr 30 Ti 30 Al 10 ,and Mo 32 Cr 32 Ti 32 Al 4 (at.%). For brevity, these alloys are hereafter referred to as Al25, Al16, Al10, and Al4, respectively. Initial atomic configurations were generated as special quasi-random structures (SQS) using the sqsgenerator code [21], based on a BCC 4 × 5 × 5 supercell containing 200 atoms with lattice constant a = 3 .17 Å. For all compositions, the simulation protocol at each temperature (i.e. 200, 400, 600, 800, 850, 900, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1400, 1600, 1800, and 2000 K) comprised three sequential stages, as illustrated in Fig. 1: 1. Stage I: MC Equilibration : Starting from the initial SQS configuration, trial structures were generated by randomly swapping two atoms while keeping the lattice fixed. The Metropolis algorithm [22] was employed to determine the acceptance of each new configuration. Swaps between atoms of the same element were skipped to ensure that each attempt altered the configuration. To ensure thermodynamic robustness, the equilibration was performed for 2,000,000 MC steps. 2. Stage II: MD Thermal Expansion : The equilibrated structures at each temper-ature for all the compositions obtained from Stage I served as the starting configu-rations for N P T (obaric-isothermal) MD simulations. In this stage, the cell volume was allowed to relax while the cell shape was constrained to allow for thermal ex-pansion. The simulations were conducted for 50,000 steps with a time step of 2.0 fs (total duration of 100 ps). 3. Stage III: Production MC Simulation : Starting from the thermally expanded structures, additional 2,000,000 MC steps were performed to collect sufficiently ther-mally equilibrated data for the subsequent calculation of heat capacity and SRO parameters. 3Start: SQS Initial State Swap Atoms Randomly Current Structure Trial Structure MC_1 Metropolis Algotithm N loops Chemical Order/disorder Structures From MC_1 MD Simulation: Thermal Expansion Revised Structures End: MC_2 N Loops 
+
+## Stage Ⅰ
+
+## Stage Ⅱ
+
+## Stage ⅢFigure 1: The workflow of hybrid MC/MD simulations. For a detailed explanation of individual stages, see the text. 
+
+Validation data for the first MC and MD simulations are provided in the Supplemen-tary Material. As shown in Fig. S1, all the potential energies stabilize after approximately 1,000,000 steps, confirming that the systems reached thermodynamic equilibrium for the first MC simulations (performed on a fixed lattice). The presence of SRO is evidenced by the negative SRO parameters observed in Fig. S2. These equilibrated configurations served as starting points for the subsequent MD thermal expansion calculations. The MD results demonstrate thermal equilibration through the convergence of lattice constants (Fig. S3) and exhibit a linear expansion trend (Fig. S4). Results from the second MC simulations will be discussed later. In MC simulations, the constant-volume heat capacities ( CV ) are calculated based on energy fluctuations within the N V T ensemble (constant number of atoms, volume, and temperature), a fundamental concept in statistical mechanics [23, 24]. The core formula is: 
+
+CV = ⟨E2⟩ − ⟨ E⟩2
+
+kB T 2 , (1) where ⟨E⟩ is the ensemble average of the global potential energy, ⟨E2⟩ is the ensemble average of the square of the global potential energy, kB is the Boltzmann constant (8 .617 ·
+
+10 −5 eV/K ), and T is the absolute temperature. To quantitatively characterize the degree of SRO within the alloys, the Warren-Cowley parameters were employed. The SRO parameter αiξη (σ), representing a specific atomic pair within a given coordination shell, is defined as follows [25]: 
+
+αiξη (σ) = 1 − N iξη (σ)
+
+N M i xξ xη
+
+, (2) 4where ξ and η denote atomic species in the system, N iξη (σ) is the actual observed number of ξ–η atomic pairs in the ith coordination shell for configuration σ, N is the number of lattice sites, M i is the number of nearest neighbors in the given atomic arrangement, and 
+
+xξ and xη are the concentrations of species ξ and η, respectively. N M i xξ xη represents the expected number of ξ–η pairs in a perfectly random solid solution (ideal mixture). 
+
+α = 0 signifies that atoms are distributed randomly (ideal solid solution). When α > 0,there are fewer ξ–η pairs than would be expected in a random distribution, indicating segregation (repulsion between species). Conversely, when α < 0, more ξ–η pairs exist than predicted by random distribution, suggesting ordering (attraction between species). 
+
+2.2. DFT Simulation 
+
+The quantum-mechanical calculations were conducted utilizing the Vienna Ab-initio Simulation Package (VASP) [26, 27] within the DFT [28, 29] framework, employing the projector augmented-wave (PAW) pseudopotentials [30] and the Perdew-Burke-Ernzerhof (PBE) exchange-correlation functional [31]. The 2 × 1 × 1 supercells of the conventional BCC unit cell contain 4 atoms, which split into two sublattices resembling the corre-sponding B2 structure with two sublattices: one containing the corner positions and one containing the central positions. By placing Mo, Cr, Ti, and Al on these different sublat-tices, various configurations can be obtained, as illustrated in Fig. 2. Depending on the occupation of sublattices, they are named as shown in Table 1. A plane-wave cutoff energy (ENCUT ) of 500 eV and a Gamma-centered k-point mesh of 5 × 10 × 10 were employed. The convergence criteria for the electronic self-consistent step and the ionic relaxation were set to 10 −5 eV and 10 −3 eV/Å, respectively. Additionally, ISIF = 8 was used to exclude the influence of cell shape relaxations. 
+
+> Figure 2: Schematic of the B2-based configuration. Table 1: Various configurations of the supercell with different atomic arrangements.
+
+Configuration Corner 1 Corner 2 Center 1 Center 2 (Mo,Cr)_(Ti,Al) Mo Cr Ti Al (Mo,Ti)_(Cr,Al) Mo Ti Cr Al (Mo,Al)_(Cr,Ti) Mo Al Cr Ti 
+
+2.3. Mechanical properties 
+
+The mechanical properties, including elastic constants and elastic moduli, were ob-tained by averaging the results from the last six equilibrated MC snapshots. For cubic crystals, there are three independent elastic constants, namely C11 , C12 , and C44 [32]. 5These elastic constants were calculated using the uMLIP-based stress–strain method with universal linear-independent coupling strains applied to the relaxed equilibrium struc-tures, yielding the elastic stiffness matrix Cij according to [33]. The maximum strain amplitude was set to 0.5%. The elastic moduli were calculated using the corresponding formulas [34, 32, 35]. To evaluate the relative stiffness of different atomic pairs, the pair stiffness (force constant, k [eV/Å 2]) was determined from the curvature of the energy vs. bond-length relationship [36]. For each elemental pair among Mo, Cr, Ti, and Al, an ideal BCC unit cell was constructed with one atom located at the corner sublattice and the other at the centered sublattice. For each pair, the lattice constant was varied from 2.70 to 3.60 Å, and the potential energy was calculated using the GRACE uMLIP. The bond length r was defined as the distance between the corner and central atoms. The resulting energy ( E(r))vs. bond-length curve was then fitted near the equilibrium distance within rmin ± 0.15 Åusing a harmonic approximation: 
+
+E(r) ≈ E0 + 12kcell (r − r0)2, (3) where E0 and r0 are the equilibrium energy and bond length, and cell stiffness kcell is obtained from the curvature of the fitted energy curve. The pair stiffness was estimated as: 
+
+k = kcell 
+
+8 , (4) where the factor of 8 accounts for the eight equivalent nearest-neighbor bonds in the BCC unit cell. The obtained k values were then used to compare the relative stiffness of different atomic pairs. 
+
+3. Results and discussion 
+
+3.1. Heat capacity of RHEAs 
+
+The energy evolution during the second MC simulation is provided in the Supplemen-tary Material. As shown in Fig. S5, the cumulative average energy curves demonstrate that all systems reached a stable thermodynamic state after 1,000,000 steps. To ensure robustness of the results, only data collected beyond this point were used for the statistical analysis to determine the heat capacity CV (T ), shown in Fig. 3. The curves change significantly with the Al content varying. The CV (T ) profiles of the Al25 (blue circles) and Al4 (purple rhombus) alloys are characterized by a single strong peak. In contrast, the intermediate compositions Al16 (red squares) and Al10 (orange triangles) exhibit bimodal behavior, featuring distinct peaks at both low and high temperatures. With increasing Al content, the magnitude of the high-temperature peak decreases, its shape flattens and broadens, and it shifts to higher temperatures before finally vanishing in the Al25 alloy (where it is seen only as a shoulder around 1550 K). Conversely, a low-temperature peak gradually emerges and systematically shifts towards higher temperatures (to the right) with increasing Al content, eventually evolving into the dominant feature of the equiatomic Al25 alloy. The heat capacity of the alloy is derived from the fluctuations in potential energy. Consequently, peaks in the heat capacity curves signify rapid potential energy changes 6250 500 750 1000 1250 1500 1750 2000 Temperature (K) 
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> 1.2
+> Cv /kB (per atom)
+> Al25 Al16 Al10 Al4 Figure 3: Heat capacity per atom versus temperature for four alloy compositions: Al25 (blue circles), Al16 (red squares), Al10 (orange triangles), and Al4 (purple rhombus). In the figure, hollow triangles and dashed arrows indicate the position and shift of the low-temperature peaks, respectively; solid triangles and solid arrows indicate the position and shift of the high-temperature peaks, respectively.
+
+driven by configurational evolution, specifically marking the order-disorder transition. Laube et al. [10] analyzed dynamic differential scanning calorimetry (DSC) curves for MoCrTiAl systems and observed λ-shaped peaks, which indicate a second-order or con-tinuous phase transformation in equiatomic MoCrTiAl as well as in MoCrTi–15Al and MoCrTi–10Al alloys. The experimental results indicate a clear trend: as the Al content increases, the λ-shaped peaks shift to higher temperatures [10]. This is in good agree-ment with our simulation results, which similarly show that both the low-temperature and high-temperature peaks shift to higher temperatures with increasing Al concentra-tion. Furthermore, Laube et al. [10] reported a transition peak at around 1273 K for the equiatomic MoCrTiAl alloy. Similarly, Chen et al. [37] observed a transition peak at approximately 1263 K for the same alloy. In contrast, the transition in our simulations occurs around 900 K, with a high-temperature shoulder around 1500 K. The discrepancy in the absolute transition temperatures may be attributed to the inherent limitations of the uMLIP utilized. Specifically, the training datasets of this GRACE-1L-OAM uMLIP (i.e. OMat24 [38], Alexandria [39], and MPtrj [40]), are predominantly composed of 0 KDFT relaxations and lower-order compounds. The lack of high-temperature HEA config-urations in the training data limits the potential accuracy in fully capturing the complex high-temperature thermodynamics of such RHEA systems [38, 39, 40]. Furthermore, fixed-lattice MC simulations exclude local distortions, which are known to be essential for HEA properties. 
+
+3.2. Short-range order parameters in RHEAs 
+
+Fig. 4 shows structural snapshots at different simulation stages to elucidate the or-dering of the Al25 alloy. Fig. 4(a) displays the SQS used as the initial state of MC calculations. In contrast to this random initial state, a B2 ordering is clearly visible in Fig. 4(b), representing the equilibrated state at 200 K. While the classical binary Ti-Al B2 structure consists of Ti and Al atoms occupying distinct sublattices [41], the Al25 RHEA 7adopts a pseudo-binary configuration where (Mo, Al) atoms occupy one sublattice and (Cr, Ti) atoms occupy the other. Finally, the representative snapshot at 2000 K confirms the random solid solution at high temperature (Fig. 4(c)). (b) (a) (c) Al Cr Mo Ti 
+
+Figure 4: Snapshots from MC simulations of the Al25 alloy: (a) initial SQS state, (b) equilibrated ordered structure at 200 K, (c) equilibrated random structure at 2000 K. 
+
+To investigate the underlying mechanisms of order-disorder transition, the calculated temperature-dependent SRO parameters for all four systems are shown in Fig. 5. In all the first (1NN) and second (2NN) nearest-neighbor shells of the systems, a distinct trend is observed with increasing temperature: the SRO parameters for like-atom pairs (Mo– Mo, Cr–Cr, Ti–Ti, and Al–Al) tend to converge towards 0.5, while those for unlike-atom pairs (Mo–Cr, Mo–Ti, Mo–Al, Cr–Ti, Cr–Al, and Ti–Al) gradually converge towards 0. 1.00  
+
+> 0.75
+> 0.50
+> 0.25
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00 1NN
+
+(a)  
+
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> 1.0 1NN
+
+(b)  
+
+> 2.0
+> 1.5
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> 1.0 1NN
+
+(c)  
+
+> 2.0
+> 1.5
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> 1.0 1NN
+
+(d)     
+
+> 500 1000 1500 2000
+> 2.0
+> 1.5
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> 1.0 2NN
+
+(e)     
+
+> 500 1000 1500 2000
+> 1.5
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> 1.0 2NN
+
+(f)     
+
+> 500 1000 1500 2000
+> 2.0
+> 1.5
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> 1.0 2NN
+
+(g)     
+
+> 500 1000 1500 2000
+> 5
+> 4
+> 3
+> 2
+> 1
+> 0
+> 12NN
+
+(h)      
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+
+Temperature (K) 
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> SRO Parameters  Atomic Pairs
+> MoMo
+> MoCr
+> MoTi
+> MoAl
+> CrCr
+> CrTi
+> CrAl
+> TiTi
+> TiAl
+> AlAl
+
+Figure 5: Temperature dependence of the SRO parameters in the 1NN and 2NN shells for RHEAs: (a, e) Al25, (b, f) Al16, (c, g) Al10, and (d, h) Al4. 
+
+The evolution of SRO parameters in Fig. 5 provides an explanation for the heat ca-pacity variations observed in Fig. 3. While Ti–Al in 1NN shell consistently remains the dominant pair for B2 ordering as indicated by its strongly negative SRO values (Figs. 5(a– d)), the secondary atomic pairs governing the transition behavior evolve. The variation in Al content fundamentally alters the specific atomic pairs that drive the order-disorder transition, as evidenced by the SRO parameters. In the equiatomic Al25 alloy (Figs. 5(a) 8and (e)), a synchronized change of multiple SRO parameters occurs around 900 K both in 1NN and 2NN shells. Compared with the relatively weak variations at low tempera-tures below 500 K and at high temperatures above 1500 K, the SRO parameters show a pronounced change in slope near 900 K, indicating a transition from one configuration to another. This dramatic change of Mo–Al and Cr–Ti pairs in 2NN, and Mo–Cr, Mo–Ti, Cr–Al, and Ti–Al pairs in the 1NN shell, indicates a collective breakdown of the B2 sub-lattice. This massive, simultaneous rearrangement of atomic bonds releases significant energy, resulting in the prominent Cv peak observed around 900 K (blue circles in Fig. 3). As the Al content decreases to 16 at.%, the disordering events become decoupled, leading to the bimodal Cv behavior (red squares in Fig. 3). The low-temperature Cv peak at 
+
+≈ 600 K of Al16 alloy correlates strongly with the rapid evolution of the Mo–Al pair in the 2NN shell. As shown in Figs. 5(b) and (f), while other pairs remain relatively sta-ble or change slowly, the Mo–Al interaction undergoes a significant transformation in a narrow temperature range, acting as the primary trigger for the low-temperature peak. At the same time, the slow transition of other unlike-atom pairs in the 1NN shell, and in particular the Ti-Al pair in both 1NN and 2NN shells, leads to a high temperature peak. As the Al content decreases to 10 at.%, the sharp low-temperature peak at 400 K (orange triangles in Fig. 3) appears. As shown in Figs. 5(c) and (g), the Al-Al pair in 2NN shell shows an abrupt transition from around −2.5 to −0.5 at low temperatures below ≈ 600 Kand slowly reaches 0.5 for higher temperatures. This suggests that the rearrangement of Al–Al correlations (strong clustering on the same sublattice) is the specific reason for the sharp low-temperature peak in this composition, whereas the slow transition of other pairs in the 1NN shell leads to the high temperature peak. When the Al content decreases to 4 at.%, the low-temperature peak vanishes (purple rhombus in Fig. 3). Instead, a synchro-nized evolution of all the pairs in both shells at high temperatures ( > 1200 K) is observed (Figs. 5(d) and (h)). This synchronized high-temperature disordering gives rise to the single, sharp Cv peak observed at 1250 K. To further investigate the underlying mechanism of element pairing, the statistical analysis of element fractions in the 1NN and 2NN shells of the ordered configuration at 
+
+200 K is presented in Fig. 6. The results reveal a distinct sublattice separation behavior driven by specific atomic preferences. Firstly, analyzing the direct neighborhood of Mo and Cr atoms, as shown in Figs. 6(a) and (b), reveals a strong preference to occupy each other’s 1NN shells, forming Mo–Cr pairs. Conversely, the local environments of Ti and Al (Figs. 6(c) and (d)) demonstrate a pronounced tendency for chemical ordering. As shown in Fig. 6(c), Al consistently tends to maximally occupy the 1NN shell sublattice of Ti, resulting in a local Al/(Mo+Cr) ratio that significantly exceeds the nominal macroscopic ratio when Ti is excluded. More significantly, Fig. 6(d) reveals that as the Al content decreases, the fraction of Ti atoms in the Al 1NN shell increases dramatically to 100%, indicating the formation of B2 Ti–Al atomic pairs. This ordering mechanism is governed by the interplay of chemical and structural factors: thermodynamically, the highly negative formation enthalpy of the Ti–Al B2 phase ( ≈ − 0.3 eV/atom [42]) provides a strong driving force for Ti–Al coordination. Structurally, the atomic-size mismatch among Al, Mo, Cr, and Ti gives rise to local lattice distortion, which may further modify the local strain energy and thereby contribute to the stabilization of chemically ordered Ti–Al pairs. This behavior is further corroborated by the increased Al fraction in the 2NN shell as shown in Fig. 6(d). This 9Al25 Al16 Al10 Al4 
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Fraction
+
+(a) Center Atom: Mo    
+
+> Al25 Al16 Al10 Al4
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Fraction
+
+(b) Center Atom: Cr    
+
+> Al25 Al16 Al10 Al4
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Fraction
+
+(c) Center Atom: Ti    
+
+> Al25 Al16 Al10 Al4
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Fraction
+
+(d) Center Atom: Al 
+
+Mo Cr Ti Al 1NN Shell 2NN Shell Figure 6: Average atomic fractions in the 1NN and 2NN shells around center atoms of (a) Mo, (b) Cr, (c) Ti, and (d) Al in ordered configurations at 200 K. The left (fully opaque) bars represent the 1NN shell, while the right (semi-transparent) bars correspond to the 2NN shell. 
+
+10 Al center → Ti 1NN → Al center atomic arrangement is a signature of the B2 structure. These findings are in good agreement with the strong ordering tendencies observed in the SRO parameters (Figs. 5), where the Ti–Al pair consistently appears as the dominant ordering pair. Furthermore, our results are consistent with previous work by Laube et al. [43], who reported a significant enrichment of Ti and Al within the B2-ordered precipitates compared to the A2 matrix in the (TaMoTi) 82 Cr 8Al 10 (at.%) alloy. As for the statistical results for the disordered configuration at 2000 K shown in Fig. S6, the average atomic fractions within the 1NN (opaque bars) and 2NN (semi-transparent bars) shells around any constituent element are nearly identical, indicating comparable probabilities of finding these elements in either the 1NN or 2NN shells. These local concentrations closely match the macroscopic nominal compositions across all simulated alloys from Al25 to Al4. Such random lattice occupancy confirms the formation of a fully disordered solid solution at the high-temperature state. 
+
+3.3. B2 configurations 
+
+To investigate the competition between dominant B2 configurations during the order-disorder transition, the relaxed energies of various B2 configurations were calculated using DFT (VASP) and uMLIP (GRACE) methods at 0 K. As shown in Fig. 7 (for naming con-ventions see Table 1), the results from VASP and uMLIP exhibit remarkable consistency, with energy differences between the two methods for identical configurations remaining within ≈ 0.035 eV/at., which indicates the reliability of the used GRACE uMLIP. (Mo,Cr)_(Ti,Al) (Mo,Ti)_(Cr,Al) (Mo,Al)_(Cr,Ti)     
+
+> 8.25
+> 8.20
+> 8.15
+> 8.10
+> 8.05
+> 8.00
+> 7.95
+> 7.90
+> Energy (eV/atom)  -7.968
+> -8.153 -8.148
+> -8.003
+> -8.178 -8.173
+> VASP
+> uMLIP
+> Figure 7: Potential energy of different relaxed B2 configurations at 0K from calculations via the DFT-VASP and uMLIP-GRACE methods.
+
+The configurations with (Mo, Ti) sharing one sublattice and (Cr, Al) occupying the other exhibit the lowest energy (VASP: −8.153 eV/at., uMLIP: −8.178 eV/at.), indicating that this atomic arrangement corresponds to the most stable state at 0 K. However, the configuration with (Mo, Al) sharing one sublattice and (Cr, Ti) sharing the other (VASP: 
+
+−8.148 eV/at., uMLIP: −8.173 eV/at.) show energy only slightly higher than the most sta-ble state. Crucially, the energy difference between these two competing configurations is only 0.005 eV/at. in both VASP and uMLIP calculations. The thermal energy scale vastly 11 exceeds the energy difference between the two competing states in the Metropolis algo-rithm, where kB T ≈ 0.026 eV/at. at 300 K, ≈ 0.052 eV/at. at 600 K, and ≈ 0.086 eV/at. at 1000 K — respectively 5, 10, and 17 times larger than the 0.005 eV/at. energy dif-ference. Energy difference alone is therefore insufficient to dictate a unique sublattice ordering. While the (Mo, Ti)–(Cr, Al) state is energetically most preferred at 0 K, the MC simulations of the equiatomic Al25 system suggest a preference for the (Mo, Al)–(Cr, Ti) grouping (indicated by the positive SRO parameters of Mo-Al and Cr-Ti pairs in the 1NN shell and negative in the 2NN shell shown in Figs. 5(a) and (e)), implying that Mo and Al tend to co-occupy the same sublattice. This aligns with findings by Dehghani et al. [42, 34], who reported a strong preference for Mo on the Al sublattice in B2-ordered TiAlMo alloys. 
+
+3.4. Mechanical properties 
+
+To investigate the influence of SRO on mechanical properties, we calculated the elas-tic constants and moduli at 0 K for atomic configurations equilibrated at 200 K (ordered structure) and 2000 K (disordered structure). The calculated properties, including single-crystal elastic constants ( C11 , C12 , and C44 ), bulk modulus ( B), polycrystalline Hill’s averaged Young’s modulus ( EH ) and shear modulus ( GH ) are summarized in Fig. 8. Generally, alloy stiffness increases with decreasing Al content. For the disordered config-urations ( 2000 K) shown with orange bars in Figs. 8(a–c), the predicted elastic constants demonstrate a strictly monotonic variation. Linear regression analysis confirms this strong correlation, yielding coefficients of determination ( R2) close to unity (i.e., C11 : ≈ 0.995 
+
+, C12 : ≈ 0.921 , and C44 : ≈ 1.000 ). Such a trend aligns well with the rule of mixtures (ROM) [44], which estimates the elastic constants as: 
+
+Emix = Σ ciEi (5) where Emix represents any elastic constant of the alloy system, while ci and Ei represent the atomic fraction and the corresponding elastic constant of the i-th constituent element, respectively. As illustrated by the blue bars in Figs. 8(a–c), the ordered structures ( 200 K) con-sistently exhibit enhanced stiffness compared to the disordered state ( 2000 K). However, a significant deviation from the linear trend which is indicated by the smaller R2 (i.e., 
+
+C11 : ≈ 0.938 , C12 : ≈ 0.237 , and C44 : ≈ 0.934 ) is observed in the ordered configurations compared to disordered ones. Specifically, C11 exhibits a remarkable +52% enhancement in Al10 alloy distinct from the neighboring +37% and +36% increases, while C12 displays a local peak also at Al10 alloy. Similarly, C44 shows anomalous strengthening in Al10, reaching a +27% increase that notably exceeds the values extrapolated from the neighbor-ing Al16 ( +21% ) and Al4 ( +17% ) alloys. These variations in the fundamental constants directly translate to the moduli presented in Figs. 8(d–f). Unlike the monotonic trend predicted by Eq. (5), where stiffness is expected to increase monotonically as the concen-trations of the stiffer elements (i.e., Mo, Cr, and Ti) increase relative to Al, the ordered moduli exhibit a distinct trend and peak at the Al10 alloy. The strengthening effect of SRO is particularly significant in the Al10 alloy, where the ordered structure exhibits a massive improvement over the random configuration: ≈ 58% in bulk modulus (Fig. 8(d)), 
+
+≈ 36% in Young’s modulus (Fig. 8(e)), and ≈ 33% in shear modulus (Fig. 8(f)). Since thermal effects are excluded from these static calculations, the observed variations are 12 Al25 Al16 Al10 Al4 
+
+0
+
+50 
+
+100 
+
+150 
+
+200 
+
+250 
+
+300 
+
+350 
+
+400  
+
+> C11  [GPa]
+> +39%
+> +37%
+> +52% +36%
+
+R2200K = 0.938 R22000K = 0.995 (a) 
+
+Al25 Al16 Al10 Al4 
+
+0
+
+20 
+
+40 
+
+60 
+
+80 
+
+100 
+
+120 
+
+140 
+
+160  
+
+> C12  [GPa]
+> +68% +55%
+> +67%
+> +51%
+
+R2200K = 0.237 R22000K = 0.921 (b) 
+
+Al25 Al16 Al10 Al4 
+
+0
+
+20 
+
+40 
+
+60 
+
+80 
+
+100 
+
+> C44  [GPa]
+> +44%
+> +21%
+> +27%
+> +17%
+
+R2200K = 0.934 R22000K = 1.000 (c) 
+
+Al25 Al16 Al10 Al4 
+
+0
+
+50 
+
+100 
+
+150 
+
+200  
+
+> B [GPa]  +53%
+> +45%
+> +58% +42%
+
+(d) 
+
+Al25 Al16 Al10 Al4 
+
+0
+
+50 
+
+100 
+
+150 
+
+200  
+
+> EH [GPa]
+> +33% +25%
+> +36%
+> +24%
+
+(e) 
+
+Al25 Al16 Al10 Al4 
+
+0
+
+10 
+
+20 
+
+30 
+
+40 
+
+50 
+
+60 
+
+70 
+
+80  
+
+> GH [GPa]
+> +30% +23%
+> +33%
+> +22%
+
+(f) 
+
+200 K 2000 K Linear fit (200 K) Linear fit (2000 K) Figure 8: Mechanical properties of ordered ( 200 K) and disordered ( 2000 K) structures: (a–c) Elastic constants C11 , C12 , and C44 , with dashed lines indicating linear fits to the compositional dependence ( R2
+
+values annotated); (d) bulk modulus B; (e) Young’s modulus EH ; (f) shear modulus GH . Percentage values indicate the enhancement of the ordered structure relative to the disordered counterpart. 
+
+13 purely structural. The elastic constants and moduli captured the strengthening effect from SRO in these RHEAs, which is in good agreement with experimental observations. Laube et al. [10] observed that the transition from a partially ordered MoCrTi–10Al al-loy to a disordered MoCrTi–5Al alloy significantly impacts both ductility and strength in the MoCrTiAl systems. Furthermore, they also found that the ordered MoCrTi–15Al alloy showed superior yield strength and hardness compared to disordered MoTiCr–3Al alloy [9], highlighting the critical influence of the degree of ordering on mechanical prop-erties. 2.3 2.4 2.5 2.6 2.7 2.8 2.9 3.0 3.1    
+
+> Bond Length (Å)
+> 0
+> 2
+> 4
+> 6
+> 8
+> Relative Energy (eV)
+> (a)
+> MoMo (k=8.1)
+> MoCr (k=7.6)
+> CrCr (k=6.2)
+> MoAl (k=4.8)
+> MoTi (k=4.6)
+> CrTi (k=3.8)
+> TiAl (k=3.3)
+> TiTi (k=3.1)
+> CrAl (k=3.0)
+> AlAl (k=2.1)
+> Al25 Al16 Al10 Al4
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> Avg Stiffness Contribution (eV/ Å2)
+> (b)
+> Atomic Pairs
+> MoMo
+> MoCr
+> MoTi
+> MoAl
+> CrCr
+> CrTi
+> CrAl
+> TiTi
+> TiAl
+> AlAl
+> Configurations
+> 200 K
+> 2000 K
+
+Figure 9: (a) Bond energy landscapes (with the bond stiffness k provided in the legend in eV/Å 2, as obtained from parabolic fit around the respective minima) and (b) average stiffness contributions of different pairs. The left semi-transparent bars correspond to the 200 K configurations, while the right bars (fully opaque) represent the 2000 K configurations. 
+
+This enhancement in moduli is associated with SRO-induced changes in atomic pairing. Song et al. [36] established that the bulk modulus is positively correlated with the second derivative of the binding energy at equilibrium. This indicates that elastic moduli are fundamentally related to the local curvature of the energy landscape, thereby providing a physical basis for using pair stiffness as a qualitative descriptor of modulus variations. By modeling the two-atom system as a spring governed by Hooke’s law, the bond stiffness 
+
+k can be derived from the bond energy landscapes by fitting the neighborhood of the energy minimum with a parabola for each atomic pair. Consequently, the stiffness of the alloy can be estimated using the ROM (analogous to Eq. (5)): specifically, a higher concentration of stiff atomic pairs contributes to a larger overall modulus. Fig. 9(a) displays the bond energy landscapes for different atomic pairs, where relative energy is defined as the energy difference with respect to the respective ground state. The Mo–Mo pair exhibits the highest stiffness ( k = 8 .1 eV/Å 2), whereas the Al–Al pair is the softest (k = 2 .1 eV/Å 2). Fig. 9(b) presents the relative contributions of these pairs, calculated by combining their bond stiffnesses with their fractions. In the random alloys ( 2000 K, right fully opaque bars), global stiffness increases as the Al content decreases. However, in the ordered alloys ( 200 K, left semi-transparent bars), variations in pair fractions result in a non-monotonic trend where stiffness first increases and then decreases. Notably, the sum of stiffness contributions peaks at Al10. This behavior is fully consistent with the variations in the explicitly calculated stiffness presented in Figs. 8(a–f). 14 4. Conclusions 
+
+In this work, the temperature dependent heat capacity, SRO parameters, and me-chanical properties of (MoCrTi) 100 −xAl x RHEAs were investigated using hybrid MC/MD simulations with a uMLIP. The calculated heat capacities and SRO parameters reveal clear order–disorder transition behavior in all studied compositions, while the transition pathway strongly depends on the Al concentration. For the Al25 and Al4 alloys, a single order–disorder transition is observed, which is dominated by the cooperative evolution of B2-type pair correlations. For Al16 and Al10 alloys, they exhibit two distinct transitions, one at low temperature and the other at higher temperature. The low-temperature tran-sition is mainly driven by Mo–Al ordering in Al16 and Al–Al ordering in Al10, whereas the high-temperature transition is governed by the remaining atomic pairs. Structural analysis reveals that at the low temperature B2 configuration, Mo and Al share one sub-lattice, while Cr and Ti share the other. The mechanical response is found to be strongly coupled with the ordering state. In random configurations, stiffness increases monotoni-cally with decreasing Al content. However, in ordered configurations, the stiffness follows a non-monotonic trend, peaking at the Al10 alloy. This behavior is associated with SRO-induced changes in atomic-pair populations, where the contribution from atomic pairs with high stiffness is maximized in the Al10 composition. These results demonstrate the important role of SRO in regulating both thermodynamic transitions and mechanical stiff-ness in (MoCrTi) 100 −xAl x RHEAs. The present findings provide useful atomistic insights for composition optimization and the design of high-performance RHEAs. 
+
+CRediT authorship contribution statement 
+
+Jiyao Zhang: Writing—original draft, Visualization, Software, Methodology, Investiga-tion, Formal analysis. Klemens Lechner: Writing—review & editing, Validation. Markus Maßwohl: Writing—review & editing, Validation. Petra Spoerk-Erdely: Writing—review & editing, Validation. David Holec: Supervision, Writing—review & editing, Resources, Methodology, Conceptualization. 
+
+Declaration of competing interest 
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper. 
+
+Acknowledgments 
+
+Jiyao Zhang acknowledges financial support from the China Scholarship Council (CSC, Grant No.202406220050). We acknowledge Austrian Scientific Computing (ASC) for awarding this project access to the LEONARDO supercomputer, owned by the EuroHPC Joint Undertaking, hosted by CINECA (Italy), and the LEONARDO consortium. 
+
+References 
+
+[1] O. N. Senkov, G. B. Wilks, D. B. Miracle, C. P. Chuang, P. K. Liaw, Refractory high-entropy alloys, Intermetallics 18 (9) (2010) 1758–1765. 15 [2] O. N. Senkov, G. B. Wilks, J. M. Scott, D. B. Miracle, Mechanical properties of Nb25Mo25Ta25W25 and V20Nb20Mo20Ta20W20 refractory high entropy alloys, In-termetallics 19 (5) (2011) 698–706. [3] W. Xiong, A. X. Y. Guo, S. Zhan, C.-T. Liu, S. C. Cao, Refractory high-entropy al-loys: A focused review of preparation methods and properties, J. Mater. Sci. Technol. 142 (2023) 196–215. [4] H. Y. Diao, R. Feng, K. A. Dahmen, P. K. Liaw, Fundamental deformation behavior in high-entropy alloys: An overview, Curr. Opin. Solid State Mater. Sci. 21 (5) (2017) 252–266. [5] M. Feuerbacher, T. Lienig, C. Thomas, A single-phase bcc high-entropy alloy in the refractory zr-nb-ti-V-hf system, Scr. Mater. 152 (2018) 40–43. [6] Y. D. Wu, Y. H. Cai, T. Wang, J. J. Si, J. Zhu, Y. D. Wang, X. D. Hui, A refractory Hf25Nb25Ti25Zr25 high-entropy alloy with excellent structural stability and tensile properties, Mater. Lett. 130 (2014) 277–280. [7] L. Yang, S. Sen, D. Schliephake, R. J. Vikram, S. Laube, A. Pramanik, A. Chauhan, S. Neumeier, M. Heilmaier, A. Kauffmann, Creep behavior of a precipitation-strengthened A2-B2 refractory high entropy alloy, Acta Mater. 288 (120827) (2025) 120827. [8] F. Müller, B. Gorr, H.-J. Christ, H. Chen, A. Kauffmann, S. Laube, M. Heilmaier, Formation of complex intermetallic phases in novel refractory high-entropy alloys NbMoCrTiAl and TaMoCrTiAl: Thermodynamic assessment and experimental val-idation, J. Alloys Compd. 842 (155726) (2020) 155726. [9] S. Laube, G. Winkens, A. Kauffmann, J. Li, C. Kirchlechner, M. Heilmaier, Strength of disordered and ordered al-containing refractory high-entropy alloys, Adv. Eng. Mater. 26 (17) (2024) 2301797. [10] S. Laube, H. Chen, A. Kauffmann, S. Schellert, F. Müller, B. Gorr, J. Müller, B. Butz, H.-J. Christ, M. Heilmaier, Controlling crystallographic ordering in Mo–Cr–Ti–Al high entropy alloys to enhance ductility, J. Alloys Compd. 823 (153805) (2020) 153805. [11] X. Liu, J. Zhang, Z. Pei, Machine learning for high-entropy alloys: Progress, chal-lenges and opportunities, Prog. Mater. Sci. 131 (101018) (2023) 101018. [12] X.-G. Li, C. Chen, H. Zheng, Y. Zuo, S. P. Ong, Complex strengthening mechanisms in the NbMoTaW multi-principal element alloy, Npj Comput. Mater. 6 (1) (2020) 1–10. [13] X. Wang, F. Maresca, P. Cao, The hierarchical energy landscape of screw dislocation motion in refractory high-entropy alloys, Acta Mater. 234 (118022) (2022) 118022. [14] K. Gubaev, V. Zaverkin, P. Srinivasan, A. I. Duff, J. Kästner, B. Grabowski, Per-formance of two complementary machine-learned potentials in modelling chemically complex systems, Npj Comput. Mater. 9 (1) (2023) 1–15. 16 [15] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, K. A. Persson, Commentary: The materials project: A materials genome approach to accelerating materials innovation, APL Mater. 1 (1) (2013) 011002. [16] F. Shuang, Z. Wei, K. Liu, W. Gao, P. Dey, Universal machine learning interatomic potentials poised to supplant DFT in modeling general defects in metals and random alloys, Mach. Learn. Sci. Technol. 6 (3) (2025) 030501. [17] J. Xia, Y. Zhang, B. Jiang, The evolution of machine learning potentials for molecules, reactions and materials, Chem. Soc. Rev. 54 (10) (2025) 4790–4821. [18] A. Hjorth Larsen, J. Jørgen Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dułak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. Bjerre Jensen, J. Kermode, J. R. Kitchin, E. Leonhard Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. Bergmann Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Schütt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, K. W. Jacobsen, The atomic simulation environment-a python library for working with atoms, J. Phys. Condens. Matter 29 (27) (2017) 273002. [19] A. Bochkarev, Y. Lysogorskiy, R. Drautz, Graph atomic cluster expansion for semilo-cal interactions beyond equivariant message passing, Phys. Rev. X. 14 (2) (2024) 021036. [20] A. Reiners-Sakic, R. Schnitzer, D. Holec, DFT and MLIP study of solute segregation to coherent and semi-coherent α-fe/Fe3C interfaces, Npj Comput. Mater. (2026) 1– 11. [21] D. Gehringer, M. Friák, D. Holec, Models of configurationally-complex alloys made simple, Comput. Phys. Commun. 286 (108664) (2023) 108664. [22] N. Metropolis, A. W. Rosenbluth, M. N. Rosenbluth, A. H. Teller, E. Teller, Equation of state calculations by fast computing machines, J. Chem. Phys. 21 (6) (1953) 1087– 1092. [23] C. D. Woodgate, J. B. Staunton, Short-range order and compositional phase stability in refractory high-entropy alloys via first-principles theory and atomistic modeling: NbMoTa, NbMoTaW, and VNbMoTaW, Phys. Rev. Mater. 7 (1) (2023) 013801. [24] M. P. Allen, D. J. Tildesley, Computer simulation of liquids: Second edition, Oxford University Press, London, England, 2017. [25] B. Dipl.-Ing. Dominik Franz Josef Gehringer, Atomistic approaches for investigating planar defects in compositionally complex alloys, Ph.D. thesis, MONTANUNIVER-SITÄT LEOBEN (Jun. 2023). [26] G. Kresse, J. Furthmüller, Efficient iterative schemes for ab initio total-energy cal-culations using a plane-wave basis set, Phys. Rev. B Condens. Matter 54 (16) (1996) 11169–11186. 17 [27] G. Kresse, J. Furthmüller, Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set, Comput. Mater. Sci. 6 (1) (1996) 15–50. [28] P. Hohenberg, W. Kohn, Density functional theory (DFT), Phys. Rev. (1964). [29] W. Kohn, L. J. Sham, Self-consistent equations including exchange and correlation effects, Phys. Rev. 140 (4A) (1965) A1133–A1138. [30] G. Kresse, D. Joubert, From ultrasoft pseudopotentials to the projector augmented-wave method, Phys. Rev. B Condens. Matter 59 (3) (1999) 1758–1775. [31] J. P. Perdew, K. Burke, M. Ernzerhof, Generalized gradient approximation made simple, Phys. Rev. Lett. 77 (18) (1996) 3865–3868. [32] J. F. Nye, Physical properties of crystals: Their representation by tensors and matri-ces, Oxford science publications, Oxford University Press, London, England, 1985. [33] R. Yu, J. Zhu, H. Q. Ye, Calculations of single-crystal elastic constants made simple, Comput. Phys. Commun. 181 (3) (2010) 671–675. [34] N. Abdoshahi, M. Dehghani, L. Hatzenbichler, P. Spoerk-Erdely, A. V. Ruban, M. Musi, S. Mayer, J. Spitaler, D. Holec, Structural stability and mechanical proper-ties of TiAl+Mo alloys: A comprehensive ab initio study, Acta Mater. 221 (117427) (2021) 117427. [35] R. Hill, The elastic behaviour of a crystalline aggregate, Proc. Phys. Soc. 65 (5) (1952) 349–354. [36] Y. Song, R. Yang, D. Li, W. T. Wu, Z. X. Guo, Calculation of theoretical strengths and bulk moduli of bcc metals, Phys. Rev. B 59 (22) (1999) 14220. [37] H. Chen, A. Kauffmann, S. Seils, T. Boll, C. H. Liebscher, I. Harding, K. S. Kumar, D. V. Szabó, S. Schlabach, S. Kauffmann-Weiss, F. Müller, B. Gorr, H.-J. Christ, M. Heilmaier, Crystallographic ordering in a series of al-containing refractory high entropy alloys Ta–Nb–Mo–Cr–Ti–Al, Acta Mater. 176 (2019) 123–133. [38] L. Barros-Luque, M. Shuaibi, X. Fu, B. M. Wood, M. Dzamba, M. Gao, A. Rizvi, M. Uyttendaele, C. L. Zitnick, Z. W. Ulissi, The open materials 2024 (OMat24) inorganic materials dataset and models, Nat. Comput. Sci. 6 (6) (2026) 642–652. [39] J. Schmidt, N. Hoffmann, H.-C. Wang, P. Borlido, P. J. M. A. Carriço, T. F. T. Cerqueira, S. Botti, M. A. L. Marques, Machine-learning-assisted determination of the global zero-temperature phase diagram of materials, Adv. Mater. 35 (22) (2023) e2210788. [40] B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, G. Ceder, CHGNet as a pretrained universal neural network potential for charge-informed atomistic mod-elling, Nat. Mach. Intell. 5 (9) (2023) 1031–1041. 18 [41] D. Holec, R. K. Reddy, T. Klein, H. Clemens, Preferential site occupancy of alloying elements in TiAl-based phases, J. Appl. Phys. 119 (20) (2016) 205104. [42] M. Dehghani, A. V. Ruban, N. Abdoshahi, D. Holec, J. Spitaler, Stability and or-dering of bcc and hcp TiAl+Mo phases: An ab initio study, Comput. Mater. Sci. 205 (2022) 111163. [43] S. Laube, A. Kauffmann, S. Schellert, S. Seils, A. S. Tirunilai, C. Greiner, Y. M. Eggeler, B. Gorr, H.-J. Christ, M. Heilmaier, Formation and thermal stability of two-phase microstructures in al-containing refractory compositionally complex alloys, Sci. Technol. Adv. Mater. 23 (1) (2022) 692–706. [44] O. V. Sobol, V. F. Gorban, N. A. Krapivka, T. G. Rogul, S. A. Firstov, Microdistor-tions, hardness, and young’s modulus of multicomponent bcc solid solutions, Powder Metal. Metal Ceram. 59 (11-12) (2021) 715–721. 19

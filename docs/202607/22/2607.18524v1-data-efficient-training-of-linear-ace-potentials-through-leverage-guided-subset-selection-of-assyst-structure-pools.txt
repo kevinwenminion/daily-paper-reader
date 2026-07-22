@@ -1,0 +1,407 @@
+Title: Data-Efficient Training of Linear ACE Potentials through Leverage-Guided Subset Selection of ASSYST Structure Pools
+
+URL Source: https://arxiv.org/pdf/2607.18524v1
+
+Published Time: Wed, 22 Jul 2026 00:21:25 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# Data-Efficient Training of Linear ACE Potentials through Leverage-Guided Subset Selection of ASSYST Structure Pools 
+
+Aynour Khosravi ∗
+
+Department of Materials Engineering, The University of British Columbia, Vancouver, Canada 
+
+Marvin Poul †
+
+Department of Computational Materials Design, Max-Planck-Institut f¨ ur Eisenforschung GmbH, D¨ usseldorf, Germany 
+
+J¨ org Neugebauer ‡
+
+Department of Computational Materials Design, Max-Planck-Institut f¨ ur Eisenforschung GmbH, D¨ usseldorf, Germany 
+
+Chad W. Sinclair §
+
+Department of Materials Engineering, The University of British Columbia, Vancouver, Canada 
+
+The construction of machine-learned interatomic potentials (MLIPs) is often limited by the cost of generating large density-functional-theory (DFT) training datasets. For systematically generated structure pools such as ASSYST, a central practical question is how many configurations must be labeled to achieve reliable accuracy. Here we assess geometry-based, label-free subset selection for training linear Atomic Cluster Expansion (ACE) potentials. Using statistical leverage scores and CUR-type sampling, we compare leverage-guided selection against random, energy-based, and force-based baselines under controlled iterative protocols. Elemental Al provides the primary benchmark, with Cu and Al–Cu alloys used for transfer validation. Leverage-guided subsets recover plateau-level energy and force accuracy using substantially smaller labeled fractions ( ∼30–40%) than random sampling, corresponding to an effective 2–3 × reduction in DFT labeling for the systems studied. In alloy tests, defect energetics remain comparable across strategies once sufficient chemical diversity is included, while leverage selection maintains competitive accuracy at reduced training size. These results demonstrate that descriptor-space–guided, label-free subsampling can significantly reduce DFT workload for linear ACE models trained on ASSYST structure pools without degrading defect-level fidelity. 
+
+I. INTRODUCTION 
+
+Machine-learned interatomic potentials (MLIPs) pro-vide parametric representations of the potential energy surface (PES), trained to reproduce quantum-mechanical energies and forces at a computational cost compara-ble to classical force fields [1–7]. Over the past decade, MLIPs have enabled large-scale atomistic simulations at system sizes and time scales inaccessible to direct first-principles calculations. Early developments include the Behler–Parrinello neural-network potential [8] and the Gaussian Approximation Potential [9]. Subsequent frameworks encompass Moment-Tensor Potentials [10, 11], the Atomic Cluster Expansion (ACE) [12, 13], Spec-tral Neighbour Analysis Potentials [14, 15], message-passing neural networks [16–20], and other deep neural architectures [21, 22]. A central challenge in atomistic modelling is achieving electronic-structure accuracy while accessing the length and time scales relevant to materials behaviour. Density-functional theory (DFT) provides reliable access to the     
+
+> ∗Corresponding Author: aynour.khosravi@ubc.ca
+> †poul@mpie.de
+> ‡neugebauer@mpi-susmat.de
+> §chad.sinclair@ubc.ca
+
+potential energy surface but becomes computationally prohibitive for large systems or long dynamical tra-jectories [23]. Classical empirical force fields, such as embedded-atom method (EAM) potentials [24] offer ex-cellent computational efficiency but often lack transfer-ability in environments involving defects, significant lat-tice distortions, anharmonicity, or chemical disorder [25]. MLIPs aim to bridge this gap by retaining near-classical efficiency while systematically approximating quantum-mechanical energetics and forces. From a modeling perspective, constructing an MLIP corresponds to a high-dimensional regression problem over atomic configurations. Rather than operating di-rectly in the full coordinate space R3N , local atomic envi-ronments are mapped onto symmetry-invariant descrip-tors, and regression models are trained to predict ener-gies and forces. Descriptor complexity must be carefully balanced: representations that are too simple fail to dis-tinguish physically distinct environments, whereas overly rich representations demand large training datasets and become more difficult to fit robustly [9, 25, 26]. In this work, we focus on linear ACE models [12, 13]. ACE provides a symmetry-adapted and systematically improvable representation of local atomic environments while remaining linear in the model coefficients. This lin-ear structure makes the regression problem explicit and analytically tractable, offering a transparent setting in which to examine the relationship between basis com-arXiv:2607.18524v1 [cond-mat.mtrl-sci] 20 Jul 2026 2plexity and training-set design. In particular, it enables subset-selection strategies that depend only on geometric properties of the ACE design matrix, without requiring access to quantum-mechanical labels. Regardless of model architecture, MLIPs are trained on quantum-mechanical reference data, most commonly DFT energies and forces [27]. For new material sys-tems, the dominant computational cost in expand-ing a dataset typically arises from evaluating these quantum-mechanical labels rather than generating can-didate atomic geometries [27, 28]. In practice, training sets are assembled from molecular-dynamics snapshots, distorted structures, and selected defect or surface con-figurations. Such procedures can introduce substantial redundancy in descriptor space, while rare but physically significant environments remain sparsely sampled. This leads to a fundamental question: how much, and what kind, of quantum-mechanical data is necessary to achieve accurate and transferable MLIPs? 
+
+Efficient dataset construction has consequently re-ceived significant attention in MLIP development [28]. Starting from a pool of candidate configurations, the task is to identify subsets whose quantum-mechanical label-ing yields accurate potentials within constrained compu-tational budgets. Such candidate pools may be gener-ated through molecular dynamics with existing poten-tials, random atomic or cell perturbations, chemical sub-stitutions, or curated defect and surface structures [27]. Recent work has also introduced automated and system-atic frameworks for exploring potential-energy surfaces and constructing large, diverse training datasets, aim-ing to reduce the manual effort in dataset generation while improving transferability [29][30][31]. Recent stud-ies have also examined the joint optimization of DFT convergence settings, training-set size, and model com-plexity to characterize accuracy–cost trade-offs in linear MLIPs [32]. Online active-learning strategies iteratively select con-figurations based on model uncertainty or committee dis-agreement and retrain the potential as new labels be-come available [33]. While often effective, such work-flows require repeated retraining and close integration with high-performance computing resources, and early iterations may be influenced by sampling bias when the model remains weakly constrained. An alternative view-point treats dataset construction as an offline subset-selection problem, in which configurations are chosen to span descriptor space prior to expensive quantum-mechanical labelling [28, 34]. In linear models, statistical leverage scores provide a natural measure of the influence of candidate configurations on the regression fit and of-fer principled criteria for prioritizing configurations for labeling [25, 33]. For multicomponent alloys, training-set construction is particularly challenging because both structural and compositional degrees of freedom must be sampled across a broad region of phase space. The Automated Small SYmmetric Structure Training (ASSYST) framework provides a systematic and material-agnostic approach for generating diverse candidate structures by sampling ran-dom crystal prototypes across space groups [35, 36]. By focusing on small periodic cells (typically on the order of 
+
+∼10 atoms), ASSYST facilitates high-throughput DFT labeling while exposing a wide variety of local atomic en-vironments through random generation, relaxation, and controlled perturbations. Potentials trained on suffi-ciently large ASSYST datasets have been shown to repro-duce bulk phases, solid solutions, and defect energetics beyond the specific configurations included in the train-ing set, and to yield phase diagrams in reasonable agree-ment with experiment [36]. While ASSYST provides a systematic and transferable framework for generating large structure pools, it does not prescribe how these pools should be utilized for effi-cient model training. In particular, the number of config-urations that must be labeled with high-accuracy DFT to achieve a target accuracy for a given model class remains unclear. Since ASSYST datasets may contain tens of thousands of structures, exhaustive labeling can be com-putationally demanding. This raises the central question of whether substantially smaller, carefully selected sub-sets can retain the predictive performance and transfer-ability of the full dataset. In this work, we address this question using descriptor-based subset-selection strate-gies for linear ACE models trained on ASSYST-generated configurations. Previous work on data efficient selection schemes for the construction of MLIP has not investigated in detail their impact on the transferability properties of the re-sulting potentials. In [28] the selection starts from a man-ually created dataset and evaluates the performance of the schemes on a specific application target. For elas-tic and vibrational properties, but only those, Ref. [27] demonstrates large efficiency gains, though by means of constructing the dataset rather than subsetting a candi-date set. In [32] the authors used very diverse datasets, but tested the impact of data selection only on general fitting metrics, leaving the question open whether their schemes impacted the transferability of the final poten-tials. While these results make it clear that very effi-cient databases may be constructed and ASSYST clearly shows that sufficiently diverse databases yield transfer-able potentials, it is not yet clear whether the combina-tion is achievable in practice. We focus here explicitly on this question—whether these schemes are applicable to general potentials or whether they achieve sparsity in training data by reducing transferability, i.e. collapsing the region of descriptor space that must be sampled to achieve accuracy. In this work, we examine this question for linear ACE models by formulating training-set design as a subset-selection problem on the ACE design matrix constructed from general ASSYST-generated configurations. Lever-aging the explicit linear structure of ACE, we compute regularized leverage scores and apply CUR and block-CUR subsampling to identify configurations that are 3most informative for the regression, without using en-ergy or force labels. Using elemental Al as the pri-mary benchmark, with Cu and Al–Cu alloys as trans-fer tests, we compare leverage-based selection with ran-dom sampling and label-driven heuristics across labeled fractions and ACE basis settings.We find that leverage-guided subsets containing approximately 30–40% of the labeled ASSYST configurations achieve, within statisti-cal uncertainty, the same predictive accuracy as models trained on the full datasets, while exhibiting smoother and more reproducible learning behaviour across bulk, defect, and alloy test cases. These results demonstrate that, for linear ACE models trained on ASSYST pools, substantial reductions in DFT labeling can be achieved without sacrificing predictive accuracy across physically distinct regimes, rather than merely maintaining accu-racy on a fixed test set. The paper is organized as follows. Section II de-scribes the computational setup: the generation of AS-SYST pools (II A), the construction of the linear ACE basis and design matrix (II B), and the leverage-based CUR and block-CUR selection strategies (II D 2). Sec-tion III presents the results: learning curves and data effi-ciency on Al (III B), sensitivity to ACE hyperparameters (III A), transfer tests on Cu and Al–Cu (III C), validation against independent DFT data (III D), and a summary of practical DFT savings (III E). Section IV concludes with implications for scalable training-set design and future directions.   
+
+> II. METHODOLOGY A. ASSYST Data Generation and Workflow Overview
+
+In this work, we use the ASSYST configuration pools for Al, Cu, and Al–Cu reported in Ref. [35, 36]. These pre-generated pools serve as the starting point for our subset-selection and ACE fitting pipeline. ASSYST gen-erates small periodic structures ( ∼8–10 atoms) by sys-tematically sampling random crystal prototypes across space groups, relaxing them with low-cost DFT, and ap-plying controlled random perturbations to the atomic po-sitions and lattice parameters. This procedure efficiently explores a broad range of local environments while re-quiring minimal user input and modest computational cost. In our workflow, ASSYST provides a rich and unbiased sampling of configurational space, from which we subse-quently select a compact and informative subset using leverage scores (see Sec. II D 1). Table I summarizes the parameters for ASSYST used in this study. TABLE I: ASSYST input parameters for the three generation stages as described in detail in [36]. In total 9236 structures were generated for Al, 10631 for Cu, and 21330 for Al-Cu.                 
+
+> Step parameter value Random unary #Atoms 1–10 per element Spacegroup binary #Atoms 1,2,3,4,6,8 per element Sampling total per cell ≤10 Vibrational σrattle 0.25 ˚ A
+> nrattle 4Elastic ϵhydro 0.6
+> ϵshear 0.15
+> nstretch 4
+> B. ACE basis construction and design matrix
+
+In this work we employ the linear Atomic Cluster Ex-pansion framework to parameterize the potential energy surface of Al, Cu and Al–Cu [12, 37, 38]. For a config-uration with atomic positions {ri} and chemical species 
+
+{Zi}, the total energy is decomposed into site energies, 
+
+E = X
+
+> i
+
+εi, (1) where each site contribution εi depends only on the local neighbourhood of atom i within a cutoff radius rcut and respects translational, rotational, reflection, and permu-tation symmetries [12]. It provides a systematic, body-ordered expansion of 
+
+εi in terms of symmetric polynomials built from one-particle basis functions. Introducing xi := ( ri, Z i) for the state of atom i and xij := ( rj − ri, Z i, Z j ) for a bond, the canonical cluster expansion reads 
+
+εi = V (0) (Zi) + X
+
+> j1
+
+V (1) (xij 1 ) + X
+
+> j1<j 2
+
+V (2) (xij 1 , x ij 2 )+ · · · + X
+
+> j1<··· <j ¯ν
+
+V (¯ ν)(xij 1 , . . . , x ij ¯ν ), (2) which is truncated at a maximum correlation order ¯ ν.In practice we use the equivalent “self-interacting” for-mulation introduced in Ref. [12, 37], which permits a tensor-product structure and efficient evaluation but can be transformed back to the canonical form if needed. The angular dependence of the atomic neighbourhood is represented through spherical harmonics Y ml , while the radial dependence is expanded in a set of smooth radial basis functions. A general one-particle basis function cen-tered on atom i is written as 
+
+ϕznlm (rij , Z i, Z j ) = Rn(rij , Z i, Z j ) Y ml (brij ) δzZ j , (3) where rij = |rj − ri|, brij = ( rj − ri)/r ij , and the Kro-necker symbol δzZ j selects the chemical species of the neighbour atom j.4Following the implementation in ACEpotentials.jl ,the radial basis functions are indexed by n only, i.e. Rnl ≡
+
+Rn for all l. Each radial function is constructed as [37] 
+
+Rn(rij , Z i, Z j ) = fenv (rij , Z i, Z j ) Pn
+
+ y(rij , Z i, Z j ), (4) where y(r) is a smooth, element-dependent distance transform designed to enhance resolution near typical bond lengths, Pn is an orthogonal polynomial basis in the transformed coordinate (Legendre polynomials in this work), and fenv is a smooth envelope enforcing the cutoff radius rcut and ensuring regular behaviour at both small and large interatomic separations [38]. Many-body contributions are obtained by forming ten-sor products of the one-particle basis. For a fixed central species Zi, a ν-body potential is expressed as 
+
+V (ν)(xij 1 , . . . , x ij ν ) = X
+
+> k1,...,k ν
+
+c(Zi) 
+
+> k1··· kν
+
+ϕk1 (xij 1 ) · · · ϕkν (xij ν ),
+
+(5) where kt = ( zt, n t, l t, m t) indexes the underlying one-particle basis. After symmetry reduction, the expansion yields a linear representation of the site energy, 
+
+εi = c · Bi, (6) with a global parameter vector c and a feature vector Bi
+
+containing all ACE basis functions associated with atom 
+
+i [12, 38]. To obtain a finite model we apply an a priori spar-sification based on a total-degree criterion. Writing 
+
+kt = ( zt, n t, l t, m t), we define the mixed degree 
+
+d(k1, . . . , k ν ) = 
+
+> ν
+
+X
+
+> t=1
+
+(nt + wL lt) , (7) and retain only those tuples with d(k1, . . . , k ν ) ≤
+
+totaldegree (ν). Here wL is a fixed weight controlling the relative contribution of angular and radial degrees in the total-degree truncation; throughout this work we use the default value wL = 1 .5. By contrast, totaldegree (ν)is varied and determines the overall basis size for each correlation order ν [38]. For a given configuration R, the linear contributions from all atomic environments are assembled into a de-sign matrix AR that maps the parameter vector c to the stacked observables (energy, forces, stresses) for that structure. Concatenating all configurations in the train-ing set R gives the global design matrix A and an obser-vation vector y such that 
+
+y ≈ A c, (8) which provides the starting point for the Bayesian fitting and leverage-score subsampling described below.  
+
+> C. Model fitting procedure
+
+The ACE parameters c are determined by fitting to a reference dataset R of ASSYST-generated configurations with DFT energies and forces [36]. For each configuration 
+
+R ∈ R we denote by ER, FR, and VR the reference total energy, forces, and virial stress, and by E(c; R), F(c; R), and V(c; R) the corresponding ACE predictions. Following Ref. [38], we define a weighted least-squares objective 
+
+L(c) = X
+
+> R∈R
+
+h
+
+w2 
+
+> E,R
+
+E(c; R) − ER
+
+> 2
+
++ w2 
+
+> F,R
+
+F(c; R) − FR
+
+> 2
+
++ w2 
+
+> V,R
+
+V(c; R) − VR
+
+> 2
+
+i
+
+, (9) where wE,R , wF,R , and wV,R control the relative im-portance of energies, forces, and stresses for each con-figuration R. In this work, we use constant weights 
+
+wE,R = 1 .0 and wF,R = 0 .1 for all configurations, while stress data are not included ( wV,R = 0). Let W denote the corresponding diagonal weight operator acting on the stacked observation vector y, and let A be the global de-sign matrix constructed in Eq. (8). Then Eq. (9) can be written compactly as 
+
+c⋆ = arg min  
+
+> c
+
+W (y − Ac) 2. (10) To regularize the fit and encode smoothness of the potential energy surface, we use a diagonal operator Γ that assigns each basis function k an effective degree γk
+
+based on its radial and angular indices [38]. This defines the quadratic penalty ∥Γc∥2 and leads to the Tikhonov-regularized problem 
+
+c⋆ = arg min 
+
+> c
+
+
+
+W (y − Ac) 2 + λ ∥Γc∥2
+
+, (11) with regularization strength λ.We solve Eq. (11) in the framework of Bayesian lin-ear regression (BLR) as implemented in ACEpoten-tials.jl [38]. In this interpretation, c is assigned a Gaus-sian prior 
+
+c ∼ N (0, Σ0), (12) with precision proportional to Γ TΓ (smoothness prior), and the data likelihood is Gaussian with precision β act-ing on W (y − Ac). The posterior distribution of the parameters is again Gaussian, 
+
+c A, y ∼ N (μ, Σ) , (13) with covariance Σ = 
+
+
+
+β A TW 2A + Σ −10
+
+−1
+
+, (14) and posterior mean 
+
+μ = β Σ ATW 2y. (15) 5In all numerical experiments reported here we use the posterior mean μ as the deployed ACE model. The BLR formulation provides stable parameter estimates for the high-dimensional ACE basis, is robust in the low-data regime relevant for active learning, and natu-rally exposes parameter covariances that can be exploited in future uncertainty-quantification and model-selection strategies.   
+
+> D. Subset selection strategies
+> 1. Configuration-level leverage scores
+
+Within the linear ACE framework, fitting the model reduces to a weighted linear regression problem of the form 
+
+y ≈ Ac,
+
+where each row of the global design matrix A contains the ACE basis functions evaluated for a single observable (an energy, force component, or stress component), and c
+
+denotes the vector of ACE coefficients. Thus, the stacked vector y collects all observables from all configurations in the candidate pool. The influence of individual observations on the fit-ted parameters can be quantified by statistical leverage scores [25, 33]. Leverage-based sub-sampling has previ-ously been employed to reduce training-set size and ana-lyze cost–accuracy trade-offs in linear MLIPs [32]. Let 
+
+W denote the diagonal weight operator introduced in Eq. (10), and define the weighted design matrix 
+
+eA = W A. (16) In the unregularized least-squares setting, the classical leverage scores are the diagonal entries of the hat matrix 
+
+H = eA
+
+ eAT eA
+
+−1 eAT, (17) so that 
+
+ℓi = Hii , (18) where i indexes a row of eA, i.e. a single energy, force, or stress component. Each row corresponds to a weighted ACE descriptor vector evaluated for one observable and can therefore be interpreted as a point in feature space. The hat matrix represents the projection onto the col-umn space of eA, and the diagonal entry ℓi quantifies how strongly the i-th row contributes to spanning that space. Rows with large ℓi introduce directions in descriptor space that are weakly represented by the remaining data and therefore exert strong influence on the fitted pa-rameters. In the Bayesian linear setting, such rows also correspond to observations that most reduce the poste-rior covariance of the parameter vector. Since the dif-ferential entropy of a Gaussian posterior is proportional to log det Σ, selecting high-leverage rows can be inter-preted as approximately maximizing information gain, or equivalently minimizing posterior entropy, in param-eter space [25, 34]. In this context, ASSYST provides a descriptor-agnostic and transferable pool of configura-tions, while leverage-based selection refines this pool for a given ACE representation by identifying configurations that optimally span its descriptor space. Our ACE fits, however, employ the Tikhonov-regularized Bayesian formulation of Eq. (11), with smoothness prior Γ and prior precision Σ −10 , leading to the posterior covariance in Eq. (14). In this case it is natural to define regularized leverage scores by replacing 
+
+eAT eA with the posterior precision, 
+
+Hλ = eA
+
+
+
+β eAT eA + Σ −10
+
+−1 eAT, (19) and we use the diagonal elements 
+
+hi = ( Hλ)ii (20) as our working definition of leverage. Crucially, these scores depend only on the feature geometry ( eA) and the regularization, and are therefore label-free : they can be computed without access to the reference targets y,i.e. before any DFT energies or forces have been evalu-ated [25]. Since our aim is to select configurations rather than individual observables, we aggregate row-level leverage scores into a configuration-level quantity. For a configu-ration R, let IR denote the set of row indices in eA corre-sponding to its energy, all force components, and (where used) stress components. The configuration-level lever-age is then defined as 
+
+LR = X
+
+> i∈I R
+
+hi. (21) Since ASSYST configurations consist of small periodic cells with comparable numbers of atoms, variations in 
+
+|I R| are limited and do not introduce a systematic bias in the ranking. In this setting, the sum in Eq. (21) provides a consistent measure of the total information content of each configuration. Configurations with large LR probe under-represented directions in ACE feature space and are therefore ex-pected to be particularly informative for the fit.  
+
+> 2. Leverage-guided CUR and block-CUR subsampling
+
+We now use these configuration-level leverage scores to construct compact, informative training subsets. Our strategy is inspired by CUR-type decompositions and op-timal experimental design for high-dimensional feature matrices [28, 34]: training-set design is viewed as an of-fline subset-selection problem on the ACE design matrix, where LR serves as a proxy for information content. 6
+
+Energy-CUR (“CUR”) mode. In the first mode, we operate on an energy-only feature matrix. For each con-figuration R we retain a single row in eA(E) correspond-ing to its total energy; forces and stresses are omitted. This yields regularized leverage scores h(E) 
+
+> i
+
+at the row level and configuration scores L(E) 
+
+> R
+
+defined analogously to Eq. (21) but with IR containing only the energy row. We then select a training subset Rtrain from the candi-date pool Rpool by sampling without replacement with probabilities 
+
+p(E) 
+
+> R
+
+= L(E)
+
+> R
+
+P 
+
+> R′∈R pool
+
+L(E)
+
+> R′
+
+, (22) until a prescribed training fraction ftrain of the pool has been selected. This “CUR” mode mimics a row-selection step on an energy-only ACE design matrix and provides a simple, computationally cheap criterion that focuses on variation of total energies in descriptor space. 
+
+Energy+force (“block-CUR”) mode. In the second mode, we retain all rows associated with each configu-ration, including energies and all Cartesian force compo-nents when forming Hλ. Configuration leverages LR are then given by Eq. (21) with IR containing all observables for R. This “block-CUR” perspective treats each config-uration as a block of correlated rows and favours those whose combined energy- force information most strongly constrains the ACE parameters [28, 34]. Selection proceeds as in the energy-CUR case, but with probabilities 
+
+p(block)  
+
+> R
+
+= LR
+
+P 
+
+> R′∈R pool
+
+LR′
+
+, (23) again sampling without replacement until the desired training fraction is reached.  
+
+> 3. Baseline selection strategies
+
+To benchmark the leverage-based, label-free methods introduced below, we consider three reference selection strategies. All methods operate within the same incremental la-belling protocol. For each run, the training set is ini-tialized by randomly sampling 10% of the available con-figurations from the ASSYST pool. A provisional ACE model is trained on this initial labelled subset. Random selection then continues by sampling addi-tional configurations uniformly from the remaining pool. Energy-based and force-based selection proceed differ-ently. After training the provisional ACE model on the current labelled subset, the model is evaluated on the re-maining configurations in the pool (for which DFT labels are available in the benchmarking setup). Configurations are ranked according to their residual with respect to DFT reference data. Energy-based selection ranks configurations by the ab-solute energy residual, 
+
+sE (R) = |EACE (R) − EDFT (R)| , (24) while force-based selection ranks configurations using the root-mean-square (RMS) force residual, 
+
+sF (R) = ∥FACE (R) − FDFT (R)∥2
+
+√3NR
+
+, (25) where NR is the number of atoms in configuration R.At each iteration, the configurations with the largest residuals are added to the training set, and the model is retrained. Because these strategies require access to DFT labels for ranking, they represent label-driven upper-bound baselines rather than practical offline selection schemes.  
+
+> E. DFT reference calculations
+
+All validation energies and forces used to benchmark the ACE models were recomputed with density func-tional theory (DFT) to ensure full internal consistency with the training targets. Only the atomic geometries of the ASSYST test set from Ref. [36] were reused; no MTP predictions or energies from that study were used in the present analysis. DFT calculations were performed with VASP using the projector–augmented wave (PAW) method and the PBE exchange–correlation functional. Standard VASP PAW datasets were employed for Al and Cu, with valence configurations Al(3s 23p 1) and Cu(3d 10 4s 1). A plane-wave cutoff of Ecut = 550 eV was used, converging to-tal energies to better than 10 −4 eV/atom and forces to 
+
+∼ 10 −3 eV/˚ A. Brillouin-zone sampling used Γ-centered Monkhorst– Pack meshes selected to satisfy KSPACING = 0 .06 ˚ A−1
+
+(e.g., 22 × 22 × 22 for fcc Al and 18 × 18 × 18 for fcc Cu at equilibrium volume). For larger supercells (de-fects, surfaces, grain boundaries, and Al–Cu alloy super-structures), the k-point density was reduced while main-taining KSPACING ≤ 0.10 ˚ A−1. Electronic occupations were treated with first-order Methfessel–Paxton smear-ing ( σ = 0 .20 eV). Structural relaxations were converged to forces below 10 −3 eV/˚ A and total-energy changes be-low 10 −7 eV; for very large cells, LREAL=Auto was used and verified to introduce only a constant energy shift that cancels in the reported energy differences. All equilibrium properties (lattice parameters, equa-tions of state, alloy formation energies, defect energet-ics, and surface/grain-boundary energies) were obtained from fully relaxed geometries followed by static single-point calculations. These DFT results provide the sole reference for assessing all linear ACE models reported here. 7  
+
+> III. RESULTS A. Hyperparameter sensitivity of linear ACE models
+
+Before analysing training-set design, we first assess the sensitivity of linear ACE model accuracy to key hyperparameters controlling basis size and interaction range. We focus on three primary ACE hyperparameters: the body order ν, the total-degree truncation parameter 
+
+totaldegree , and the radial cutoff rcut . For this study, the full ASSYST dataset was randomly partitioned into 80% training data and 20% validation data. The same fixed split was used for all hyperparameter combinations to ensure a consistent comparison. This analysis serves as a baseline to ensure that subsequent differences between subset-selection strategies do not arise from hyperparam-eter tuning. For each hyperparameter choice, a linear ACE model was trained on the 80% training subset using identical fitting protocols and evaluated on the held-out 20% vali-dation set in terms of energy and force root-mean-square errors (RMSE). To focus on practically relevant accuracy regimes, we restrict attention to models achieving energy RMSEs below 50 meV/atom on the validation set. Figure 1 summarizes the resulting error landscapes for Al and Cu in the ( ERMSE , F RMSE ) plane. Each panel corresponds to a fixed body order ν. Colored markers denote models with that body order, with color encoding 
+
+totaldegree and marker size reflecting rcut . Gray mark-ers show hyperparameter combinations from the other body orders to provide global context for the attainable error range. Several consistent trends emerge across both materials: 
+
+• Increasing rcut systematically reduces both energy and force RMSEs, highlighting the importance of capturing longer-range interactions even within a linear ACE representation. 
+
+• Increasing totaldegree generally lowers the test errors up to a saturation regime. At the highest ba-sis sizes the trend is not strictly monotonic, which is consistent with overfitting: additional basis func-tions may improve the fit to the training data with-out improving generalization to the held-out test set. 
+
+• Higher body order primarily benefits force accuracy at fixed energy error, indicating that many-body correlations play a larger role in reproducing force information than total energies. The spread of points also reveals diminishing returns beyond ν = 4 and shows that increasing model complex-ity does not always improve test performance, particu-larly when the larger basis begins to overfit the training data. Notably, the Cu models lie on a lower-error mani-fold than the Al models for comparable hyperparame-ters. This trend is consistent with previous studies re-porting differences in model complexity across materials, although a detailed analysis of the underlying physical origin is beyond the scope of the present work. Importantly, this analysis reveals a broad hyperpa-rameter region in which comparable accuracy can be achieved. This ensures that the performance differences observed between random sampling, energy-based selec-tion, and leverage-guided strategies do not arise from fine-tuning of ACE hyperparameters, but instead reflect genuine differences in the information content of the se-lected configurations. We therefore fix a single set of hyperparameters in the following for clarity of compar-ison. For all subset-selection comparisons reported be-low, we use body order ν = 3, total-degree truncation 
+
+td = 17, and cutoff radius rcut = 6 .5 ˚ A. This fixed ar-chitecture was chosen from the low-error region of the hyperparameter scan and is used consistently across the subset-selection comparisons.  
+
+> B. Learning efficiency for Al: energy and force test errors
+
+We next quantify the data efficiency of different subset-selection strategies for elemental Al under a controlled it-erative data-acquisition protocol designed to mimic pro-gressive DFT labeling. The ASSYST pool contains ap-proximately Ntot ≈ 9 × 10 3 configurations. In each run, 20% of the data are reserved as an independent test set and never used during fitting. From the remaining con-figurations, the training set is initialized with 10% of the available data and iteratively expanded by adding 10% of the remaining pool according to the chosen selection rule (random, energy-based, force-based, leverage-CUR, or leverage block-CUR). This protocol enables a direct comparison of how efficiently each strategy improves pre-dictive accuracy as additional DFT labels are acquired. To compare methods at equal data budgets, we report learning curves as a function of the labelled fraction 
+
+flab = Ntrain 
+
+Ntrain + Npool 
+
+, (26) plotted as 100 flab . To account for statistical variability arising from random 80/20 train–test splits, random ini-tialization of the initial 10% training subset, and stochas-tic elements in the selection rules, each experiment is re-peated five times with independent random seeds. For each method, we report RMSE values for energies and forces, with shaded regions indicating 95% confidence in-tervals computed across the five runs. Test RMSE mea-sures generalization to unseen configurations and there-fore reflects the physical transferability of the fitted po-tential. Figure 2 shows the resulting learning curves. For all methods, both energy and force errors decrease monoton-8
+
+FIG. 1: Hyperparameter sensitivity of linear ACE models for Al (top) and Cu (bottom), evaluated using held-out test RMSEs. For each body order ( ν = 3 , 4, 5), colored markers indicate models with that order, with color encoding 
+
+totaldegree and marker size reflecting the cutoff radius rcut . Gray markers correspond to models from other body orders and are shown for reference. Because the errors are evaluated on unseen test configurations, the dependence on totaldegree is not necessarily monotonic; high-complexity models can show larger test errors due to overfitting. ically with increasing labelled fraction, confirming that additional DFT data improve the fitted ACE model. However, convergence rates differ markedly between se-lection strategies. Random sampling provides a baseline corresponding to uniform exploration of the configuration pool. Energy-based selection accelerates early reduction of energy errors but yields limited improvement in force accuracy. Force-based selection performs competitively at small labelled fractions but exhibits larger run-to-run variability and saturates at higher errors, suggesting that selecting configurations solely by large force magnitudes does not efficiently span descriptor space. In contrast, leverage-based strategies provide improved data efficiency. Both CUR and block-CUR consistently achieve lower test errors than heuristic baselines across most labelled fractions, with the advantage most pro-nounced for flab ≲ 40%, the regime most relevant for reducing DFT cost. Energy RMSEs for CUR and block-CUR are nearly indistinguishable, indicating that both strategies effectively constrain the dominant energy modes of the ACE parameter space. A clear distinc-tion emerges for forces: block-CUR consistently yields the lowest force errors and reaches its accuracy plateau at flab ≈ 30–40%, whereas random sampling requires a substantially larger labelled fraction to reach comparable performance. The distinction becomes clear when considering what each observable constrains: energies constrain global features of the potential-energy surface, whereas forces probe local curvature and therefore impose significantly stronger constraints on model parameters. By incorpo-rating the coupled energy–force block structure of each configuration, block-CUR preferentially selects configu-rations that constrain both total-energy variations and local force responses, contributing to faster convergence of force predictions. Taken together, these results demonstrate that leverage-guided subset selection provides a more bal-anced and physically informative sampling of configura-tion space than scalar heuristics based solely on energy 9
+
+FIG. 2: Test energy and force learning curves for Al. Solid lines denote the mean RMSE over five independent runs (different random train–test splits and initial training subsets), and shaded regions indicate 
+
+±95% confidence intervals. Results are plotted versus labelled fraction 100 flab .or force magnitudes. Energy-only CUR provides substan-tial gains in the low-labelled regime at low computational cost, while block-CUR further enhances robustness and transferability for applications requiring accurate forces, such as molecular dynamics, lattice dynamics, and de-fect migration. Overall, leverage-based selection achieves comparable predictive accuracy using substantially fewer DFT-labelled configurations, directly reducing the com-putational cost of MLIP development.  
+
+> C. Transferability to Cu and Al–Cu
+
+To assess whether the subset-selection behaviour ob-served for Al extends to other systems, we applied the same training protocol and model architecture to Cu and Al–Cu systems. In each case, ACE models were trained on ASSYST-generated structure pools specific to the cor-responding material, using identical hyperparameter set-tings and selection strategies. For Cu, we adopted the same linear ACE architecture as in the Al study (body order ν = 3, total-degree truncation td = 17, and cutoff 
+
+rcut = 6 .5 ˚ A) to isolate the effect of dataset selection. A pool of 10,631 Cu structures generated by Assyst served as the candidate pool for iterative subset selection. While the architectural and selection framework was transferred from the Al benchmark, all ACE parameters were fitted exclusively using Cu reference data. Figure 3 shows the learning curves for energy and force RMSE as a function of the labelled fraction. Across all fractions, both CUR-type strategies (CUR and block-CUR) exhibit faster convergence and reach the satura-tion regime at substantially smaller labelled fractions compared to the baseline methods. In particular, force RMSEs of ∼ 0.024–0 .025 eV /˚A and energy RMSEs of 
+
+∼ 7–7 .5 meV /atom are achieved once roughly 40–50% of the pool has been labelled. At higher labelled fractions, all methods approach sim-ilar error levels, as expected since the training sets be-come increasingly similar. Differences in this regime are therefore less significant. In contrast, at lower and inter-mediate labelled fractions, leverage-guided selection gen-erally achieves lower errors and smoother convergence, indicating improved data efficiency. Force-based selection reduces the force RMSE more rapidly at small labelled fractions (10–20%) but plateaus at higher energy errors ( ≈ 9 meV /atom), indicating lim-ited improvement in capturing bonded energetics. Ran-dom and energy-based selection exhibit slower conver-gence overall and require larger labelled fractions to reach comparable accuracy. Importantly, each learning curve reports the mean over five independent runs of the iterative acquisition proto-col, while the shaded bands denote ±95% confidence in-tervals, reflecting the robustness and reproducibility of each selection strategy (Fig. 3). The narrow confidence intervals associated with CUR-type methods highlight their stability and consistent performance, whereas the greater variability observed for force-based and random selection indicates reduced reliability in the transferred setting. Taken together, these results indicate that CUR-type leverage sampling improves data efficiency in the Cu sys-tem by reaching comparable accuracy at smaller labeled fractions. For Al–Cu alloys, we employed the same ACE architec-ture optimized for elemental Al (body order ν = 3, total degree td = 17, and cutoff rcut = 6 .5 ˚ A) and evaluated the five selection strategies on a pool of 21 ,330 distinct Al–Cu configurations. Figure 4 shows the resulting test-set learning curves for energy and force RMSE as a func-tion of the labelled fraction 100 flab . Solid lines denote the mean over five independent runs, and shaded regions represent the corresponding 95% confidence intervals. For energy errors, all strategies exhibit monotonic im-provement as the labelled fraction increases, indicating that additional DFT data refine the global energetics of the alloy potential-energy surface. At small labelled 10 
+
+FIG. 3: Energy and force learning curves on Cu, obtained from five independent runs of the iterative acquisition protocol. Solid lines correspond to the mean RMSE and the shaded regions denote ±95% confidence intervals. The labelled fraction is reported as 100 flab .fractions, the CUR and block-CUR strategies provide a clear advantage, achieving lower energy RMSE than the heuristic baselines. This is consistent with improved cov-erage of structurally and chemically diverse environments early in the acquisition process. As the labelled fraction grows, the purely energy-based heuristic becomes com-petitive and eventually slightly surpasses the CUR-type methods, while force-based selection lies between these extremes. Random sampling shows the slowest conver-gence and consistently higher energy errors across the entire range. The force learning curves show a clearer separation be-tween methods. Across all labeled fractions, CUR-type strategies achieve the lowest force RMSE, with block-CUR converging most rapidly and reaching the smallest asymptotic error, followed closely by CUR. Both methods remain below the energy-based, force-based, and random heuristics across most labelled fractions. This indicates that leverage-guided selection more effectively constrains the local curvature of the potential-energy surface, which is directly probed by force information and is particu-
+
+FIG. 4: Test-set learning curves for Al–Cu alloys comparing five selection strategies. Solid lines denote the mean RMSE over five active-learning runs; shaded regions indicate 95% confidence intervals. Labeled fraction is shown as 100 flab .larly sensitive to chemically heterogeneous environments in the alloy. Overall, the alloy results follow the qualitative trends observed in the elemental benchmarks. Leverage-based sampling reaches comparable force accuracy at smaller labelled fractions, while energy-based selection becomes competitive for total-energy accuracy once a sufficiently large fraction of the pool has been labelled. The narrow confidence intervals indicate that these trends are consis-tent across independent runs.  
+
+> D. Validation against independent DFT calculations
+
+For Al, we validated all ACE models against an inde-pendent DFT test set of 360 configurations comprising bulk crystals, symmetric tilt grain boundaries, free sur-faces, point defects, and vacancy structures. To avoid the visual overlap that arises when several selection strate-gies are shown in parity plots, we summarize the vali-11 dation results using both ACE–DFT error distributions and RMSE values. Figure 5 shows the distributions of per-atom energy errors and force-component errors in the early low-data regime and in the approximately 50% la-belled regime. Figure 6 reports the corresponding energy and force RMSE values for the same comparison. At the first 10% labelled fraction, the validation errors are broad, particularly for random selection, reflecting the under-constrained nature of the low-data regime. As the labelled fraction increases to approximately 50%, the error distributions narrow substantially and become more strongly centered near zero for both energies and forces. This behaviour confirms that the selected configurations progressively improve agreement with the independent DFT reference data rather than only reducing errors on the ASSYST train–test splits. The RMSE summaries in Fig. 6 show the same trend quantitatively. Energy and force RMSEs decrease strongly between the first 10% labelled fraction and the approximately 50% labelled regime. In the converged regime, leverage-based CUR and block-CUR achieve competitive or lower energy RMSEs than the heuris-tic baselines, while the force RMSEs remain comparable across methods. These results are consistent with the learning curves and indicate that leverage-guided sub-sets preserve predictive accuracy on independent bulk, surface, grain-boundary, and vacancy-containing struc-tures. Because the validation energies are reported on a per-atom basis, defect contributions can be partially aver-aged out in the global error distributions. For this rea-son, defect-specific validation metrics, including vacancy formation and grain-boundary energies, are analysed sep-arately below. For Cu, we examined whether the different selection strategies preserve the defect-relevant regions of con-figurational space. In addition to low bulk RMSE on ASSYST-generated structures, the models were evalu-ated against two sensitive defect observables: the vacancy formation energy in bulk Cu and the grain-boundary en-ergy of a Σ5(310)[001] symmetric tilt boundary. These quantities probe broken-symmetry environments that are sparsely represented in the training pool and therefore provide a stringent test of transferability. As shown in Table II, leverage-based selection yields markedly lower defect-energy errors. The CUR and block-CUR models achieve vacancy formation energy er-rors of 0 .041 ±0.015 eV and 0 .047 ±0.015 eV, respectively, whereas random, energy-based, and force-based strate-gies overestimate the vacancy energy by approximately 0.25–0 .26 eV. For the Σ5 grain boundary, leverage-based models reduce the error to 0 .0046–0 .0051 eV/˚ A2, com-pared with 0 .0067–0 .0073 eV/˚ A2 for the heuristic base-lines. Importantly, these differences arise despite similar global energy and force RMSE across methods. Vacancy formation and grain-boundary energetics probe locally under-coordinated and symmetry-broken environments that are sparsely represented in the training pool. The substantially lower defect errors obtained with leverage-guided selection therefore indicate that the high-leverage subsets more effectively span these low-coordination re-gions of descriptor space, constraining the corresponding directions in parameter space beyond what is captured by aggregate bulk RMSE metrics alone. Table III reports aggregate defect errors for ordered Al–Cu intermetallic compounds relative to DFT. The complete Al–Cu training pool contains 21,330 configura-tions; the 50% baselines therefore correspond to approx-imately 10,700 labeled structures, whereas the leverage-based models at 25% are trained on only about 5,300 configurations. Across the 50% baselines, antisite formation energies exhibit large RMSEs in the range 0 .22–0 .28 eV, confirm-ing that chemically ordered environments provide a strin-gent transferability test for linear ACE models. Vacancy formation energies show smaller but still non-negligible deviations (0 .15–0 .18 eV), reflecting the sensitivity of va-cancy energetics to sublattice specificity and local chem-ical asymmetry. Reducing the labeled fraction to 25% does not lead to a clear degradation in ordered-defect accuracy when leverage-guided selection is employed. Both CUR and block-CUR yield antisite and vacancy RMSEs that re-main within the same overall range as the 50% baseline models, despite a twofold reduction in training size. This suggests that the dominant chemically distinct environ-ments in ordered compounds are already reasonably rep-resented within the high-leverage subset, so that addi-tional uniformly sampled data provide limited improve-ment for these observables. A clearer distinction emerges in the dilute Cu-in-Al regime (Table IV). At 50% data, vacancy formation RMSEs range from 0 .20 to 0 .24 eV for the heuristic se-lection strategies. In contrast, CUR at 25% reduces the vacancy RMSE to 0 .086 eV, substantially below the 50% heuristic baselines, while block-CUR remains within the same general range as the baseline methods. In the di-lute limit, where a single solute perturbs an otherwise host-dominated coordination environment, accurate va-cancy energetics require resolving subtle chemical asym-metries in local bonding. The improved performance of CUR with half the labeled data suggests that leverage-guided selection can preferentially retain configurations that constrain these chemically sensitive directions of the potential-energy surface. Vacancy–solute binding ener-gies are reproduced within 0 .04–0 .07 eV across all meth-ods, indicating that short-range interaction trends are comparatively insensitive to the choice of selection strat-egy. Taken together, these results show that alloy defect en-ergetics provide a more discriminating validation metric than bulk RMSE alone. While ordered compounds ex-hibit similar performance across selection strategies once sufficient chemical diversity is present, the dilute regime reveals a clear advantage for leverage-CUR. In this limit, 12 
+
+FIG. 5: Error distributions on the independent DFT validation set for the different subset-selection strategies. The top panel shows per-atom energy errors and the bottom panel shows force-component errors, both defined as ACE 
+
+− DFT. Each plot compares the early low-data regime, corresponding to the first 10% labelled data, with the approximately 50% labelled regime. The error distributions narrow and become increasingly centered near zero as the labelled fraction increases, indicating improved agreement with the independent DFT reference data. TABLE II: Summary of defect and surface errors for Cu with respect to DFT. Vacancy error is averaged over 3×3×3 and 4 ×4×4 cells. Surface error is averaged over all surface orientations. Global energy and forces values are taken as RMSE over all structures after ACE relaxation. Values represent the mean over five independent runs, digits in the parentheses the standard deviation in the trailing digits.                              
+
+> Method Evac fγGB ⟨γsurf ⟩Global EGlobal F
+> eV eV/˚ A2eV/˚ A2m eV/atom m eV/˚ ARandom 0.246(6) 0.0067(6) 0 .010(7) 50.5Energy-based 0.260(6) 0.0072(4) 0 .010(6) 50.5Force-based 0.259(7) 0.0073(4) 0 .009(6) 40.5Leverage CUR 0.041(15) 0 .0046(6) 0 .006(7) 30.5Leverage block-CUR 0 .047(15) 0 .0051(5) 0 .007(7) 30.5
+
+improved defect accuracy can be achieved using approxi-mately half the number of labeled structures, highlighting the role of statistically informed sampling in improving data efficiency for complex alloy systems.  
+
+> E. Data efficiency and practical gains
+
+The purpose of this section is to translate the learning-curve behavior into an explicit reduction of DFT work-load. In many MLIP workflows, candidate configurations are first generated and then fully labeled with DFT; any 13 TABLE III: Ordered Al–Cu compounds: aggregate defect errors vs DFT (eV). Antisite RMSE is computed across Al 2Cu, Al 3Cu and AlCu antisite pairs. Vacancy RMSE is computed across all ordered vacancy cases (V Al and V Cu ). Values represent the mean over five independent runs, digits in the parentheses the standard deviation in the trailing digits.                 
+
+> Method % Data Antisite (eV) Vacancy (eV) Random 50% 0.267(49) 0.160(25) Energy-based 50% 0.275(62) 0.152(18) Force-based 50% 0.216(38) 0.184(57) CUR 25% 0.29(15) 0.175(48) block-CUR 25% 0.278(79) 0.174(48)
+
+TABLE IV: Dilute Cu in Al: aggregate errors vs DFT (eV). Vacancy binding energy RMSE is computed across first-, second-, and third-nearest neighbour vacancies. Vacancy formation energy RMSE is computed across host and solute-vacancy configurations. Values represent the mean over five independent runs, digits in the parentheses the standard deviation in the trailing digits.                 
+
+> Method % Data Binding (eV) Formation (eV) Random 50% 0.056(11) 0.204(41) Energy-based 50% 0.071(18) 0.243(47) Force-based 50% 0.064(8) 0.214(36) CUR 25% 0.043(12) 0.086(64) block-CUR 25% 0.065(17) 0.164(56)
+
+subsequent pruning or reweighting therefore occurs only after the dominant computational cost has already been incurred. This “label–then–filter” ordering does not re-duce the number of DFT evaluations required for the initial pool. Leverage-guided selection changes this ordering be-cause it is determined by the geometry of the regres-sion problem rather than by the quantum-mechanical la-bels. The regularized leverage scores depend only on the weighted ACE design matrix eA = W A and the chosen prior (Sec. II D 1), and can therefore be computed di-rectly from atomic geometries and the ACE basis, with-out access to DFT energies or forces. This enables a “filter–then–label” workflow: a large structural pool may be generated inexpensively (e.g. via Assyst ), lever-age scores evaluated in descriptor space, and DFT per-formed only for the selected subset. In the present study, the full DFT-labeled pools are retained solely to enable controlled comparisons between selection strategies; the leverage criterion itself remains label-free. The learning curves for Al, Cu, and Al–Cu support this interpretation. For elemental Al, block-CUR reaches the plateau regime within uncertainty at flab ≈ 0.30–0 .40, whereas random sampling requires flab ≈ 0.75–0 .80 to attain comparable test errors (Fig. 2). A similar early-saturation behavior is observed for Cu. Operationally, this corresponds to an approximate two- to threefold re-duction in the number of DFT-labeled configurations re-quired to reach the plateau regime for these elemental systems within the present linear ACE model class. For Al–Cu alloys, the situation is more structure-dependent. In ordered intermetallic compounds, leverage-based subsets trained on 25% of the pool achieve defect errors statistically comparable to 50% baselines, indicating diminishing returns once the dominant chem-ically distinct environments are represented. In the di-lute regime, however, leverage-guided selection reaches improved vacancy accuracy using half the labeled data, demonstrating that selective sampling can more effi-ciently constrain chemically asymmetric local environ-ments. From a Bayesian linear-regression perspective, this be-havior is consistent with leverage-based sampling pref-erentially selecting configurations that expand the span of eA, thereby reducing posterior parameter uncertainty and shrinking the dominant eigenmodes of the covari-ance. In this sense, the observed compression factors reflect a geometry-driven approximation to optimal ex-perimental design, achieved without explicit determinant optimization. By contrast, energy- and force-based heuristics re-quire DFT labels to rank configurations and therefore do not modify the fundamental cost structure; they re-main “label–then–filter” baselines. Because they rank by scalar residual magnitude rather than by coverage of de-scriptor space, they can converge more slowly or exhibit greater variability, particularly at small labeled fractions. Overall, these results demonstrate that geometry-aware, label-free subsampling provides a practical and statistically grounded route to reducing DFT labeling re-quirements for linear ACE models trained on systemati-cally generated structure pools, while retaining compara-14 
+
+FIG. 6: RMSE summary on the independent DFT validation set for the different subset-selection strategies. The top panel reports the energy RMSE and the bottom panel reports the force RMSE for the first 10% labelled data and for the approximately 50% labelled regime. Error bars indicate variation across the selected iteration windows. The comparison shows that leverage-based CUR and block-CUR selection achieve competitive or lower RMSE values in the approximately 50% labelled regime while using substantially reduced training-set sizes. ble accuracy within statistical uncertainty for the systems examined here.  
+
+> IV. CONCLUSIONS AND OUTLOOK
+
+This work examined how principled subset selection can reduce the DFT labeling burden in the development of linear ACE interatomic potentials. Rather than mod-ifying model architecture or regression schemes, we fo-cused on the statistical structure of the training data and assessed whether descriptor-space–guided selection can improve data efficiency without compromising trans-ferability. Because of our diverse training data and un-related test cases that span multiple applications, point defects, planar defects, and multiple bulk phases, these results clearly indicate that data efficiency and transfer-ability of the models can be maintained simultaneously 
+
+and do not inherently conflict with each other. Using systematically generated Assyst structure pools, we compared random, energy-based, and force-based heuristics with leverage-guided CUR and block-CUR sampling on a fixed ACE architecture. For ele-mental Al and Cu, leverage-based subsets reached the test-error saturation regime at substantially smaller la-beled fractions than uniform random sampling. In Al, comparable energy and force accuracy was obtained at 
+
+flab ≈ 0.30–0 .40, whereas random sampling required 
+
+flab ≈ 0.75–0 .80, corresponding to an effective two- to threefold reduction in DFT evaluations for this model class and dataset. The impact of subset selection becomes clearer in defect-sensitive validation tests. In ordered Al–Cu in-termetallic compounds, all strategies yielded similar an-tisite and vacancy errors once sufficient chemical diver-sity was present, and leverage-guided subsets preserved defect-level fidelity despite a twofold reduction in labeled data (25% vs 50%). In the dilute Cu-in-Al limit, however, leverage-based selection achieved markedly lower vacancy formation errors while using approximately half as many labeled configurations, indicating improved efficiency in constraining chemically asymmetric local environments. These findings highlight that aggregate RMSE metrics alone do not fully characterize transferability; the geom-etry of the selected training set plays a central role in capturing broken-symmetry and low-coordination config-urations. From a methodological standpoint, the results are con-sistent with a Bayesian linear-regression interpretation in which leverage sampling preferentially expands the span of the weighted design matrix and reduces posterior pa-rameter uncertainty. CUR-type selection can therefore be viewed as a geometry-driven approximation to opti-mal experimental design, realized without explicit deter-minant optimization or reliance on DFT labels. Several extensions follow naturally. Assessing scala-bility to more chemically complex multi-component al-loys will clarify the limits of descriptor-based subsam-pling. Coupling leverage-based selection with dynami-cal or active-learning workflows may further improve effi-ciency by focusing DFT effort on both physically encoun-tered and informationally informative configurations. In-corporating task-specific observables into the selection criterion may additionally enable training sets tailored to particular materials design objectives. Overall, these results demonstrate that training-set construction is not merely a preprocessing step but a con-trollable lever for reducing quantum-mechanical work-load in linear ACE potential development. Geometry-aware, label-free subset selection provides a practical and statistically grounded strategy for improving data effi-ciency while retaining physically meaningful transferabil-ity.  
+
+> V. CODE AVAILABILITY
+
+Code for subset selection and model fitting will be re-leased in a public repository; a link will be added upon 15 publication. 
+
+ACKNOWLEDGEMENTS 
+
+This work was supported by the NSERC CREATE program “Net Zero for Materials and Manufacturing” (Net0MM). This research was enabled in part by support provided by the BC DRI Group and the Digital Research Alliance of Canada (alliancecan.ca). MP and JN acknowledge funding from the Deutsche Forschungsgemeinschaft (DFG, German Research Foun-dation) through the Collaborative Research Center 1394 (SFB 1394, No. 409476157). Computations were performed on the UBC ARC Sock-eye high-performance computing platform and computa-tional resources provided through the Stewart Blusson Quantum Matter Institute at the University of British Columbia. Finally the authors would like to thank C. Ortner for this constructive comments on this manuscript. 
+
+[1] T. Mueller, A. Hernandez, and C. Wang, J. Chem. Phys. 
+
+152 , 050902 (2020). [2] J. Behler, Angewandte Chemie International Edition 56 ,12828–12840 (2017). [3] V. L. Deringer, M. A. Caro, and G. Cs´ anyi, Advanced Materials 31 (2019), 10.1002/adma.201902765. [4] F. No´ e, A. Tkatchenko, K.-R. M¨ uller, and C. Clementi, Annual Review of Physical Chemistry 71 , 361–390 (2020). [5] J. Behler, The Journal of Chemical Physics 145 (2016), 10.1063/1.4966192. [6] O. T. Unke, S. Chmiela, H. E. Sauceda, M. Gastegger, I. Poltavsky, K. T. Sch¨ utt, A. Tkatchenko, and K.-R. M¨ uller, Chemical Reviews 121 , 10142–10186 (2021). [7] P. Friederich, F. H¨ ase, J. Proppe, and A. Aspuru-Guzik, Nature Materials 20 , 750–761 (2021). [8] J. Behler and M. Parrinello, Physical Review Letters 98 
+
+(2007), 10.1103/physrevlett.98.146401. [9] A. P. Bart´ ok, M. C. Payne, R. Kondor, and G. Cs´ anyi, Physical Review Letters 104 (2010), 10.1103/phys-revlett.104.136403. [10] A. V. Shapeev, Multiscale Modeling &amp; Simulation 
+
+14 , 1153–1173 (2016). [11] I. S. Novikov, K. Gubaev, E. V. Podryabinkin, and A. V. Shapeev, Machine Learning: Science and Technology 2,025002 (2021). [12] R. Drautz, Physical Review B 99 (2019), 10.1103/phys-revb.99.014104. [13] G. Dusson, M. Bachmayr, G. Cs´ anyi, R. Drautz, S. Etter, C. van der Oord, and C. Ortner, Journal of Computa-tional Physics 454 , 110946 (2022). [14] A. Thompson, L. Swiler, C. Trott, S. Foiles, and G. Tucker, Journal of Computational Physics 285 ,316–330 (2015). [15] M. A. Wood and A. P. Thompson, The Journal of Chem-ical Physics 148 (2018), 10.1063/1.5017641. [16] I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Csanyi, in Advances in Neural Information Process-ing Systems , Vol. 35, edited by S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, and A. Oh (Curran Associates, Inc., 2022) pp. 11423–11436. [17] O. T. Unke and M. Meuwly, Journal of Chemical Theory and Computation 15 , 3678–3693 (2019). [18] R. Zubatyuk, J. S. Smith, J. Leszczynski, and O. Isayev, Science Advances 5 (2019), 10.1126/sciadv.aav6490. [19] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, Nature Communications 13 (2022), 10.1038/s41467-022-29939-5. [20] K. T. Sch¨ utt, O. T. Unke, and M. Gastegger, in Inter-national Conference on Machine Learning (2021). [21] L. Zhang, J. Han, H. Wang, R. Car, and W. E, Physical Review Letters 120 (2018), 10.1103/phys-revlett.120.143001. [22] H. Wang, L. Zhang, J. Han, and W. E, Computer Physics Communications 228 , 178–184 (2018). [23] S. Mohr, L. E. Ratcliff, L. Genovese, D. Caliste, P. Boulanger, S. Goedecker, and T. Deutsch, Physical Chemistry Chemical Physics 17 , 31360–31370 (2015). [24] M. S. Daw and M. I. Baskes, Physical Review B 29 ,6443–6453 (1984). [25] B. Barzdajn and C. P. Race, “Optimal design of exper-iments in the context of machine-learning inter-atomic potentials: improving the efficiency and transferability of kernel based methods,” (2024), arXiv:2405.08636 [cond-mat.mtrl-sci]. [26] T. B. Blank, S. D. Brown, A. W. Calhoun, and D. J. Doren, The Journal of Chemical Physics 103 , 4129–4137 (1995). [27] C. Allen and A. P. Bart´ ok, Mach. Learn. Sci. Technol. 3,045031 (2022). [28] T. Rocke and J. R. Kermode, Model. Simul. Mat. Sci. Eng. 33 , 055020 (2025). [29] Y. Liu, J. D. Morrow, C. Ertural, N. L. Fragapane, J. L. A. Gardner, A. A. Naik, Y. Zhou, J. George, and V. L. Deringer, Nature Communications 16 (2025), 10.1038/s41467-025-62510-6. [30] A. PA Subramanyam and D. Perez, npj Computational Materials 11 , 218 (2025). [31] V. G. Fletcher, A. P. Bart´ ok, and L. B. P´ artay, npj Computational Materials (2025). [32] I. Baghishov, J. Janssen, G. Henkelman, and D. Perez, Digital Discovery 5, 332 (2025). [33] C. Orhan and O. Tastan, “Active learning methods based on statistical leverage scores,” (2018), arXiv:1812.02497 [cs.LG]. [34] R. K. Cersonsky, B. A. Helfrecht, E. A. Engel, S. Kli-avinek, and M. Ceriotti, Mach. Learn. Sci. Technol. 2,035038 (2021). [35] M. Poul, L. Huber, E. Bitzek, and J. Neugebauer, Phys-ical Review B 107 (2023), 10.1103/physrevb.107.104103. [36] M. Poul, L. Huber, and J. Neugebauer, npj Computa-16 
+
+tional Materials 11 (2025), 10.1038/s41524-025-01669-4. [37] W. C. Witt, C. van der Oord, E. Gelˇ zinyt˙ e, T. J¨ arvinen, A. Ross, J. P. Darby, C. H. Ho, W. J. Baldwin, M. Sachs, J. Kermode, N. Bernstein, G. Cs´ anyi, and C. Or-tner, The Journal of Chemical Physics 159 (2023), 10.1063/5.0158783. [38] A. Bochkarev, Y. Lysogorskiy, and R. Drautz, Phys. Rev. X 14 , 021036 (2024).

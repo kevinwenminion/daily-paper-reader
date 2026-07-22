@@ -6,65 +6,46 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-21
-- 运行时间：2026-07-21 21:13:39 UTC
+- 最新运行日期：2026-07-22
+- 运行时间：2026-07-22 21:37:50 UTC
 - 运行状态：成功
-- 本次总论文数：15
-- 精读区：7
-- 速读区：8
+- 本次总论文数：8
+- 精读区：3
+- 速读区：5
 
 ### 今日简报（AI）
-今日处理15篇论文，精读7篇，重点关注高维神经网络势与机器学习力场校正。最值得关注的是RuNNer 2.0软件套件和基于MLIP的DFT形成能校正方法，均获得满分推荐。建议下一步重点关注主动学习避免不稳定性以及点群等变图神经网络在材料中的应用。
-- 详情：[/202607/21/README](/202607/21/README)
+1) 今日精读2篇、速读3篇，重点涵盖MOF负热膨胀数据驱动设计与可审计AI科学家工作流。  
+2) 最值得关注：10分论文《Data-driven Design of Metal-Organic Frameworks with Tunable Negative Thermal Expansion》提出可调负热膨胀设计方法，8分论文展示自动化、可审计的AI材料研究流程。  
+3) 下一步建议：优先阅读10分论文中的MOF数据驱动框架，并关注其在实际材料调温中的应用潜力。
+- 详情：[/202607/22/README](/202607/22/README)
 
 ### 精读区论文标签
-1. [RuNNer 2.0: A Software Suite for High-Dimensional Neural Network Potentials](/202607/21/2607.17978v1-runner-20-a-software-suite-for-high-dimensional-neural-network-potentials)  
+1. [Data-driven Design of Metal-Organic Frameworks with Tunable Negative Thermal Expansion](/202607/22/2607.18594v1-data-driven-design-of-metal-organic-frameworks-with-tunable-negative-thermal-expansion)  
    标签：评分：10.0/10、query:aimat-mlpot
-   evidence：训练高维神经网络势的软件套件，具有改进的可扩展性
-2. [Correcting DFT formation energies towards experimental accuracy using foundational MLIPs and latent-feature delta-learning](/202607/21/2607.18092v1-correcting-dft-formation-energies-towards-experimental-accuracy-using-foundational-mlips-and-latent-feature-delta-learning)  
-   标签：评分：10.0/10、query:aimat-mlpot
-   evidence：使用基础机器学习原子间势函数和Delta学习校正DFT形成能
-3. [AIMS: An uncertainty-aware AI experimentalist for quantum matter](/202607/21/2607.16544v1-aims-an-uncertainty-aware-ai-experimentalist-for-quantum-matter)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用不确定性感知闭环学习进行量子材料自主实验的AI代理
-4. [Auto Research for Materials: Auditable AI-Scientist Workflows with Held-Out Transfer](/202607/21/2607.17100v1-auto-research-for-materials-auditable-ai-scientist-workflows-with-held-out-transfer)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：用于材料建模的AI科学家工作流，在Matbench上评估
-5. [STEP: Spin Tensor Equivariant Potential for Data-Efficient Learning of Magnetic Potential Energy Surfaces](/202607/21/2607.17129v1-step-spin-tensor-equivariant-potential-for-data-efficient-learning-of-magnetic-potential-energy-surfaces)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：磁性机器学习原子间势，使用等变表示
-6. [Study of ordering in (MoCrTi)$_{100-x}$Al$_x$ refractory high-entropy alloys using machine learning interatomic potential](/202607/21/2607.18099v1-study-of-ordering-in-mocrti100-xalx-refractory-high-entropy-alloys-using-machine-learning-interatomic-potential)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用机器学习原子间势研究高熵合金
-7. [Machine Learning Potential-Driven Molecular Dynamics Simulations of Dehydrogenation in Pristine and Doped MgH$_2$](/202607/21/2607.18182v1-machine-learning-potential-driven-molecular-dynamics-simulations-of-dehydrogenation-in-pristine-and-doped-mgh2)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：机器学习势驱动的MgH2脱氢分子动力学模拟
+   evidence：利用MACE-MP-MOF0机器学习原子间势进行MOF负热膨胀的高通量研究
+2. [Auto Research for Materials: Auditable AI-Scientist Workflows with Held-Out Transfer](/202607/22/2607.17100v1-auto-research-for-materials-auditable-ai-scientist-workflows-with-held-out-transfer)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：AI智能体在特征、模型、表示上进行搜索以预测材料性质，并在保留集上验证；涵盖多个Matbench任务
+3. [Data-Efficient Training of Linear ACE Potentials through Leverage-Guided Subset Selection of ASSYST Structure Pools](/202607/22/2607.18524v1-data-efficient-training-of-linear-ace-potentials-through-leverage-guided-subset-selection-of-assyst-structure-pools)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：使用杠杆引导子集选择实现线性原子团簇展开（ACE）机器学习原子间势的数据高效训练
 
 ### 速读区论文标签
-1. [Instability-Avoiding Active Learning for Cluster Expansions in Complex Multielement Materials](/202607/21/2607.16486v1-instability-avoiding-active-learning-for-cluster-expansions-in-complex-multielement-materials)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：主动学习结合稳定性分类，在多元素合金簇展开中避免不稳定结构
-2. [Point Group Equivariant Graph Neural Networks for Materials](/202607/21/2607.16871v1-point-group-equivariant-graph-neural-networks-for-materials)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：等变图神经网络用于材料性质预测
-3. [Informatics Modeling of High Tg Polymers: Assessing the Role of Processing versus Chemistry](/202607/21/2607.17925v1-informatics-modeling-of-high-tg-polymers-assessing-the-role-of-processing-versus-chemistry)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：使用拓扑描述符和加工参数预测聚合物玻璃化转变温度的机器学习模型
-4. [Mapping Order in Semicrystalline Polymers using Machine Learning of Nanobeam Electron Diffraction](/202607/21/2607.16570v1-mapping-order-in-semicrystalline-polymers-using-machine-learning-of-nanobeam-electron-diffraction)  
+1. [Towards a universal model for spin-orbit coupled Wannier Hamiltonians](/202607/22/2607.18403v1-towards-a-universal-model-for-spin-orbit-coupled-wannier-hamiltonians)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：机器学习应用于聚合物材料表征的电子衍射分析
-5. [Going Beyond the d-band Center to Design Intermetallic Catalysts for Nitrogen Reduction: A High-Throughput DFT and Machine Learning Study](/202607/21/2607.17463v1-going-beyond-the-d-band-center-to-design-intermetallic-catalysts-for-nitrogen-reduction-a-high-throughput-dft-and-machine-learning-study)  
+   evidence：深度学习模型预测电子哈密顿量，建立在机器学习原子间势概念之上
+2. [Automated Data Engineering and Feature Selection for the Case Study of Warpage Detection in Fused Deposition Modeling](/202607/22/2607.18515v1-automated-data-engineering-and-feature-selection-for-the-case-study-of-warpage-detection-in-fused-deposition-modeling)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：高通量DFT和机器学习用于催化剂设计
-6. [Chemical filters for ultra-high-throughput materials screening and generation](/202607/21/2607.17910v1-chemical-filters-for-ultra-high-throughput-materials-screening-and-generation)  
+   evidence：自动化机器学习流程预测FDM工艺中的翘曲缺陷这一材料属性
+3. [GQD-AdsNet: Graph Neural Networks Unlock Rapid Exploration of Transition Metal Adsorption on Graphene Quantum Dots](/202607/22/2607.18591v1-gqd-adsnet-graph-neural-networks-unlock-rapid-exploration-of-transition-metal-adsorption-on-graphene-quantum-dots)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：AI驱动的材料发现，使用生成模型
-7. [UniFlow: Unifying protein conformational ensemble generation and machine-learned force fields with a scalable normalizing Flow](/202607/21/biorxiv-10-64898-2026-07-17-739266-v1-uniflow-unifying-protein-conformational-ensemble-generation-and-machine-learned-force-fields-with-a-scalable-normalizing-flow)  
+   evidence：图神经网络框架预测过渡金属在石墨烯量子点上的吸附能，加速材料发现
+4. [ATLAS: A Foundation Neural Sampler for Amorphous Materials](/202607/22/2607.19198v1-atlas-a-foundation-neural-sampler-for-amorphous-materials)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：机器学习粗粒化力场用于蛋白质分子动力学
-8. [MolMAE: A Surface-Centric Multimodal Masked Autoencoder for Molecular Representation Learning](/202607/21/biorxiv-10-64898-2026-07-11-737987-v1-molmae-a-surface-centric-multimodal-masked-autoencoder-for-molecular-representation-learning)  
+   evidence：基于扩散模型和等变图神经网络的非晶材料神经采样器，生成玻尔兹曼分布的结构
+5. [Physics-constrained machine learning for decoding multi-nanobubble configurations in graphene](/202607/22/2607.17866v1-physics-constrained-machine-learning-for-decoding-multi-nanobubble-configurations-in-graphene)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：AI用于分子表示学习
+   evidence：物理约束机器学习解码石墨烯纳米气泡构型
 
 
 <div class="dpr-home-promo-card">

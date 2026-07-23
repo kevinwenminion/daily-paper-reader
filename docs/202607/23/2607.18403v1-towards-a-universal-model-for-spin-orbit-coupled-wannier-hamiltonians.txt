@@ -1,0 +1,620 @@
+Title: Towards a universal model for spin-orbit coupled Wannier Hamiltonians
+
+URL Source: https://arxiv.org/pdf/2607.18403v1
+
+Published Time: Wed, 22 Jul 2026 00:11:26 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# Towards a universal model for spin-orbit coupled Wannier Hamiltonians 
+
+Alexander C. Tyner 1
+
+> 1
+
+Tailwater Informatics, San Diego, CA, USA 
+
+(Dated: July 22, 2026) While machine learning interatomic potentials (MLiPs) have matured to revolutionize material science, deep learning models for electronic structure are just beginning to emerge and restricted, almost exclusively, to non-orthogonal basis Hamiltonians. We introduce G(Wa)NN, the first deep-learning model capable of generating the electronic Hamiltonian of solid-state systems in an orthogonal Wannier basis. G(Wa)NN is trained on an unprecedented, diverse dataset of more than 111K Wannier Hamiltonians (150M+ hopping matrices) spanning 69 elements. The combination of optimized inference and linear-scaling methods for orthogonal Hamiltonians unlock transport simulations at massive scales (10K+ atoms). Crucially, the framework supports local finetuning, allowing users to adapt the base model to custom Wannier Hamiltonian datasets. To seamlessly translate these predictions into physical observables, we introduce Tailwater, a Python package providing an API interface to G(Wa)NN alongside a high-performance post-processing library. Tailwater enables automated projection of the predicted Hamiltonian into an arbitrary low-energy subspace—directly mirroring familiar Wannier90 workflows—and includes a suite of Kernel Polynomial Method (KPM) functions that exploit the orthogonal basis to achieve strict linear scaling for spectral observables. The Tailwater ecosystem, with the G(Wa)NN model at its core, aims to help bridge the gap between deep learning and macro-scale quantum transport simulations. 
+
+I. INTRODUCTION 
+
+As electronic devices reach ultra-scaled dimensions and exploit quantum-mechanical phenomena, keeping pace with Moore’s law demands radical materials innovation[ 1 –5]. Artificial intelligence has emerged as a cornerstone of this effort, most notably through machine-learned in-teratomic potentials (MLiPs)[ 6 ]. Architectures such as MACE[ 7], CHGNet[ 8 ], EquiformerV2[ 9], and M3GNet[ 10 ]are trained on millions of first-principles calculations[ 11 ]to map potential energy surfaces with DFT-level accuracy at a fraction of the computational cost. This paradigm shift has enabled macroscopic simulations, transforming workflows across drug discovery, carbon capture, and energy storage. Despite the maturity of MLiPs, deep learning frame-works for generating electronic structure remain in their infancy. This lag stems from data scarcity, the challenge of capturing long-range interactions, and variations in basis-set choices. Yet, foundational models for electronic structure are vital to accelerate electronic materials dis-covery. This need is starkly apparent in the search for next-generation interconnects in integrated circuits[ 12 –15 ]. While MLiPs can assess structural manufacturabil-ity, optimizing an interconnect requires evaluating its electrical conductance—a metric fundamentally tied to electronic structure. Currently, large-scale screening of massive virtual databases like GNOME[ 16 ] remains out of reach because conventional first-principles transport calculations cannot handle the necessary system sizes. A foundational electronic structure model capable of linear scaling could rapidly screen these repositories. Pioneering frameworks such as Uni-HamGNN[ 17 ], DeepH-E3[ 18 ], and MACE-H[ 19 ] have made significant strides by training graph neural networks (GNNs) on Hamiltonians expressed in non-orthogonal Linear Combi-nation of Atomic Orbitals (LCAO) bases. LCAO represen-tations provide a fixed spatial basis that naturally limits gauge degrees of freedom, standardizing the target tensor for covariant machine learning models. However, map-ping the electronic structure to an LCAO basis introduces a downstream consequence: it yields a non-orthogonal Hamiltonian ( H) governed by the generalized eigenvalue problem HΨ = SE Ψ, where S is the overlap matrix. While GNNs can accurately predict S, quantum trans-port codes—particularly those utilizing the Kernel Poly-nomial Method (KPM) for O(N ) scaling[ 20 ]—frequently require an orthogonal basis. Transforming the system via Horth = S−1/2HS −1/2 destroys the sparsity of the matrices, yielding a dense Horth that compounds the com-putational cost for large systems. In this work, we present G(Wa)NN, an E(3) -equivariant graph neural network designed to directly generate the spin-orbit coupled electronic Hamiltonians of solids in a Wannier basis. Because the Wannier basis is naturally orthogonal and highly localized, the resulting Hamiltonian matrix remains strictly sparse. This sparsity enables rapid inference and generation of electronic structures for macro-scale systems. Furthermore, utilizing a Wannier representation allows us to exploit subspace projection. For instance, while a large cell may contain hundreds of deep, fully occupied bands that bloat the Hilbert space, transport properties are governed entirely by states near the Fermi energy. G(Wa)NN natively accommodates the construction of a reduced Hilbert space focused solely on this relevant energy window, dramatically accelerating downstream transport calculations[21, 22]. To make this framework immediately accessible, we also introduce Tailwater , a Python package providing a streamlined API interface to G(Wa)NN and an optimized post-processing suite. Tailwater automates the projec-tion of Hamiltonians generated by G(Wa)NN into custom arXiv:2607.18403v1 [cond-mat.mtrl-sci] 20 Jul 2026 2Ab Initio Methods 
+
+(High -Accuracy, Limited 
+
+Scale) 
+
+Wannier models offer a bridge 
+
+between high -accuracy plane -wave 
+
+DFT and device scale computations 
+
+Wannier Methods 
+
+(Bridge between 
+
+scale and accuracy )
+
+Semi -empirical methods 
+
+(Device scale )
+
+Maximum 
+
+Length -scale 
+
+>1nm ~10nm ~100nm ~1 𝜇 m
+
+Fermi Surface DOS 
+
+2a. Wannierization 2b. Wannierization   
+
+> Interpolation
+> 2c. Wannier Tight Binding
+
+From Bloch 
+
+states to localized 
+
+orbitals 
+
+Dense k -point 
+
+interpolation, transport, 
+
+Berry phase, & more 
+
+The bridge to mesoscale 
+
+> Preserve
+> DFT
+> accuracy
+> Scale
+> size
+
+1. High -Accuracy/Small scale 2. The Wannier Bridge: from Ab Initio to Mesoscale 3. Large/Device Scale 
+
+Ab initio Methods 
+
+Wavefunction 
+
+Methods (e.g. 
+
+CCSD(T)) 
+
+Plane -Wave DFT w/ 
+
+Hybrid Functionals 
+
+(e.g. HSE06, PBE0) 
+
+Plane -Wave DFT 
+
+(e.g. PBE, LDA) 
+
+State -of -the -art accuracy 
+
+at high cost (< 10nm) 
+
+Construct compact 
+
+Hamiltonian w/ ab 
+
+initio accuracy 
+
+Plane -Wave DFT Hamiltonian → Localized Basis 
+
+Systematic, transferable, and interpolable 
+
+Empirical Tight -Binding 
+
+> (e.g. Slater -Koster)
+
+Continuum Models 
+
+Device Simulation     
+
+> (e.g. Scattering,
+> NEGF, etc.)
+> (e.g. k"p,FEM )
+
+Mesoscopic Simulations 
+
+Access to the million -
+
+atom limit  
+
+> Figure 1 |
+
+Bridging the computational gap between plane-wave DFT and mesoscopic computations with Wannier Hamiltonians: Traditional first-principles methods (top left), such as plane-wave DFT (hybrid-functionals in particular) and advanced wave function theories, offer high electronic structure accuracy but generally remain confined to the sub-nanometer scale due to steep O(N 3) computational scaling bottlenecks. Conversely, empirical tight-binding and continuum models (right) scale to mesoscopic dimensions ( ∼ 1μm ) but sacrifice explicit quantum fidelity and predictive accuracy. Wannier-Tight Binding (WTB) models serve as a critical bridge to the mesoscale. By utilizing a naturally orthogonal, maximally localized basis, the Wannier representation delivers a mix of speed and accuracy—maintaining near first-principles predictive fidelity while operating at a tight-binding computational cost to unlock simulations across extended length scales. 
+
+low-energy windows—directly emulating Wannierization workflows familiar to users of Wannier90—while preserv-ing full basis information. Additionally, the ecosystem includes a suite of KPM-based functions designed to lever-age this orthogonal, sparse format for true linear-scaled calculation of spectral observables, alongside workflows to locally finetune the base G(Wa)NN model on user-provided DFT datasets. In the remainder of this work we provide details of the training set, the model architecture, performance benchmarks, an overview of the finetuning capabilities, and the Tailwater python package which serves as a user-friendly front-end. 
+
+II. THE DATASET 
+
+Progress in machine learning for electronic structure has been fundamentally bottlenecked by a severe dearth of data and the stringent physical constraints required to generate it. In modern DFT software (e.g., Quan-tum ESPRESSO[ 23 – 25 ], VASP[ 26 ], SIESTA[ 27 ]), elec-tronic details are contained within large wavefunction files that are routinely discarded after computing macro-scopic properties to conserve disk space. Consequently, while public databases like the Materials Project[ 28 ] and OQMD[ 29 ] contain millions of computed energies, forces, and stresses, they do not harbor the fundamental wave-functions or Hamiltonians. The success of machine learn-ing interatomic potentials (MLIPs) was enabled by these vast databases because energies and forces are basis-independent and trivial to standardize[ 11 ]. ML Hamilto-nians, however, face a uniquely rigorous barrier: gauge covariance. Because wavefunctions and Hamiltonians are gauge-dependent, ad-hoc data aggregation is impossible; learning the electronic structure dictates that all training data must be generated with systematic consistency. In this work we pursue transformation of the electronic structure to a Wannier basis via the Wannier90 software package[ 21 ] for training of the ML model. This transfor-mation offers numerous key benefits, most important of which is the resulting orthogonal basis. As stated in the introduction, the goal of this work is progress towards device relevant electronic structure computations. This goal can be restated as computation of transport quan-tities at the million-atom limit. From the perspective of the author, this will require a workflow which utilizes sparse matrix operations throughout, and likely relies on 3Experiment  Database  Structure 
+
+# ⇌
+
+{"H!" , Γ!" }
+
+G(Wa)NN Model 
+
+Local Transfer Learning 
+
+• Subspace Projection 
+
+Observables 
+
+• Alternative Functionals 
+
+(HSE06, r 2SCAN, etc.) 
+
+# Fermi -Surface 
+
+• Bands 
+
+• Optical, thermal, 
+
+electrical 
+
+conductivity 
+
+# !H'( 
+
+Tailwater API 
+
+{"H!" , Γ!" }
+
+# !H'( 
+
+# …
+
+Wannier Hamiltonian 
+
+Fermi -Surface 
+
+> Bands
+
+Surface GF & more          
+
+> Structure
+> Database Experiment
+> Figure 2 | Schematic overview of the Tailwater ecosys-tem: Crystal structures obtained from experimental charac-terization or high-throughput structural databases are pro-cessed via pymatgen and fed directly into the Tailwater API. The API interfaces with the core E(3) -equivariant G(Wa)NN model to generate the gauge-standardized, orthogonal Wannier Hamiltonian ( ˆHij ). The API also yields the graph embedding (Γij ) to drive local transfer learning workflows, enabling effi-cient finetuning on alternative exchange-correlation functionals (e.g., HSE06 ,r2SCAN ) or immediate subspace projection into low-energy windows. The predicted sparse, orthogonal Hamil-tonian serves as a high-performance engine for computing downstream physical observables—including Fermi surfaces, electronic band structures, surface Green’s functions (Surface GF), and large-scale transport properties—bypassing the tra-ditional scaling bottlenecks of first-principles methods.
+
+linear scaling methods (e.g. KPM) for determination of physical observables. While, deep generation of Wannier models introduces new challenges due to additional gauge freedom, it is argued that the result of a Hamiltonian in an orthogonal basis warrants the additional effort. Compounding our motivation to generate Hamiltoni-ans in a Wannier basis is the large ecosystem of software built for Wannier Hamiltonians, allowing for seamless integration into discovery workflows. These benefits have been exploited in prior machine-learning studies, such as Ref. [ 30 ] where the authors create dense networks to learn individual hopping parameters for permutations of a small bilayer system, demonstrating transferability to much larger twisted bilayer structure. This study demon-strated a proof-of-concept for machine learning of Wannier Hamiltonians in the context of a single stoichiometry. We aim to extend this idea to the level of a foundational model. To this end, we construct a dataset composed of more than 111K Wannier Hamiltonians generated for structures from the MP-Traj dataset[ 8, 28 ], Computational two-dimensional materials database (C2DB)[ 31 ], GNOME[ 16 ], and Alexandria[ 32 ]. This represents the single largest dataset of Wannier Hamiltonians, to the author’s knowl-edge. The protocol to create the dataset is as follows: 
+
+Structure selection: Atomic structures are selected excluding (I) systems with more than 20 atoms in the primitive unit cell, (II) structures containing lanthanides or elements with atomic number greater than 86, and (III) magnetic systems. 
+
+First-principles computations: For each of the result-ing compounds we begin with density functional theory computations via the Quantum Espresso software pack-age [ 23 , 33 ]. We utilize fully relativistic norm-conserving pseudopotentials from the PseudoDojo library [ 34 ] along with a maximal plane-wave energy cutoff of 60 Ry. All computations incorporate spin-orbit coupling (SOC). The Brillouin zone is sampled using a 6 × 6 × 6 Monkhorst-Pack k-point grid [ 35 ]. This grid is sufficient for conver-gence of the DFT computations for the smallest unit cell considered in this work. The choice of a uniform grid is made to prioritize the creation of high-quality Wannier tight-binding models rather than maximize computational efficiency. It is important to comment further on our choice to utilize structures from the MP-Traj dataset. Unlike struc-tures selected from other data-sources, out-of-equilibrium structures are included among those selected from MP-Traj. This is a dataset commonly used for training MLiPs, and the out-of-equilibrium structures are generated in the relaxation process. For each relaxation trajectory, we selected frames only where the minimum bond length difference was greater than 0.05Å , and placed a cap of 5 frames per material. This was done to avoid inclusion of redundant near-equilibrium structures. Ultimately, the MP-Traj contribution to the dataset is 89,331 structures from 34,564 materials. The purpose for including such Hamiltonians is to make progress towards capturing finite-temperature effects as well as improved performance at surfaces and interfaces where reconstruction can occur. 
+
+Wannier Hamiltonian Generation: Upon completion of a self-consistent and non self-consistent DFT compu-tation, a Wannier Hamiltonian is generated using the Wannier90 software package[ 21 ]. One reason for the lack 4# of Wannier Hamiltonians 111,905 
+
+# of Hopping Matrices ( H!" 
+
+> 𝒓
+
+) >150M 
+
+1.6×10 $
+
+2.0×10 %
+
+Element Counts 
+
+(a)
+
+(b) (c)      
+
+> Figure 3 | Composition and structural diversity of the training dataset: (a) Periodic table distribution highlighting the elemental diversity of the training set, which spans 69 elements and totals 111,905 Wannier Hamiltonians comprising over 150 million distinct spatial hopping matrices ( ˆHR
+> ij ). (b) Structural diversity across space groups, showing the distribution of the top 30 most frequent space groups (out of 210 total represented in the dataset), led by the high-symmetry cubic F m ¯3m(225) phase. (c) Breakdown of data provenance across various source materials repositories, illustrating that the majority of the training data originates from the Materials Project Trajectories (MP-Traj), supplemented by the Alexandria, C2DB, and GNOME databases.
+
+of a single large database of Wannier Hamiltonians despite their utility is that the process of generating a Wannier Hamiltonian from first-principles computations can be computationally expensive and there exists no guarantee that the basis conversion will yield accurate results. The outcome must be verified by benchmarking against the DFT computations. The crux of this procedure involves selecting an orbital basis for the Wannier Hamiltonian as well as selecting a subset of bands for which Wannier90 should attempt to fit the Hamiltonian using the selected basis. While methods for automated creation of Wannier Hamiltonians exist, we have not employed such methods in this work due to the need for a fixed basis for each ele-ment to create uniformity among the dataset for training of the model. We select the basis shown in Tab. I, creating a uniform number of orbitals for each element across all computa-tions. In each Wannier90 model, the number of Wannier functions is exactly double the sum of the number of orbitals for each element, the factor of two is present to account for SOC. In the DFT computations we ensure the total number of states is equal to the number of Wan-nier functions plus ten additional states. The additional ten states are included such that the number of bands is greater than the number of Wannier functions, allow-ing for a disentanglement procedure within Wannier90 followed by maximal localization of the Wannier centers through an iterative process. While disentanglement has the potential to introduce noise into the dataset, our mo-tivation for including this step is two-fold. First, we select the frozen window to include all occupied bands and ter-minate at 1eV above the Fermi energy. This is primary energy window of interest for all relevant physical com-putations and the disentanglement procedure increases accuracy in this window. Second, the maximal localiza-tion procedure is beneficial as it has been found to act in a manner similar to gauge fixing, reducing a key potential source of noise. 5Once the Wannier Hamiltonian is created, two primary checks are performed, (I) the band structure is compared to the DFT band structure at a random selection of points in reciprocal space, if the mean average error between the DFT and Wannier band structure is greater than 
+
+0.05 eV the model is rejected and (II) the spread of all Wannier centers must be < 1.5 × | vmax | where vmax is the largest magnitude lattice vector. This is similar to the requirements listed in Ref. [ 36 ]. Statistics for all generated Wannier Hamiltonians passing these requirements are shown in Fig. (3). 
+
+III. G(WA)NN MODEL AND TRAINING 
+
+We summarize the mathematical structure of our model, an equivariant message-passing graph neural network that predicts the electronic Hamiltonian, H, of a material directly from its atomic geometry. The network follows the operator-learning formalism in which the target is an operator- valued quantity expressed in a localized orbital basis, and is built from SO (3) tensor products coupled through Clebsch–Gordan coefficients. In a basis of localized orbitals {| φi⟩} that transform like spherical harmonics Y ℓm(ˆr) under rotation, the single-particle electronic structure problem takes the form of a generalized eigenvalue problem, 
+
+H ψ = ε S ψ,Hij = ⟨φi| ˆH(r)|φj ⟩ ,Sij = ⟨φi|φj ⟩ ,
+
+(1) where ˆH(r) is the effective Hamiltonian operator. Our model learns the mapping from an atomic structure to the matrix H expressed in a localized Wannier basis, predicting both the on-site blocks Hii (per atom / graph node) and the inter-site blocks Hij (R) (per directed edge between atom i and a periodic image of atom j). By working in a Wannier basis we can define S = 1, the identity matrix. The basis is spinful : each block carries a two-component spin structure, so that a block coupling the on-site s⊕p⊕d
+
+manifold ( 9 spatial orbitals) to itself is a 18 × 18 complex matrix, 
+
+Hblock ∈ C(9 ·2) ×(9 ·2) ,
+
+18 = (2 · 0+1) + (2 · 1+1) + (2 · 2+1) 
+
+︸ ︷︷ ︸ 
+
+> spatial = 9
+
+× 2︸︷︷︸ 
+
+> spin
+
+. (2)  
+
+> TABLE I | G(Wa)NN universal basis set. In training and for the initial forward pass, G(Wa)NN uses the following orbital basis.
+
+Z s↑↓ p↑↓ d↑↓ 
+
+Z ≤ 2 ✓
+
+2 < Z ≤ 18 ✓ ✓
+
+18 < Z ✓ ✓ ✓
+
+Each spatial sub-block indexed by orbital degrees (ℓα, ℓ β )
+
+on the two centres, 
+
+Hαβ ij (mα, m β ) = ⟨ℓα, m α| ˆH|ℓβ , m β ⟩ , (3) is, before the spin structure is attached, an object that transforms as the tensor product ℓα ⊗ℓβ , of dimension 
+
+(2 ℓα + 1) × (2 ℓβ + 1) .
+
+A. Equivariant features and Clebsch–Gordan tensor products 
+
+Node and edge features are organized as collections of spherical tensors ( irreps ) indexed by an angular degree ℓ ≤
+
+ℓmax and a parity, replicated over a number of learnable channels. Under a rotation R ∈ SO (3) a degree-ℓ feature transforms by the Wigner-D matrix, 
+
+x(ℓ) 7 −→ D(ℓ)(R) x(ℓ),
+
+D(ℓ)(R) ∈ R(2 ℓ+1) ×(2 ℓ+1) , (4) and a feature spanning several degrees transforms under the direct sum ⊕ 
+
+> ℓ
+
+D(ℓ)(R).The fundamental equivariant operation is the coupling of two spherical tensors of degrees ℓ1 and ℓ2 into an output of degree L. The tensor product decomposes into irreducible representations, 
+
+ℓ1 ⊗ ℓ2 =
+
+> ℓ1+ℓ2
+
+⊕
+
+> L=|ℓ1−ℓ2|
+
+L, (5) with components obtained through the Clebsch–Gordan (CG) coefficients C(L,M )(ℓ1,m 1)( ℓ2,m 2),
+
+(x(ℓ1) ⊗ y(ℓ2))(L) 
+
+> M
+
+=
+
+> +ℓ1
+
+∑
+
+> m1=−ℓ1
+> +ℓ2
+
+∑
+
+> m2=−ℓ2
+
+C(L,M )(ℓ1,m 1)( ℓ2,m 2) x(ℓ1) 
+
+> m1
+
+y(ℓ2) 
+
+> m2
+
+. (6) These couplings are realized as weighted tensor products in which the weight assigned to each (ℓ1, ℓ 2, L ) path is produced by a radial network. In our model the radial weights are conditioned not only on the interatomic dis-tance |Rij | but also on the chemical identities (Zi, Z j ) of the two endpoints, so that chemically distinct bonds at equal length receive distinct couplings. The model retains the full SO (3) Clebsch–Gordan coupling of Eq. (6) (with parity tracked, i.e. O(3) ) rather than reducing it to an 
+
+SO (2) form. All operations on the graph utilize the e3nn software package [37]. 
+
+B. Hamiltonian reconstruction 
+
+The final per-node and per-edge embeddings are mapped to Hamiltonian blocks by inverting the decom-position of Eq. (6) : the network emits a set of covariant 6coefficients that are recombined with a precomputed ba-sis of coupling tensors. For the spatial part, the (ℓα, ℓ β )
+
+sub-block is assembled from the same CG coefficients, 
+
+Hαβ (mα, m β ) = 
+
+> ℓα+ℓβ
+
+∑ 
+
+> L=|ℓα−ℓβ|
+> +L
+
+∑ 
+
+> M=−L
+
+ˆh(L) 
+
+> M
+
+C(L,M )(ℓα,m α)( ℓβ ,m β ), (7) where ˆh(L) 
+
+> M
+
+are the covariant network outputs and the CG coefficients are related to Wigner-3j symbols in the standard way [38]. The spin structure is attached by coupling the spatial tensors to the two-dimensional spin space. The block basis is the direct sum of a spin-scalar channel and a spin-vector channel, 
+
+C(L)scalar = (C(L)spat ⊗ 12
+
+)(L), (8) 
+
+C(Lout )vector = (C(L)spat ⊗ σ)(Lout ), |L − 1| ≤ Lout ≤ L + 1 ,
+
+(9) where 1 and σ = ( σx, σ y , σ z ) are treated as the spin-scalar (ℓ = 0 ) and even-parity spin-vector ( ℓ = 1 ) objects, re-spectively, and ( · ⊗ · )(L) denotes the coupled product of Eq. (6), evaluated component-wise with products of com-ponents understood as Kronecker products into the spin space. The predicted block is the covariant combination 
+
+Hblock = ∑ 
+
+> k
+
+ak Ck of these basis tensors with complex network coefficients ak. 
+
+> C. Model training and results
+
+The model is trained against a composite objective combining a real-space and a momentum-space term, 
+
+Ltotal = LR + Lk, (10) where LR is the mean absolute error on the predicted Hamiltonian matrix elements, 
+
+LR = ∥Hpred − Htarget ∥. (11)  
+
+> 1. Momentum-space loss
+
+The momentum-space term Lk acts on the per-k eigen-values ϵpn and ϵtn of the predicted and target Bloch Hamil-tonians ( n the band index, the k dependence implicit) and combines three complementary terms. 
+
+a. Band-edge–anchored eigenvalue error. A weighted eigenvalue MAE (Leig ) that assigns full weight to states near the valence- and conduction-band edges and smoothly down-weights states far from the Fermi level, concentrating accuracy where band gaps, effective masses, and transport properties are determined. 
+
+b. Level spacing. An error on band-to-band spacings (L∆) that is invariant to global energy offsets, constraining the relative positions of neighboring bands rather than their absolute energies. 
+
+c. Crossing protection. A spacing term ( L×) con-centrated on near-degenerate band pairs, discouraging artificial gapping of band crossings required by the under-lying symmetries. 
+
+d. Combined loss. These combine as 
+
+Lk = Leig + λ∆ L∆ + λ× L×, (12) with λ∆ and λ× set so that the spacing and crossing terms refine rather than overwhelm the eigenvalue error.  
+
+> IV. MODEL BENCHMARKS
+
+It is common to report loss metrics based on Hamil-tonian matrix elements[ 17 , 19 ], (the network achieves a MAE of 10meV on the validation set), however such met-rics can be misleading due to gauge co-variance of the target Hamiltonian. We thus focus on gauge-invariant ob-servables. This allows for comparison to existing machine learning approaches and overcomes underlying gauge-noise.  
+
+> A. Density of states and eigenspectra
+
+The density of states (DOS) has been a common target for past deep generative approaches as it represents a mapping from a given crystal structure and energy level, 
+
+E, to a scalar ρ(E). Furthermore, the density of states is of general use to the scientific community and has been collected in a number of databases including the Materials Project, NOMAD[ 39 ] and C2DB. Recently, a multimodal[ 40 ] and point-edge-transformer (PET)[ 41 ] ap-proach have yielded impressive accuracy in prediction of the density of states. These references further utilize the density of states to extract the band gap. This provides a useful comparison to G(Wa)NN as models which are not designed for explicit prediction of band-gap but from which it can be extracted. Here we follow the convention used in Ref. [ 40 ], com-puting the density of states for both the target and pre-dicted Wannier Hamiltonian using the eigenvalues from a 
+
+10 × 10 × 10 grid of k-points as, 
+
+ρ(E) = 1
+
+Nk
+
+∑
+
+> k
+
+∑
+
+> n
+
+1
+
+σ√2π exp 
+
+(
+
+− 12
+
+( E − En,k 
+
+σ
+
+)2)
+
+,
+
+(13) where Nk is the number of k-points and En,k is the eigen-value of band n at a given point in the Brillouin zone, 
+
+k. This is computed for E ∈ [−7eV, 3eV ] on a discrete grid with spacing, 0.025 eV . The resulting curve is then normalized by its maximum value such that the DOS 7TiNbGa 6
+
+Zr 2Sc 2Mo 4Si 4
+
+CsAl 2GeAs 
+
+TaTcRuSn 
+
+Ta 2BH 2
+
+DFT Tailwater 
+
+Normalized DOS MAE 
+
+> Cumulative
+> Distribution
+
+TiNbGa 6 Zr 2Sc 2Mo 4Si 4 CsAl 2GeAs TaTcRuSn Ta 2BH 2
+
+> 0th  Percentile
+> 25 th
+> 50 th
+> 75 th
+> 99 th
+
+a
+
+10 -2 10 -1
+
+dcb
+
+e f g
+
+h i j
+
+k l m
+
+n o p 
+
+> Figure 4 |
+
+Performance on validation set: (a) Cumulative distribution of mean-average error (MAE) for the density of states (DOS) evaluated over the 2000 material validation set. The MAE for the DOS is determined by computing the density of states over the energy range E ∈ [−7eV, 3eV ] on a discrete grid with spacing, 0.025 eV via Eq. (13) using both the target and predicted Hamiltonian. The MAE is then computed via Eq. (14) . The median MAE of 0.035 demonstrates a high level of accuracy. (b)-(p) Structures are selected from the 0 th , 25 th , 50 th , 75 th and 99 th percentiles of the cumulative distribution shown in (a). These sample are representative of the best to worst materials in terms of DOS prediction respectively. For each material, from left to right, the crystal structure, predicted and target DOS, and predicted and target band structure are provided. 8values fall exclusively between 0 and 1. The MAE is then computed as, 
+
+M AE ρ = 1
+
+NE
+
+∑ |ˆρpred (E) − ˆρtarget (E)|, (14) where the sum is over all discrete points on the DOS curve, NE , and ˆρ is the normalized DOS. In Fig. (4) (a) the cumulative distribution of the MAE over a validation set of 2000 materials from the GNOME dataset is shown. The model achieves an overall MAE of 0.04, comparable with that of Ref. [ 40 ], which is stated as 0.08 for in-distribution systems and 0.122 for out-of-distribution crystals. We emphasize that this work uses a distinct test and train set to Ref. [ 40 ] making direct comparison impossible. To provide a qualitative under-standing of the accuracy, the crystal structure, density of states, and band structure for example systems falling in the 0, 25 , 50 , 75 , and 99 th percentile of the cumulative distribution function are plotted in Fig. (4) (b)-(p). We note that in nearly all cases accuracy is greatest near the Fermi energy, reflecting the loss function design which prioritizes accuracy in the low-energy sector. This allows for even systems falling in the worst 25% of predictions to provide physically useful information. We also expect enhanced noise in the conduction sector due to the dis-entanglement procedure in the Wannierization process itself. 
+
+B. Band gap 
+
+Aside from being a useful physical quantity, prediction of band gap serves as a convenient metric for assessing the quality of the model as we can compare to the wide range of existing machine learning models constructed for this purpose. Furthermore, band gap prediction is a proxy for the quality of the predicted eigen-spectra near the Fermi energy. We test the band-gap prediction of the model against the same validation set of 2000 materials from the GNOME dataset analyzed in Fig. (4) . The mean band gap among materials in this set is 0.47 eV . The results of the Tailwater model are shown in Fig. (5) , demonstrating a mean average error of 0.08 eV . To provide a comparison, we have trained a crystal graph convolutional neural net-work (CGCNN)[ 42 ], atomistic line graph neural network (ALIGNN)[ 43 ], and connectivity optimized nested line graph network (coGN)[ 44 ] on the same set of training data. Training was done using the default settings for all models with the exception of the CGCNN for which the graph radius was increased to 16Å . The results are shown in Tab. (II). The performance of CGCNN, ALIGNN, and coGN models are in-line with existing literature results[ 43 , 45 ]. While our results can not be directly compared to the Mat-Bench leader board[ 45 ], we note that coGN and ALIGNN currently rank first and fourth respectively on the Mat-Bench bandgap leaderboard. The relative improvement 0 2 4 6 8  
+
+> Target Band Gap (eV)
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> 7
+> 8
+> 9
+> Predicted Band Gap (eV)
+> N=2000
+> R2= 0.950
+> MAE = 0.080 eV
+> Mean Gap = 0.47eV
+> 5
+> 4
+> 3
+> 2
+> 1
+> 0
+> 1
+> Log Point Density
+> Figure 5 |
+
+Band Gap Prediction on Validation Set: Parity plot detailing band-gap prediction for 2000 materials in the validation set (not seen in training), selected from the GNOME database. 
+
+of our model indicates that G(Wa)NN is approaching or at the state-of-the-art for band-gap prediction. 
+
+V. THE TAILWATER INTERFACE 
+
+In an effort to accelerate materials discovery efforts, the Tailwater (TW) python package has been developed to provide a simplified API interface for accessing the G(Wa)NN model, as well as provide a library of post-processing function that integrate seamlessly with the in-terface to aid construction of automated workflows. This package can be downloaded via PyPi and a full tutorial along with code examples are provided on Github[ 46 ]and https://tailwater.readthedocs.io . We empha-size that, whenever possible, an implementation based on the kernel polynomial method (KPM) is provided. This package is open-source and compatible with any Wan-nier Hamiltonian, not only those produced by G(Wa)NN. Our aim is to provide a useful community tool for easily navigating the Wannier ecosystem. A schematic detailing the steps for accessing G(Wa)NN  
+
+> TABLE II | Benchmarking band-gap predictions Band-gap MAE and
+
+R2 for 2000- material validation set from GNOME[ 16 ] across models trained using the same dataset. Best values are shown in bold text. 
+
+Model MAE (eV) R2
+
+G(Wa)NN 0.080 0.95 
+
+CGCNN[42] 0.303 0.72 ALIGNN[43] 0.092 0.93 coGN[44] 0.111 0.91 9TW Full Basis TW Projected Subpsace              
+
+> ℤ!=1ℤ!=1
+> Surface Dirac Cone
+> Compute Acceleration
+> (b)
+> (c)(e)
+> (d)(f)
+> (g)
+> Bi 2Se 3(R -3m, 166) (a)
+> Projected
+> Hamiltonian
+> ΓKM
+> -1
+> +1
+> 0
+> 𝜌 "(E)
+> ΓKM
+> Figure 6 |
+
+Example Workflow for Bi 2Se 3: Topological analysis and computational acceleration benchmarks. (a) Primitive unit cell of rhombohedral ( R¯3m) Bi 2Se 3. (b) Electronic band structure comparing ground-truth DFT (black circles) with the Tailwater (TW) model predicted full-basis Wannier Hamiltonian (gray lines) across all 90 bands, and the 30 band projected Wannier Hamiltonian (dashed green lines), showing excellent agreement. (c) Evolution of Wannier charge centers calculated via Z2Pack in the ky = 0 plane for the TW full basis yielding Z2 = 1 . (d) Surface spectral density computed using Tailwater’s highly optimized Kernel Polynomial Method (KPM) routines for the full basis resolving the gapless surface Dirac cone characteristic of the topological insulator phase. (e)-(f) The Wannier charge centers and surface spectral density computed for the TW projected low-energy subspace, revealing identical physics. (g) Spin-Hall conductivity (SHC) runtime comparison using WannierBerri evaluated across increasingly dense k-point grids (dark gray lines) from 4 × 4 × 4 up to 128 × 128 × 128 ,demonstrating multi-orders-of-magnitude acceleration for the projected subspace. Benchmark of computational scaling for solving Γ-point slab eigenvalues as a function of quintuple layer thickness (orange lines), highlighting massive reduction in slab runtime afforded by projected basis set. 
+
+via the API and post-processing the Hamiltonian with the Tailwater front-end package is given in Fig. (2) . We note that the workflow requires only a PyMatgen[ 47 ] structure as input. The resulting Wannier Hamiltonian is returned as a sparse matrix in npz format. For small system sizes, this is automatically converted to an HDF5 file for immediate use by the Tailwater or TBModels[ 48 ] software package. Alternatively a built in command for writing the model to a wannier90_hr.dat file is available. For large systems the Hamiltonian is left as a sparse matrix with built in optionality for specifying a reciprocal space vector. Optionality to load the Hamiltonian as a sparse matrix in Kwant[49] or Pybinding[50] is also provided. 
+
+A. Subspace projection of the Hamiltonian 
+
+The use of Wannier Hamiltonians, rather than those derived from LCAO DFT, has proliferated in part due to the ability to project into a relevant subspace con-taining only the states near the Fermi energy. This is a powerful capability which allows for reduction of the Hilbert space size by an order or magnitude or more for large systems with many filled valence orbitals that produce deep lying bands with no impact on relevant transport quantities. By reducing the Hilbert-space size, downstream computations, particularly Brillouin zone in-tegrals required for determination of conductivity tensors, are vastly expedited. Additionally, a number of software packages are able to utilize the reduced Hilbert space size for accelerated computation of electron-phonon coupling and strongly-correlated phenomena. While the G(Wa)NN model always returns a Wannier Hamiltonian in a predetermined basis, fixing the number of orbitals present for each atomic species, the Tailwater package offers built-in functionality for projecting the Wannier Hamiltonian into a relevant energetic subspace. This process requires only defining an energetic window containing the bands the user desires to preserve. The user then defines a value for σ, which determines the shape of a Gaussian which is peaked at the center of the energetic, Ec, window and decays as e−(E−Ec)2/σ 2
+
+.This Gaussian is used to control the weight applied to eigenvalues within the energetic window when fitting the projected Hamiltonian. This process occurs on the users local machine and its effect is shown in Fig. (6) . Gener-ation of a model and subsequent implementation of the subspace projection routine is exemplified in the following code:                                                    
+
+> 1import tailwater
+> 2from tailwater import tw_api_call ,
+> 3subspace_projection
+> 4paths =tw_api_call ( structure , USER , PSWRD ,
+> 5" ./ outputs " , " my_mat " , project = True )
+> 6subspace_projection (
+> 7start_lr =1e -3 ,
+> 8end_lr =1e -5 ,
+> 9num_epochs =N_EPOCHS ,
+> 10 decay_sigma =SIGMA ,
+> 11 device =" cpu " , # CUDA when GPU available
+> 12 save_path =" ./ projection_out " ,
+> 13 embed_path =paths [ " embeddings " ] , # Input graph from API
+> 14 hr_npz_path =paths [ ’ npz ’] # Target Hamiltonian for projection )
+
+We emphasize that this process is computationally in-expensive and can be accomplished on personal machine for most systems. The resulting Hamiltonian is saved along with a file containing information about the basis of the projected Hamiltonian. 10 e -tuning Figure      
+
+> Baseline Model
+> MAE =0.129 eV
+> Fine -tuned Model
+> MAE =0.036 eV
+
+# a b c
+
+# d e f                  
+
+> Validation Set: Eigenvalues for stacked + shifted WSe 2bilayers
+> Figure 7 | Finetuning for OOD systems: (a) Primitive unit cell of twisted bilayer WSe 2at θ= 32 .2◦, containing 78 atoms. (b)-(c) Parity plot of DFT versus predicted eigenvalues for the (b) baseline and (c) finetuened model over a 4×4×1grid of
+> k-points. Eigenvalues are computed for the validation set of stacked and shifted WSe 2bilayers. The baseline model demonstrates strong out-of-the-box accuracy but can be quickly improved through finetuning. (d) The DFT and predicted band structure for
+> θ= 32 .2◦twisted bilayer WSe 2using the fine-tuned model. (e)-(f) Comparison of time to generate the supercells of bilayer WSe 2between the Uni-HamGNN foundational model and the Tailwater ecosystem on an Apple M3 Max. A further comparison is made in (e) with Quantum Espresso (DFT) on an HPC Cluster using an AMD EPYC 7713 processor.
+> 1. Example: Topological Insulator Bi 2Se 3
+
+To demonstrate the utility and accuracy of the G(Wa)NN-Tailwater ecosystem, Fig. (6) illustrates an example workflow using the rhombohedral ( R¯3m) topo-logical insulator Bi 2Se 3—a prototypical material widely studied in community packages like WannierTools [ 51 ]. In Bi 2Se 3, the non-trivial topological phase ( Z2 = [1; 0 , 0, 0] )is fundamentally driven by strong relativistic spin-orbit coupling (SOC) originating from the heavy Bi and Se atoms. Specifically, SOC induces a critical band inver-sion at the Γ point between the Bi 6p and Se 4p orbitals. Without an accurate representation of these relativistic interactions, the material is erroneously predicted to be a trivial band insulator. Therefore, precisely capturing SOC within our ML model is essential not only to reproduce the inverted bulk gap, but also to resolve the characteristic topologically protected Dirac surface states. As shown in the electronic band structure comparison Fig. (6) (b), the electronic Hamiltonian predicted via the Tailwater API (gray solid lines) exhibits exceptional agreement across all 90 valence and conduction bands when benchmarked against the ground-truth plane-wave DFT calculation (black dots). Utilizing Tailwater’s automated projection capabilities, the full basis is then cleanly disentangled into a low-energy subspace capturing the 30 bands closest to the Fermi energy ( EF ), which physically isolates the rele-vant Bi and Se p-orbitals (dashed green lines). To verify that the underlying topological physics is seamlessly pre-served under machine-learning inference and subsequent subspace reduction, we compute the Z2 topological invari-ant in the ky = 0 plane using Z2Pack[ 48 ] for both the (c) full and projected (e) Tailwater Hamiltonians. While the total number of tracked Wannier charge centers differs due to the reduced count of occupied bands in the pro-jected subspace, both representations yield the identical topological classification of Z2 = 1 . The non-trivial topol-ogy further manifests in the surface spectral densities calculated via Tailwater’s KPM routines; both the (d) full basis and (f) the projected subspace successfully re-solve the characteristic gapless Dirac cone at the ¯Γ-point. Finally, the computational advantage of subspace projec-tion is quantified in panel (g). Evaluating the spin-Hall conductivity (SHC) using WannierBerri[ 52 ] across a series of increasingly dense k-point grids (gray lines) reveals a massive reduction in runtime for the projected system compared to the full basis. This acceleration is mirrored in real-space scaling benchmarks (orange lines), where the computational time required to solve the Γ-point eigen-values of a slab geometry scales drastically better for the 11 projected Hamiltonian as a function of quintuple layer thickness, confirming the framework’s potential to bring macro-scale quantum transport within reach.  
+
+> B. Fine-Tuning
+
+A current challenge facing deep-models for electronic structure is the ease with which fine-tuning can be im-plemented. In recent years fine-tuning of foundational MLiPs has become commonplace and shown to signif-icantly improve accuracy in out-of-distribution (OOD) scenarios. Unlike MLiPs, fine-tuning deep-generative mod-els for electronic structure often requires familiarity with the underlying LCAO DFT code and use of a basis set consistent with that used in generation of the training data. This poses a challenge given the diverse ecosystem of ab initio codes utilized by the community. To increase the utility of G(Wa)NN, particularly for systems requiring increased accuracy or OOD scenarios, the Tailwater package includes capabilities for fine-tuning using Wannier Hamiltonians created from any DFT code and with any basis set. Moire materials are an exam-ple target space where fine-tuning is useful to resolve low-energy electronic features[ 53 –59 ]. Moire materials have attracted significant interest in recent years and been the target of many deep-generative models for elec-tronic structure as they host flat-bands the primitive unit cell generally contains hundreds to thousands of atoms, making traditional first-principles methods too computa-tionally expensive[60–63]. Rather than a direct computation utilizing the full primitive unit cell, the typical approach for training a model to reproduce the electronic structure of a twisted bilayer is the so-called "stack and shift" procedure by which a bilayer unit cell or small supercell is created and one layer is systematically shifted over a grid. For each shift the Hamiltonian is generated and added to a database. The resulting database is then used to train a neural network which can capture the local inter and intra-layer matrix elements for the full twisted bilayer[ 18 , 30 , 64 –67]. Importantly, when carrying out the stack and shift method, it is common to retain only the relevant orbitals near the Fermi energy. For example, we create a dataset of stacked and shifted homo-bilayer WSe 2 Wannier Hamil-tonians using Quantum Espresso. For this dataset com-putations are performed including the effects of spin-orbit coupling; to accurately account for the long-range van der Waals forces between the two layers, dispersion inter-actions were modeled using the DFT-D3 method[ 68 ]. It should be noted that the DFT-D3 method was not used in the generating data points within the initial training set; necessitating the fine-tuning procedure. For creation of Wannier Hamiltonians, only the p-orbitals of Se and the d-orbitals of W are included. This is distinct from the basis set for W and Se included in the initial training set, which contains s, p, and d orbitals. The Tailwater package handles this automatically, masking the orbitals that do not appear in the fine-tuning set when generat-ing the Hamiltonian and computing the loss. We carry out training with a 90:10 train to validation split to fine-tune the model for analysis of twisted bilayer WSe 2, as shown in Fig. (7) (a). A comparison of the DFT and G(Wa)NN generated eigenvalues for the validation set on a 4 × 4 × 1 grid of k-points is shown for the baseline model (considering only the target energetic subspace) and fine-tuned model in Fig. (7) (b)-(c) demonstrating rea-sonable baseline accuracy while also underscoring that a short fine-tuning can greatly enhance accuracy on out-of-distribution systems. It should be noted that fine-tuning, like subspace-projection is a computationally inexpensive local computation as it generally requires only the model head containing ∼ 61 K parameters. As a local operation it also does not require sharing data through the API. Using the finetuned model the band structure is gener-ated for θ = 32 .2◦ twisted bilayer WSe 2 in Fig. (7) (d) and compared to a direct computation in Quantum Espresso including spin-orbit coupling, a cutoff of 60 Ry , and the DFT-D3 method[ 68 ]. The comparison shows high-level agreement, underscoring the utility and accuracy of the model in out-of-distribution scenarios.  
+
+> C. Handling extreme system sizes
+
+A primary goal of this work is to make transport and electronic structure computations of large systems (1K-10K+ atoms) accessible. This is an important step to accelerate device optimization in areas such as quan-tum computing, semiconductor manufacturing, and more. These computations are generally too expensive for plane-wave DFT, necessitating the use of alternative methods or semi-classical approximations. In order to accommodate extremely large system sizes, the inference pipeline has been optimized to construct and deliver the Hamiltonian in a sparse matrix format. This sparse matrix can be evaluated directly to extract eigenvalues or the Hamiltonian at arbitrary points in mo-mentum space using the Tailwater package. Furthermore, the Tailwater package offers conversion functions to load the Hamiltonian as a sparse matrix in PyBinding[ 50 ] and Kwant[ 49 ]. In systems with thousands of atoms remaining in a sparse matrix format is critical as a dense matrix rep-resentation can easily cause RAM requirements to induce computation failures. Along with optimizing memory constraints, we focus on inference speed. The space of known and AI gener-ated materials is rapidly expanding, exposing a need for electronic structure methods that can keep up. Ideally, these methods should operate in real-time to as tools for AI agents. The Tailwater interface optimizes speed by eliminating the need for any pre- or post-processing using DFT codes. An evaluation of the inference speeds for gen-eration of the Hamiltonian is shown for increasingly large supercells of bilayer WSe 2 in Fig. (7) (e)-(f). The compari-12 son is made between the Tailwater and Uni-HamGNN[ 17 ], an existing foundational model for non-orthogonal Hamil-tonians. The full inference pipeline for both models is executed on an Apple M3 Max. A further comparison is made with a direct computation using Quantum Espresso on an HPC Cluster using an AMD EPYC 7713 processor.  
+
+> D. Further capabilities and connection to the Wannier ecosystem
+
+The goal of the Tailwater python package is a user-friendly front-end that allows for seamless integration of the G(Wa)NN network into existing workflows. For that reason it includes a number of features that we briefly list here: 
+
+• Band structure generation, automatic or on a cus-tom k-path 
+
+• Density of states computed via KPM 
+
+• Surface spectral density on arbitrary surfaces com-puted with KPM or the Lopez-Sancho recursive Greens function 
+
+• Conversion tools to load the model in varying soft-ware packages such as: PythTB[ 69 ], Kwant,[ 49 ]PyBinding[50], WannierBerri[52], and more.  
+
+> VI. OUTLOOK
+
+The principal obstacle to computational materials dis-covery is increasingly one of scale rather than candi-date availability: databases such as GNOME[ 16 ] now enumerate vast numbers of structures, yet conventional first-principles methods cannot evaluate their electronic and transport properties at device-relevant sizes. The framework presented here is designed to address this limitation directly. By predicting spin–orbit coupled elec-tronic Hamiltonians in an orthogonal, maximally localized Wannier basis, and evaluating observables through linear-scaling Kernel Polynomial Method routines, G(Wa)NN and the Tailwater interface represent progress towards a linear scaling alternative to the cubic scaling of plane-wave DFT. To lower the barrier to adoption, a machine-readable prompt is provided at tailwater.io that supplies coding agents (e.g., Claude Code, Codex) with the information required to operate the API and Python package, so that a natural-language interface to the model is immediately available. Several extensions are planned or already underway. These include expanding the training corpus beyond 500,000 Wannier Hamiltonians to broaden chemical and structural coverage; developing a native interface for electron–phonon interactions to enable studies of transport, superconductivity, and finite-temperature phe-nomena; incorporating hybrid functionals, principally HSE06[ 70 ], to improve band-gap and spectral accuracy; and integrating magnetic materials to extend the frame-work to spin-ordered systems. The model is presently accessible through the API, and the Tailwater package is released as an open-source library compatible with Wannier Hamiltonians from any source. We anticipate that this combination of a foundational model and its associated post-processing infrastructure will provide a practical basis for device-scale electronic-structure and quantum-transport studies. 
+
+> ACKNOWLEDGMENTS
+
+A.T. would like to thank B. Baldassarri, J.M. Rondinelli, and F. Tyner for useful discussions. This research was supported in part by Lambda, Inc and par-ticipation in the NVIDIA Inception Program.                         
+
+> [1] D. Gall, The search for the most conductive metal for narrow interconnect lines, Journal of Applied Physics 127 ,050901 (2020). [2] C.-T. Chen, U. Bajpai, N. A. Lanzillo, C.-H. Hsu, H. Lin, and G. Liang, Topological semimetals for scaled back-end-of-line interconnect beyond Cu, in 2020 IEEE Interna-tional Electron Devices Meeting (IEDM) (IEEE, 2020) pp. 32–4. [3] Y. S. Zou, C. L. Gan, M.-H. Chung, and H. Takiar, A review of interconnect materials used in emerging mem-ory device packaging: first-and second-level interconnect materials, Journal of Materials Science: Materials in Elec-tronics 32 , 27133 (2021). [4] D. Gall, J. J. Cha, Z. Chen, H.-J. Han, C. Hinkle, J. A. Robinson, R. Sundararaman, and R. Torsi, Materials for interconnects, MRS Bulletin , 1 (2021). [5] J. H. Moon, E. Jeong, S. Kim, T. Kim, E. Oh, K. Lee, H. Han, and Y. K. Kim, Materials quest for advanced interconnect metallization in integrated circuits, Adv. Sci.
+> 10 , 2207321 (2023). [6] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kovács, J. Riebesell, X. R. Advincula, M. Asta, M. Avay-lon, W. J. Baldwin, et al. , A foundation model for atomistic materials chemistry, J. Chem. Phys. 163 ,https://doi.org/10.1063/5.0297006 (2025). [7] I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Csanyi, Mace: Higher order equivariant message pass-ing neural networks for fast and accurate force fields, in Advances in Neural Information Processing Systems ,Vol. 35, edited by S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, and A. Oh (Curran Associates, Inc., 2022) pp. 11423–11436. [8] B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, Chgnet as a pretrained universal neural network potential for charge-informed atomistic modelling, Nature Machine Intelligence , 1–11 (2023).
+
+13 
+
+[9] Y.-L. Liao, B. Wood, A. Das, and T. Smidt, Equiformerv2: Improved equivariant transformer for scaling to higher-degree representations, in International Conference on Learning Representations , Vol. 2024, edited by B. Kim, Y. Yue, S. Chaudhuri, K. Fragkiadaki, M. Khan, and Y. Sun (2024) pp. 39282–39309. [10] C. Chen and S. P. Ong, A universal graph deep learning interatomic potential for the periodic table, Nat. Comput. Sci. 2, 718 (2022). [11] L. Barros-Luque, M. Shuaibi, X. Fu, B. M. Wood, M. Dzamba, M. Gao, A. Rizvi, M. Uyttendaele, C. L. Zit-nick, and Z. W. Ulissi, The open materials 2024 (omat24) inorganic materials dataset and models, Nat. Comput. Sci. , 1 (2026). [12] M. T. Kiani, A. C. Tyner, A. Jog, C.-T. Chen, J. M. Rondinelli, and J. J. Cha, Searching for materials for next-generation on-chip interconnects, Newton 1,10.1016/j.newton.2025.100133 (2025). [13] A. C. Tyner, W. Rogers, P.-H. Shih, Y.-H. Tu, G. Liang, H. Lin, C.-T. Chen, and J. M. Rondinelli, Accelerated discovery of topological conductors for nanoscale inter-connects, Adv. Sci. 13 , e20535 (2026). [14] M. T. Kiani and J. J. Cha, Shrinking interconnects beyond copper, Science 390 , 572 (2025). [15] H. Kim, S. Oh, S. An, J. Kim, T. Kim, S. Jeong, O. Kaya, T. Galvani, S. Roche, J. J. Cha, et al. , Future interconnect materials for highly integrated semiconductor devices, Nat. Rev. Elect. Eng. , 1 (2025). [16] A. Merchant, S. Batzner, S. S. Schoenholz, M. Aykol, G. Cheon, and E. D. Cubuk, Scaling deep learning for materials discovery, Nature 624 , 80 (2023). [17] Y. Zhong, R. Wang, X. Gong, and H. Xiang, A univer-sal spin–orbit-coupled hamiltonian model for accelerated quantum material discovery, Nat. Mach. Intell. , 1 (2026). [18] X. Gong, H. Li, N. Zou, R. Xu, W. Duan, and Y. Xu, General framework for e (3)-equivariant neural network representation of density functional theory hamiltonian, Nat. Commun. 14 , 2848 (2023). [19] C. Qian, V. Vitartas, J. R. Kermode, and R. J. Maurer, Equivariant electronic hamiltonian prediction with many-body message passing, npj Comput. Mater. https://doi.org/10.1038/s41524-026-02020-1 (2026). [20] A. Weiße, G. Wellein, A. Alvermann, and H. Fehske, The kernel polynomial method, Rev. Mod. Phys. 78 , 275 (2006). [21] G. Pizzi, V. Vitale, R. Arita, S. Blugel, F. Freimuth, G. Géranton, M. Gibertini, D. Gresch, C. Johnson, T. Koretsune, J. Ibañez-Azpiroz, H. Lee, J.-M. Lihm, D. Marchand, A. Marrazzo, Y. Mokrousov, J. I. Mustafa, Y. Nohara, Y. Nomura, L. Paulatto, S. Poncé, T. Pon-weiser, J. Qiao, F. Thole, S. S. Tsirkin, M. Wierzbowska, N. Marzari, D. Vanderbilt, I. Souza, A. A. Mostofi, and J. R. Yates, Wannier90 as a community code: new features and applications, J. Phys. Condens. Matter 32 , 165902 (2020). [22] S. Tiwari, B. Cucco, V.-A. Ha, and F. Giustino, Meta-optimization of maximally-localized wannier functions, npj Comput. Mater. https://doi.org/10.1038/s41524-026-02082-1 (2026). [23] P. Giannozzi, O. Baseggio, P. Bonfà, D. Brunato, R. Car, I. Carnimeo, C. Cavazzoni, S. de Gironcoli, P. Delugas, F. Ferrari Ruffino, A. Ferretti, N. Marzari, I. Timrov, A. Urru, and S. Baroni, Quantum espresso toward the exascale, J. Chem. Phys. 152 , 154105 (2020). [24] P. Giannozzi, O. Andreussi, T. Brumme, O. Bunau, M. B. Nardelli, M. Calandra, R. Car, C. Cavazzoni, D. Ceresoli, M. Cococcioni, N. Colonna, I. Carnimeo, A. D. Corso, S. de Gironcoli, P. Delugas, R. A. D. Jr, A. Ferretti, A. Floris, G. Fratesi, G. Fugallo, R. Gebauer, U. Gerst-mann, F. Giustino, T. Gorni, J. Jia, M. Kawamura, H.-Y. Ko, A. Kokalj, E. Küçükbenli, M. Lazzeri, M. Marsili, N. Marzari, F. Mauri, N. L. Nguyen, H.-V. Nguyen, A. O. de-la Roza, L. Paulatto, S. Poncé, D. Rocca, R. Sabatini, B. Santra, M. Schlipf, A. P. Seitsonen, A. Smogunov, I. Timrov, T. Thonhauser, P. Umari, N. Vast, X. Wu, and S. Baroni, Advanced capabilities for materials modelling with quantum espresso, J. Phys. Condens. Matter 29 ,465901 (2017). [25] P. Giannozzi, S. Baroni, N. Bonini, M. Calandra, R. Car, C. Cavazzoni, D. Ceresoli, G. L. Chiarotti, M. Cococ-cioni, I. Dabo, A. Dal Corso, S. de Gironcoli, S. Fabris, G. Fratesi, R. Gebauer, U. Gerstmann, C. Gougoussis, A. Kokalj, M. Lazzeri, L. Martin-Samos, N. Marzari, F. Mauri, R. Mazzarello, S. Paolini, A. Pasquarello, L. Paulatto, C. Sbraccia, S. Scandolo, G. Sclauzero, A. P. Seitsonen, A. Smogunov, P. Umari, and R. M. Wentz-covitch, Quantum espresso: a modular and open-source software project for quantum simulations of materials, J. Phys. Condens. Matter 21 , 395502 (19pp) (2009). [26] J. Hafner, Ab-initio simulations of materials using vasp: Density-functional theory and beyond, J. Comput. Chem. 
+
+29 , 2044 (2008). [27] J. M. Soler, E. Artacho, J. D. Gale, A. García, J. Junquera, P. Ordejón, and D. Sánchez-Portal, The siesta method for ab initio order-n materials simulation, J. Phys.: Condens. Matt. 14 , 2745 (2002). [28] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, 
+
+et al. , Commentary: The materials project: A materials genome approach to accelerating materials innovation, APL materials 1, 011002 (2013). [29] J. E. Saal, S. Kirklin, M. Aykol, B. Meredig, and C. Wolverton, Materials design and discovery with high-throughput density functional theory: the open quantum materials database (oqmd), Jom 65 , 1501 (2013). [30] Y. Qi, W. Gong, and Q. Yan, Bridging deep learning force fields and electronic structures with a physics-informed approach, npj Comput. Mater. 11 , 177 (2025). [31] S. Haastrup, M. Strange, M. Pandey, T. Deilmann, P. S. Schmidt, N. F. Hinsche, M. N. Gjerding, D. Torelli, P. M. Larsen, A. C. Riis-Jensen, et al. , The computational 2d materials database: high-throughput modeling and dis-covery of atomically thin crystals, 2D Mater. 5, 042002 (2018). [32] M. M. Ghahremanpour, P. J. Van Maaren, and D. Van Der Spoel, The alexandria library, a quantum-chemical database of molecular properties for force field develop-ment, Sci. data 5, 180062 (2018). [33] J. P. Perdew, K. Burke, and M. Ernzerhof, Generalized gradient approximation made simple, Phys. Rev. Lett. 78 ,1396 (1997). [34] M. J. Van Setten, M. Giantomassi, E. Bousquet, M. J. Ver-straete, D. R. Hamann, X. Gonze, and G.-M. Rignanese, The pseudodojo: Training and grading a 85 element opti-mized norm-conserving pseudopotential table, Comput. Phys. Commun. 226 , 39 (2018). [35] H. J. Monkhorst and J. D. Pack, Special points for brillouin-zone integrations, Phys. Rev. B 13 , 5188 (1976). 14 
+
+[36] Z. Fang, T.-W. Hsu, and Q. Yan, Dataset of tensorial optical and transport properties of materials from the wannier function method, Sci. Data 12 , 1092 (2025). [37] M. Geiger and T. Smidt, e3nn: Euclidean neural networks, arXiv:2207.09453 (2022). [38] D. A. Varshalovich, A. N. Moskalev, and V. K. Kher-sonskii, Quantum theory of angular momentum (World Scientific, 1988). [39] L. Sbailò, Á. Fekete, L. M. Ghiringhelli, and M. Schef-fler, The nomad artificial-intelligence toolkit: turning materials-science data into knowledge and understanding, npj Comput. Mater. 8, 250 (2022). [40] N. Lee, H. Noh, S. Kim, D. Hyun, G. S. Na, and C. Park, Density of states prediction of crystalline materials via prompt-guided multi-modal transformer, Advances in Neural Information Processing Systems 36 , 61678 (2023). [41] W. B. How, P. Febrer, S. Chong, A. Mazitov, F. Bigi, M. Kellner, S. Pozdnyakov, and M. Ceriotti, A universal machine learning model for the electronic density of states, Digit. Discov. 5, 1635 (2026). [42] T. Xie and J. C. Grossman, Crystal graph convolutional neural networks for an accurate and interpretable predic-tion of material properties, Phys. Rev. Lett. 120 , 145301 (2018). [43] K. Choudhary and B. DeCost, Atomistic line graph neural network for improved materials property predictions, npj Computational Materials 7, 185 (2021). [44] R. Ruff, P. Reiser, J. Stühmer, and P. Friederich, Con-nectivity optimized nested line graph networks for crystal structures, Digital Discovery 3, 594 (2024). [45] A. Dunn, Q. Wang, A. Ganose, D. Dopp, and A. Jain, Benchmarking materials property prediction methods: the matbench test set and automatminer reference algorithm, npj Comput. Mater. 6, 138 (2020). [46] T. Informatics, Tailwater github repo, https://github.com/alextyner-tailwater/Tailwater (2026). [47] S. P. Ong, W. D. Richards, A. Jain, G. Hautier, M. Kocher, S. Cholia, D. Gunter, V. L. Chevrier, K. A. Persson, and G. Ceder, Python materials genomics (pymatgen): Arobust, open-source python library for materials analysis, Comput. Mater. Sci. 68 , 314 (2013). [48] D. Gresch, G. Autès, O. V. Yazyev, M. Troyer, D. Van-derbilt, B. A. Bernevig, and A. A. Soluyanov, Z2pack: Numerical implementation of hybrid wannier centers for identifying topological materials, Phys. Rev. B 95 , 075146 (2017). [49] C. W. Groth, M. Wimmer, A. R. Akhmerov, and X. Wain-tal, Kwant: a software package for quantum transport, New Journal of Physics 16 , 063065 (2014). [50] D. Moldovan, M. Anđelković, and F. Peeters, pybinding v0. 9.4: a python package for tight-binding calculations, Zenodo (2020). [51] Q. Wu, S. Zhang, H.-F. Song, M. Troyer, and A. A. Soluyanov, Wanniertools: An open-source software pack-age for novel topological materials, Comput. Phys. Com-mun. 224 , 405 (2018). [52] S. S. Tsirkin, High performance wannier interpolation of berry curvature and related quantities with wannierberri code, npj Comput. Mater. 7, 33 (2021). [53] E. Y. Andrei, D. K. Efetov, P. Jarillo-Herrero, A. H. MacDonald, K. F. Mak, T. Senthil, E. Tutuc, A. Yazdani, and A. F. Young, The marvels of moiré materials, Nature Reviews Materials 6, 201 (2021). [54] Y. Cao, V. Fatemi, S. Fang, K. Watanabe, T. Taniguchi, E. Kaxiras, and P. Jarillo-Herrero, Unconventional su-perconductivity in magic-angle graphene superlattices, Nature 556 , 43 (2018). [55] Y. Cao, V. Fatemi, A. Demir, S. Fang, S. L. Tomarken, J. Y. Luo, J. D. Sanchez-Yamagishi, K. Watanabe, T. Taniguchi, E. Kaxiras, et al. , Correlated insulator behaviour at half-filling in magic-angle graphene super-lattices, Nature 556 , 80 (2018). [56] A. Ghiotto, E.-M. Shih, G. S. Pereira, D. A. Rhodes, B. Kim, J. Zang, A. J. Millis, K. Watanabe, T. Taniguchi, J. C. Hone, et al. , Quantum criticality in twisted transition metal dichalcogenides, Nature 597 , 345 (2021). [57] K. F. Mak and J. Shan, Semiconductor moiré materials, Nature Nanotechnology 17 , 686 (2022). [58] S. F. Zhao, X. Cui, P. A. Volkov, H. Yoo, S. Lee, J. A. Gardener, A. J. Akey, R. Engelke, Y. Ronen, R. Zhong, 
+
+et al. , Time-reversal symmetry breaking superconductivity between twisted cuprate superconductors, Science 382 ,1422 (2023). [59] J. Pixley and P. A. Volkov, Twisted nodal superconduc-tors, arXiv preprint arXiv:2503.23683 (2025). [60] D. Liu, M. Luskin, and S. Carr, Seeing moiré: Convolu-tional network learning applied to twistronics, Phys. Rev. Res. 4, 043224 (2022). [61] T. Bao, R. Xu, H. Li, X. Gong, Z. Tang, J. Fu, W. Duan, and Y. Xu, Deep-learning database of density functional theory hamiltonians for twisted materials, arXiv preprint arXiv:2404.06449 (2024). [62] H. Yang, R. Hu, H. Wu, X. He, Y. Zhou, Y. Xue, K. He, W. Hu, H. Chen, M. Gong, et al. , Identification and struc-tural characterization of twisted atomically thin bilayer materials by deep learning, Nano Letters 24 , 2789 (2024). [63] D. Kaplan, A. C. Tyner, E. Y. Andrei, and J. Pixley, Machine learning assisted high throughput prediction of moir \’e materials, arXiv preprint arXiv:2512.16892 (2025). [64] S. Fang and E. Kaxiras, Electronic structure theory of weakly interacting bilayers, Phys. Rev. B 93 , 235153 (2016). [65] S. Carr, S. Fang, Z. Zhu, and E. Kaxiras, Exact continuum model for low-energy electronic states of twisted bilayer graphene, Phys. Rev. Res. 1, 013001 (2019). [66] S. Carr, S. Fang, and E. Kaxiras, Electronic-structure methods for twisted moiré layers, Nat. Rev. Mater. 5, 748 (2020). [67] Y. Zhong, H. Yu, M. Su, X. Gong, and H. Xiang, Trans-ferable equivariant graph neural networks for the hamil-tonians of molecules and solids, npj Comput. Mater. 9,182 (2023). [68] S. Grimme, J. Antony, S. Ehrlich, and H. Krieg, A consistent and accurate ab initio parametriza-tion of density functional dispersion correction (dft-d) for the 94 elements h-pu, J. Chem. Phys. 132 ,https://doi.org/10.1063/1.3382344 (2010). [69] T. Yusufaly, D. Vanderbilt, and S. Coh, Tight-binding formalism in the context of the pythtb package, URL https://www. physics. rutgers. edu/pythtb/formalism. html (2013). [70] J. Heyd, G. E. Scuseria, and M. Ernzerhof, Hybrid func-tionals based on a screened coulomb potential, J. Chem. Phys. 118 , 8207 (2003).

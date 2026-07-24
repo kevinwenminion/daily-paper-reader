@@ -1,0 +1,1233 @@
+Title: 2607.21369v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.21369v1
+
+Published Time: Fri, 24 Jul 2026 01:01:56 GMT
+
+Number of Pages: 20
+
+Markdown Content:
+> 1
+
+Graph Neural Network Force Fields (GPTFF -mol) for Organic Molecules from 
+
+Optimization Trajectories (OpenGEM26) 
+
+Yifan Huang, 1,2 Fan kai Xie ,1,2 Jiangnan Zheng ,1,2 Tenglong Lu, 1, 3 Sheng Meng , 1* Miao Liu, 1,3* 
+
+> 1
+
+Beijing National Laboratory for Condensed Matter Physics, Institute of Physics, Chinese 
+
+Academy of Sciences, Beijing 100190, China;  
+
+> 2
+
+University of Chinese Academy of Sciences, Beijing 100049, China  
+
+> 3
+
+Dongguan Institute of Materials Science and Technology, Dongguan, Guangdong 523808, 
+
+China 
+
+* E-mail: smeng@iphy.ac.cn, mliu@iphy.ac.cn 
+
+Abstract 
+
+Density functional theory (DFT) serves as a reliable tool for atomistic molecular simulations, 
+
+while machine learning potentials have become powerful complements to balance accuracy 
+
+and efficiency. In this work, we release OpenGEM26 (Open Generated Ensemble of 
+
+Molecules, 2026) , a large -scale dataset comprising 200,000 unique molecules and 4.4 million 
+
+conformations composed of H, C, N, O, S and Cl with up to ten heavy atoms. All calculations 
+
+are carried out at the ωB97X -D/Def2 -SVP and Def2 -TZVP levels with dispersion corrections, 
+
+and complete structural optimizat ion trajectories and abundant non -equilibrium structures are 
+
+recorded. Statistical analyses confirm that this dataset covers a broader conformational space 
+
+than QM9 in terms of energy, bond lengths and bond angles. A graph neural network -based 
+
+potential GPTFF -mol is trained using the new dataset, achieving an energy mean absolute 
+
+error of 16 meV /mole cul e, which is equiva lent to 0.82meV/atom, and superior force 
+
+prediction performance compared with ANI -2x . Validated by butane rotation and keto -enol 
+
+tautomerization tests, the model accurately describes molecular dynamic al behaviors and 
+
+reaction barriers at distorted geometries. This work provides a high -quality resource and 
+
+robust ML potential for efficient simulations of sulfur - and chlorine -containing organic 
+
+molecules. 
+
+INTRODUCTION 2
+
+The accurate description of interactions between atoms and molecules is the cornerstone 
+
+of reliable simulations in physics, chemistry, biology and materials science. Quantum 
+
+mechanical simulation methods, including Kohn –Sham density functional theory (KS -DFT, 
+
+hereafter abbreviated as DFT) and quantum chemical calculations, have become the most 
+
+authoritative and accurate approaches for atomistic -scale computational rese arch. These 
+
+techniques have been widely applied to calculate properties of diverse systems , such as battery 
+
+materials [1 –3] , catalysis [4 –6] and superconductivity [7,8] . With the rapid development of 
+
+quantum mechanical simulations, such methods are frequently combined with molecular 
+
+dynamics or classical force field approaches to describe chemical reactivity in large -scale 
+
+systems. 
+
+Despite advances in computational hardware, conventional quantum mechanical 
+
+algorithms exhibit a computational complexity scaling of O(N³) with the total number of 
+
+electrons N. This characteristic severely limits the applicability of such methods to large -scale 
+
+systems. To address this bottleneck, machine learning (ML) -based interatomic potentials have 
+
+been developed [9 –13] . Such models feature low computational complexity while maintaining 
+
+high prediction accuracy. Superior performance relative to traditional force fields is achieved 
+
+without introducing excessive computational overhead , making ML potentials a mainstream 
+
+research tool in modern computational science [14 –18] . In principle, neural networks serve as a 
+
+mathematical framework capable of fitting arbitrary smooth continuous functions, provided that 
+
+sufficient parameters and training data are available. Classical force fields typically contain 
+
+only dozens of paramet ers, whereas contemporary ML -based force fields are constructed with 
+
+up to millions of parameters. Accordingly, ML potentials deliver substantially higher 
+
+performance and accuracy compared with conventional classical force fields. 
+
+The inherent flexibility of neural network architectures enables efficient extraction of 
+
+complex information from reference datasets. Meanwhile, this flexibility imposes strict 
+
+requirements on large -scale, high -fidelity training sets. Models trained on inc omplete or poorly 
+
+curated datasets are prone to underfitting or overfitting, and robust generalization performance 
+
+cannot be guaranteed. For this reason, the construction of comprehensive, high -quality datasets 
+
+is identified as an essential prerequisite fo r the reliable training of neural network -based 
+
+interatomic potentials. 
+
+The QM9 Chemistry dataset [19] , comprising approximately 133 ,885 small organic 
+
+molecules with up to nine heavy atoms (C, O, N, F) and their DFT -computed properties at the 
+
+B3LYP/6 -31G(2df,p) level, has served as the foundational benchmark for developing next -3
+
+generation machine learning potentials and force fields. Smith, Isayev, and Roitberg pioneered 
+
+this field with ANI -1[20] , a dataset beyond equilibrium geometries by sampling about 20 
+
+million off -equilibrium conformations . Using this dataset, they trained a transferable deep 
+
+neural network potential based on modified Behler –Parrinello symmetry functions [21] . ANI -
+
+1x used active learning to identify poorly predicted configurations , reduc ing the datas et to about 
+
+5 million conformations, and ANI -1ccx, which applied transfer learning from DFT to high -
+
+level CCSD(T)/CBS data to approach coupled -cluster accuracy with only 10% expensive post -
+
+Hartree -Fock calculations [22] . In parallel, Schütt et al. developed SchNet [23,24] , a continuous -
+
+filter convolutional neural network specifically designed for molecules and materials that 
+
+achieves 0.0 13 eV MAE for energy on QM9. Unke and Meuwly's PhysNet [25] introduced 
+
+explicit electrostatics through neural -network -predicted partial charges, achieving about 0.01 
+
+eV energy errors while simultaneously predicting energies, forces, dipole moments, and 
+
+charges via reverse -mode automatic differentiation for spectroscopic and long -range interaction 
+
+applications. Complementing these neural network approaches, Chmiela, Tkatc henko, and 
+
+Müller developed GDML [26] and its symmetric extension sGDML [27] , kernel -based methods 
+
+that directly predict atomic forces with guaranteed energy conservation and automatic recovery 
+
+of permutation symmetries, demonstrating competitive accuracy with enhanced data efficiency 
+
+for small training sets. The PiN N[28] achieved 0.012 eV MAE for QM9 internal energies and 
+
+0.018 Debye for dipole moments through modular atomic neural network architectures, while 
+
+Faber et al.'s FCHL [29] representation combined with Gaussian process regression attained 
+
+0.0 22 eV MAE for atomization energies. More recently, equivariant deep learning potentials 
+
+such as Allegro have extended these capabilities through E(3) -equivariant message passing and 
+
+multi -objective optimization across diverse datasets, enabling unified pot entials spanning from 
+
+small QM9 molecules to larger systems [30] . Collectively, these developments have established 
+
+QM9 -trained machine learning potentials as transformative tools for molecular dynamics 
+
+simulations, reaction pathway exploration, and high -throughput screening of organic molecules, 
+
+fundamentally bridging the accuracy -efficiency trade -off that has historically constrained 
+
+computational chemistry applications. 
+
+Besides the widely -used QM9 dataset, numerous complementary datasets and projects 
+
+have been developed to advance machine learning potentials and force fields for organic 
+
+molecules and beyond. The GDB family of enumerated databases —GDB -11 (26 million 
+
+molecu les), GDB -13 (970 million molecules), and GDB -17 (over 166 billion molecules) —
+
+systematically explores the full chemical compound space of drug -like small organic molecules 
+
+with increasing size limits [31 –33] . The quantum -mechanical benchmark series progressed from 4
+
+QM7 (7,165 molecules with PBE0 energies) through QM7b (with 13 additional electronic 
+
+properties) and QM7 -X (extensive non -equilibrium coverage) to QM8 (~20,000 structures with 
+
+excited -state TDDFT and CC2 properties), each expanding the diversity of computa ble 
+
+molecular properties [34 –37] . For training transferable neural network potentials, the ANI 
+
+family of datasets —ANI -1 (20 million non -equilibrium conformations), ANI -1x (5 million 
+
+calculations with density -derived properties and active learning), and ANI -1ccx (500,000 
+
+CCSD(T) energies for coupled -cluster accuracy) —provides systematically improved training 
+
+data through transfer and active learning s trategies [20,22] . Molecular dynamics -focused 
+
+benchmarks include MD17 (ab initio trajectories for eight organic molecules at 500K), its 
+
+corrected revision rMD17 with tighter SCF convergence, and ISO17 (129 C₇O₂H₁₀ isomers with 
+
+5,000 conformations each), all providing criti cal energy -force pairs for dynamics -capable 
+
+potentials [26,38,39] . Higher -accuracy extensions such as QM9 -G4MP2 and G4MP2 -heavy 
+
+enable Δ-learning from DFT to coupled -cluster accuracy and extrapolation to larger 
+
+systems [40] , while the Alchemy dataset [41] (119,487 molecules up to 14 heavy atoms ) and 
+
+AGZ7 [42] (140,000 molecules covering 13 elements through systematic fragmentation) expand 
+
+elemental diversity and size range. Large -scale spectroscopic and structural databases including 
+
+OE62 [43] (61,489 molecules with orbital eigenvalues), PubChemQC [44] (millions of DFT -
+
+computed molecules from PubChem), and the specialized tmQM [45] (86,000 transition metal 
+
+complexes) further broaden applicability to diverse chemical systems. More recent innovations 
+
+include QH9 [46] (130,831 Hamiltonian matrices for direct quantum operator learning), 
+
+COMP6 [47] (composite benchmark for consistent evaluation), Rad -6[48] (radical species for 
+
+open -shell challenges), and MB08 -165 [49] (artificial molecules for controlled benchmarking), 
+
+collectively establishing a rich ecosystem of datasets that enable development of increasingly 
+
+accurate, generalizable, and efficient machine learning potentials across chemical space. 
+
+Despite the abundant existing datasets for ML interatomic potential training, several 
+
+critical limitations remain unresolved. Most mainstream benchmark databases including QM9 
+
+adopt the B3LYP/6 -31G(2df,p) DFT computational level, which limits the overall a ccuracy of 
+
+reference data. Furthermore, the molecular compositions of these datasets are predominantly 
+
+restricted to C, H, N, O and F. Even datasets with relatively high computational accuracy 
+
+generally lack coverage of sulfur and chlorine, two elements wi dely present in organic 
+
+compounds. In addition , most datasets with many kinds of elements do not have sufficient non -
+
+equilibrium conformations and complete structural optimization trajectories. The performance 
+
+of corresponding models is therefore restricted when describing molecular dynamic al behaviors 
+
+and chemical reactions. 5
+
+To fill the above research gaps, we construct a new dataset , OpenGEM26 ( Open Generated 
+
+Ensemble of Molecules , 20 26 ), derived from the GDB -13 database. The dataset contains 
+
+approximately 200,000 distinct molecules and 4.4 million molecular conformations, with 
+
+molecules consisting of H, C, N, O, S and Cl and a maximum of ten heavy atoms. All quantum 
+
+chemical calculations are performed at the higher -precision ωB97X -D/Def2 -SVP and Def2 -
+
+TZVP level [50 –52] , which incorporates empirical atom –atom dispersion corrections to ensure 
+
+reliable reference values. This dataset also records full structural optimization trajectories and 
+
+includes abundant non -equilibrium structures, enabling far broader coverage of chem ical and 
+
+conformational space. Such features make the dataset well -suited for training robust, high -
+
+accuracy machine learning molecular potentials. 
+
+DATASET 
+
+Methods . As the basis for OpenGEM26 dataset, we selected molecules containing up to ten 
+
+heavy (non -hydrogen) atoms from the GDB -13 dataset [32] , w hich enumerates the chemical 
+
+space of small organic molecules composed of H, C, N, O, S, and Cl. For each molecular 
+
+formula, the GDB -13 data set only includes chemical connectivity information encoded as 
+
+SMILES strings. Based on these SMILES strings, initial 3D structures were obtained by using 
+
+the MMFF94 force field [53] via the gen3d option in Open Babel [54] .
+
+Afterwards, we conducted first principles calculations using Q -Chem software [55] . In all 
+
+calculation processes, the accuracy is within ωB97X -D/Def2 -SVP for first step and then use 
+
+Def2 -TZVP to get more accurate optimized structures . ωB97X -D functional includes empirical 
+
+atom –atom dispersion corrections , so it can capture the weak interactions in molecules . Our 
+
+dataset also record s the process of structural optimization together, includ ing the force s of each 
+
+atom in each step, which can be used to train machine learning models later. 
+
+Diversity comparison . Here, we compared the dataset with the most widely used QM9 dataset ,
+
+as shown in Figure 1 (a) , visualizing the energy in the dataset. The horizontal axis represents the 
+
+atomization energy of the molecule, measured in eV, while the vertical axis represents the 
+
+logarithmic coordinate of quantit ies . The higher atomization energy region corresponds to non -
+
+equilibrium configurations. As indicated by the energy distribution, OpenGEM26 contains a 
+
+substantial number of molecular structures far from equilibrium, particularly in the region with 
+
+atomization energies above zero. 6
+
+Furthermore, in order to compare the atomic local environments of the two datasets, we 
+
+first conducted statistical analysis on the bond lengths between two neighbor atoms, as shown 
+
+in Figure 1(b) -(f) . The vertical axis represents the bond length in Angstrom units, and the 
+
+horizontal axis represents the logarithm of the quantity. OpenGEM26 and QM9 are located on 
+
+both sides of the image. Firstly, from the perspective of bond length distribution range, 
+
+Open GEM26 can basically cover the range of QM9. However, due to the inclusion of many 
+
+non -equilibrium structures, as expected, there are still many conformational spatial regions that 
+
+cannot be covered by only equilibrium state data. Furthermore, in terms of quanti ty, 
+
+Open GEM26 has also increased by an order of magnitude compared to QM9. 
+
+Afterwards, we further calculated the angle information between the three bonding atoms, 
+
+as shown in Figure 1(g) -(i) . In this type of polar coordinate graph, the value of r represents the 
+
+average bond length s between the central atom and the other two atoms, and θ is the angle value. 
+
+This image reflects the distribution of local structures composed of more atoms in the 
+
+conformational space of the dataset. The blue density plot is from Open GEM26 dataset, and 
+
+the yellow density plot is from QM9 dataset . It can be seen that the diversity of the configuration 
+
+space covered by Open GEM26 is greater than that of the QM9 dataset. 
+
+Figure 2 provides a more intuitive comprehensive comparison of the two datasets in the 
+
+chemical space. (a) show s the t -Stochastic Neighbor Embedding [56] (t -SNE) of the two 
+
+datasets and their differential distributions, indicating that the richness of the structure s of 
+
+Open GEM26 is superior in the vast majority of cases. In( b)-(i), w e use features of the 
+
+environment of each atom, the activation values that form the f irst layer of the ANI -1x model ,
+
+to compare the chemical and conformational space coverage for the QM9 and Open GEM26 .
+
+For visual comparison, we applied the parametric t -Distributed Stochastic Neighbor Embedding 
+
+(pt -SNE) technique [57] which learns a neural network -based mapping from high -dimensional 
+
+vectors to a 2 -dimensional representation, while preserving both global and local structure of 
+
+the data in high -dimensional space as much as possible. We used the complete Open GEM26 to 
+
+learn a pt -SNE mapping neural network from the machine learning model activation vectors to 
+
+a 2D space. Then we apply this deep neural network to the whole QM9 dataset and a random 
+
+subset of Open GEM26 with the same number of atoms for each element . T he colors correspond 
+
+to the type and number of bonded neighbors as determined by the Open Babel [54] software 
+
+library .
+
+MACHINE LEARNING 7
+
+Model . The deep learning model we use is derived from GPTFF [58] , which utilizes the 
+
+architecture of graph neural networks (GNNs )[59 –62] . For molecular structure, GNN s is used 
+
+to represent its structure. It is natural to use nodes to represent atoms, and the connection 
+
+between nodes to represent the bonding of atoms. In this way, each graph can represent a 
+
+molecule, and can naturally meet the symmetry of rotation and translation [10,59,61] . For better 
+
+machine learning training, we will project atoms into high -dimensional space according to their 
+
+element types to form element embeddings . The local environment information of each atom, 
+
+such as the distance from the nearest neighbor atom, will be mapped to the edge vector through 
+
+a certain transformation. 
+
+In addition, model also has a module to calculate the three -body interaction between atoms, 
+
+which is realized by connecting the nodes and edge vectors of the corresponding atoms. This 
+
+enables the model to learn the interaction between different atomic nodes and further nodes and 
+
+edge vectors, which significantly im proves the prediction ability of the model. 
+
+In the process of model prediction and reasoning, GNN s predicts the vector within the 
+
+atomic cut -off radius into the form of atomic energy through the output block , and finally 
+
+represents the sum of atomic energy as the total energy of the molecule . For the calculation of 
+
+atomic forces, we use the method of automatic differentiation . The force on an atom can be 
+
+obtained from the negative gradient of the total energy E with respect to the atomic coordinates, 
+
+i.e., 𝐹 ⃗ = − !"  
+
+> !#⃗
+
+.
+
+Training results . Using Open GEM26 dataset to train the model, we get GPTFF -mol, a machine 
+
+learning force field suitable for small molecules. In Figure 3(a) , t he parity plot compares 
+
+predicted energies with DFT reference values, showing excellent agreement , m ean absolute 
+
+error (MAE ) 16 meV per molecule, that is, 0.82 meV/atom . It can be seen that due to the large 
+
+amount of data and wide coverage of conformational space, we get high accuracy of energy 
+
+prediction. 
+
+Furthermore, as Open GEM26 covers force data, it is possible to train models to predict 
+
+the force acting on each atom in the molecule, thereby obtaining the molecular potential for 
+
+quickly optimizing the structure of the molecule with DFT accuracy. Figure 3(b) shows the 
+
+results of this model in predicting force on the test set, and compares it with the opensource 
+
+ANI -2x model in the same dataset ( Figure 3(c)) . It can be seen that the prediction of force is 
+
+close to the most accurate model currently reported, and is superior to the publicly available 
+
+ANI -2x model. In summary, t his model can achieve molecular structure optimization with near 8
+
+DFT accuracy under the time consumption of molecular force field, providing assistance for 
+
+large -scale high -throughput screening. 
+
+APPLICATION 
+
+Butane rotation . For butane, we investigate the variation of energy predicted by different 
+
+models with respect to rotation angle after rotating atomic groups. In Figure 4( a), we rotated 
+
+the top methyl group along its direction with the nearest neighboring C atom. At the beginning, 
+
+it is the structure corresponding to the minimum energy value. The blue line represents the 
+
+energy calculated by DFT, which is used as a reference value for comparison. In addition to 
+
+using Open GEM26 to train the GPTFF model, we also selected the open -source version of 
+
+ANI -2x [63] and Equivariant Transformer (ET) models implemented in TorchMD -Net [64,65] ,
+
+trained on fundamentally different datasets (QM9, ANI -1). From this figure, w e can see that 
+
+GPTFF -mol has similar accuracy to ANI -2x , slightly better than ET_ani1. 
+
+The energy of n -butane is significantly influenced by the dihedral angle of its central C2 -
+
+C3 bond due to the varying steric interactions between the two bulky methyl groups. This is 
+
+because the substituents on C1 and C4 (three hydrogens) are much smaller than C2 and C3 (two 
+
+hydrogens and one methyl group). The energy changes associat ed with this rotation are 
+
+primarily due to torsional strain from methyl -methyl eclipsing interactions, which are 
+
+considerably stronger than the hydrogen -hydrogen and hydrogen -methyl interactions [66] .
+
+Rotation around the central C2 -C3 bond leads to various conformational isomers, each 
+
+possessing a distinct energy. The torsional strain resulting from unfavorable interactions 
+
+between substituents dictates these energy differences. For instance, the anti -conformation 
+
+(180°) is the most stable due to minimized steric hindrance, while the gauche -conformations 
+
+(±60°) are higher in energy. The eclipsed conformations (0°, ±120°) represent energy maxima 
+
+due to severe steric repulsion [66,67] . Understanding this potential energy surface is crucial for 
+
+predicting molecular behavior and will be further explored through the following computation. 
+
+In Figure 4( b), the atomic group on one side of the C2 –C3 bond was rotated rigidly about 
+
+the C2 –C3 axis . The initial position is shown in the small picture. In this example, GPTFF -mol 
+
+has similar prediction accuracy to ANI -2x and ET_ani1, and both are far better than ET_qm9. 
+
+The performance of the ET model trained on the QM9 dataset is far inferior to other models, 
+
+which may be due to the lack of non -equilibrium structured data in the QM9 dataset. 
+
+Keto -enol Tautomerism . Keto -enol tautomerism is a fundamental concept in organic 
+
+chemistry, describing the interconversion between a keto form (containing a carbonyl group) 9
+
+and an enol form (containing a hydroxyl group directly attached to a carbon -carbon double 
+
+bond). This dynamic equilibrium, often acid - or base -catalyzed, involves the migration of a 
+
+hydrogen atom and a concomitant rearrangement of bonding electrons [68] . The relative 
+
+stability of the keto versus enol tautomer is highly dependent on various factors, including 
+
+substitution patterns, solvent effects, and the presence of intramolecular hydrogen bonding or 
+
+aromaticity. In general, the keto form is generally more stable for simple aldehydes and 
+
+ketones [69] . However, with the participation of solvent molecules (such as water molecules), 
+
+the transition energy barrier between keto form and enol form can be significantly reduced [70 –
+
+73] . Understanding this tautomeric equilibrium is crucial for predicting reaction pathways and 
+
+product distributions in numerous organic transformations. The following computational 
+
+investigation aims to explore the energetic landscape of molecules in vacuum or water , and 
+
+compare the accuracy of different models in predicting the energy barriers .
+
+Figure 5( a) is a schematic diagram of a reversible reaction in the presence of a water 
+
+molecule, while (b)-(d) show the energy changes when the molecule without water molecule, 
+
+binds to one water molecule, and binds to two water molecules, respectively. The horizontal 
+
+coordinate is the intrinsic reaction coordinate (IRC), which traces the minimum -energy path 
+
+downhill from a transition state toward the connected reactant and product valleys [74] . For ease 
+
+of comparison, the minimum -energy point on the DFT energy profile was taken as the zero -
+
+energy reference. The energies predicted by the other models were shifted accordingly, such 
+
+that their energies at the corresponding IRC step were also set to zero. Transition -state searches 
+
+and IRC calculations were performed with Q -Chem software . The left side is the keto form and 
+
+the right side is the enol form. Afterwards, different molecular potential functions are used to 
+
+calculate the energy of each structure along the reaction path, and their respective energy 
+
+change curves are obtained. In Fig ure 5(c) and (d), the energy barrier s of ET_ani1 are too large, 
+
+so they are not shown in the figures. It can be seen that Open GEM26 contains many molecular 
+
+structures far from equilibrium, so our trained model GPTFF -mol can better predict the energy 
+
+under non -equilibrium conditions such as saddle point on the potential energy surface and its 
+
+vicinity. This is also conducive to further use of the model for molecular structure optimization 
+
+and other tasks. 
+
+CONCLUSION 
+
+In this work, a comprehensive molecular dataset containing abundant equilibrium and 
+
+non -equilibrium structures is constructed based on the GDB -13 database via high -precision 10 
+
+DFT calculations. Covering molecules composed of H, C, N, O, S and Cl with up to ten heavy 
+
+atoms, this dataset features full structural optimization trajectories and extensive non -
+
+equilibrium conformations, which greatly expands the chemical and conformati onal space 
+
+compared with conventional benchmarks such as QM9. Built upon the GPTFF graph neural 
+
+network framework, the GPTFF -mol molecular potential is trained using the newly 
+
+established dataset. 
+
+The developed potential achieves accuracy approaching DFT calculations while retaining 
+
+the high computational efficiency of classical force fields. Validated by butane torsional 
+
+rotation and keto -enol tautomerization simulations, the model demonstrates rel iable 
+
+performance in describing molecular steric effects, torsional strain and reaction energy 
+
+barriers, even for distorted geometries near potential energy saddle points. 
+
+This work provides a high -quality data set and a robust machine learning potential for 
+
+simulating organic molecules containing sulfur and chlorine. The proposed framework 
+
+facilitates large -scale high -throughput molecular screening and molecular dynamics 
+
+simulations, and offers a promising route to explore complex organic systems and accelerate 
+
+the discovery of novel functional molecular materials. 11 
+
+Data/Code availability :
+
+The OpenGEM26 dataset will be openly released after peer review. GPTFF -mol model, 
+
+training scripts, and weights are available at https://github.com/atomly -materials -research -
+
+lab/gptff/tree/main/pretrained/molecular .
+
+Author Contributions :
+
+S.M. and M.L. conceived and supervised the project. Y.H. and F.X. performed dataset 
+
+construction, first -principles calculations, and model training. J.Z . contributed to the 
+
+conformational -diversity analysis and t -SNE embeddings. Y.H. drafted the original 
+
+manuscript with input from T.L. All authors discussed the results and approved the final 
+
+version. The authors declare no competing financial or personal interests that could have 
+
+appeared to influence the work reported in this paper. 
+
+ACKNOWLEDG MENTS :
+
+This research is supported by National Key R&D Program of China (Grant No. 
+
+2024YFF0508500), Ministry of Science and Technology (Grant Nos. 2021YFA1400201 and 
+
+2021YFA1400503), National Natural Science Foundation of China (Grant Nos. 12025407 and 
+
+12450401), and Chinese Academy of Sciences (Grant No. YSBR047). The computational 
+
+resources are provided by the Data -Driven Computational Materials Discovery Platform at 
+
+Songshan Lake laboratory .12 
+
+Figure 1 . Properties distribution of QM9 and Open GEM26 dataset. (a) Atomization e nergy, the vertical axis 
+
+represents the logarithm of the structure number in two datasets. (b)-(f) show the bond lengths distribution 
+
+images for C -C, C-N, C-O, N -N and N-O bonds, respectively. The x -axis represents the logarithm of the 
+
+number. The y -axis represents the bond length of this type of bond. (g)-(i) Display the bond angle distribution 
+
+images of C -C-C, C -C-O, and H-C-O bonds respectively. The angle of polar coordinates represents the bond 
+
+angle of the type of triatomic bond, while the radius represents the average bond length between the central 
+
+atom and the other two atoms. The blue dots in figure s represent the distribution of the OpenGEM26 dataset, 
+
+while the yellow dots represent the distribution of QM9 dataset. 
+
+# (a) (b) 
+
+# (c) 
+
+# (d) (e) (f) 
+
+# (g) (h) (i)13 
+
+Figure 2. (a). The two -dimensional t -SNE embedding representation of the QM9 dataset and Open GEM26 ,
+
+where the colors of the points are labeled according to the data density distribution, with red representing 
+
+the QM9 dataset and blue representing Open GEM26 . (b-i) 2D parametric t -SNE embeddings. T hese 
+
+embeddings are for the 1st layer of activations of the ANI -1x model for the complete QM9 dataset ((b) and 
+
+(d -f) ) and random subsets of Open GEM26 dataset ((c) and ( g-i)). T he same number of atoms are compared 
+
+for each element. T he different colors correspond to the number and type of bonded neighbors. 
+
+> QM 9
+> OpenGEM 26
+> density  high low
+
+H
+
+C N O
+
+C-H
+
+O-H N-H
+
+O(C)C
+
+O(H)C
+
+O(H)N
+
+O(N)N
+
+O=C
+
+O=N
+
+O(C)N
+
+N(X)=( Y)
+
+N(X)( Y)Z
+
+N(H)( X)Y
+
+N(H)( H)X
+
+## sp 3
+
+## sp 2
+
+## sp 
+
+> QM 9
+> OpenGEM 26
+> density  high low
+
+H
+
+C N O
+
+C-H
+
+O-H N-H
+
+O(C)C
+
+O(H)C
+
+O(H)N
+
+O(N)N
+
+O=C
+
+O=N
+
+O(C)N
+
+N(X)=( Y)
+
+N(X)( Y)Z
+
+N(H)( X)Y
+
+N(H)( H)X
+
+## sp 3
+
+## sp 2
+
+## sp 
+
+> QM 9
+> OpenGEM 26
+> density  high low
+
+H
+
+C N O
+
+C-H
+
+O-H N-H
+
+O(C)C
+
+O(H)C
+
+O(H)N
+
+O(N)N
+
+O=C
+
+O=N
+
+O(C)N
+
+N(X)=( Y)
+
+N(X)( Y)Z
+
+N(H)( X)Y
+
+N(H)( H)X
+
+## sp 3
+
+## sp 2
+
+## sp 
+
+# (a) (b) 
+
+# (c) 
+
+# (d) (e) (f) 
+
+# (g) (h) (i)14 
+
+Figure 3. (a) The evaluation of MAE results of GPTFF -mol on atomization energy regression targets in the 
+
+test dataset. (b) The evaluation of MAE results of GPTFF -mol on force regression targets in the test dataset. 
+
+(c) The ANI -2x model performance on force regression targets in the same test dataset. 
+
+Figure 4. Butane rotational energy curves around two different bonds. (a) Rotation about the C1 –C2 bond. 
+
+(b) Rotation about the C2 –C3 bond, where steric repulsion between methyl groups produces a higher barrier. 
+
+# (a) (b) 
+
+# (c) 
+
+# (a) (b) 15 
+
+Density functional theory (DFT) results ( blue lines) are compared with predictions from GPTFF -mol , ANI -
+
+2x, ET_qm9, and ET_ani1. Insets depict the corresponding rotation axes. 
+
+Figure 5. Keto –enol tautomerization of 2 -hydroxypyridine and 2 -pyridone. (a) Schematic representation of 
+
+the interconversion between the two tautomers. (b –d) Energy vs. intrinsic reaction coordinate (IRC) plot for 
+
+tautomerization in the absence of water, and with one and two water molecules, respectively. The left side is 
+
+the keto form and the right side is the enol form. Density functional theory (DFT) results ( blue lines) are 
+
+compared with predictions from GPTFF -mol , ANI -2x, ET_qm9, and ET_ani1 (panel b only). 
+
+> Keto -enol
+> Tautomerism
+
+ⅰ
+
+ⅱ ⅲ
+
+ⅰ. Enol form 
+
+ⅱ. Keto form 
+
+ⅲ. Transi4on 
+
+state 
+
+# (a) (b) 
+
+# (c) (d) 16 
+
+REFERENCES 
+
+[1] Urban A, Seo D -H and Ceder G 2016 Computational understanding of Li -ion batteries Npj 
+
+Comput. Mater. 2 16002 
+
+[2] Lu T 2024 Weberite Na2MMʹF7 (M, Mʹ = redox -active metal) as promising fluoride -based 
+
+sodium -ion battery cathodes J Mater Chem A 
+
+[3] Lu T 2024 Electrochemically and chemically stable electrolyte –electrode interfaces for lithium 
+
+iron phosphate all -solid -state batteries with sulfide electrolytes J. Mater. Chem. A 
+
+[4] Nørskov J K, Bligaard T, Rossmeisl J and Christensen C H 2009 Towards the computational 
+
+design of solid catalysts Nat. Chem. 1 37 –46 
+
+[5] Wang Y, Liang Y, Bo T, Meng S and Liu M 2022 Orbital Dependence in Single -Atom 
+
+Electrocatalytic Reactions J Phys Chem Lett 
+
+[6] Wang Y, Meng S and Liu M 2023 Collective Behavior of Single -Atom Catalysts: A Synergistic 
+
+Effect between Strain and Site Configuration J Phys Chem Lett 
+
+[7] Lüders M, Marques M A L, Lathiotakis N N, Floris A, Profeta G, Fast L, Continenza A, Massidda S 
+
+and Gross E K U 2005 Ab initio theory of superconductivity. I. Density functional formalism and 
+
+approximate functionals Phys. Rev. B 72 024545 
+
+[8] Xie F, Lu T, Yu Z, Wang Y, Wang Z, Meng S and Liu M 2023 Lu –H–N Phase Diagram from First -
+
+Principles Calculations Chin. Phys. Lett. 40 057401 
+
+[9] Behler J and Parrinello M 2007 Generalized Neural -Network Representation of High -
+
+Dimensional Potential -Energy Surfaces Phys. Rev. Lett. 98 146401 
+
+[10] Zhang L, Han J, Wang H, Car R and E W 2018 Deep Potential Molecular Dynamics: A Scalable 
+
+Model with the Accuracy of Quantum Mechanics Phys. Rev. Lett. 120 143001 
+
+[11] Unke O T, Chmiela S, Sauceda H E, Gastegger M, Poltavsky I, Schütt K T, Tkatchenko A and 
+
+Müller K -R 2021 Machine Learning Force Fields Chem. Rev. 121 10142 –86 
+
+[12] Chen C and Ong S P 2022 A universal graph deep learning interatomic potential for the periodic 
+
+table Nat. Comput. Sci. 2 718 –28 
+
+[13] Liang Y, Chen M, Wang Y, Jia H, Lu T, Xie F, Cai G, Wang Z, Meng S and Liu M 2023 A universal 
+
+model for accurately predicting the formation energy of inorganic compounds Sci. China Mater. 
+
+66 343 –51 
+
+[14] Faber F A, Hutchison L, Huang B, Gilmer J, Schoenholz S S, Dahl G E, Vinyals O, Kearnes S, Riley 
+
+P F and Von Lilienfeld O A 2017 Prediction Errors of Molecular Machine Learning Models Lower 
+
+than Hybrid DFT Error J. Chem. Theory Comput. 13 5255 –64 
+
+[15] Hellström M and Behler J 2017 Structure of aqueous NaOH solutions: insights from neural -
+
+network -based molecular dynamics simulations Phys. Chem. Chem. Phys. 19 82 –96 17 
+
+[16] Cheng Z, Liu J, Jiang T, Chen M, Dai F, Gao Z, Ke G, Zhao Z and Ou Q 2023 Automatic Screen-out 
+
+of Ir(III) Complex Emitters by Combined Machine Learning and Computational Analysis Adv. 
+
+Opt. Mater. 11 2301093 
+
+[17] Fu F, Wang X, Zhang L, Yang Y, Chen J, Xu B, Ouyang C, Xu S, Dai F -Z and E W 2023 Unraveling 
+
+the Mechanism of Phase Transformation and Structural Evolution in Si Anode with Deep -
+
+Potential Molecular Dynamics 
+
+[18] Kang H, Lu T, Qi Z, Guo J, Meng S and Liu M 2025 FastTrack: a fast method to evaluate mass 
+
+transport in solid leveraging universal machine learning interatomic potential AI Sci. 1 015004 
+
+[19] Ramakrishnan R, Dral P O, Rupp M and Von Lilienfeld O A 2014 Quantum chemistry structures 
+
+and properties of 134 kilo molecules Sci. Data 1 140022 
+
+[20] Smith J S, Isayev O and Roitberg A E 2017 ANI -1, A data set of 20 million calculated off -
+
+equilibrium conformations for organic molecules Sci. Data 4 170193 
+
+[21] Smith J S, Isayev O and Roitberg A E 2017 ANI -1: an extensible neural network potential with 
+
+DFT accuracy at force field computational cost Chem. Sci. 8 3192 –203 
+
+[22] Smith J S, Zubatyuk R, Nebgen B, Lubbers N, Barros K, Roitberg A E, Isayev O and Tretiak S 2020 
+
+The ANI -1ccx and ANI -1x data sets, coupled -cluster and density functional theory properties for 
+
+molecules Sci. Data 7 134 
+
+[23] Schütt K, Kindermans P -J, Felix H E S, Chmiela S, Tkatchenko A and Müller K -R SchNet: A 
+
+continuous -filter convolutional neural network for modeling quantum interactions 
+
+[24] Schütt K T, Hessmann S S P, Gebauer N W A, Lederer J and Gastegger M 2023 SchNetPack 2.0: 
+
+A neural network toolbox for atomistic machine learning J. Chem. Phys. 158 144801 
+
+[25] Unke O T and Meuwly M 2019 PhysNet: A Neural Network for Predicting Energies, Forces, 
+
+Dipole Moments, and Partial Charges J. Chem. Theory Comput. 15 3678 –93 
+
+[26] Chmiela S, Tkatchenko A, Sauceda H E, Poltavsky I, Schütt K T and Müller K -R 2017 Machine 
+
+learning of accurate energy -conserving molecular force fields Sci. Adv. 3 e1603015 
+
+[27] Chmiela S, Sauceda H E, Müller K -R and Tkatchenko A 2018 Towards exact molecular dynamics 
+
+simulations with machine -learned force fields Nat. Commun. 9 3887 
+
+[28] Shao Y, Hellström M, Mitev P D, Knijff L and Zhang C 2020 PiNN: A Python Library for Building 
+
+Atomic Neural Networks of Molecules and Materials J. Chem. Inf. Model. 60 1184 –93 
+
+[29] Faber F A, Christensen A S, Huang B and Von Lilienfeld O A 2018 Alchemical and structural 
+
+distribution based representation for universal quantum machine learning J. Chem. Phys. 148 
+
+241717 
+
+[30] Musaelian A, Batzner S, Johansson A, Sun L, Owen C J, Kornbluth M and Kozinsky B 2023 
+
+Learning local equivariant representations for large -scale atomistic dynamics Nat. Commun. 14 
+
+579 
+
+[31] Fink T and Reymond J -L 2007 Virtual Exploration of the Chemical Universe up to 11 Atoms of C, 
+
+N, O, F: Assembly of 26.4 Million Structures (110.9 Million Stereoisomers) and Analysis for New 
+
+Ring Systems, Stereochemistry, Physicochemical Properties, Compou nd Classes, and Drug 
+
+Discovery J. Chem. Inf. Model. 47 342 –53 18 
+
+[32] Blum L C and Reymond J -L 2009 970 Million Druglike Small Molecules for Virtual Screening in 
+
+the Chemical Universe Database GDB -13 J. Am. Chem. Soc. 131 8732 –3
+
+[33] Ruddigkeit L, Van Deursen R, Blum L C and Reymond J -L 2012 Enumeration of 166 Billion 
+
+Organic Small Molecules in the Chemical Universe Database GDB -17 J. Chem. Inf. Model. 52 
+
+2864 –75 
+
+[34] Rupp M, Tkatchenko A, Müller K -R and Von Lilienfeld O A 2012 Fast and Accurate Modeling of 
+
+Molecular Atomization Energies with Machine Learning Phys. Rev. Lett. 108 058301 
+
+[35] Montavon G, Rupp M, Gobre V, Vazquez -Mayagoitia A, Hansen K, Tkatchenko A, Müller K -R
+
+and Anatole Von Lilienfeld O 2013 Machine learning of molecular electronic properties in 
+
+chemical compound space New J. Phys. 15 095003 
+
+[36] Hoja J, Medrano Sandonas L, Ernst B G, Vazquez -Mayagoitia A, DiStasio R A and Tkatchenko A 
+
+2021 QM7 -X, a comprehensive dataset of quantum -mechanical properties spanning the 
+
+chemical space of small organic molecules Sci. Data 8 43 
+
+[37] Ramakrishnan R, Hartmann M, Tapavicza E and Von Lilienfeld O A 2015 Electronic spectra from 
+
+TDDFT and machine learning in chemical space J. Chem. Phys. 143 084111 
+
+[38] Schütt K T, Arbabzadah F, Chmiela S, Müller K R and Tkatchenko A 2017 Quantum -chemical 
+
+insights from deep tensor neural networks Nat. Commun. 8 13890 
+
+[39] Christensen A S and Von Lilienfeld O A 2020 On the role of gradients for machine learning of 
+
+molecular energies and forces Mach. Learn. Sci. Technol. 1 045018 
+
+[40] Ward L, Blaiszik B, Foster I, Assary R S, Narayanan B and Curtiss L 2019 Machine learning 
+
+prediction of accurate atomization energies of organic molecules from low -fidelity quantum 
+
+chemical calculations MRS Commun. 9 891 –9
+
+[41] Chen G, Chen P, Hsieh C -Y, Lee C -K, Liao B, Liao R, Liu W, Qiu J, Sun Q, Tang J, Zemel R and 
+
+Zhang S 2019 Alchemy: A Quantum Chemistry Dataset for Benchmarking AI Models 
+
+[42] Huang B Dictionary of 140k GDB and ZINC derived AMONs 
+
+[43] Stuke A, Kunkel C, Golze D, Todorović M, Margraf J T, Reuter K, Rinke P and Oberhofer H 2020 
+
+Atomic structures and orbital energies of 61,489 crystal -forming organic molecules Sci. Data 7
+
+58 
+
+[44] Nakata M and Shimazaki T 2017 PubChemQC Project: A Large -Scale First -Principles Electronic 
+
+Structure Database for Data -Driven Chemistry J. Chem. Inf. Model. 57 1300 –8
+
+[45] Balcells D and Skjelstad B B 2020 tmQM Dataset —Quantum Geometries and Properties of 86k 
+
+Transition Metal Complexes J. Chem. Inf. Model. 60 6135 –46 
+
+[46] Yu H, Liu M, Luo Y, Strasser A, Qian X, Qian X and Ji S QH9: A Quantum Hamiltonian Prediction 
+
+Benchmark for QM9 Molecules 
+
+[47] Smith J S, Nebgen B, Lubbers N, Isayev O and Roitberg A E 2018 Less is more: Sampling 
+
+chemical space with active learning J. Chem. Phys. 148 241733 
+
+[48] Stocker S, Csányi G, Reuter K and Margraf J T 2020 Machine learning in chemical reaction space 
+
+Nat. Commun. 11 5505 19 
+
+[49] Korth M and Grimme S 2009 “Mindless” DFT Benchmarking J. Chem. Theory Comput. 5 993 –
+
+1003 
+
+[50] Chai J -D and Head -Gordon M 2008 Long -range corrected hybrid density functionals with 
+
+damped atom –atom dispersion corrections Phys. Chem. Chem. Phys. 10 6615 
+
+[51] Weigend F and Ahlrichs R 2005 Balanced basis sets of split valence, triple zeta valence and 
+
+quadruple zeta valence quality for H to Rn: Design and assessment of accuracy Phys. Chem. 
+
+Chem. Phys. 7 3297 
+
+[52] Weigend F 2006 Accurate Coulomb -fitting basis sets for H to Rn Phys. Chem. Chem. Phys. 8
+
+1057 
+
+[53] Halgren T A 1996 Merck molecular force field. I. Basis, form, scope, parameterization, and 
+
+performance of MMFF94 J. Comput. Chem. 17 490 –519 
+
+[54] O’Boyle N M, Banck M, James C A, Morley C, Vandermeersch T and Hutchison G R 2011 Open 
+
+Babel: An open chemical toolbox J. Cheminformatics 3 33 
+
+[55] Epifanovsky E, Gilbert A T B, Feng X, Lee J, Mao Y, Mardirossian N, Pokhilko P, White A F, Coons 
+
+M P, Dempwolff A L, Gan Z, Hait D, Horn P R, Jacobson L D, Kaliman I, Kussmann J, Lange A W, 
+
+Lao K U, Levine D S, Liu J, McKenzie S C, Morrison A F, Nanda K D , Plasser F, Rehn D R, Vidal M L, 
+
+You Z -Q, Zhu Y, Alam B, Albrecht B J, Aldossary A, Alguire E, Andersen J H, Athavale V, Barton D, 
+
+Begam K, Behn A, Bellonzi N, Bernard Y A, Berquist E J, Burton H G A, Carreras A, Carter -Fenk K, 
+
+Chakraborty R, Chien A D, C losser K D, Cofer -Shabica V, Dasgupta S, De Wergifosse M, Deng J, 
+
+Diedenhofen M, Do H, Ehlert S, Fang P -T, Fatehi S, Feng Q, Friedhoff T, Gayvert J, Ge Q, 
+
+Gidofalvi G, Goldey M, Gomes J, González -Espinoza C E, Gulania S, Gunina A O, Hanson -Heine M 
+
+W D, Har bach P H P, Hauser A, Herbst M F, Hernández Vera M, Hodecker M, Holden Z C, Houck 
+
+S, Huang X, Hui K, Huynh B C, Ivanov M, Jász Á, Ji H, Jiang H, Kaduk B, Kähler S, Khistyaev K, Kim 
+
+J, Kis G, Klunzinger P, Koczor -Benda Z, Koh J H, Kosenkov D, Koulias L, Kow alczyk T, Krauter C M, 
+
+Kue K, Kunitsa A, Kus T, Ladjánszki I, Landau A, Lawler K V, et al 2021 Software for the frontiers 
+
+of quantum chemistry: An overview of developments in the Q -Chem 5 package J. Chem. Phys. 
+
+155 084801 
+
+[56] van der Maaten L and Hinton G 2008 Visualizing Data using t -SNE J. Mach. Learn. Res. 9 2579 –
+
+605 
+
+[57] van der Maaten L 2009 Learning a Parametric Embedding by Preserving Local Structure Proc. 
+
+Twelth Int. Conf. Artifcial Intell. Stat. 5 384 –91 
+
+[58] Xie F, Lu T, Meng S and Liu M 2024 GPTFF: A high -accuracy out -of -the -box universal AI force 
+
+field for arbitrary inorganic materials Sci. Bull. S2095927324006327 
+
+[59] Scarselli F, Gori M, Ah Chung Tsoi, Hagenbuchner M and Monfardini G 2009 The Graph Neural 
+
+Network Model IEEE Trans. Neural Netw. 20 61 –80 
+
+[60] Gilmer J, Schoenholz S S, Riley P F, Vinyals O and Dahl G E 2017 Neural Message Passing for 
+
+Quantum Chemistry 
+
+[61] Zhou J, Cui G, Hu S, Zhang Z, Yang C, Liu Z, Wang L, Li C and Sun M 2020 Graph neural 
+
+networks: A review of methods and applications AI Open 1 57 –81 
+
+[62] Wu Z, Pan S and Yu P S 2021 A Comprehensive Survey on Graph Neural Networks IEEE Trans. 
+
+NEURAL Netw. Learn. Syst. 32 20 
+
+[63] Devereux C, Smith J S, Huddleston K K, Barros K, Zubatyuk R, Isayev O and Roitberg A E 2020 
+
+Extending the Applicability of the ANI Deep Learning Molecular Potential to Sulfur and Halogens 
+
+J. Chem. Theory Comput. 16 4192 –202 
+
+[64] Thölke P and De Fabritiis G 2022 TorchMD -NET: Equivariant Transformers for Neural Network 
+
+based Molecular Potentials 
+
+[65] Pelaez R P, Simeon G, Galvelis R, Mirarchi A, Eastman P, Doerr S, Thölke P, Markland T E and De 
+
+Fabritiis G 2024 TorchMD -Net 2.0: Fast Neural Network Potentials for Molecular Simulations J. 
+
+Chem. Theory Comput. 20 4076 –87 
+
+[66] McMurry J 2020 Organic Chemistry (Boston: Cengage Learning) 
+
+[67] Allinger N L, Fermann J T, Allen W D and Schaefer Iii H F 1997 The torsional conformations of 
+
+butane: Definitive energetics from ab initio methods J. Chem. Phys. 106 5143 –50 
+
+[68] Katritzky A R, Hall C D, El -Gendy B E -D M and Draghici B 2010 Tautomerism in drug discovery J. 
+
+Comput. Aided Mol. Des. 24 475 –84 
+
+[69] Babiker M E M, Alzharani A A and Bakry A M 2023 Computational Study of the Keto -Enol 
+
+Tautomerism of 3 -Phenyl -2,4 -Pentanedione in the Gaseous Phase and Solvents Using DFT 
+
+Methods Orient. J. Chem. 39 40 –6
+
+[70] Fu A, Li H, Du D and Zhou Z 2005 Density Functional Study on the Reaction Mechanism of 
+
+Proton Transfer in 2 -Pyridone: Effect of Hydration and Self -Association J. Phys. Chem. A 109 
+
+1468 –77 
+
+[71] Mata S, Cortijo V, Caminati W, Alonso J L, Sanz M E, López J C and Blanco S 2010 Tautomerism 
+
+and Microsolvation in 2 -Hydroxypyridine/2 -Pyridone J. Phys. Chem. A 114 11393 –8
+
+[72] Madinah R, Rusydi F, Fadilla R N, Khoirunisa V, Boli L S P, Saputro A G, Hassan N H and Ahmad 
+
+A 2023 First -Principles Study of the Dispersion Effects in the Structures and Keto –Enol 
+
+Tautomerization of Curcumin ACS Omega 8 34022 –33 
+
+[73] Li X, Zhang F -G, Ma J -A and Liu Y 2024 Computational insights into the binding modes, keto –
+
+enol tautomerization and stereo -electronically controlled decarboxylation of oxaloacetate in 
+
+the active site of macrophomate synthase Phys. Chem. Chem. Phys. 26 12331 –44 
+
+[74] Fukui K 1981 The path of chemical reactions - the IRC approach Acc. Chem. Res. 14 363 –8

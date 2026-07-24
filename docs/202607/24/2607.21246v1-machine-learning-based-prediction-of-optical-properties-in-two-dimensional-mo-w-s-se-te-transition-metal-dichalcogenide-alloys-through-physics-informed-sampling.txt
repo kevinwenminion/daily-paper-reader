@@ -1,0 +1,1698 @@
+Title: Machine learning based prediction of optical properties in two-dimensional Mo-W-S-Se-Te transition-metal dichalcogenide alloys through physics-informed sampling
+
+URL Source: https://arxiv.org/pdf/2607.21246v1
+
+Published Time: Fri, 24 Jul 2026 00:53:01 GMT
+
+Number of Pages: 44
+
+Markdown Content:
+# Machine learning based prediction of optical properties in two-dimensional Mo-W-S-Se-Te transition-metal dichalcogenide alloys through physics-informed sampling 
+
+## Vivek Chowdhury ,†,‡ Tarvir Anjum Aditto ,†,‡ Md. Samrat ,† Hafiz Imtiaz ,∗,† and Ahmed Zubair ∗,†
+
+†Department of Electrical and Electronic Engineering, Bangladesh University of Engineering and Technology, Dhaka, Dhaka-1205, Bangladesh 
+
+‡Vivek Chowdhury and Tarvir Anjum Aditto contributed equally to this work. 
+
+E-mail: hafizimtiaz@eee.buet.ac.bd; ahmedzubair@eee.buet.ac.bd 
+
+1arXiv:2607.21246v1 [cond-mat.mtrl-sci] 23 Jul 2026 Abstract 
+
+Two-dimensional transition-metal dichalcogenide (TMD) alloys provide a composi-tionally tunable platform for controlling the optical and electronic properties. How-ever, systematic prediction of their dielectric response across multicomponent alloy spaces remains challenging owing to the combinatorial cost of first-principles calcula-tions. In this work, we combined ab initio optical-property calculations with a tabu-lar foundation-model regression to predict the real and imaginary components of the frequency-dependent dielectric function for Mo–W–S–Se–Te TMD alloys. A dataset of 99 alloy structures spanning binary, ternary, quaternary, and quinary compositions was generated using density functional theory (DFT). The resulting polarization-dependent dielectric spectra were used to train a tabular prior-fitted network (TabPFN) and eval-uated against the conventional Extra Trees and XGBoost models. To accommodate the in-context capacity limit of TabPFN, we introduced a non-uniform, physics-informed energy subsampling strategy that concentrates sampling in the optically active region above the band gap, where interband absorption is strongest. Trained solely on qua-ternary alloys, our TabPFN reconstructed the dielectric spectra of held-out quaternary compositions with an R2 > 0.98 and a mean absolute error below 0.10 for all four dielectric components, outperforming both baselines while requiring no gradient-based training or hyperparameter tuning. Our model further predicted derived optical quan-tities, including refractive index, extinction coefficient, and absorption coefficient. Ad-ditionally, our model generalized in a zero-shot manner to binary, ternary, and quinary alloys absent from the training set, with quinary predictions achieving an R2 > 0.97 .We argue that our proposed approach provides a data-driven route for reconstruct-ing optical spectra from limited first-principles data and offers physical insight into composition-dependent optical responses in low-dimensional TMD alloys. 
+
+2Introduction 
+
+Two-dimensional (2D) materials are interesting candidates for future electronic, 1 optoelec-tronic, 2,3 photonic, 4 and valleytronic devices. 3 Similar to charge-based electronics and spin-based spintronics, the valley degree of freedom of 2D materials can act as information carriers, unveiling the application of valley filters and valves, 5 optical switches, 6 magnetic switches, and nonvolatile memory devices. 7 Among different families of 2D materials, transition metal dichalcogenides (TMDs) are especially attractive because of their thickness-dependent band structures, strong spin-orbit coupling, pronounced excitonic effects, and compatibility with van der Waals heterostructures. TMDs are commonly represented by the chemical formula MX 2, where M denotes a transition metal atom, such as Mo or W; and X denotes a chalco-gen atom, such as S, Se, or Te. Typical semiconducting TMDs include MoS 2, MoSe 2, WS 2,and WSe 2, which have been widely studied for nanoscale electronics and optoelectronics. 8–10 
+
+These materials exhibit tunable electronic and optical properties as their thickness is reduced from bulk to few-layer and monolayer limits, making them suitable for field-effect transis-tors, photodetectors, light-emitting devices, photovoltaic devices, sensors, optical modula-tors, flexible electronics, and quantum/valleytronic platforms. 10–12 
+
+Moreover, recent optical-constant measurements have shown that multilayer TMDs can possess high refractive indices, optical anisotropy, and hyperbolic optical responses, which are important for accurate design of nanophotonic and optoelectronic devices. 13 Recent studies on the optical response of 2D TMDs have therefore focused not only on photoluminescence, circular dichroism and valley polarization, but also on actively tuning these properties for practical device functions. Strategies, such as strain engineering, alloying, defect modifi-cation, electrostatic gating, dielectric engineering, twist-angle control and vertical/lateral heterostructure formation, have been used to modulate band gaps, optical absorption, emis-sion intensity, and carrier lifetime. 3,9,14 In addition, optical and valleytronic properties can be switched and retained, indicating the potential of TMD heterostructures for memory-type optoelectronic and valleytronic devices. 15 
+
+3Because of these features, 2D TMDs are now being explored for a wide range of opti-cal and optoelectronic applications. Their strong light-matter interaction and atomically thin form factor are useful for ultra thin photodetectors, self-powered photodetectors, image sensors, optical modulators, light-emitting devices, excitonic devices, nanophotonic compo-nents, flexible optoelectronics, and photovoltaic systems. 10–12 Additionally, their coupled spin and valley degrees of freedom provide opportunities for valley-based information processing, quantum emitters, and nonvolatile optical memory devices. 3,8,15 Therefore, systematic inves-tigation and engineering of the optical properties of 2D TMDs remain essential for developing next-generation low-dimensional electronic, photonic, optoelectronic, and valleytronic tech-nologies. Data-driven methods have recently become central to modern materials science, with machine learning (ML) now routinely applied to predict structural, 16 mechanical, 17,18 and electronic properties 19,20 across diverse materials systems as a faster alternative to computa-tionally expensive DFT calculations. Traditional ML models, such as decision trees, random forests, extra trees, and multilayer perceptrons (MLPs), have been used due to their sim-plicity, robustness and ability to model nonlinear structure-property relationships. 21 These methods have been successfully employed in numerous contexts, including band gap predic-tion in TMDs, 22,23 stability classification, 24 and property screening in 2D materials more broadly. 25,26 These approaches collectively highlight the versatility of classical ML models for materials informatics applications, even when dataset sizes are limited. Within this emerging landscape, our previous work 21 introduced an Extra Trees-based model capable of predicting conduction and valence band energies at multiple k-points for binary and ternary 2D TMD alloys. This approach demonstrated high predictive accuracy, with mean squared errors below 0.001 and correlation coefficients R2 > 0.99 , underscoring the potential of ensemble tree algorithms for fast and reliable approximation of full band structures. 21 While ML models have seen extensive deployment in modeling band gaps, stability, and other electronic characteristics of 2D materials, optical-property prediction 4remains an underdeveloped but promising frontier, poised to benefit significantly from the continued expansion of data-driven frameworks. An early work established bidirectional mappings between optical spectra and material structure, 27 and subsequent efforts extended this to photonic crystal fibers, 28 and calcium boron-zinc glasses, 29 demonstrating the broad applicability of ensemble and regression mod-els across material classes. More recently, ML has been applied to increasingly complex tar-gets. Accurate predictions of molecular optical properties upon aggregation, 30 synthesis-to-emission mappings for carbon dots, 31 and literature-extracted spectral datasets for thin-film property prediction 32 highlight the expanding scope of the field. Two-dimensional materi-als have also entered this landscape, with ML models predicting optoelectronic properties and absorption spectra from first-principles data. 33 Barhoumi et al .33 predicted absorption spectra but used photon energy as the sole feature, restricting the model to the prediction of only 1 composition. To the best of our knowledge, no prior work has predicted the optical properties of TMD alloys, including the real and imaginary parts of the dielectric function, and derived parameters such as, refractive index, extinction and absorption coefficient using a data-driven strategy. To bridge this gap, we generated a dataset of optical properties consisting of 99 alloy samples using ab initio calculations and employed a neural-network-based strategy. A persistent challenge in employing neural networks for materials science is that convolutional neural networks and other neural architectures often underperform on tabular data, 34 which is the predominant format in which material-property datasets are organized. This has significantly limited the adoption of neural-network and deep-learning methods in the field. Recently, TabPFN 35 has emerged as a promising solution for small tabular datasets. It is a foundation model that leverages an attention mechanism – the same mechanism that underpins the success of large language models, and is pretrained on a large and diverse col-lection of tabular datasets. TabPFN is already used in solar energy meteorology, 36 turbine noise prediction, 37 and even in medical diagnosis. 38 It operates through in-context learn-5ing: taking the training data directly as context, learning the relationship between features and target variables, and making predictions in a single forward pass, entirely eliminating the need to fine-tuning or updating model parameters. This renders property prediction substantially faster by removing the overhead of conventional training procedures. How-ever, in-context learning in TabPFN poses a practical limitation: it can accommodate up to 10,000 samples as context. Material-property datasets often contain a large number of entries spanning diverse compositions, all of which carry meaningful information about the relationship between material structure and properties. Restricting the context to an ar-bitrary subset risks losing critical patterns that drive predictive accuracy. To address this, we propose a physics-informed sampling strategy designed to select a representative and in-formative subset of training samples that faithfully retains the feature-target relationships present in the full dataset. Using this strategy, we enable TabPFN to effectively model the optical properties of a wide range of materials. We further benchmark TabPFN against well-established classical models (Extra Trees and XGBoost) and demonstrate that TabPFN achieves superior predictive performance with negligible training overhead and reduced data requirements. This is supported by the fact that TabPFN successfully predicts the properties of the materials that were not present in the training/context dataset. 
+
+# Computational Details 
+
+## Supercell Construction and Alloying 
+
+To construct the alloy database, a monolayer TMD primitive cell is expanded into a (4 ×4×1) 
+
+supercell. Since each primitive cell contains one transition-metal atom and two chalcogen atoms, the resulting supercell contains 16 transition-metal sites and 32 chalcogen sites. The transition-metal sublattice is occupied by W and Mo atoms, while the chalcogen sublattice is occupied by S, Se, and/or Te atoms depending on the alloy family. For each target composition, the required numbers of W, Mo, S, Se, and Te atoms are first determined from 6the desired composition fractions, and the atoms are then randomly substituted over the available metal and chalcogen sites while maintaining the overall TMD stoichiometry. The composition of the transition-metal sublattice is defined as 
+
+x = NMo 
+
+NW + NMo 
+
+= NMo 
+
+16 , (1) where NMo and NW are the numbers of Mo and W atoms in the supercell, respectively. Thus, 
+
+1 − x = NW
+
+NW + NMo 
+
+= NW
+
+16 . (2) Accordingly, the number of metal atoms in the supercell can be written as 
+
+NMo = 16 x, NW = 16(1 − x). (3) Because the metal sublattice contains 16 sites, the allowed values of x are discretized in steps of 1/16 = 0 .0625 for ternary, quaternary, and quinary alloys. For ternary metal-alloyed TMDs, a single chalcogen species Q is used, where Q =S, Se , Te . The ternary compositions are represented as 
+
+W1−xMo xQ2. (4) Here, x denotes the Mo fraction on the transition-metal sublattice. The special limiting cases of this equation correspond to the binary compounds: for x = 0 , WQ 2, and for x = 1 ,
+
+MoQ 2. Therefore, the binary compounds are naturally included as end members of the ternary alloy formula. For each chalcogen species Q, 17 compositions are generated using the possible metal-site fractions from x = 0 to x = 1 , giving a total of 51 binary and ternary compositions. For quaternary alloys, two chalcogen species, Q and P, are distributed over the 32 chalco-7gen sites. The general formula can be written as 
+
+W1−xMo xQ2yP2(1 −y), (5) where 
+
+y = NQ
+
+NQ + NP
+
+= NQ
+
+32 , (6) and 
+
+1 − y = NP
+
+NQ + NP
+
+= NP
+
+32 . (7) Thus, the number of chalcogen atoms in the supercell is 
+
+NQ = 32 y, NP = 32(1 − y). (8) The chalcogen pairs considered in this work are (Q , P) = (S , Se) , (Se , Te) , and (S , Te) . For the quaternary alloy set, x and y are selected within the ranges 0.1875 ≤ x ≤ 0.625 and 
+
+0.1875 ≤ y ≤ 0.8125 . Twelve quaternary compositions are generated for each chalcogen-pair combination, resulting in a total of 36 quaternary alloys. For quinary alloys, three chalcogen species, S, Se, and Te, are simultaneously distributed over the chalcogen sublattice. The general quinary alloy formula can be written as 
+
+W1−xMo xS2ySe 2z Te 2(1 −y−z). (9) Here, the chalcogen fractions are determined directly from the atom counts as 
+
+y = NS
+
+NS + NSe + NTe 
+
+= NS
+
+32 , (10) 
+
+z = NSe 
+
+NS + NSe + NTe 
+
+= NSe 
+
+32 , (11) 8and 
+
+1 − y − z = NTe 
+
+NS + NSe + NTe 
+
+= NTe 
+
+32 . (12) Therefore, 
+
+NS = 32 y, NSe = 32 z, NTe = 32(1 − y − z). (13) The composition variables must satisfy 0 ≤ x ≤ 1, 0 ≤ y ≤ 1, 0 ≤ z ≤ 1, and y + z ≤ 1.For the quinary alloy set, x, y, and z are selected within the desired composition window while preserving the above stoichiometric constraint. In the present dataset, 12 quinary compositions are generated using randomly substituted W/Mo atoms on the metal sublattice and S/Se/Te atoms on the chalcogen sublattice. Overall, our alloy database consists of 51 binary and ternary compositions, 36 quater-nary compositions, and 12 quinary compositions, giving a total of 99 alloy structures. For all alloy families, the random substitution procedure is used to generate representative atomic configurations for the target compositions without explicitly enumerating all possible sym-metrically inequivalent arrangements. 
+
+## Density Functional Theory Calculations 
+
+The first-principles calculations based on density functional theory are performed using the Cambridge Serial Total Energy Package (CASTEP). 39 The exchange–correlation interaction is treated within the Perdew–Burke–Ernzerhof generalized-gradient approximation (PBE-GGA). 40 Although hybrid functionals, such as HSE, GW, and PBE+U, can provide im-proved band-gap values, the PBE-GGA functional is adopted throughout this work because these higher-level methods are computationally more demanding. Norm-conserving pseu-dopotentials are used to describe the electron–ion interactions for W, Mo, S, Se, and Te. A Gaussian smearing width of 0.05 eV is applied to handle partial electronic occupations, and all calculations are carried out using the non-spin-polarized scheme. The equilibrium structures are obtained using the Broyden–Fletcher–Goldfarb–Shanno 9quasi-Newton optimization algorithm. 41 For the self-consistent-field calculations, an energy tolerance of 2 × 10 −6 eV atom −1 is used. During geometry optimization, both the ionic positions and the in-plane lattice vectors are relaxed. The convergence thresholds are set to 
+
+1.0 × 10 −8 eV for electronic self-consistency, 1.0 × 10 −3 eV Å −1 for atomic forces, 0.5 kbar for residual pressure, and 5.3 × 10 −7 eV for the ionic total-energy change between consecutive optimization steps. A maximum of 100 ionic optimization steps is allowed. To avoid artificial interactions between periodic images along the out-of-plane direction, a vacuum spacing of at least 18–20 Å is introduced. Since a larger real-space supercell corresponds to a smaller reciprocal-space Brillouin zone, a Monkhorst–Pack k-point mesh of (2 × 2 × 1) with no shift is used for Brillouin-zone integration during the self-consistent calculations. This relatively coarse k-point mesh provides a balance between computational accuracy and cost for the present supercell cal-culations. The convergence of the total energy was verified with respect to different selected 
+
+k-point densities (see section A of Appendices). 
+
+## Optical-Property Calculations 
+
+The optical properties of the TMD alloy structures are evaluated using the complex, frequency-dependent dielectric function, 
+
+εj (ω) = εj
+
+> 1
+
+(ω) + iε j
+
+> 2
+
+(ω), (14) where εj
+
+> 1
+
+(ω) and εj
+
+> 2
+
+(ω) denote the real and imaginary components of the dielectric function, respectively. The superscript j represents the polarization direction. In this work, the optical response is calculated for both the in-plane x direction and the out-of-plane z direction. The imaginary part of the dielectric function, εj
+
+> 2
+
+(ω), describes optical absorption arising from inter-band transitions between occupied valence-band states and unoccupied conduction-10 band states. It is given by 
+
+εj
+
+> 2
+
+(ω) = 2πe 2
+
+ε0Ω
+
+X
+
+> k,v,c
+
+wk ψck ˆej · r ψvk 
+
+> 2
+
+δ (Eck − Evk − ℏω) , (15) where Ω is the unit-cell volume, e is the electronic charge, ε0 is the vacuum permittivity, ω is the angular frequency of the incident photon, and wk is the weight of the k-point. The term 
+
+ˆej denotes the unit polarization vector along direction j. Here, ψvk and ψck are the valence-and conduction-band wavefunctions, respectively, while Evk and Eck are their corresponding eigenvalues. The real part of the dielectric function, εj
+
+> 1
+
+(ω), was obtained from εj
+
+> 2
+
+(ω) through the Kramers–Kronig transformation: 
+
+εj
+
+> 1
+
+(ω) = 1 + 2
+
+π P
+
+Z ∞
+
+> 0
+
+ω′εj
+
+> 2
+
+(ω′)
+
+ω′2 − ω2 dω ′, (16) where P indicates the Cauchy principal value of the integral. For each of the 99 alloy configurations, the calculated optical dataset consists of photon energy-dependent values of ε1 and ε2 for the selected polarization directions. The refractive index, nj (ω), and extinction coefficient, kj (ω), are subsequently derived from the dielectric function as 
+
+nj (ω) = 
+
+q εj
+
+> 1
+
+(ω)2 +  εj
+
+> 2
+
+(ω)2 + εj
+
+> 1
+
+(ω)2
+
+
+
+> 1/2
+
+, (17) and 
+
+kj (ω) = 
+
+q εj
+
+> 1
+
+(ω)2 +  εj
+
+> 2
+
+(ω)2 − εj
+
+> 1
+
+(ω)2
+
+
+
+> 1/2
+
+. (18) Using the extinction coefficient, the absorption coefficient is calculated as 
+
+αj (ω) = 2ωk j (ω)
+
+c , (19) where c is the speed of light in vacuum. By substituting the expression for kj (ω), the 11 absorption coefficient can also be written directly in terms of the real and imaginary parts of the dielectric function: 
+
+αj (ω) = 
+
+√2ωc
+
+q  εj
+
+> 1
+
+(ω)2 +  εj
+
+> 2
+
+(ω)2 − εj
+
+> 1
+
+(ω)
+
+1/2
+
+. (20) Representative atomic configurations of the selected TMD systems are shown in Figure 1a– d. The binary WSe 2 structure, represented by the W4Se 8 supercell, shows the characteristic layered arrangement of TMDs (Figure 1a). The metal-alloyed ternary structure W3Mo 13 Te 32 
+
+(W 0.1875 Mo 0.8125 Te 2) is formed by substituting W and Mo atoms on the transition-metal sublattice, with Te atoms occupying the chalcogen sites (Figure 1b). In comparison, the quaternary W13 Mo 3S13 Te 19 (W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ) and quinary 
+
+W13 Mo 3S4Se 24 Te 4 (W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ) structures represent more compositionally complex alloy configurations with mixed metal and chalcogen sublattices (Figure 1c,d). The color legend identified W, Mo, S, Se, and Te atoms, while the coordinate axes indicated the in-plane and out-of-plane directions. The optical-property results from ab initio cal-culations shown in Figure 1e–g correspond specifically to the ternary alloy W3Mo 13 Te 32 
+
+(W 0.1875 Mo 0.8125 Te 2). We also calculated the ab initio optical property of binary, quater-nary, and quinary alloys (see section B of Appendices). The real and imaginary components of the dielectric function, ε1 and ε2, show a clear dependence on polarization direction (Fig-ure 1e). The in-plane ( x) and out-of-plane ( z) responses exhibit different peak positions and intensities, indicating anisotropic electronic transitions in the alloy. The refractive index n
+
+and extinction coefficient k also vary strongly with photon energy and polarization direction (Figure 1f), confirming the direction-dependent light propagation and attenuation behav-ior of W3Mo 13 Te 32 . The absorption coefficient α increases rapidly in the low-energy region and exhibits strong absorption in the visible-to-ultraviolet energy range (Figure 1g). These results demonstrate that W3Mo 13 Te 32 possesses pronounced polarization-dependent optical behavior. 12 (f) 
+
+# W
+
+# Mo 
+
+# S
+
+# Se 
+
+# Te 
+
+X Y
+
+Z
+
+## (a) 
+
+W4Se 8
+
+(WSe 2)
+
+W3Mo 13 Te 32 
+
+(W 0.1875 Mo 0.8125 Te 2)
+
+## (b) 
+
+W13 Mo 3S13 Te 19 
+
+(W0.8125 Mo 0.1875 S0. 8125 Te1. 1875 )
+
+## (c) 
+
+## (e) 
+
+W13 Mo 3S4Se 24 Te 4
+
+(W 0.8125 Mo 0.1875 S0.25 Se 1.5 Te 0.25 )
+
+## (d) 
+
+## (g) Figure 1: (a) Binary WSe 2 represented by the W4Se 8 supercell, (b) metal-alloyed ternary W3Mo 13 Te 32 (W 0.1875 Mo 0.8125 Te 2), (c) quaternary 
+
+W13 Mo 3S13 Te 19 (W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ), and (d) quinary W13 Mo 3S4Se 24 Te 4
+
+(W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ) alloy structures. The color legend identifies W, Mo, S, Se, and Te atoms, and the coordinate axes indicate the in-plane and out-of-plane directions. (e) Real and imaginary components of the dielectric function, ε1 and ε2, (f) n
+
+and k, (g) absorption coefficient α, along the in-plane ( x) and out-of-plane ( z) polarization directions of W3Mo 13 Te 32 (W 0.1875 Mo 0.8125 Te 2) from ab initio calculations. 13 Tabular Prior-Fitted Networks 
+
+The optical properties of the Mo–W–S–Se–Te alloy system are predicted using the TabPFN v2 35 – a transformer-based tabular foundation model that performs regression via in-context learning without any task-specific gradient-based training. 
+
+Prior-Data Fitted Networks and the Meta-Learning Objective 
+
+TabPFN belongs to the class of prior-data fitted networks, 42 in which a neural network is trained not on a single fixed dataset but on a distribution of datasets P(D), referred to as 
+
+the prior . During meta-training, the model receives a set of labeled examples {(xi, y i)}Ni=1 
+
+drawn from a dataset D sampled from P(D), together with an unlabeled query point x∗,and is trained to predict y∗ by minimizing the expected negative log-likelihood 
+
+L(θ) = ED∼P (D) E(x∗,y ∗)∼D [− log pθ(y∗ | x∗, Dtrain )] , (21) where Dtrain is the labeled context and θ denotes the model parameters. We note that this objective is optimized over the distribution of datasets rather than over any single task. As a result, the trained model approximates Bayesian inference over the prior P(D): given a new, real-world dataset at inference time, the model computes a posterior predictive distribution without performing any additional gradient updates. 43 
+
+Unlike other large-scale neural networks, PFNs are trained exclusively on synthetic data and rely on real-world data only as conditioning input. 44 TabPFN v2 was meta-trained on approximately 1.3 × 10 8 synthetic tabular datasets generated from structural causal models and Bayesian neural networks, deliberately incorporating realistic data artifacts, such as missing values, heterogeneous feature scales, and class imbalance. 35 By training on such a wide variety of synthetic data, the model essentially develops an intuition for the kinds of patterns that tend to show up in small-to-medium tabular datasets including the way composition and properties tend to relate to each other in alloy systems. 14 In-Context Learning for Tabular Regression 
+
+During inference time, TabPFN operates in a purely forward-pass regime, no weight up-dates or fine-tuning are performed with the target dataset. The entire training set, here comprising the DFT-computed dielectric spectra of the quaternary Mo–W–S–Se–Te alloys, is concatenated with the query points and fed simultaneously into the transformer encoder, whose weights remain fixed as learned during prior meta-training on synthetic datasets. This paradigm, known as in-context learning (ICL), allows the model to condition its predictions directly on the observed data at runtime, without any gradient-based adaptation. In this sense, TabPFN behaves conceptually analogous to a non-parametric estimator, i.e., the pre-dictions are derived by attending to the full training context rather than compressing it into task-specific parameters. Note that TabPFN remains a parametric model in the strict sense, as its inference mechanism is governed by a fixed set of pre-trained weights. 43 
+
+Formally, for a regression query x∗, the model computes 
+
+ˆy∗ = fθ
+
+
+
+x∗ {(xi, y i)}Ni=1 
+
+
+
+, (22) where fθ is the frozen pretrained transformer and N is the number of in-context training ex-amples. The prediction is produced in a single forward pass with O(N 2) attention complexity over the context. 35 
+
+Our dataset consists of 36 quaternary alloys, of which 70% (25 alloys) are used as the training set (for xGBoost and Extra Trees) or in-context set (for TabPFN). The rest of the quaternary alloys, along with binary, ternary, and quinary alloys, are used for testing. Figure 2 illustrates the effect of the training set proportion during ICL on model performance. As the number of alloys included during ICL increases, the model’s predictive accuracy improves correspondingly. 15 0 1/8 1/4 1/2 1
+
+0.8 
+
+0.9 
+
+1.0 
+
+> R 2
+
+## (a) 
+
+> x
+> 1
+> x
+> 2
+
+(log) 
+
+> z
+> 1
+> z
+> 2
+
+(log) 
+
+0 1/8 1/4 1/2 10.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+> MAE
+
+## (b) 
+
+> x
+> 1
+> x
+> 2
+
+(log) 
+
+> z
+> 1
+> z
+> 2
+
+(log) Figure 2: Effect of in-context learning set size on TabPFN prediction performance. (a) R2
+
+and (b) MAE are shown as a function of the fraction of training materials included in the TabPFN context (0, 18 , 14 , 12 , and 1), with smart energy subsampling applied at each fraction (Zero set uses data of only one composition for initializing). All four dielectric components, 
+
+ϵx 
+
+> 1
+
+, ϵx 
+
+> 2
+
+(log), ϵz
+
+> 1
+
+, and ϵz 
+
+> 2
+
+(log) , show a consistent and steep improvement beyond 14 of the training materials, converging to R2 > 0.98 and MAE < 0.1 at full context, demonstrating the strong sensitivity of TabPFN to in-context sample diversity. 
+
+Architecture: Alternating Row and Column Attention 
+
+The transformer encoder in TabPFN v2 departs from the standard token-level self-attention used in natural language processing. Instead, it employs an alternating dual-attention mech-anism that operates on a three-dimensional input tensor of shape (N + 1) × d × k, where 
+
+N is the number of training samples, d is the number of features, and k is the embedding dimension. 35 Figure 3 illustrates the architecture of TabPFN model. 
+
+Row attention, inter-sample. At each row-attention layer, every sample attends to every other sample across the feature dimension. This allows the model to compare the query point directly against all training examples, effectively computing a learned similarity measure in the embedding space. Compositionally similar alloys, e.g. those sharing similar Mo/W ratios or chalcogen fractions, receive higher attention weights, and their target values contribute proportionally to the query’s predicted output. 
+
+Column attention, inter-feature. At each column-attention layer, the model attends across features within a fixed sample. This captures correlations between input descrip-tors, e.g. between the chalcogen ratio and the energy coordinate, enabling the model to 16 (a) 
+
+Pretraining (done once, offline) 
+
+millions of synthetic tabular tasks teach the network 
+
+how to reason about any table, before it ever sees real data 
+
+synthetic 
+
+dataset 
+
+TabPFN 
+
+f(·; θ)  
+
+> loss:
+> −log qθ(ytest )
+> update θ over millions of resampled synthetic tasks
+
+Inference (your data, zero-shot) 
+
+θ is frozen; a new Mo–W–S–Se composition table 
+
+is predicted in a single forward pass, no retraining 
+
+alloy 
+
+TabPFN 
+
+(frozen θ) ̂
+
+y
+
+> predicted
+> optical property
+
+(b) 
+
+Composition-property table 
+
+xMo xW xS xSe y (ε)                
+
+> 0.63 0.90 0.78 0.23 0.30
+> 0.87 0.01 0.82 0.80 0.47
+> 0.30 0.28 0.25 0.45 0.50
+> 0.55 1.00 0.79 0.62 ?
+> known alloys query alloy
+
+two-axis attention block ( × 12 layers) 
+
+attend across 
+
+features 
+
+attend across 
+
+alloy samples 
+
+per-token 
+
+MLP 
+
+> each node is one (sample, feature) entry of the table; orange = query alloy
+
+predicted  ̂ y (fills the "?" cell) 
+
+> predicted value
+> density
+> most likely
+> value
+> a full distribution over plausible property values for
+> the query alloy, not just one number
+
+Figure 3: (a) The overview of TabPFN pre-training and inference. (b) Attention mechanism in TabPFN. Image inspired from the original TabPFN article 35 
+
+learn physically meaningful feature interactions without explicit feature engineering beyond those provided as inputs. These two attention types alternate through L transformer blocks ( L = 12 in the deployed configuration), progressively enriching each token’s representation with both cross-sample and cross-feature information. By the final layer, the representation of the query token encodes not only its own feature values but also its relationship to the entire training distri-bution. This capability proves particularly advantageous for interpolating within the com-positional space of the quaternary alloy system. 
+
+Application to Dielectric Spectra Prediction 
+
+The four target quantities, the real and imaginary parts of the dielectric tensor along the in-plane x and out-of-plane z directions, εx
+
+1 (ω), εx
+
+2 (ω), εz
+
+1(ω), and εz
+
+2(ω), were predicted 17 independently. Because the imaginary components were non-negative and exhibited strong right skewness, they were log-transformed prior to the training as 
+
+˜ε2 = ln(1 + ε2) , (23) and back-transformed via the inverse operation ε2 = e˜ε2 − 1 after prediction. 18 Subsampling Strategy 0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+10 
+
+> x
+> 1
+> (a)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 1
+> (b)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+> (c)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+> (d)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+> (e)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+> (f)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0.0 
+
+2.5 
+
+5.0 
+
+> z
+> 2
+> (g)
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+> (h)
+
+Figure 4: Smart energy subsampling illustrated for two quaternary Mo–W–Se–Te compounds from the training set: Mo 6W10 Se 13 Te 19 (left, panels a, c, e, g) and Mo 5W13 Se 6Te 26 (right, panels b, d, f, h). Rows show the real and imaginary parts of the in-plane ( ϵx 
+
+> 1
+
+, ϵx 
+
+> 2
+
+) and out-of-plane ( ϵz
+
+> 1
+
+, ϵz
+
+> 2
+
+) dielectric functions. The full DFT spectrum (grey, 2000 pts) is overlaid with smart-subsampled points (purple, 330 pts) used as TabPFN training context. The orange dashed and red dotted vertical lines mark Eg and the boundary max(10 eV , 3Eg),with shaded regions denoting sub-gap (blue, 10 pts), active absorption (orange, 250 pts), and high-energy tail (blue, 70 pts) zones. 19 Table 1: Non-uniform energy subsampling budget per material (330 points total). Region Energy range Points Fraction 
+
+Sub-gap E < E g 10 3.0% Optically active Eg ≤ E ≤ max {10 eV , 3Eg} 250 75.8% High-energy tail E > max {10 eV , 3Eg} 70 21.2% 
+
+Total 330 100% 
+
+The training/context dataset comprised 25 quaternary alloy compositions, each sampled at approximately 2,000 energy points over the range 0.01 –33 eV , yielding approximately 52 , 000 
+
+rows in total. Since the TabPFN’s in-context capacity is bounded by practical memory constraints, with ≤ 10 , 000 training rows in the standard configuration, we propose a non-uniform energy subsampling strategy that allocates denser sampling above the band gap energy Eg, where interband absorption is concentrated, and sparser sampling in the sub-gap and high-energy tail regions (illustrated in Figure 4). The details of the approach is presented in the following: (i) Sub-gap region (E < E g): 10 points, sampled uniformly. The dielectric response is slowly varying in this regime, with ε2 ≈ 0, so sparse coverage is sufficient. (ii) Optically active region (Eg ≤ E ≤ max {10 eV , 3Eg}): 250 points, sampled uni-formly. This window encompasses the absorption edge, the primary excitonic peaks, and secondary interband transitions. The lower bound of 10 eV was imposed as an ab-solute floor to ensure adequate coverage for low-band-gap compositions, Eg < 1.67 eV ,whose absorption peaks extend beyond 3Eg.(iii) High-energy tail (E > max {10 eV , 3Eg}): 70 points, sampled uniformly. The dielectric function varies slowly and approaches unity asymptotically in this regime, making dense sampling unnecessary. This allocation, 330 points per material (as summarized in Table 1) × 25 training mate-rials ≈ 8250 rows, fitted comfortably within TabPFN’s context limit while preserving full compositional-space coverage, a critical requirement for accurate interpolation across the 20 Table 2: Input features used for TabPFN regression of the dielectric-tensor components of Mo–W–S–Se–Te alloys. Group Feature Description 
+
+Composition 
+
+xMo Mo atomic fraction 
+
+xW W atomic fraction 
+
+xS S atomic fraction 
+
+xSe Se atomic fraction 
+
+xTe Te atomic fraction Energy E Photon energy (eV) Mo-W-S-Se-Te alloy space. The model was evaluated on the full 2,000-point spectra of the held-out test materials, demonstrating that the subsampled context was sufficient for accu-rate spectral reconstruction at arbitrary energy coordinates. The input feature vector for each material–energy row is summarized in Table 2. All features were standardized to zero mean and unit variance using parameters fitted exclusively on the training set and applied without modification to the test set and to the quinary generalization dataset. 
+
+## Evaluation Metrics 
+
+To evaluate model performance, we employed two complementary metrics: the coefficient of determination ( R2) and the mean absolute error (MAE), defined as: 
+
+R2 = 1 −
+
+P
+
+> i
+
+(yi − ˆyi)2
+
+P
+
+> i
+
+(yi − ¯y)2 , MAE = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+|yi − ˆyi| (24) where yi, ˆyi, and ¯y denote the true, predicted, and mean target values, respectively. R2
+
+score ranges from 0 to 1, where values closer to 1 indicate strong predictive performance, and values closer to 0 reflect poor generalization. MAE was expressed in the same units as the target variable, with lower values indicating better accuracy; a value of 0 denotes perfect agreement. Together, R2 captures global goodness of fit, while MAE quantifies typical point-wise deviation, providing a comprehensive assessment of model performance. 21 Results and Discussion 
+
+## Optical Spectra Prediction 0 20 
+
+Energy (eV) 
+
+0
+
+10 
+
+> x
+> 1
+
+(a) 
+
+> DFT
+> ExtraTrees
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+
+(b) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+
+(c) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+
+(d) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+10 
+
+> x
+> 1
+
+(e) 
+
+> DFT
+> XGBoost
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+
+(f) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+
+(g) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+
+(h) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+10 
+
+> x
+> 1
+
+(i) 
+
+> DFT
+> TabPFN
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+
+(j) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+
+(k) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+
+(l) 
+
+Figure 5: Comparison of DFT-computed (black dashed) and predicted (solid) dielectric spectra for Mo 10 W6S13 Te 19 from the test set. Rows correspond to Extra Trees (green, a–d), XGBoost (blue, e–h), and TabPFN (red, i–l). Columns show the real and imaginary parts of the in-plane ( ϵx 
+
+> 1
+
+, ϵx 
+
+> 2
+
+) and out-of-plane ( ϵz
+
+> 1
+
+, ϵz
+
+> 2
+
+) dielectric functions. The orange shaded region marks the active absorption zone between Eg and max(10 eV , 3Eg). TabPFN outperforms both XGBoost and Extra Trees in reproducing the DFT computed spectra most faithfully across all components We benchmarked TabPFN against Extra Trees 45 and XGBoost 46 on the held-out quaternary test set comprising seven alloy compositions, each evaluated at approximately 2,000 energy points spanning 0.01–33 eV. Figure 5 shows the predicted dielectric spectra for a representa-tive test material (i.e., Mo 10 W6S13 Te 19 ) across all four components – the real and imaginary parts of the in-plane ( ϵx 
+
+> 1
+
+, ϵx 
+
+> 2
+
+) and out-of-plane ( ϵz
+
+> 1
+
+, ϵz
+
+> 2
+
+). All three models captured the broad spectral envelope, including the general shape of the absorption onset and the high-energy 22 tail. However, notable differences emerged in the optically active region between Eg and 
+
+max(10 eV , 3Eg), where the dielectric response is governed by interband transitions. Extra Trees and XGBoost approaches reproduced the overall trend but systematically underes-timated peak amplitudes and smoothed over the fine spectral features, such as secondary absorption shoulders and post-peak oscillations. This behavior is characteristic of ensemble regression methods, which tend towards the mean of the training distribution and struggle to extrapolate sharp, localized features. 47 TabPFN, in contrast, faithfully reproduced both the position and amplitude of primary and secondary peaks across all four components, with its predicted curves nearly superimposed on the DFT reference throughout the full energy range. The quantitative performance across the full test set was summarized in Figure 6. TabPFN achieved an R2 score of > 0.98 and an MAE of < 0.10 for all four dielectric components, out-performing both XGBoost and Extra Trees approaches in almost all cases. Specifically, for ϵx 
+
+> 1
+
+,TabPFN attains R2 = 0 .989 and MAE = 0 .085 , compared to R2 = 0 .983 and MAE = 0 .091 
+
+for XGBoost, and R2 = 0 .986 and MAE = 0 .082 for Extra Trees. The imaginary compo-nents, ϵx 
+
+> 2
+
+(log) and ϵz 
+
+> 2
+
+(log), showed a consistent ranking with TabPFN leading in both R2
+
+and MAE scores. The out-of-plane components ϵz 
+
+> 1
+
+and ϵz 
+
+> 2
+
+were predicted with slightly higher accuracy than their in-plane counterparts across all models. Notably, TabPFN achieved this performance without any hyperparameter tuning, gradient-based training, or task-specific fine-tuning; its inference was completed in a single forward pass over the training context, making it substantially faster in deployment than conventional machine-learning pipelines that required cross-validated model selection. 23 x
+
+> 1
+> x
+> 2(log)
+> z
+> 1
+> z
+> 2(log)
+
+0.8 
+
+0.9 
+
+1.0 
+
+> R 2
+
+(a) 
+
+> x
+> 1
+> x
+> 2(log)
+> z
+> 1
+> z
+> 2(log)
+
+0.00 
+
+0.05 
+
+0.10 
+
+> MAE
+
+(b) 
+
+TabPFN 
+
+XGBoost 
+
+ExtraTrees Figure 6: Comparison of R2 (a) and MAE (b) for TabPFN, XGBoost, and Extra Trees across the four dielectric function components: εx 
+
+> 1
+
+, εx 
+
+> 2
+
+, εz
+
+> 1
+
+, and εz
+
+> 2
+
+. TabPFN achieves the highest 
+
+R2 and lowest MAE in almost all cases. (MAE for εx 
+
+> 2
+
+and εz 
+
+> 2
+
+is reported in log-transformed units) The parity plots in Figure 7 provide a complementary view of model accuracy across the entire test distribution. In these plots, perfect prediction corresponds to all points lying exactly on the black dashed diagonal (y = x), while increasing scatter away from this line reflects greater prediction error. For TabPFN (red), the predicted values clustered tightly along the ideal parity line across the full dynamic range of each target variable, including the extremes of ϵx 
+
+> 1
+
+that reach values above 10. XGBoost (blue) showed slightly broader scatter, particularly at high values of ϵx 
+
+> 1
+
+and ϵz
+
+> 1
+
+, where predictions were systematically pulled toward the center of the training distribution, a well-known bias of gradient-boosted trees on small datasets. 47 Extra Trees (green) exhibited the widest scatter and the most pronounced regression-to-the-mean behavior, with visible under-prediction at the upper tail of both real components. These deviations are physically consequential: errors in the peak amplitude of ϵ1(ω) propagate directly into the refractive index n(ω), and errors in ϵ2(ω) affected the extinction coefficient k(ω) and absorption coefficient α(ω), all of which are critical quantities for optical device design and material screening. 24 0 10  
+
+> x
+> 1
+
+(DFT) 
+
+0
+
+5
+
+10 
+
+> x
+> 1 (TabPFN)
+
+(a) 
+
+0 10  
+
+> x
+> 1
+
+(DFT) 
+
+0
+
+5
+
+10 
+
+> x
+> 1 (XGBoost)
+
+(b) 
+
+0 10  
+
+> x
+> 1
+
+(DFT) 
+
+0
+
+5
+
+10 
+
+> x
+> 1 (ExtraTrees)
+
+(c) 
+
+0 2 
+
+> x
+> 2
+
+(log) (DFT) 
+
+0
+
+1
+
+2
+
+> x
+> 2 (log) (TabPFN)
+
+(d) 
+
+0 2 
+
+> x
+> 2
+
+(log) (DFT) 
+
+0
+
+1
+
+2
+
+> x
+> 2 (log) (XGBoost)
+
+(e) 
+
+0 2 
+
+> x
+> 2
+
+(log) (DFT) 
+
+0
+
+1
+
+2
+
+> x
+> 2 (log) (ExtraTrees)
+
+(f) 
+
+0 5 
+
+> z
+> 1
+
+(DFT) 
+
+0
+
+5
+
+> z
+> 1 (TabPFN)
+
+(g) 
+
+0 5 
+
+> z
+> 1
+
+(DFT) 
+
+0
+
+5
+
+> z
+> 1 (XGBoost)
+
+(h) 
+
+0 5 
+
+> z
+> 1
+
+(DFT) 
+
+0
+
+5
+
+> z
+> 1 (ExtraTrees)
+
+(i) 
+
+0 2 
+
+> z
+> 2
+
+(log) (DFT) 
+
+0
+
+1
+
+2
+
+> z
+> 2 (log) (TabPFN)
+
+(j) 
+
+0 2 
+
+> z
+> 2
+
+(log) (DFT) 
+
+0
+
+1
+
+2
+
+> z
+> 2 (log) (XGBoost)
+
+(k) 
+
+0 2 
+
+> z
+> 2
+
+(log) (DFT) 
+
+0
+
+1
+
+2
+
+> z
+> 2 (log) (ExtraTrees)
+
+(l) Figure 7: Model-predicted dielectric vs DFT computed dielectric function components across the full test set. Rows correspond to ϵx 
+
+> 1
+
+(a–c), ϵx 
+
+> 2
+
+in log-space (d–f), ϵz 
+
+> 1
+
+(g–i), and ϵz 
+
+> 2
+
+in log-space (j–l). Columns correspond to TabPFN (red), XGBoost (blue), and Extra Trees (green). The black dashed line denotes perfect agreement. 25 Figure 8 shows TabPFN predictions for three additional quaternary alloys from the test set: Mo 6W10 Se 6Te 26 , Mo 10 W6S13 Te 19 , and Mo 6W10 S26 Te 6 to further assess spectral fidelity beyond a single test material. These materials spanned a range of Mo/W ratios and chalco-gen compositions, and their dielectric spectra differed in both the position of the absorption onset and the number and intensity of interband peaks. Across all three compounds and all four dielectric components, TabPFN predictions were nearly indistinguishable from the DFT reference curves, including the sharp transitions and the fine oscillatory structure in the post-peak region. This consistency across compositionally diverse test materials confirmed that TabPFN is not merely interpolating between close neighbors in the training set but is learn-ing a physically meaningful mapping among composition, electronic-structure descriptors, photon energy, and the dielectric response. The model’s ability to simultaneously reproduce both the real and imaginary components further suggested that it captures the underlying relationships of the optical spectra rather than fitting each component independently as an unrelated regression target. 26 0 20 
+
+Energy (eV) 
+
+0
+
+10 
+
+> x
+> 1
+
+(a) 
+
+> DFT
+> TabPFN
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+
+(b) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+
+(c) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+
+(d) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+10 
+
+> x
+> 1
+
+(e) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+
+(f) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+
+(g) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+
+(h) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 1
+
+(i) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> x
+> 2
+
+(j) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 1
+
+(k) 
+
+0 20 
+
+Energy (eV) 
+
+0
+
+5
+
+> z
+> 2
+
+(l) Figure 8: TabPFN-predicted (red solid) vs. DFT-computed (black dashed) dielectric spectra for three quaternary compounds from the test set: Mo 6W10 Se 6Te 26 (top, a–d), Mo 10 W6S13 Te 19 (middle, e–h), and Mo 6W10 S26 Te 6 (bottom, i–l). TabPFN accurately re-produces the DFT spectra across all four components and all three compounds, including fine spectral features near the absorption onset. 27 Generalization across compositions beyond training data 0 20            
+
+> Energy (eV)
+> 0
+> 5
+> x
+> 1
+> (a)
+> TabPFN
+> DFT
+> 020
+> Energy (eV)
+> 0
+> 5
+> x
+> 2
+> (b)
+> 020
+> Energy (eV)
+> 0
+> 5
+> z
+> 1
+> (c)
+> 020
+> Energy (eV)
+> 0
+> 5
+> z
+> 2
+> (d)
+> 020
+> Energy (eV)
+> 0
+> 5
+> x
+> 1
+> (e)
+> 020
+> Energy (eV)
+> 0
+> 5
+> x
+> 2
+> (f)
+> 020
+> Energy (eV)
+> 0
+> 5
+> z
+> 1
+> (g)
+> 020
+> Energy (eV)
+> 0
+> 5
+> z
+> 2
+> (h)
+> 020
+> Energy (eV)
+> 0
+> 5
+> x
+> 1
+> (i)
+> 020
+> Energy (eV)
+> 0
+> 5
+> x
+> 2
+> (j)
+> 020
+> Energy (eV)
+> 0
+> 5
+> z
+> 1
+> (k)
+> 020
+> Energy (eV)
+> 0
+> 5
+> z
+> 2
+> (l)
+
+Figure 9: Zero-shot TabPFN predictions (red solid) vs. DFT-computed (black dashed) di-electric spectra for binary Mo 4S8 (top, a–d), ternary W 4Mo 4S16 (middle, e–h), quinary Mo 3W13 S11 Se 17 Te 4 (bottom, i–l). The model was trained exclusively on quaternary com-pounds with no binary, ternary or quinary examples in context. TabPFN reproduces the DFT spectra with high fidelity across all components, demonstrating strong out-of-distribution generalization to unseen compositions. The stringent test of any ML model’s generalizability is its ability to make accurate pre-dictions on unseen samples. To this end, the TabPFN’s generalizability was tested through prediction of optical properties for binary, ternary, and quinary Mo-W-S-Se-Te alloys, which were absent from the training and in-context learning sets. These materials introduced a new chalcogen species system, expanding the compositional space into a regime that was not seen during training. Predicting optical properties in this setting constituted a zero-shot transfer task: the model must predict beyond its training distribution using only its learned representation of the quaternary alloy space. Figure 9 shows TabPFN predictions for binary 28 Mo 4S8, ternary W 4Mo 4S16 , and quinary Mo 3W13 S11 Se 17 Te 4. Despite never having encoun-tered these types of compositions during training, TabPFN reproduced the DFT spectra with high fidelity across all four dielectric components. Though the results were more accurate in the quinary alloy than the binary/ternary alloys, the absorption onset positions, peak amplitudes, and high-energy tails were well-captured, with predicted curves closely tracking the reference data throughout the 0-33 eV energy range. This result was physically signifi-cant: the introduction of a third chalcogen species (quinary) or removing chalcogen species (binary/ternary) modifies the band structure, effective masses, and interband transition ma-trix elements in ways that were not directly represented in the training data, yet the model successfully generalizes to these changes through its learned compositional representations. Across the three out-of-distribution alloy families, TabPFN’s zero-shot generalization im-proved rather than degraded as compositional complexity increased. As shown in Table 3, binary compositions ( n = 6 ) and ternary compositions ( n = 45 ) show moderate perfor-mance, with R2 values clustering between 0.82 and 0.90; and MAE in the 0.15 to 0.25 range across all four dielectric function components. Quinary compositions ( n = 12 ), on the other hand, achieved markedly stronger generalization, with R2 consistently above 0.97 and MAE reduced by roughly 60 to 70 percent relative to the binary and ternary cases. This pattern was somewhat counterintuitive given that TabPFN was trained exclusively on quaternary compositions. One might expect prediction quality to degrade monotonically as the target composition departs further from the training distribution in terms of element count. Instead, the out-of-plane components ( εz
+
+> 1
+
+, εz
+
+> 2
+
+) and the quinary family in particular benefitted from the additional Te-containing compositions that share more structural and electronic similarity with the quaternary training set than the simpler binary and ternary chalcogenides do. The relatively weaker performance on binary and ternary materials likely reflected their narrower compositional space and fewer mixed-element interactions for the model to draw analogies from, even though they were formally closer to quaternary in terms of element count. 29 Taken together, the zero-shot results demonstrated that TabPFN, trained exclusively on quaternary alloys, learned compositional representations that transfer meaningfully to lower-and higher-order alloy systems. This was a qualitatively stronger form of generalization than interpolation within a fixed composition family. It suggested that the in-context learning framework can serve as a practical tool for screening optical properties across the full Mo-W-S-Se-Te compositional space without requiring explicit DFT calculations for every alloy subfamily. Given that the number of distinct binary, ternary, and quinary compositions grew combinatorially with the number of elements and sub-lattice sites, the ability to predict their properties from a compact quaternary training set represented a substantial reduction in the computational cost of materials exploration. We also evaluated the frequency-dependent optical response (see section C of the Appendices). To further improve performance on binary and ternary compositions, a small number of binary and ternary examples could be included in the in-context set, rather than relying purely on zero-shot transfer from quaternary training data. This would let TabPFN to draw on compositional analogies closer to the target alloy family, since its in-context learning mechanism is specifically designed to exploit this kind of few-shot conditioning. A practical screening workflow could follow this procedure: generate a small reference dataset for the target alloy family, apply in-context learning to predict optical properties across a broad set of candidate compositions, identify the subset of materials whose predicted properties most closely match the desired target, and then run classical DFT computations only on that narrowed candidate set to obtain validated values. This approach can substantially reduce computational cost by avoiding exhaustive first-principles screening across every possible composition. 30 Table 3: Zero-shot generalization of TabPFN across alloy order (no in-context examples for the target alloy family). MAE values are reported in the original linear scale. 
+
+εx 
+
+> 1
+
+εx 
+
+> 2
+
+εz 
+
+> 1
+
+εz
+
+> 2
+
+Alloy Order n materials R2 MAE R2 MAE R2 MAE R2 MAE Binary 6 0.878 0.246 0.825 0.244 0.860 0.231 0.819 0.184 Ternary 45 0.883 0.228 0.836 0.218 0.897 0.207 0.871 0.152 Quinary 12 0.986 0.082 0.970 0.095 0.992 0.063 0.988 0.061 
+
+# Conclusion 
+
+In this work, we developed a DFT-informed machine-learning framework for predicting the optical response of two-dimensional Mo–W–S–Se–Te TMD alloys directly from composition. A dataset of 99 binary, ternary, quaternary, and quinary alloy structures was formulated, and the complex dielectric function was computed along the in-plane and out-of-plane po-larization directions, from which the refractive index, extinction coefficient, and absorption coefficient were derived. Using a non-uniform energy subsampling strategy to respect its in-context capacity, we proposed to employ TabPFN, which reconstructed the dielectric spectra with high fidelity, achieving an R2 > 0.98 and an MAE < 0.10 across all four dielectric com-ponents on the held-out quaternary test set. TabPFN consistently surpassed the Extra Trees and XGBoost baselines – this performance was attained through in-context learning in a single forward pass, without gradient-based training, fine-tuning, or hyperparameter optimization, making the model substantially faster to deploy than conventional pipelines. The most notable outcome was the model’s zero-shot generalization: trained exclusively on quaternary alloys, TabPFN accurately predicted the spectra of binary, ternary, and quinary compositions that were entirely absent from its context, with quinary predictions exceeding R2 = 0 .97 . Because in-context learning condition predictions (on the full training context rather than compressing it into task-specific parameters), the model learns transfer-able, physically meaningful compositional representations rather than merely interpolating between neighboring training points. These results suggest that in-context learning with tab-31 ular foundation models can serve as a practical, low-cost tool for screening optical properties across the full Mo–W–S–Se–Te compositional space, reserving explicit DFT calculations for a narrowed set of promising candidates. Future work incorporating a small number of lower-order examples into the context, together with additional electronic-structure descriptors, may further improve accuracy on binary and ternary systems, and extend the framework to broader families of two-dimensional materials. 
+
+# Supporting Information 
+
+Supporting Information: computational convergence tests, DFT calculated and TabPFN predicted optical properties of the binary, quaternary, and quinary structures. 
+
+# Acknowledgement 
+
+V.C., T.A.A., M.S., H.I., and A.Z. thank the Research and Innovation Centre for Science and Engineering (RISE), Bangladesh University of Engineering and Technology (BUET), for financial support through the Internal Research Grant (Project ID: 2023-02-022). 
+
+# References 
+
+(1) Wang, Y.; Sarkar, S.; Yan, H.; Chhowalla, M. Critical challenges in the development of electronics based on two-dimensional transition metal dichalcogenides. Nature Elec-tronics 2024 , 7, 638–645. (2) Baugher, B. W.; Churchill, H. O.; Yang, Y.; Jarillo-Herrero, P. Optoelectronic devices based on electrically tunable p–n diodes in a monolayer dichalcogenide. Nature Nan-otechnology 2014 , 9, 262–267. (3) Ciarrocchi, A.; Tagarelli, F.; Avsar, A.; Kis, A. Excitonic devices with van der Waals 32 heterostructures: valleytronics meets twistronics. Nature Reviews Materials 2022 , 7,449–464. (4) Zhang, Y.; Oka, T.; Suzuki, R.; Ye, J.; Iwasa, Y. Electrically switchable chiral light-emitting transistor. Science 2014 , 344 , 725–728. (5) Zhan, F.; Ning, Z.; Gan, L.-Y.; Zheng, B.; Fan, J.; Wang, R. Floquet valley-polarized quantum anomalous Hall state in nonmagnetic heterobilayers. Phys. Rev. B 2022 , 105 ,L081115. (6) Rana, N.; Dixit, G. All-Optical Ultrafast Valley Switching in Two-Dimensional Mate-rials. Phys. Rev. Appl. 2023 , 19 , 034056. (7) Pal, A.; Zhang, S.; Chavan, T.; Agashiwala, K.; Yeh, C.-H.; Cao, W.; Banerjee, K. Quantum-engineered devices based on 2D materials for next-generation information processing and storage. Advanced Materials 2023 , 35 , 2109894. (8) Liu, Y.; Gao, Y.; Zhang, S.; He, J.; Yu, J.; Liu, Z. Valleytronics in transition metal dichalcogenides materials. Nano Research 2019 , 12 , 2695–2711. (9) Huang, L.; Krasnok, A.; Alú, A.; Yu, Y.; Neshev, D.; Miroshnichenko, A. E. Enhanced light–matter interaction in two-dimensional transition metal dichalcogenides. Reports on Progress in Physics 2022 , 85 , 046401. (10) Jiang, D.; Liu, Z.; Xiao, Z.; Qian, Z.; Sun, Y.; Zeng, Z.; Wang, R. Flexible electronics based on 2D transition metal dichalcogenides. Journal of Materials Chemistry A 2022 ,
+
+10 , 89–121. (11) Li, X.; Aftab, S.; Hussain, S.; Kabir, F.; Al-Sehemi, A. G.; Aslam, M.; Kim, J. H.; Goud, B. S. Progress in photodetector devices utilizing transition metal dichalcogenides. 
+
+Journal of Materials Chemistry C 2024 , 12 , 1211–1232. 33 (12) Rani, A.; Verma, A.; Yadav, B. C. Advancements in transition metal dichalcogenides (TMDCs) for self-powered photodetectors: challenges, properties, and functionalization strategies. Materials Advances 2024 , 5, 3535–3562. (13) Munkhbat, B.; Wróbel, P.; Antosiewicz, T. J.; Shegai, T. O. Optical constants of several multilayer transition metal dichalcogenides measured by spectroscopic ellipsometry in the 300–1700 nm range: high index, anisotropy, and hyperbolicity. ACS photonics 
+
+2022 , 9, 2398–2407. (14) Yu, J.; Wu, S.; Zhao, X.; Li, Z.; Yang, X.; Shen, Q.; Lu, M.; Xie, X.; Zhan, D.; Yan, J. Progress on two-dimensional transitional metal dichalcogenides alloy materials: growth, characterisation, and optoelectronic applications. Nanomaterials 2023 , 13 , 2843. (15) Ye, T.; Li, Y.; Li, J.; Shen, H.; Ren, J.; Ning, C.-Z.; Li, D. Nonvolatile electrical switching of optical and valleytronic properties of interlayer excitons. Light: Science & Applications 2022 , 11 , 23. (16) Zhang, J.; Koneru, A.; Sankaranarayanan, S. K. R. S.; Lilley, C. M. Graph Neural Net-work Guided Evolutionary Search of Grain Boundaries in 2D Materials. ACS Applied Materials & Interfaces 2023 , 15 , 20520–20530. (17) Sinha, S.; Guye, D.; Ma, X.; Rehman, K.; Yue, S.; Armanfard, N. Neural network prediction of the effect of thermomechanical controlled processing on mechanical prop-erties. Machine Learning with Applications 2024 , 15 , 100531. (18) Ibn Malek, I.; Sarkar, K.; Zubair, A. Predicting the mechanical properties of pristine and defective carbon nanotubes using a random forest model. Nanoscale Advances 2024 ,
+
+6, 5112–5132. (19) Wang, T.; Tan, X.; Wei, Y.; Jin, H. Unveiling the layer-dependent electronic proper-ties in transition-metal dichalcogenide heterostructures assisted by machine learning. 
+
+Nanoscale 2022 , 14 , 2511–2520. 34 (20) Nguyen, T. H.; Nguyen, L. H.; Truong, T. N. Application of machine learning in devel-oping quantitative structure–property relationship for electronic properties of polyaro-matic compounds. ACS Omega 2022 , 7, 22879–22888. (21) Aditto, T. A.; Chowdhury, V.; Imtiaz, H.; Zubair, A. Machine learning-enabled predic-tion of the electronic band-edge shapes and properties of 2D transition metal dichalco-genide alloys. Materials Advances 2026 , 7, 3767–3780. (22) Gao, C.; Yang, X.; Jiang, M.; Chen, L.; Chen, Z.; Singh, C. V. Machine learn-ing–enabled band gap prediction of monolayer transition metal chalcogenide alloys. 
+
+Physical Chemistry Chemical Physics 2022 , 24 , 4653–4665. (23) Xu, C.; Deng, X.; Yu, P. High-Throughput Computational Study and Machine Learning Prediction of Electronic Properties in Transition Metal Dichalcogenide/Two-Dimensional Layered Halide Perovskite Heterostructures. ACS Applied Materials & Interfaces 2024 , 16 , 55970. (24) Kumar, P.; Sharma, V.; Shirodkar, S. N.; Dev, P. Predicting phase preferences of two-dimensional transition metal dichalcogenides using machine learning. Physical Review Materials 2022 , 6, 094007. (25) Jia, X.; Zhang, Y.; Liu, J.; Wang, H. Machine learning-assisted screening of transi-tion metal-doped TMDs: A new approach to designing functional materials. J. Mater. Chem. A 2025 , 13 , 3457–3468. (26) Siddiqui, A.; Hine, N. D. M. Machine-learned interatomic potentials for transition metal dichalcogenide Mo 1−xWxS2−2y Se 2y alloys. npj Comput. Mater. 2024 , 10 , 169. (27) Stein, H. S.; Guevarra, D.; Newhouse, P. F.; Soedarmadji, E.; Gregoire, J. M. Machine learning of optical properties of materials – predicting spectra from images and images from spectra. Chemical Science 2019 , 10 , 47–55. 35 (28) Khatun, M.; Hossain, M. M. Efficient prediction of optical properties in hexagonal PCF using machine learning models. Optik 2024 , 312 , 171929. (29) Ahmmad, S. K.; Alsaif, N. A.; Shams, M.; El-Refaey, A. M.; Elsad, R.; Rammah, Y.; Sadeq, M. Machine learning density prediction and optical properties of calcium boro-zinc glasses. Optical Materials 2022 , 134 , 113145. (30) Xu, S.; Liu, X.; Cai, P.; Li, J.; Wang, X.; Liu, B. Machine-learning-assisted accurate prediction of molecular optical properties upon aggregation. Advanced Science 2022 ,
+
+9, 2101074. (31) Tuchin, V. S.; Stepanidenko, E. A.; Vedernikova, A. A.; Cherevkov, S. A.; Li, D. Optical properties prediction for red and near-infrared emitting carbon dots using machine learning. Small 2024 , 20 , 2310402. (32) Mishra, H.; Ladhe, P. D.; Misra, S. Machine learning-enabled optical property predic-tion of thin films using spectral data extraction from scientific literature. ACS Applied Optical Materials 2025 , 3, 2544–2554. (33) Barhoumi, M.; Zeiri, N.; El Sayed, M. E.; Samir, A.; Said, M. Machine learning-driven exploration of optoelectronic properties in 2D SrFBr: First-principles insights and pre-cise absorption modeling. Materials Science in Semiconductor Processing 2026 , 202 ,110154. (34) Grinsztajn, L.; Oyallon, E.; Varoquaux, G. Why do tree-based models still outperform deep learning on typical tabular data? Advances in Neural Information Processing Systems. 2022. (35) Hollmann, N.; Müller, S.; Purucker, L.; Krishnakumar, A.; Körfer, M.; Hoo, S. B.; Schirrmeister, R. T.; Hutter, F. Accurate predictions on small data with a tabular foundation model. Nature 2025 , 637 , 319–326. 36 (36) Liu, B.; Chen, Y.; Yang, D. Evaluating TabPFN for regression tasks in solar energy meteorology. Solar Energy 2026 , 309 , 114472. (37) Chen, H. A Neural Algorithm Approach to Turbine Floor Noise Prediction Based on TabPFN. 2025 International Conference on Mechatronics, Automation and Intelligent Control (MAIC). 2025; pp 244–249. (38) Zhu, S.; Zhang, H.; Liu, Y.; Bu, W.; Wu, Q.; Wang, J.; Chen, W.; Wu, Q.; Geng, Z.; Liu, F. Development of an optimized risk evaluation system for cardiovascular-kidney-metabolic syndrome-associated coronary heart disease based on tabular prior-data fitted network. DIGITAL HEALTH 2025 , 11 , 20552076251379379. (39) Clark, S. J.; Segall, M. D.; Pickard, C. J.; Hasnip, P. J.; Probert, M. J.; Refson, K.; Payne, M. C. First principles methods using CASTEP. Zeitschrift für kristallographie 
+
+2005 , 567–570. (40) Ernzerhof, M.; Scuseria, G. E. Assessment of the Perdew–Burke–Ernzerhof exchange-correlation functional. The Journal of chemical physics 1999 , 110 , 5029–5036. (41) Liu, D. C.; Nocedal, J. On the limited memory BFGS method for large scale optimiza-tion. Mathematical programming 1989 , 45 , 503–528. (42) Müller, S.; Hollmann, N.; Arango, S. P.; Grabocka, J.; Hutter, F. Transformers Can Do Bayesian Inference. International Conference on Learning Representations. 2022. (43) Nagler, T. Statistical Foundations of Prior-Data Fitted Networks. Proceedings of the 40th International Conference on Machine Learning. 2023; pp 25660–25676. (44) Müller, S.; Reuter, A.; Hollmann, N.; Rügamer, D.; Hutter, F. Position: The Future of Bayesian Prediction Is Prior-Fitted. Proceedings of the 42nd International Conference on Machine Learning. 2025; pp 81861–81875. 37 (45) Geurts, P.; Ernst, D.; Wehenkel, L. Extremely randomized trees. Machine Learning 
+
+2006 , 63 , 3–42. (46) Chen, T.; Guestrin, C. XGBoost: A Scalable Tree Boosting System. Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining. New York, NY, USA, 2016; p 785–794. (47) Gundeti, S. R.; Jatavallabhula, J. K.; Pappula, B.; Makgato, S. Data-driven prognosis of root mean square deviation in reverse-engineered freeform surfaces: A comparative study of support vector, Gaussian process and extreme gradient boosting regressions. 
+
+Materials Today Communications 2026 , 52 , 115021. 38 Appendices 
+
+## A. Computational Convergence Tests 
+
+Figure S1: Total energy (eV) variation with respect to different k-grid sizes of WS 2.Figure S1 depicts a series of Monkhorst–Pack k-grids ranging from (1 ×1×1) to (8 ×8×1) was tested to determine the sampling density required for a well-converged ground-state energy. The total energy dropped sharply when the grid was refined from (1 ×1×1) to (2 ×2×1) and remained essentially constant for all denser grids, indicating that the energy was converged to within a negligible margin beyond (2 × 2 × 1) . A k-grid of (2 × 2 × 1) or finer was therefore sufficient to ensure reliable total-energy values while keeping the computational cost low. 39 B. DFT Calculated Optical Properties of the Binary, Quaternary, and Quinary Structures (a)  (b) 
+
+(d)  (e)  (f) 
+
+(g)  (h)  (i) 
+
+(c) 
+
+Figure S2: Ab initio calculated (a) real and imaginary components of the dielectric function, 
+
+ε1 and ε2, (b) refractive index n and extinction coefficient k, and (c) absorption coefficient 
+
+α of WSe 2 represented by the W4Se 8 supercell; (d) ε1 and ε2, (e) n and k, and (f) α of quaternary W13 Mo 3S13 Te 19 (W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ); and (g) ε1 and ε2, (h) n and k,and (i) α of quinary W13 Mo 3S4Se 24 Te 4 (W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ) alloy. All properties are shown along the in-plane ( x) and out-of-plane ( z) polarization directions as functions of photon energy. This section presents the frequency-dependent DFT calculated optical response of the three structures studied: the binary WSe 2 reference (represented by the W4Se 8 supercell), the quaternary W13 Mo 3S13 Te 19 (W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ) alloy, and the quinary W13 Mo 3S4Se 24 Te 4
+
+(W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ) alloy, as shown in Figure S2. For each structure we re-40 ported the complex dielectric function, the refractive index and extinction coefficient, and the absorption coefficient, each resolved into in-plane ( x) and out-of-plane ( z) components to capture the anisotropy of the layered materials. Figure S2(a), (d), and (g) present the real and imaginary parts of the dielectric function, ε1 and ε2, for WSe 2, W13 Mo 3S13 Te 19 
+
+(W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ), and W13 Mo 3S4Se 24 Te 4 (W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ), re-spectively. The real part ( ε1) characterized polarization and dispersion, while the imaginary part ( ε2) reflected optical absorption and interband transitions. Figure S2(b), (e), and (h) show the corresponding refractive index n and extinction coefficient k, while Figure S2(c), (f), and (i) show the absorption coefficient α for the same three compounds. Comparing WSe 2,
+
+W13 Mo 3S13 Te 19 (W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ), and W13 Mo 3S4Se 24 Te 4 (W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 )
+
+highlighted how progressive alloying via introducing Mo, S, and finally Te into the WSe 2
+
+modified the dielectric response, shifted spectral features, and altered the absorption onset and magnitude. 41 C. TabPFN Predicted Optical Properties of the Binary, Quaternary, and Quinary Structures 0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> Dielectric function,
+
+(a) 
+
+> x
+> 1, x direction, in plane
+> x
+> 2, x direction, in plane
+> z
+> 1, z direction, out of plane
+> z
+> 2, z direction, out of plane
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+1
+
+2
+
+3
+
+> n and k
+
+(b)   
+
+> nx, x direction, in plane
+> kx, x direction, in plane
+> nz, z direction, out of plane
+> kz, z direction, out of plane
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+10 
+
+> Absorption,  (×10 5 cm  1)
+
+(c) 
+
+> x, x direction, in plane
+> z, z direction, out of plane
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> Dielectric function,
+
+(d) 
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+1
+
+2
+
+3
+
+> n and k
+
+(e) 
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+10 
+
+> Absorption,  (×10 5 cm  1)
+
+(f) 
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+> Dielectric function,
+
+(g) 
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+1
+
+2
+
+3
+
+> n and k
+
+(h) 
+
+0 10 20 30 
+
+Energy (eV) 
+
+0
+
+5
+
+10 
+
+> Absorption,  (×10 5 cm  1)
+
+(i) 
+
+Figure S3: TabPFN predicted (a) real and imaginary components of the dielectric function, 
+
+ε1 and ε2, (b) refractive index n and extinction coefficient k, and (c) absorption coefficient 
+
+α of WSe 2 represented by the W4Se 8 supercell; (d) ε1 and ε2, (e) n and k, and (f) α of quaternary W13 Mo 3S13 Te 19 (W 0.8125 Mo 0.1875 S0.8125 Te 1.1875 ); and (g) ε1 and ε2, (h) n and k,and (i) α of quinary W13 Mo 3S4Se 24 Te 4 (W 0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ) alloy. All properties are shown along the in-plane ( x) and out-of-plane ( z) polarization directions as functions of photon energy. This section presents the frequency-dependent optical response derived from TabPFN pre-dictions for three representative structures: the binary WSe 2 reference (represented by the 
+
+W4Se 8 supercell), the quaternary W13 Mo 3S13 Te 19 (W0.8125 Mo 0.1875 S0.8125 Te 1.1875 ) alloy, and the quinary W13 Mo 3S4Se 24 Te 4 (W0.8125 Mo 0.1875 S0.25 Se 1.5Te 0.25 ) alloy, as shown in Figure S3. Comparison with Figure S2 shows that the predicted response was highly accurate for the 42 quaternary material, whereas the predictions degraded slightly for the binary and quinary materials. This behavior was expected; TabPFN captured the derived properties of qua-ternary materials with high fidelity because only quaternary alloy data were present in the in-context set. Zero-shot predictions for the binary and quinary alloys captured the overall spectral trends but often struggle to distinguish closely spaced peaks. Performance could be further improved by including binary, ternary, and quinary alloy data in the in-context learning set. 43 TOC Graphic

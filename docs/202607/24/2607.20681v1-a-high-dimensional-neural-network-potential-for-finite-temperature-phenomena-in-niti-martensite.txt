@@ -1,0 +1,476 @@
+Title: A high-dimensional neural network potential for finite-temperature phenomena in NiTi martensite
+
+URL Source: https://arxiv.org/pdf/2607.20681v1
+
+Published Time: Fri, 24 Jul 2026 00:18:13 GMT
+
+Number of Pages: 24
+
+Markdown Content:
+# A high-dimensional neural network potential for finite-temperature phenomena in NiTi martensite 
+
+Petr Jaroš 1, Petr Sedlák ∗2, Petr Šesták 2,3,4 , Miroslav Černý 3,4 , Jörg Behler 5,6 , and Hanuš Seiner 2
+
+> 1
+
+Department of Solid State Engineering, Faculty of Nuclear Science and Physical Engineering, Czech Technical University in Prague, Prague, Czech Republic 
+
+> 2
+
+Institute of Thermomechanics, Czech Academy of Sciences, Dolejškova 5, Prague 182 00, Czech Republic 
+
+> 3
+
+Institute of Physical Engineering, Brno University of Technology, 616 69 Brno, Czech Republic 
+
+> 4
+
+CEITEC BUT, Brno University of Technology, 612 00 Brno, Czech Republic 
+
+> 5
+
+Lehrstuhl für Theoretische Chemie II, Ruhr-Universität Bochum, 44780 Bochum, Germany 
+
+> 6
+
+Research Center Chemical Sciences and Sustainability, Research Alliance Ruhr, 44780 Bochum, Germany 
+
+Abstract 
+
+We present a high-dimensional neural network potential (HDNNP) for the martensitic phase of the NiTi shape-memory alloy trained to density functional theory (DFT) data. A central aspect of this work is the systematic validation of the potential with respect to the underlying DFT reference method for key properties governing structural evolution, including equilibrium crystal structures, elastic constants, generalized-stacking fault ener-gies, and vibrational spectra. The HDNNP accurately describes the relative stability of the B19 ′ and B33 phases, including subtle energy differences on the order of meV/atom. The predicted stacking-fault energy landscape is strongly anisotropic and reveals a preferential shear pathway, providing atomistic insight into deformation and twinning mechanisms. Finite-temperature molecular dynamics simulations further enable the investigation of un-constrained structural evolution as a function of temperature. Overall, the developed HDNNP provides a robust basis for atomistic simulations of the complex structural and functional behavior of martensitic NiTi systems containing hundreds of thousands of atoms on nanosecond time scales. 
+
+Keywords: neural network potential; NiTi; martensite; molecular dynamics; density func-tional theory 
+
+# 1 Introduction 
+
+Nickel-titanium (NiTi) is the most widely used shape memory alloy (SMA). Despite the great attention that has been paid to this material for decades, several important properties such as ductility in polycrystalline materials, which are behind its success in technological applications, are not fully understood, which limits further systematic improvement and the search for new 
+
+> ∗
+
+Corresponding author: psedlak@it.cas.cz 
+
+1arXiv:2607.20681v1 [cond-mat.mtrl-sci] 22 Jul 2026 materials with similar functionality. The functional behavior of NiTi, i.e., the shape-memory effect and superelasticity derived from the reversible martensitic transformation of austenite (cubic B2 structure) to martensite (monoclinic B19 ′ structure). The reversible functional re-sponse is, however, combined with exceptional ductility in NiTi, which is provided by additional plastic deformation mechanisms and is a key property for the use of this alloy in the applica-tions. The plastic deformation mechanisms in NiTi have long been attributed mainly to the austenitic cubic phase [1, 2], because this phase (unlike monoclinic martensite) has enough independent slip systems and therefore satisfies the generally accepted von Mises-Taylor crite-rion. This view has recently changed significantly, after systematic thermomechanical tests [3], so-called low-temperature shape setting experiments (LTSS) [4] and detailed high-resolution transmission electron microscopy (HRTEM) analysis of deformed martensitic microstructures [5] clearly demonstrated that plastic deformation in martensite dominates over a wide temper-ature range. These new findings have motivated a deeper study of the fundamental properties of the B19 ′ martensitic structure. At the microstructural level, a mechanism for the unusual plasticity of monoclinic martensite has recently been proposed [6]: based on a detailed theo-retical analysis of experimentally observed plastically deformed martensitic microstructures, it has been proposed that plastic deformation in martensite proceeds as cooperative twinning and the formation and propagation of kink bands by a cooperative [100] M (001) M slip mechanism. This unique combination of two known inelastic mechanisms has been termed “kwinking” and represents an unusual plastic deformation mechanism that gives martensite high ductility de-spite the involvement of only one slip system. However, the atomistic picture of this unusual plastic mechanism in the B19 ′ structure is very incomplete. Density functional theory (DFT), as a powerful tool for atomistic simulations in solids, has been used to calculate the properties of B19 ′ in a number of studies [7, 8, 9, 10, 11] and provided the first important insight: the B19 ′ structure is not consistently predicted to be the energetic ground state. Instead, the ground state is an orthorhombic B33 structure, which does not sat-isfy the group-subgroup symmetry relationship between austenite and martensite. This brings a major complication in the further development of atomistic models. Due to computational demands, DFT calculations are mostly limited to small atomistic models, and the inclusion of finite temperature effects or deformation mechanisms in the structure is practically impossible. Therefore, no atomistic simulation of, e.g., the dislocation core in the B19 ′ structure associ-ated with the [100] M (001) M easy slip has been realized so far. Recently, DFT calculations were able to demonstrate the thermal stabilization of the B19 ′ structure at finite temperatures [12, 13], providing a first estimate of the relative free energies of the B19’ and B33 structures, which play an important role in the stability of B19’ against slip as discussed in [14]. This was achieved either by means of a quasiharmonic approximation (involving sometimes also anhar-monic corrections) and the calculation of the free energy evolution along the transformation path between the B33 and B19 ′ structures [7, 15], or by applying ab-initio molecular dynam-ics [13]. In the first case, the free energy was calculated based on the DFT energy and the vibrational spectra, however, due to computational complexity, the free energy evolution was mapped only along the transformation path defined by a single parameter (monoclinic angle of the B19 ′ structure). In the latter, ab-initio molecular dynamics was used to simulate the time evolution of the structure at a finite temperature, but only for a small atomistic model (144-atom supercells—4 ×3×3 supercell of the 4 atom unit cells [13]). More sophisticated DFT calculations are currently limited by their high computational cost. In contrast, molecular dynamics (MD) simulations based on empirical potentials and force 2fields allow the investigation of large systems over longer timescales, but their predictive power strongly depends on the quality of the underlying interatomic potential. Bridging the gap between the accuracy of DFT and the efficiency of MD therefore represents a key challenge for atomistic modeling of NiTi. In this work, we address this challenge by constructing a machine learning potential [16, 17, 18, 19], specifically a second-generation high-dimensional neural network potential (HDNNP) [20, 21] trained on DFT reference data, with the explicit aim of preserving DFT-level accuracy. Throughout the manuscript, we systematically assess the accuracy of the HDNNP by direct comparison with DFT calculations, focusing on properties that are critical for structural evolution with temperature. These include equilibrium crystal structures, elastic constants, generalized stacking fault energies, and vibrational properties. The HDNNP is focused on the martensitic B19 ′ phase and its relation to the B33 structure. At zero temperature, we demonstrate that the HDNNP reproduces the relative stability of these phases as well as the pronounced elastic anisotropy characteristic of B19 ′. The analysis of the generalized stacking-fault energy surface reveals a strong crystallographic anisotropy and identifies a single energetically favorable shear pathway along the [100] M (001) M direction. As introduced in [14], configurations closely related to the B33 structure emerge as local minima along this pathway, suggesting a shear-mediated structural connection between B19 ′ and B33. By allowing the system to relax freely at each temperature during MD simulations, we identify representative structures corresponding to free energy minima. A comparison between statically sheared configurations and structures obtained from molecular dynamics simulations shows that the latter are thermodynamically favored. This demonstrates the new possibility of an unconstrained search for stable structures at finite temperatures while maintaining the accuracy of DFT energy calculations. 
+
+# 2 Methods 
+
+## 2.1 DFT setup 
+
+DFT calculations were employed as a reference method for dataset generation. All total energies and atomic forces were computed using the Vienna Ab initio Simulation Package (VASP) [22, 23, 24, 25, 26]. The projector-augmented wave (PAW) method [27, 28] was applied with a plane-wave energy cutoff of 650 eV. Titanium p-electrons were explicitly treated as valence electrons. The exchange–correlation effects were described using the Perdew–Burke–Ernzerhof (PBE) functional within the generalized gradient approximation (GGA). To ensure isotropic sampling, the k-point mesh was chosen to maintain uniform spacing in all reciprocal lattice directions. For the B19 ′ primitive cell defined in Table 1, a 24 ×24 ×24 k-point grid was used. The Brillouin zone was sampled using a Γ-centered Monkhorst–Pack grid with the Methfessel–Paxton broadening scheme with a smearing width of 0.05 eV. For larger supercells, the number of k-points was scaled accordingly to preserve approximately the same k-point density, thereby ensuring consistent sampling of reciprocal space. The electronic self-consistency criterion was set to an energy convergence threshold of 10 −7 eV. All these settings ensure the energy consistency below 1 meV/atom. The DFT results presented in this work were obtained using these computational settings. 32.2 Dataset 
+
+The dataset is a key component of any machine learning model. Unlike analytic potentials, which are derived from explicit physics-based equations, machine learning potentials learn the energies and forces from representative training structures, which numerical consistency achieved by constructing the forces as analytic energy derivatives. The dataset used in this work was constructed with a focus on two characteristic features of the martensitic phase of NiTi. The first is the discrepancy between the predicted and experimentally observed ground-state structures. Extensive DFT calculations [11] suggest that the ground state of the marten-sitic phase of NiTi corresponds to an orthorhombic B33 structure, sometimes also referred to as a near-orthorhombic BCO structure. However, this phase has never been observed experi-mentally; instead, experiments consistently report the B19 ′ structure [29, 30, 31]. The second motivation arises from experimental observations indicating a higher concentration of defects along a specific direction, namely in the (001) plane [29]. The presence of a preferred slip system and strong anisotropy may play a crucial role in the plastic deformation process and has been further investigated in [6]. Motivated by these findings, we constructed a DFT-based dataset comprising 7300 struc-tures, ranging from 4-atom primitive cells to 180-atom supercells. The structures were selected to capture possible transformation pathways between the B19 ′ and B33 phases, to represent strong elastic anisotropy, and to incorporate thermal fluctuations observed in molecular dy-namics simulations in the temperature range of 0–700 K. In the initial stage, the dataset consisted of structures generated by introducing random atomic displacements of the relaxed atomic structure with magnitudes ranging from 0.1 to 0.2 Å along each coordinate using Atomsk [32]. These perturbed structures served as the train-ing set for the first HDNNP model. Using this preliminary model, we performed molecular dynamics (MD) simulations under various thermodynamic ensembles and conditions. During these simulations, the dataset was iteratively expanded with additional configurations selected according to two criteria: extrapolation parameters and an active learning strategy. Extrap-olation refers to situations in which local atomic environments extend beyond the boundaries defined by the atom-centered symmetry function values serving as descriptors of the atomic environments [33] of configurations already included in the dataset. Incorporating such config-urations allowed the model to systematically broaden the domain of its training data. Once sufficient configurational coverage had been achieved, the dataset was further re-fined through an active learning process designed to minimize prediction errors. Specifically, we adopted the committee model methodology as our active learning strategy [34, 35]. The committee comprised seven HDNNPs (referred to as members), summarized in Table 2, each trained on the same dataset but differing in network architecture—namely in the number of neurons—and in the specific partitioning of the dataset into training and validation subsets. Large discrepancies among the predictions of the committee members indicated that a given local atomic environment was poorly represented in the current dataset and should therefore be included in the retraining set. Because atomic forces serve as more sensitive indicators of model accuracy than total energies, we analyzed the MD trajectories and extracted the configurations exhibiting the largest force discrepancies, while preserving periodic boundary conditions, and added them to the dataset. This procedure was repeated iteratively until the standard deviation of the committee disagreement for each force component was less than 0.03 eV /Å. 4structure method a [Å] b [Å] c [Å] β [◦]
+
+B33 HDNNP 2.937 4.017 4.915 107.0 B33 DFT 2.933 4.011 4.918 107.0 B19 ′ HDNNP 2.918 4.063 4.680 97.78 B19 ′ DFT 2.926 4.060 4.635 97.78 B19 ′ Exp. [29] 2.898 4.108 4.646 97.78 B19 ′ DFT [8] 2.941 4.035 4.685 97.78 B33 DFT [11] 2.940 3.997 4.936 107.0 
+
+Table 1: Comparison of structure parameters predicted by the presented HDNNP, DFT calculations and data presented in the literature. Structure parameters for B33 were calculated from minimiza-tion of all degrees of freedom while the structure parameters for B19 ′ were determined through minimization with fixed monoclinic angle of the unit cell. The structures are visualized in Figure 3. 
+
+## 2.3 High-dimensional neural network potential 
+
+The reference dataset consists of potential energies, Eref , and atomic forces, Fref , obtained from DFT calculations. In the HDNNP formalism [20, 21], the potential energy of the training system, Eref , is calculated as a sum of environment-dependent atomic energies. Individual atomic forces are determined as analytic derivatives of the system potential energy with respect to the atomic coordinates. The construction of the HDNNP involves three essential components: a reference dataset, a descriptor of local atomic environments, and a fitting procedure used to optimize the neu-ral network parameters. The local atomic environments are described using atom-centered symmetry functions (ACSFs) [33], which characterize the neighborhood of each atom within a finite cutoff radius, which was set here to Rc = 6 .36 Å. This cutoff radius ensures an accurate representation of the local atomic environment. The local environments are encoded using a combination of radial and angular ACSFs, which ensure invariance of the potential with respect to translation, rotation, and permutation of identical atoms. Firstly, a series of fully connected neural network models with two hidden layers, identical for each element, were fitted. The models summarised in Table 2 were trained using the same dataset and fitting procedure, but differed slightly in the number of neurons in the hidden layers and in the composition of the training and test subsets. The model with 34 and 31 neurons in the first and second hidden layer, respectively, exhibited the lowest force RMSE and was therefore selected as the final model discussed in this work. The remaining models were employed as members of the committee model used in the active learning procedure. For each chemical element, the ACSFs consisted of 72 descriptors. Ten percent of the dataset was reserved for testing, while the remaining configurations were used for training. The training was performed for 30 epochs using the Kalman filter optimizer [36]; in each epoch, 10% of the force components were selected randomly for fitting procedure. The resulting model achieved root mean square error (RMSE) values of 0.34 and 0.43 meV/atom for the training and test energies, respectively, and 0.074 and 0.078 eV/Å for the training and test force components, respectively. The model with all ACSFs parameters and specification of all fitting parameters is available at [37]. The quality of the fit is shown in Figure 1, demonstrating good agreement between the HDNNP predictions and the DFT reference data. 5The neural network potential was constructed using RuNNer version 1.3 [38, 39] and in-terfaced with molecular dynamics simulations in LAMMPS [40] through the n2p2 package [41, 42]. Further details on ACSFs and the HDNNP fitting procedure are provided in A.                                      
+
+> Hidden layers Energy [meV/atom] Forces [eV/Å] Train RMSE Test RMSE Train RMSE Test RMSE 33–32 0.364 0.884 0.0760 0.0651 31–31 0.410 0.443 0.0792 0.0641 33–32 0.342 0.490 0.0743 0.0772 31–29 0.346 0.457 0.0745 0.0788 33–29 0.324 0.930 0.0750 0.0863 29–29 0.368 0.481 0.0768 0.0747 30–29 0.349 0.415 0.0743 0.0724 34–31 ∗0.340 0.430 0.0740 0.0780
+
+Table 2: RMSE values of the fitted neural network models with two hidden layers. The column Hidden layers specifies the model topology, where the notation n1–n2 denotes the number of neurons in the first and second hidden layer, respectively. The model marked by an asterisk is the presented model discussed in this paper. The remaining models were used as members of the committee model in the active learning approach. All models were trained using the same fitting procedure, while differing in the composition of the training and test subsets and in the number of neurons. 
+
+# 3 Validation of HDNNP 
+
+In this section, we examine whether the HDNNP model reproduces the key structural char-acteristics obtained from DFT that are relevant to the temperature-driven evolution of the martensitic phase. Rather than focusing solely on quantitative agreement in energies and forces, we aim to verify that the HDNNP captures the same physical trends and relative phase stabilities as the reference DFT calculations. To this end, HDNNP predictions are compared with our own DFT results and with available literature data, with particular emphasis on equi-librium structures as well as the elastic and vibrational properties of the B19 ′ and B33 phases. This validation establishes a physically consistent reference state for the finite-temperature simulations discussed in the following sections. Validation of the HDNNP with respect to DFT calculations demonstrates that the HDNNP methodology is applied consistently, which can then be considered as a method that enables the upscaling of DFT calculations and can still be considered as an ab-initio method without any empirical inputs. The comparison of properties predicted by interatomic potentials with experiments is not performed at this point, but will be addressed in the Discussion section. 
+
+## 3.1 Equilibrium structures 
+
+We first consider the equilibrium structures of the B19 ′ and B33 phases which are visualized in Figure 3. Structural parameters obtained from HDNNP relaxations and from DFT calcula-tions are compared with reported literature values to assess whether the HDNNP reproduces 6(a) (b) Figure 1: Correlation graphs between (a) energies and (b) forces predicted by the HDNNP and reference data obtained from DFT. The marginal histograms denote the statistical distribution of the data, corresponding to the number of configurations within each energy or force interval for the reference DFT and HDNNP-predicted values. 
+
+the DFT relative energies and characteristic lattice parameters of the two phases. In the DFT calculations, the B33 structure is obtained through full energy relaxation starting from the experimentally reported B19 ′ unit cell summarised in Table 1. All atomic positions, lattice parameters, and cell angles are allowed to relax, allowing the system to evolve toward its ener-getic minimum at 0 K. The same procedure is followed using the HDNNP in LAMMPS. The structural relaxation is dominated by an increase in the monoclinic angle β from 97 .78 ◦, char-acteristic of the experimentally observed B19 ′ phase, to approximately 107 .0◦, corresponding to the B33 structure. To determine the relaxed structural parameters of the B19 ′ phase itself, an additional energy minimization is carried out using both HDNNP and DFT, while keeping the lattice angles constrained. The resulting lattice parameters for both phases are summarized in Table 1. In both DFT and HDNNP calculations, this result indicates that the two approaches identify the same ground-state structure and corresponding energy minimum. Having established agreement for the fully relaxed structures, we next examine whether the HDNNP provides a consistent description of intermediate configurations connecting B19 ′ and B33. To this end, the path connecting both structures is sampled by systematically varying the monoclinic angle β. This variation is introduced through a pure stress shear applied along the crystallographic direction [100] M (001) M (see Figure 3), which directly modifies the monoclinic angle and therefore provides a connection between B19 ′ and B33 structures. Such a transition was already discussed in [43, 9]. For each intermediate cell shape, an energy relaxation was first performed using DFT. The resulting relaxed structure was then used as the initial config-uration for a subsequent HDNNP minimization, carried out under the same conditions. The resulting energy profiles are shown in Figure 2. The results of HDNNP and DFT predictions are comparable with those presented in [43, 9, 11] agreeing with transition pathway between B19 ′
+
+7and B33 ground state. The transition between the B19 ′ and B33 structures is accompanied by a change in the unit-cell volume, with the B33 phase exhibiting a larger volume, as shown in Figure 2. This result may appear counterintuitive, given that the B33 structure represents the DFT-derived ground state at 0 K. 
+
+Figure 2: The energies of the B19 ′ and B33 phases were evaluated as a function of the monoclinic angle β. For each prescribed value of β, the structure, including the lattice parameters other than the prescribed angle, was relaxed using either HDNNP or DFT, and the potential energy was calculated. The accuracy of the HDNNP was quantified using the RMSE of the fit. 
+
+## 3.2 Elastic tensor 
+
+Having established that the HDNNP reproduces the equilibrium structures and relative stability of the B19 ′ and B33 phases, we now turn to their elastic response at 0 K. Elastic properties provide a sensitive test of the potential, as they probe the curvature of the energy landscape around the equilibrium configuration and are directly linked to the pronounced anisotropy of the martensitic phase. The relaxed equilibrium structures of B19 ′ and B33 used as starting configurations are summarized in Table 1. To determine the full elastic tensor, six independent strains always with only one nonzero strain component ε1, . . . , ε 6 (in Voigt notation), were applied sequentially. The corresponding six stress components, σ1, . . . , σ 6, were then evaluated, using LAMMPS for the HDNNP and VASP for the DFT calculations. For calculations using the HDNNP and DFT, strains in the range of −1% to +1% were applied in order to remain within the linear elastic regime. After each deformation step, atomic positions were relaxed at fixed cell shape. The calculation resulted in 36 stress-strain relations that were fitted with linear functions, the slopes of these fits yield the elastic constants. The calculated stress–strain curves representing the relation for the diagonal parameters of the elastic tensor are shown in Figure 4 for the phases B19 ′ and B33. The resulting elastic constants are summarized in Table 3. The HDNNP reproduces the strong elastic anisotropy of B19 ′, reflected in the low C55 
+
+elastic constant, in agreement with DFT results and with values reported in the literature [8, 8B19' B33 
+
+β31
+
+a ac cFigure 3: Visualization of the B19 ′ and B33 structures projected onto the (010) plane, highlighting the monoclinic angle β. The B33 phase exhibits orthorhombic symmetry, indicated by the orange dashed rectangle. Titanium atoms are shown in gray, while nickel atoms are represented in green. The visualization was generated using OVITO [44]. 
+
+12]. The non-zero shift in σ5 at zero strain in Figure 4 shows that B19’ is not in the energy minimum and a non-zero shear is necessary to stabilize it as previously discussed in [8]. (a) (b )
+
+Figure 4: Stress–strain relations for (a) B19 ′ and (b) B33. The points represent the stresses calculated using HDNNP, while the dashed lines correspond to linear fits. The individual stress components, σi, are plotted as a function of the corresponding strains, ϵi. In total, 36 stress–strain curves were obtained; for clarity, only those corresponding to the main diagonal components of the elastic tensor are shown. 
+
+## 3.3 Generalized stacking-fault energy 
+
+The pronounced elastic anisotropy of the B19 ′ martensite, discussed in the previous section, indicates that shear-related deformation mechanisms may play a central role in its mechanical response. To further investigate this behavior, we examine the generalized stacking-fault energy (GSFE) [45] using the HDNNP. The GSFE provides direct insight into the energetic barriers 9Elastic constant [GPa] HDNNP B19 ′ DFT B19 ′ DFT B19 ′ [8] DFT B19 ′ [13] HDNNP B33 DFT B33                                                                               
+
+> C11 144 191 195 177 164 189
+> C12 127 126 128 132 125 125
+> C13 119 102 96 114 119 98
+> C15 13 10 13 501
+> C22 216 244 241 240 219 233
+> C23 135 122 126 128 122 128
+> C25 -4 -6 -9 -9 1.3 0
+> C33 252 238 235 234 253 240
+> C35 19 14 20 132
+> C44 69 77 76 77 73 93
+> C46 26-4 510
+> C55 14 22 21 14 17
+> C66 73 78 77 80 75 84
+
+Table 3: Comparison of the calculated elastic constants, Cij , with literature values at 0 K. The coordinate system is defined in Figure 3. 
+
+associated with shear and therefore provides insight into the crystallographically allowed slip systems. The GSFE was calculated using a 10 × 6 × 20 supercell with 4800 atoms, which was divided into two blocks of equal size. One block was incrementally displaced relative to the other by 0.1 Å steps along the chosen shear direction. During this procedure, the displaced block was kept rigid, while the atomic positions in the second block were allowed to relax only in the direction perpendicular to the shear plane. The GSFE of the B19 ′ structure was eval-uated along three characteristic shear directions: [100] and [001] within the (001) plane, and [001] within the (100) plane. The resulting energy landscapes, shown in Figure 5, exhibit a pronounced directional dependence, reflecting the intrinsic anisotropy of the martensitic lat-tice. The systematic calculation of all possible shear paths within the (001) plane is shown in Figure 5, demonstrating that, within the (001) plane, only a single energetically favorable slip pathway exists, namely along the [100] direction. All other shear directions exhibit significantly higher energy barriers. These results highlight a strong anisotropy of the GSFE and indicate that plastic deformation and transformation-related shear in B19 ′ are highly constrained crys-tallographically. The identification of a unique low-energy slip path along the [100] M (001) M
+
+direction is consistent with previous DFT studies [46] and may be coupled with the emergence of a local minimum similar to B33 discussed in [6, 47]. 
+
+## 3.4 Phonon analysis at 0 K 
+
+Once it has been shown that the HDNNP reproduces the equilibrium structures, elastic re-sponse, and shear-related anisotropy of the B19 ′ and B33 phases, we now turn to vibrational properties. A consistent description of lattice dynamics is essential if DFT-level accuracy is to be transferred to molecular dynamics simulations. The vibrational properties were evaluated in terms of the phonon density of states (pDOS) and phonon dispersion relations at 0 K. Both quantities were computed using the Phonopy package [48, 49], employing the dynamical matrix approach. In this framework, the force constants are obtained from finite atomic displacements, and the dynamical matrix is defined 10 [100](001) [001](100) [010](001) 
+
+## (a) (b) (c )Figure 5: (a) The visualization of the shear planes with respect to the used crystallographic directions. (b) The comparison of the GSFE along the three main crystallographic directions of B19 ′. (c) GSFE in the (001) plane shows the energy barriers across the entire plane. The results indicate that only one energetically favorable shear pathway exists, along the [100] direction. 
+
+as 
+
+Dαβ (ij ) = 1
+
+√mimj
+
+∂2E∂r iα ∂r jβ 
+
+, (1) where E is the total potential energy, mi and mj are atomic masses, and riα and rjβ denote Cartesian displacements of atoms i and j. The phonon frequencies are then obtained by solving the eigenvalue problem associated with this matrix. Within this framework, we computed the pDOS of the relaxed B33 structure using the HDNNP and DFT. In both cases, a 3 × 3 × 3
+
+supercell containing 108 atoms was employed. The resulting pDOS spectra are compared in Figure 6. The close correspondence between the two curves indicates that the HDNNP reproduces the vibrational spectrum of the B33 ground state obtained by DFT accurately. While the pDOS captures an integral measure of the vibrational spectrum, it does not resolve individual phonon branches. To further assess whether the HDNNP accurately reproduces the fundamental vibrational modes, we computed the phonon dispersion relations along the high-symmetry directions of the Brillouin zone corresponding to the B33 symmetry. The comparison between HDNNP and DFT dispersions is shown in Figure 7, demonstrating that the HDNNP reproduces not only the overall vibrational density but also the detailed phonon branch structure of the ground state. 
+
+# 4 Properties of the HDNNP at finite temperature 
+
+Up to this point, the results obtained at T = 0 K show good agreement with DFT calculations. The key advantage of the HDNNP framework, however, lies in its ability to extend this level of 11 Figure 6: Comparison of the phonon density of states (pDOS) of the B33 phase obtained from structure relaxation using the presented HDNNP and DFT calculations. Both pDOS were computed on a 3 × 3 × 3 supercell using the dynamical matrix approach. 
+
+Figure 7: Comparison of the phonon dispersions of the B33 phase obtained from structure relaxation using the HDNNP and DFT calculations. Both dispersions were computed on a 3 × 3 × 3 supercell using the dynamical matrix approach. 
+
+accuracy to system sizes and timescales beyond DFT approaches. To investigate the influence of temperature on the stability and structural evolution of the B19 ′ phase, we performed MD simulations in LAMMPS over a broad range of temperatures. During these simulations, the evolution of lattice parameters and cell angles was monitored continuously. The simulation cell contained 32,000 atoms and was constructed by replicating the experimental primitive cell parameters summarized in Table 1, 20 times along each Cartesian direction. All simulations were carried out in the NpT ensemble using a Nosé-Hoover barostat under a zero stress field. 12 The run lasted 15 ps with time step of 1 fs. All simulation box parameters, including cell lengths and angles, were allowed to relax freely. Structural relaxation was typically achieved within approximately 8 ps, after which the system remained stable. Structural changes were examined at temperatures ranging from 50 K to 700 K. The average lattice parameters and cell angles were obtained from the mean value of supercell’s parameters. Because the instantaneous supercell dimensions allowed the translation vectors to be identified at each time step, the average atomic positions and their associated thermal fluctuations could be determined at each temperature. Table 4 summarizes the resulting lattice parameters, monoclinic angles, and atomic positions of the reconstructed primitive cell. Reported values correspond to mean quantities and their standard deviations obtained from the MD trajectories. The temperature dependence of the monoclinic angle is shown in Figure 8, while Figure 9 and Figure 10 illustrate the variation of the lattice parameters and atomic positions. Representative atomic configurations at selected temperatures are shown in Figure 11. The structural change is mainly driven by a shear-like mechanism of the atomic blocks of two Ni and two Ti atomic layers in the [100] M (001) M
+
+direction. (a) (b) 
+
+Figure 8: Evolution of the monoclinic angle, as obtained from HDNNP-driven molecular dynamics simulations performed in the NpT ensemble, with the lattice parameters, atomic positions and unit-cell angles treated as degrees of freedom. (a) Time evolution of the monoclinic angle during the MD simulation. (b) Mean value of the monoclinic angle β after structural relaxation at each temperature. 
+
+# 5 Discussion 
+
+In the previous sections, we demonstrated that the developed HDNNP provides a consistent description of both ground-state properties and finite-temperature behavior when applied in molecular dynamics simulations. At 0 K, the predicted structural, elastic, and vibrational properties are in close agreement with DFT calculations. At finite temperatures, the MD simulations reveal a gradual structural evolution from configurations close to B33 at lower temperatures toward configurations approaching B19 ′ with increasing temperature, driven by a shear-like mechanism. For each temperature, a representative mean structure is identified and summarized in Table 4. 13 Temperature [K] Label Cell Element x [Å] y [Å] z [Å] 50 
+
+a 2.940 ± 0.000 Ti 0.000 ± 0.041 0.000 ± 0.036 0.000 ± 0.032 
+
+b 4.017 ± 0.001 Ti 0.002 ± 0.042 2.009 ± 0.035 2.678 ± 0.032 
+
+c 4.920 ± 0.012 Ni 1.472 ± 0.051 0.000 ± 0.029 2.143 ± 0.032 
+
+β 107.257 ± 0.057 Ni 1.141 ± 0.051 2.009 ± 0.029 0.545 ± 0.032 100 
+
+a 2.947 ± 0.001 Ti 0.000 ± 0.053 0.000 ± 0.051 0.000 ± 0.046 
+
+b 4.023 ± 0.001 Ti 0.055 ± 0.053 2.011 ± 0.051 2.675 ± 0.046 
+
+c 4.836 ± 0.005 Ni 1.508 ± 0.069 0.000 ± 0.042 2.136 ± 0.047 
+
+β 104.314 ± 0.069 Ni 1.494 ± 0.069 2.011 ± 0.042 0.539 ± 0.047 150 
+
+a 2.95 ± 0.001 Ti 0.000 ± 0.061 0.000 ± 0.036 0.000 ± 0.058 
+
+b 4.028 ± 0.001 Ti 0.070 ± 0.062 2.014 ± 0.063 2.670 ± 0.058 
+
+c 4.812 ± 0.007 Ni 1.518 ± 0.082 0.000 ± 0.052 2.133 ± 0.058 
+
+β 103.462 ± 0.074 Ni 1.502 ± 0.082 2.014 ± 0.052 0.537 ± 0.058 200 
+
+a 2.953 ± 0.001 Ti 0.000 ± 0.071 0.000 ± 0.073 0.000 ± 0.067 
+
+b 4.033 ± 0.002 Ti 0.079 ± 0.071 2.017 ± 0.074 2.667 ± 0.067 
+
+c 4.797 ± 0.007 Ni 1.524 ± 0.096 0.000 ± 0.06 2.131 ± 0.068 
+
+β 102.894 ± 0.077 Ni 1.508 ± 0.095 2.017 ± 0.06 0.535 ±0.068 250 
+
+a 2.955 ± 0.001 Ti 0.000 ± 0.077 0.000 ± 0.083 0.000 ± 0.076 
+
+b 4.039 ± 0.002 Ti 0.087 ± 0.077 2.020 ± 0.083 2.662 ± 0.076 
+
+c 4.784 ± 0.004 Ni 1.529 ± 0.106 0.000 ± 0.068 2.130 ± 0.076 
+
+β 102.41 ± 0.08 Ni 1.513 ± 0.105 2.020 ± 0.068 0.533 ± 0.077 300 
+
+a 2.958 ± 0.001 Ti 0.000 ± 0.088 0.000 ± 0.092 0.000 ± 0.084 
+
+b 4.045 ± 0.002 Ti 0.093 ± 0.088 2.023 ± 0.092 2.659 ± 0.084 
+
+c 4.772 ± 0.005 Ni 1.533 ± 0.119 0.000 ± 0.076 2.129 ± 0.085 
+
+β 101.955 ± 0.083 Ni 1.518 ± 0.119 2.023 ± 0.075 0.530 ± 0.085 350 
+
+a 2.96 ± 0.001 Ti 0.000 ± 0.092 0.000 ± 0.100 0.000 ± 0.089 
+
+b 4.051 ± 0.002 Ti 0.098 ± 0.092 2.026 ± 0.100 2.656 ± 0.090 
+
+c 4.762 ± 0.007 Ni 1.536 ± 0.127 0.000 ± 0.082 2.128 ± 0.091 
+
+β 101.58 ± 0.086 Ni 1.522 ± 0.127 2.026 ± 0.082 0.529 ±0.091 400 
+
+a 2.962 ± 0.001 Ti 0.000 ± 0.098 0.000 ± 0.108 0.000 ± 0.097 
+
+b 4.058 ± 0.002 Ti 0.103 ± 0.098 2.029 ± 0.108 2.653 ± 0.097 
+
+c 4.753 ± 0.005 Ni 1.538 ± 0.136 0.000 ± 0.089 2.127 ± 0.099 
+
+β 101.206 ± 0.089 Ni 1.527 ± 0.136 2.029 ± 0.089 0.526 ± 0.099 450 
+
+a 2.964 ± 0.001 Ti 0.000 ± 0.105 0.000 ± 0.116 0.000 ± 0.103 
+
+b 4.065 ± 0.002 Ti 0.107 ± 0.105 2.032 ± 0.116 2.650 ± 0.103 
+
+c 4.744 ± 0.01 Ni 1.540 ± 0.146 0.000 ± 0.095 2.127 ± 0.106 
+
+β 100.88 ± 0.093 Ni 1.530 ± 0.146 2.032 ± 0.095 0.524 ± 0.106 500 
+
+a 2.965 ± 0.002 Ti 0.000 ± 0.113 0.000 ± 0.122 0.000 ± 0.110 
+
+b 4.072 ± 0.002 Ti 0.110 ± 0.113 2.036 ± 0.123 2.647 ± 0.110 
+
+c 4.736 ± 0.008 Ni 1.541 ± 0.155 0.000 ± 0.102 2.126 ± 0.113 
+
+β 100.555 ± 0.095 Ni 1.534 ± 0.156 2.036 ± 0.102 0.521 ± 0.113 550 
+
+a 2.967 ± 0.001 Ti 0.000 ± 0.117 0.000 ± 0.129 0.000 ± 0.116 
+
+b 4.08 ± 0.002 Ti 0.113 ± 0.117 2.040 ± 0.129 2.643 ± 0.116 
+
+c 4.726 ± 0.009 Ni 1.542 ± 0.163 0.000 ± 0.107 2.126 ± 0.119 
+
+β 100.178 ± 0.099 Ni 1.538 ± 0.163 2.040 ± 0.107 0.517 ± 0.119 600 
+
+a 2.968 ± 0.001 Ti 0.000 ± 0.126 0.000 ± 0.135 0.000 ± 0.123 
+
+b 4.089 ± 0.003 Ti 0.116 ± 0.126 2.044 ± 0.135 2.637 ± 0.123 
+
+c 4.715 ± 0.006 Ni 1.543 ± 0.173 0.000 ± 0.113 2.125 ± 0.128 
+
+β 99.808 ± 0.093 Ni 1.541 ± 0.172 2.045 ± 0.113 0.512 ± 0.127 650 
+
+a 2.969 ± 0.001 Ti 0.000 ± 0.132 0.000 ± 0.142 0.000 ± 0.129 
+
+b 4.100 ± 0.003 Ti 0.118 ± 0.132 2.050 ± 0.143 2.630 ± 0.129 
+
+c 4.703 ± 0.008 Ni 1.542 ± 0.181 0.000 ± 0.12 2.124 ± 0.134 
+
+β 99.357 ± 0.097 Ni 1.544 ± 0.181 2.050 ± 0.12 0.506 ± 0.134 700 
+
+a 2.969 ± 0.002 Ti 0.000 ± 0.139 0.000 ± 0.149 0.000 ± 0.135 
+
+b 4.113 ± 0.003 Ti 0.119 ± 0.139 2.056 ± 0.148 2.619 ± 0.135 
+
+c 4.686 ± 0.013 Ni 1.541 ± 0.189 0.000 ± 0.126 2.123 ± 0.141 
+
+β 98.784 ± 0.116 Ni 1.547 ± 0.189 2.057 ± 0.126 0.496 ± 0.141 
+
+Table 4: The structural evolution of lattice parameters and atomic positions in the Cartesian coordinate system at different temperatures. The parameters a,b and c are in Å, the monoclinic angle β is in degrees. 
+
+14 Figure 9: The temperature evolution of the mean primitive-cell parameters obtained from the NpT MD simulations. (a) (b) 
+
+# Ti Ni Ni Ni Ni Ti Ti Ti 
+
+Figure 10: The primitive cells at (a) 50 K and (b) 700 K. The color bar indicates the spatial distribution of atoms around their mean positions. 
+
+To quantify this structural evolution, we evaluated the free energy of two distinct sets of structures: (i) structures generated by a gradual static change of the monoclinic angle as was done in Figure 2 (hereafter referred to as shifted structures), and (ii) mean structures obtained from MD simulations. For the shifted structures, the free energy was determined as a function of temperature and monoclinic angle. In contrast, for the MD-derived mean structures, the free energy was evaluated only as a function of temperature, since each temperature uniquely defines the corresponding monoclinic angle. In both cases, the free energy was calculated within the harmonic approximation [50], 
+
+F = ϕ + 12ℏ
+
+Z
+
+g(ω) ω dω + kB T
+
+Z
+
+g(ω) ln 
+
+
+
+1 − exp 
+
+
+
+− ℏωkB T
+
+ 
+
+dω, (2) where ϕ denotes the potential energy, ω is the phonon frequency, and g(ω) is the phonon density of states. Although the results are reported for temperatures up to 700 K, anharmonic contributions were not explicitly included. Previous work [15] has shown, using thermodynamic integration for the B19 ′ phase at 600 K, that the anharmonic contribution to the free energy 15 Figure 11: Temperature-induced evolution of lattice parameters and atomic positions. The figure shows projections of atomic coordinates onto the XZ, XY, and YZ planes. Marker colors distinguish structures between 50 K and 700 K according to the color bar. 
+
+amounts to approximately −0.16 meV/atom. This value lies within the prediction error of the present HDNNP model and is therefore not expected to affect the conclusions of this study. For both the shifted structures and the mean structures obtained from MD simulations, the phonon density of states was calculated using the dynamical matrix approach with 6 × 6 × 6 supercells. Figure 12 shows the evolution of the free-energy minima for the shifted structures over the temperature range from 0 to 700 K. The data are presented as free-energy differences relative to the DFT ground-state (B33) structure at each temperature. With increasing temperature, the position of the free-energy minimum gradually shifts toward the experimentally observed monoclinic angle of 97 .7◦, reaching this value at temperatures of approximately 450 K and above. For clarity, the data are presented without error bars. However, uncertainties play an important role, as the free-energy landscape exhibits shallow minima. Here, we consider the prediction error of the potential energy to be the main source of uncertainty. Therefore, for the free energy difference, we estimate the error as √2σRMSE , which is equal to 0.61 meV/atom. To visualize all free-energy minima that fall within the prediction uncertainty, we con-structed the free-energy surface as a function of temperature and monoclinic angle. The re-sulting energy landscape for the shifted structures is shown in Figure 12. The hatched region indicates all accessible minima within the estimated prediction error, while the white symbols denote the global free-energy minima at each temperature. As can be seen from Figure 12, the range of accessible monoclinic angles narrows with increasing temperature. The experimentally observed monoclinic angle becomes accessible from approximately 450 K up to 700 K, in agreement with a previous DFT-based study that followed the same connecting path [7]. Nevertheless, the free-energy landscape in Figure 12 shows an increasing change in curvature around the experimentally observed monoclinic angle of 97.7 ◦,starting at approximately 250 K. This suggests that the 97.7 ◦ configuration may play a role in the transformation by forming an energy barrier after an otherwise relatively flat region of the free-energy landscape. Although the previous analysis of the shifted structures was able to predict the experimen-tally measured monoclinic angle, MD simulations performed with the same HDNNP potential require an approximately 300 K higher temperature to stabilize a monoclinic angle of 98.7 ◦. A similar discrepancy in the relationship between monoclinic angle and temperature has also been 16 Figure 12: (a) Free energy difference as a function of monoclinic angle and temperature. The free energy difference is calculated relative to the B33 (corresponding to 107 ◦) structure at each temperature. (b) Free energy difference as a function of temperature and monoclinic angle. The hatched region represents all accessible minima within the prediction error, while the white points indicate the free-energy minima at each temperature obtained from (a). 
+
+reported in DFT-based studies [12, 13]. Since MD at a given temperature represents an un-constrained search for structures with minimal free energy, the mean structures obtained from MD and summarized in Table 4 are expected to have lower free energies at a given temperature than those corresponding to the minima on the connecting path composed of shifted structures shown in Figure 12. Figure 13 compares the free-energy minima obtained at each temperature along the connecting path in Figure 12 with those obtained from the MD simulations. The re-sulting differences Figure 13a indicate that, at a given temperature, the MD-relaxed structures are thermodynamically more favorable. This model builds on previous DFT studies reported in [12, 13, 7], which investigated the role of vibrational entropy in stabilizing the B19 ′ phase. The HDNNP framework overcomes key limitations of conventional DFT by enabling simulations of larger systems over longer timescales. Unlike reaction-coordinate-based approaches, HDNNP-driven molecular dynamics simulations allow free-energy minima to be identified while simultaneously accounting for all atomic degrees of freedom and thermal expansion effects within a single simulation framework. The developed HDNNP model suggests that the B33 phase undergoes a temperature-driven instability, manifested by a gradual evolution of the monoclinic angle through a shear-like mechanism. The present study focuses primarily on the ideal equiatomic composition, ex-cluding defects, external pressure, and applied stress. Nevertheless, in both experimental and theoretical studies, the monoclinic angle is known to be highly sensitive to deviations from stoichiometry, vacancies and antisite defects [51, 43, 52], as well as to structural interfaces such as twins [53]. It is also affected by hydrostatic pressure due to the associated volume changes [54, 55], and by applied shear stresses as a consequence of the low shear elastic constant C55 of the martensitic phase [8, 11]. Although both DFT and HDNNP calculations consistently indicate a sensitivity of the monoclinic angle to temperature [13, 12], the experimentally observed monoclinic angle ap-pears comparatively stable over the investigated temperature range, as shown in Figure 14. This discrepancy suggests that additional compositional, structural, or mechanical factors may 17 (a) (b) Figure 13: (a) Difference between the free energy of the mean structures obtained from HDNNP-based MD simulations and the free-energy minima derived from monoclinic shifts at temperatures ranging from 50 to 700 K. The negative values indicates that the MD-derived mean structures summarized in Table 4 are consistently more energetically favorable. (b) Free-energy surface as a function of temperature and monoclinic angle for the shifted structures. The free-energy minima at each temperature are marked by white circles. For comparison, the temperature dependence of the monoclinic angle obtained from MD-derived mean structures is shown by asterisks. 
+
+contribute to the experimentally measured response. These effects will be systematically ad-dressed in future work by extending the model to include representative atomic configurations that explicitly capture deviations from stoichiometry, structural interfaces and defects. 
+
+Figure 14: Comparison of the temperature evolution of the monoclinic angle predicted by HDNNP with experimental data taken from Prokoshkin [30] and Buhrer [31]. 
+
+18 6 Conclusion 
+
+This paper presents a new interatomic potential suitable for simulations of the B19 ′ marten-sitic structure in NiTi shape memory alloy. The potential is formulated in the framework of High Dimensional Neural Networks. The potential is based on an extended DFT dataset that maps the low-energy martensitic atomic configurations in detail. The accuracy of the potential relative to the reference DFT data is better than 1 meV/atom. This accuracy is necessary to capture the subtle energy changes associated with the stability of the B19 ′ structure at finite temperatures relative to the orthorhombic B33 structure and to simulate structural evolution with temperature. Several properties of the martensitic structure obtained using HDNNP were compared with direct DFT calculations. This comparison provides insight into the quality of the fit of the entire energy landscape and the suitability of the potential to capture lattice dynamics effects. The potential accurately reconstructs the ground state structure of B33, the energy evolution along the B33 to B19 ′ path, the generalized stacking fault energy surface, the elastic properties of both B33 and B19 ′ phases, and the phonon dispersion. This comparison indicates that the potential reconstructs relevant properties for simulations of finite-temperature phenomena with DFT accuracy and that it can be considered as a method for upscaling DFT simulations. The presented dynamic simulations exceed the current limits of dynamic simulations of the B19 ′ structure with DFT accuracy. Although they show the thermal evolution of the martensitic structure in agreement with previous DFT calculations. There is an important difference between them: The stability of the B19 ′ structure at finite temperatures has so far been rationalized using DFT-based free energy calculations along a simply parameterized connecting path from B33 to B19 ′, described by the monoclinic angle, or by ab-initio MD on very small atomic systems. Here we present simulations of a system containing 32,000 atoms over a few tens of ps timescales, where no prior assumption of its structural evolution was made. The simulations provide a theoretical prediction of the entire structural evolution of B19 ′ martensite with temperature, including not only the evolution of the monoclinic unit cell angle, but also the evolution of lattice vectors and atomic positions. The construction of this potential is an important first step for further atomistic simulations of the exceptional properties of the B19 ′ structure, such as the presence of the easy [100] M (001) M
+
+slip, which is unusual for intermetallic martensitic systems. The presented HDNNP potential for the B19 ′ martensitic phase is available at [37] in a form compatible with the LAMMPS and n2p2 packages. 
+
+# Funding 
+
+This work has been financially supported by the Czech Science Foundation [project No. 25-16285S] and by the Operational Programme Johannes Amos Comenius of the Ministry of Ed-ucation, Youth and Sport of the Czech Republic, within the frame of project Ferroic Mul-tifunctionalities (FerrMion) [project No. CZ.02.01.01/00/22_008/0004591], co-funded by the European Union. We also acknowledge the Ministry of Education, VSB – Technical University of Ostrava, IT4Innovations National Supercomputing Center, Czech Republic supported by the Ministry of Education, Youth and Sports of the Czech Republic through the e-INFRA CZ (ID:90254). 19 Data availability 
+
+The high-dimensional neural network potential developed in this work, including the files re-quired for its use with LAMMPS and n2p2, is publicly available through Zenodo at https: //doi.org/10.5281/zenodo.20342518 . Additional data supporting the findings of this study are available from the corresponding author upon reasonable request. 
+
+# A High-Dimensional Neural Network Potentials 
+
+The HDNNP formalism [20, 21] is based on a decomposition of the total energy of the system into contributions associated with the local atomic environments. Local atomic environments are described using atomic-centred symmetry functions (ACSFs) [33], which characterize the neighborhood of each atom within a finite cutoff radius Rc. The cutoff function f i 
+
+> c
+
+(Rij ) for a central atom i is defined as 
+
+f i 
+
+> c
+
+(Rij ) = 
+
+(
+
+0.5 [cos( πx ) + 1] Rij ≤ Rc
+
+0 Rij > R c
+
+(3) where x = Rij /R c and Rij denotes the distance between atoms i and j. The local environ-ments are encoded using a combination of radial and angular symmetry functions. The radial symmetry functions are given by 
+
+G2 
+
+> i
+
+= X
+
+> j
+
+e−ηR 2 
+
+> ij
+
+fc(Rij ), (4) while the angular symmetry functions are defined as 
+
+G3 
+
+> i
+
+= 2 1−ζ X
+
+> j
+
+X
+
+> k
+
+h
+
+(1 + λ cos θijk )ζ e−η(R2   
+
+> ij +R2
+> ik +R2
+> jk )
+
+fc(Rij )fc(Rik )fc(Rjk )
+
+i
+
+, (5) where η, ζ, and λ are tunable parameters controlling the spatial resolution and angular sen-sitivity of the descriptors, and θijk denotes the angle formed by atoms i, j, and k. These parameters were selected to ensure a balanced and uniform sampling of the local atomic en-vironments within the cutoff radius, following the guidelines proposed in [33]. The resulting descriptor values are used as inputs to a fully connected feedforward neural network that pre-dicts atomic energy contributions. The total energy of the system is obtained as the sum over atomic energy contributions, while the acting force is calculated as a derivative of the neural network defined as 
+
+Fα = −∂E ∂α = −
+
+> Natom
+
+X
+
+> j=1
+
+∂E j
+
+∂α = −
+
+> Natom
+
+X
+
+> j=1
+> Nsym ,j
+
+X
+
+> μ=1
+
+∂E j
+
+∂G jμ 
+
+∂G jμ 
+
+∂α (6) where α denotes to Cartesian coordinate, Natom represents the total number of atoms, Nsym 
+
+goes through ACSFs Gjμ . The fitting quality is measured by computing the root-mean-square errors (RMSE) for energies and forces component according to RMSE (E) = 
+
+vuut 1
+
+Nstruct 
+
+> Nstruct
+
+X
+
+> i=1
+
+(Ei 
+
+> NN
+
+− Ei 
+
+> ref
+
+)2 (7) 20 @misc RMSE (F ) = 
+
+vuut 1
+
+Nstruct 
+
+> Nstruct
+
+X 
+
+> i=1 3Ni
+> atom
+
+X
+
+> j=1
+
+(F ij, NN − F ij, ref )2 (8) where Nstruct denotes the number of structures included in the dataset, the subscript NN 
+
+represents the neural network predictions, and subscript ref represents values obtained from DFT calculations. 
+
+# References 
+
+[1] P. Chowdhury and H. Sehitoglu. “Significance of slip propensity determination in shape memory alloys”. Scripta Materialia 119 (July 2016), pp. 82–87. [2] T. Ezaz et al. “Plastic deformation of NiTi shape memory alloys”. Acta Materialia 61.1 (Jan. 1, 2013), pp. 67–78. [3] L. Heller et al. “Beyond the strain recoverability of martensitic transformation in NiTi”. 
+
+International Journal of Plasticity 116 (May 1, 2019), pp. 232–264. [4] P. Šittner et al. “On the coupling between martensitic transformation and plasticity in NiTi: Experiments and continuum based modelling”. Progress in Materials Science 98 (Oct. 1, 2018), pp. 249–298. [5] O. Molnárová et al. “Plastic deformation of B19’ monoclinic martensite in NiTi shape memory alloys: HRTEM analysis of interfaces in martensite variant microstructures”. 
+
+Acta Materialia 258 (Oct. 1, 2023), p. 119242. [6] H. Seiner et al. “Kwinking as the plastic forming mechanism of B19 ′ NiTi martensite”. 
+
+International Journal of Plasticity 168 (Sept. 2023), p. 103697. [7] W.-S. Ko. “Temperature dependence of NiTi martensite structures: Density functional theory calculations”. Scripta Materialia 154 (Sept. 2018), pp. 134–138. [8] M.-X. Wagner and W. Windl. “Lattice stability, elastic constants and macroscopic moduli of NiTi martensites from first principles”. Acta Materialia 56.20 (Dec. 2008), pp. 6232– 6245. [9] K. Guda Vishnu and A. Strachan. “Phase stability and transformations in NiTi from density functional theory calculations”. Acta Materialia 58.3 (Feb. 2010), pp. 745–752. [10] N. Hatcher, O. Y. Kontsevoi, and A. J. Freeman. “Role of elastic and shear stabilities in the martensitic transformation path of NiTi”. Physical Review B 80.14 (Oct. 20, 2009), p. 144203. [11] X. Huang, G. J. Ackland, and K. M. Rabe. “Crystal structures and shape-memory be-haviour of NiTi”. Nature Materials 2.5 (May 1, 2003), pp. 307–311. [12] J. B. Haskins, A. E. Thompson, and J. W. Lawson. “ Ab initio simulations of phase stability and martensitic transitions in NiTi”. Physical Review B 94.21 (Dec. 19, 2016), p. 214110. [13] J. B. Haskins and J. W. Lawson. “Finite temperature properties of NiTi from first princi-ples simulations: Structure, mechanics, and thermodynamics”. Journal of Applied Physics 
+
+121.20 (May 28, 2017), p. 205103. 21 [14] Y. Gao et al. “An origin of functional fatigue of shape memory alloys”. Acta Materialia 
+
+126 (Mar. 2017), pp. 389–400. [15] Z. Wu and J. W. Lawson. “Theoretical investigation of phase transitions in the shape memory alloy NiTi”. Physical Review B 106.14 (Oct. 14, 2022), p. L140102. [16] J. Behler. “Perspective: Machine learning potentials for atomistic simulations”. The Jour-nal of Chemical Physics 145.17 (Nov. 2016), p. 170901. [17] V. L. Deringer, M. A. Caro, and G. Csányi. “Machine Learning Interatomic Potentials as Emerging Tools for Materials Science”. Advanced Materials 31.46 (2019), p. 1902765. [18] F. Noé et al. “Machine Learning for Molecular Simulation”. Annual Review of Physical Chemistry 71.Volume 71, 2020 (2020), pp. 361–390. [19] P. Friederich et al. “Machine-learned potentials for next-generation matter simulations”. 
+
+Nature Materials 20.6 (June 2021), pp. 750–761. [20] J. Behler and M. Parrinello. “Generalized neural-network representation of high-dimensional potential-energy surfaces”. Physical Review Letters 98.14 (2007). [21] J. Behler. “Four Generations of High-Dimensional Neural Network Potentials”. Chemical Reviews 121.16 (2021). PMID: 33779150, pp. 10037–10072. [22] G. Kresse and J. Furthmüller. “Efficient iterative schemes for ab initio total-energy cal-culations using a plane-wave basis set”. Physical review B 54.16 (1996), p. 11169. [23] G. Kresse and J. Hafner. “Ab initio molecular dynamics for liquid metals”. Physical review B 47.1 (1993), p. 558. [24] G. Kresse and J. Hafner. “Ab initio molecular-dynamics simulation of the liquid-metal– amorphous-semiconductor transition in germanium”. Physical Review B 49.20 (1994), p. 14251. [25] G. Kresse and J. Hafner. “Norm-conserving and ultrasoft pseudopotentials for first-row and transition elements”. Journal of Physics: Condensed Matter 6.40 (1994), p. 8245. [26] G. Kresse and J. Furthmüller. “Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set”. Computational materials science 6.1 (1996), pp. 15–50. [27] G. Kresse and D. Joubert. “From ultrasoft pseudopotentials to the projector augmented-wave method”. Physical review b 59.3 (1999), p. 1758. [28] P. E. Blöchl. “Projector augmented-wave method”. Phys. Rev. B 50 (24 Dec. 1994), pp. 17953–17979. [29] Y. Kudoh et al. “Crystal structure of the martensite in Ti-49.2 at.%Ni alloy analyzed by the single crystal X-ray diffraction method”. Acta Metallurgica 33.11 (Nov. 1, 1985), pp. 2049–2056. [30] S. Prokoshkin et al. “On the lattice parameters of phases in binary Ti–Ni shape memory alloys”. Acta Materialia 52.15 (Sept. 2004), pp. 4479–4492. [31] W. Buhrer et al. “Powder neutron diffraction study of nickel-titanium martensite”. Journal of Physics F: Metal Physics 13.5 (May 1983), p. L77. 22 [32] P. Hirel. “Atomsk: A tool for manipulating and converting atomic data files”. Computer Physics Communications 197 (2015), pp. 212–219. [33] J. Behler. “Atom-centered symmetry functions for constructing high-dimensional neural network potentials”. The Journal of Chemical Physics 134.7 (Feb. 16, 2011), p. 074106. [34] C. Schran, K. Brezina, and O. Marsalek. “Committee neural network potentials control generalization errors and enable active learning”. The Journal of Chemical Physics 153.10 (Sept. 8, 2020), p. 104105. [35] A. M. Tokita and J. Behler. “How to train a neural network potential”. The Journal of Chemical Physics 159.12 (Sept. 27, 2023), p. 121501. [36] T. B. Blank and S. D. Brown. “Adaptive, global, extended Kalman filters for training feedforward neural networks”. Journal of Chemometrics 8.6 (1994), pp. 391–407. [37] P. Jaroš et al. A high-dimensional neural network potential for NiTi martensite . Ver-sion v1. Dataset. DOI: https://doi.org/10.5281/zenodo.20342518 . 2026. [38] J. Behler. “Constructing high-dimensional neural network potentials: A tutorial review”. 
+
+International Journal of Quantum Chemistry 115.16 (2015), pp. 1032–1050. [39] J. Behler. “First Principles Neural Network Potentials for Reactive Simulations of Large Molecular and Condensed Systems”. Angewandte Chemie International Edition 56.42 (2017), pp. 12828–12840. [40] A. P. Thompson et al. “LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales”. Comp. Phys. Comm. 271 (2022), p. 108171. [41] A. Singraber, J. Behler, and C. Dellago. “Library-Based LAMMPS Implementation of High-Dimensional Neural Network Potentials”. Journal of Chemical Theory and Compu-tation 15.3 (Mar. 12, 2019). Publisher: American Chemical Society, pp. 1827–1840. [42] A. Singraber et al. “Parallel Multistream Training of High-Dimensional Neural Network Potentials”. Journal of Chemical Theory and Computation 15.5 (May 14, 2019). Publisher: American Chemical Society, pp. 3075–3092. [43] M. Mizuno, H. Araki, and Y. Shirai. “Compositional dependence of structures of NiTi martensite from first principles”. Acta Materialia 95 (Aug. 2015), pp. 184–191. [44] A. Stukowski. “Visualization and analysis of atomistic simulation data with OVITO-the Open Visualization Tool”. Modelling and Simulation in Materials Science and Engineering 
+
+18.1 (2010). [45] V. Vítek. “Intrinsic Stacking Faults in Body-Centred Cubic Crystals”. Philosophical Mag-azine 18.154 (1968), pp. 773–786. [46] T. Ezaz et al. “Higher order twin modes in martensitic NiTi—The (20 ¯1) case”. Materials Science and Engineering: A 558 (Dec. 2012), pp. 422–430. [47] Y. Gao. “Symmetry and pathway analyses of the twinning modes in Ni–Ti shape memory alloys”. Materialia 6 (June 1, 2019), p. 100320. [48] A. Togo et al. “Implementation strategies in phonopy and phono3py”. J. Phys. Condens. Matter 35.35 (2023), p. 353001. 23 [49] A. Togo. “First-principles Phonon Calculations with Phonopy and Phono3py”. J. Phys. Soc. Jpn. 92.1 (2023), p. 012001. [50] M. T. Dove. Introduction to Lattice Dynamics . Cambridge Topics in Mineral Physics and Chemistry. Cambridge: Cambridge University Press, 1993. [51] Y. Li et al. “Effects of Point Defects on the Monoclinic Angle of the B19 ′′ Phase in NiTi-Based Shape Memory Alloys”. Shape Memory and Superelasticity 10.1 (Mar. 2024), pp. 16–25. [52] J. Frenzel et al. “On the effect of alloy composition on martensite start temperatures and latent heats in Ni–Ti-based shape memory alloys”. Acta Materialia 90 (May 2015), pp. 213–231. [53] P. Šesták, M. Černý, and J. Pokluda. “On the effect of deformation twins on stability of B19 ′ structure in NiTi martensite”. Computational Materials Science 87 (May 2014), pp. 107–111. [54] S. Bakhtiari et al. “ Ab initio prediction of phase stability of martensitic structures in binary NiTi under hydrostatic tension”. Physica Scripta 95.3 (Mar. 1, 2020), p. 035701. [55] J. Wang and H. Sehitoglu. “Resolving quandaries surrounding NiTi”. Applied Physics Letters 101.8 (Aug. 22, 2012), p. 081907. 24

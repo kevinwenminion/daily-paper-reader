@@ -1,0 +1,1185 @@
+Title: 2607.20880v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.20880v1
+
+Published Time: Fri, 24 Jul 2026 00:25:50 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+MatDiffract : A Material -Informed  Automated  Analysis 
+
+# Platform  for  X-ray  Powder  Diffraction 
+
+Hongqing Wang 123 , Ming wei  Chen 45 , Hongjie Luo 126 , Yin Wen 12 , Fazhi Qi 12 , Xuqing Chai 3*, 
+
+Miao Liu 45 *, Fengyao HOU 12 *
+
+> 1
+
+Institute of High Energy Physics,  Chinese Academy of Sciences , Beijing, China 
+
+> 2
+
+Spallation Neutron Source Science Center , Dongguan, China 
+
+> 3
+
+College of Computer and Information Engineering,  Henan Normal University , Xinxiang, 
+
+China 
+
+> 4
+
+Dongguan Institute of Materials Science and Technology , Chinese Academy of Sciences ,
+
+Dongguan , China 
+
+> 5
+
+Songshan Lake Material Laboratory , Dongguan, China 
+
+> 6
+
+School of Computer Science,  Sun Yat -sen University , Guangzhou, China 
+
+Abstract 
+
+High -throughput experimentation and self -driving laboratories are drastically accelerating 
+
+materials discovery, yet automated interpretation of X -ray  powder  diffraction (XR PD) data 
+
+remains a critical rate -limiting step. Conventional search -match workflows rely heavily on 
+
+expert manual intervention, while pure data -driven machine learning approaches suffer from 
+
+limited generalizability across chemical systems and lack rigorous  crystallographic 
+
+interpretability. Here we present MatDiffract, a  material -informed automated analysis platform 
+
+for high -throughput XR PD characterization. 
+
+Built on a first -principles density functional theory (DFT) -derived inorganic crystal structure 
+
+database , Atomly , MatDiffract constructs a perturbation -augmented simulated diffraction 
+
+database , e mbed s multi -scale diffraction features into indexable vectors, and integrates 
+
+hierarchical vector retrieval with full -pattern  fitting  Rietveld refinement and quantitative phase 
+
+fitting. Benchmarked on 875 single -phase experimental patterns, the platform achieves 91.3% 
+
+Top -1 and 97.2% Top -10 identification accuracy after automated refinement. For binary and 
+
+ternary multiphase mixtures, it  delivers 85.0% and 70.0% Top -1 accuracy with mass fraction 
+
+mean absolute errors as low as 1.2% and 1.8%, respectively.  Beyond mere phase labeling, 
+
+MatDiffract outputs full crystallographic results including refined structural models, fitted 
+
+profiles, and quantitative compositions within tens of seconds per sample. Its modular vector -
+
+based architecture supports seamless inc remental expansion to new material systems, 
+
+providing an end -to -end solution to close the characterization throughput gap for autonomous 
+
+materials discovery and high -throughput materials development. 
+
+Keywords: X -ray  powder  diffraction  (XR PD),  vector retrieval , phase identification ,
+
+Rietveld refinement 1 Introduction 
+
+The advent of high -throughput computation, automated synthesis platforms, and self -
+
+driving laboratories has transformed the pace of materials discovery, enabling systematic 
+
+screening of vast chemical spaces at unprecedented scale 1-4. X-ray  powder  diffraction (XR PD) 
+
+remains the most widely deployed characterization technique for verifying phase purity, 
+
+determining crystal structures, and quantifying phase assemblages across nearly all classes of 
+
+crystalline materials 5–10 . However, the throughput of  XRPD  data interpretation has failed to 
+
+keep pace with advances in automated synthesis and data acquisition. Conventional analysis 
+
+workflow s depend on time -consuming manual inspection and expert judgment to resolve peak 
+
+overlap, distinguish competing phase candidates, and perform structural refinement. This 
+
+human -in -the -loop bottleneck severely limits the throughput of closed -loop materials 
+
+discovery workflows, creating an urgent demand for robust, fully automated  XRPD 
+
+interpretation tools. 
+
+Existing efforts to automate XRPD analysis fall broadly into two categories: conventional 
+
+reference -based search -match methods and emerging data -driven machine learning approaches. 
+
+Standard search -match protocols retrieve candidate phases from curated expe rimental 
+
+databases but require extensive manual refinement to validate candidates and quantify 
+
+compositions; performance degrades sharply for multiphase samples with severe peak overlap 
+
+and low -abundance minor phases 9-10 . Recent advances in deep learning, generative models, and 
+
+contrastive learning have shown promise for accelerated phase identification, but these 
+
+methods typically rely on system -specific training data, require full retraining when extended 
+
+to new chemical  systems, and often produce phase labels without accompanying 
+
+crystallographic interpretability or structural validation 11 -26 . Moreover, label -only predictive 
+
+models fail to reliably discriminate between competing candidates and provide limited 
+
+crystallographic insight, since individual PXRD patterns are inherently compatible with 
+
+multiple phase assemblages 27 -28 . To date, no unified framework has combined high 
+
+identification accuracy, rigorous physical interpretability, native support for multiphase 
+
+quantification, and seamless extensibility to new material systems, hindering the integration of 
+
+automated diffractio n analysis into high -throughput discovery  workflows .
+
+In this work, we introduce MatDiffract, a  material -informed  automated PXRD analysis 
+
+platform designed to address this gap, built upon the first -principles inorganic crystal structure 
+
+database , Atomly 29 -30 . MatDiffract adopts a physics -informed vector retrieval architecture: it 
+
+first generates a comprehensive  database  of perturbation -augmented simulated PXRD patterns 
+
+from DFT -optimized crystal structures,  embed s multi -dimensional diffraction features into a 
+
+searchable vector database, and performs hierarchical vector retrieval to rapidly identify 
+
+candidate phase assemblages. The retrieved candidates are then validated and ranked via full -pattern fitting, Rietveld refinement, and mass fraction optimization, delivering quantitatively 
+
+interpretable crystallographic results rather than mere classification labels. We benchmark the 
+
+platform on both single -phase and multiphase experimental PXRD d atasets, demonstrating  a
+
+higher  identification accuracy and quantitative precision. We further show that the modular 
+
+vector -based architecture supports incremental expansion to new crystal structures without 
+
+model retraining, making the framework broadly applicable to high -throughput ma terials 
+
+screening and autonomous experimental workflows. 
+
+# 2 Architecture  and Workflow 
+
+The MatDiffract workflow  comprise s four  st ages  (Figure 1). First, a simulated  XRPD 
+
+pattern database is  built  based on  crystal structures  from Atomly  database , augmented with 
+
+peak shifts,  broadening,  intensity variations, and background noise to  mimic  common 
+
+experimental  artifacts . Second,  the  peak  features  of  positions, intensities, widths, and local 
+
+profile are extracted  and stored in a  vector database  paired  with the corresponding structur al ,
+
+perturbation and composition al  metadata . Third, experimental patterns are  embed ded  into the 
+
+same feature  vector  space and  retrieved via  hierarchical vector  search  to return single -phase or 
+
+multiphase candidate s. Fourth, the candidates are refined by full -pattern fitting, structural 
+
+refinement, and mass -fraction optimization to output the  final  phase composition, residual 
+
+profile, mass fractions, and structural parameters. 
+
+# 2.1 Simulated  XRPD  Pattern Database  Construction 
+
+After  curating  the DFT -derived inorganic  crystal  structure database  to exclude 
+
+redundant and thermodynamically unstable entries 29 , XRPD  patterns were  simulated for  Cu Kα 
+
+radiation (λ = 1.5418 Å). Experimental patterns deviate from ideal simulations  due to 
+
+instrumental offsets,  microstructure effects,  and measurement conditions , with s olid solution, 
+
+microstrain , or defects  inducing peak  shift, broaden ing  and intensity  redistribut ion 31 -32 . E ach 
+
+single -phase simulated pattern  was therefore augmented via controlled perturbation of  peak 
+
+positions, widths, intensities, and background noise , subject to  crystallographic constraints. 
+
+Multiphase simulated patterns were then generated from predefined phase combinations and 
+
+mass fractions. 
+
+# 2.2  XRPD  Vector Database  Construction 
+
+To  accelerate  retrieval, MatDiffract  recasts  phase identification as a high -dimensional 
+
+similarity search  tasks  using vector databases  infrastructure  and approximate nearest -neighbor 
+
+algorithms 33 -37 . The peak  features of  position,  intensity,  width, and local -profile  are extracted 
+
+from each simulated pattern and store d as indexable  vectors. Local profile features  complement 
+
+discrete  peak  parameters,  distinguishing structures  with similar peak locations but different shoulders, weak peaks, or line shapes. Unlike closed -label classifiers, the vector database 
+
+supports  incremental expansion  without redefining labels or retraining  and preserves complete 
+
+metadata for traceability and downstream refinement. 
+
+Figure 1.  Schematic overview of  the  MatDiffract workflow. (a)  DFT -optimized c rystal structures are 
+
+stored with structural metadata. (b) Simulated  XRPD  patterns are generated  with controlled 
+
+perturbation s to  peak  shape, intensity, background and noise , paired with synthetic  multiphase 
+
+patterns  with  predefined phase combinations and phase fractions. Peak positions, intensities, widths, 
+
+and local profile features are extracted  and embed ded  into  the vector database. (c) Experimental XRPD  patterns are  mapped into  the same feature space. Hierarchical vector retrieval returns  ranked   
+
+> candidates for subsequent full -pattern fitting and structural refinement.
+
+# 2.3 Feature Recognition and Vector Retrieval 
+
+Preprocessed e xperimental  XRPD  patterns are  featured and queried via  a hierarchical 
+
+retrieval strategy that  sequentially applies the features of  peak positions, intensities, and local 
+
+profile to balance recall and efficiency. Peak positions , governed by lattice parameters , are 
+
+relatively robust to intensity  variations . Peak intensities are more sensitive to preferred 
+
+orientation, morphology, and instrumental  effects . Local profile shape and peak width  encode 
+
+fine  structural details.  The retrieval stage returns  a ranked  Top -k candidate  set,  not the final 
+
+assignment , providing  a high -recall  pool  for subsequent full -pattern fitting and structural 
+
+refinement. 
+
+# 2.4 Full -Pattern Refinement 
+
+Retrieved candidates are refined against the experimental pattern  via  a two -step procedure: 
+
+global peak position offset correction,  followed by optimization of profile shape, background, 
+
+and scale factors . For multiphase samples, the mass fraction s of each phase  are  optimized to 
+
+match  the total diffraction intensity. For single -phase samples, the lattice parameters and 
+
+relevant  local structural parameters  are further  refined to match  the experimental data. The final 
+
+output includes phase combination, mass fractions, residual profile, Bragg positions and 
+
+structural parameters,  enabling  user  evaluation of fit credibility. 
+
+# 3 Results and Discussion 
+
+The performance of  MatDiffract  was  systematically evaluated  using  two 
+
+experimentally measured  XRPD  datasets, comprising single -phase and multiphase samples 
+
+respectively.  The single -phase dataset  was constructed to assess  phase identification  accuracy 
+
+and automated full -pattern  fitting  refinement for patterns dominated by  a single  crystalline 
+
+phase. It was compiled from the RRUFF mineral database, which provides  curated 
+
+experimental  XRPD  patterns  paired with corresponding  structural  refinement data 38 . After 
+
+exclud ing  entries with missing patterns, incomplete structural information, or duplication, 875 
+
+valid experimental patterns were retained  for benchmarking . The multiphase dataset  consists 
+
+of  40 experimental patterns  collected from laboratory -synthesized mixtures  to evaluate phase -
+
+combination identification and mass -fraction quantification under conditions  representative of 
+
+practical materials characterization, including phase coexistence,  severe  peak overlap, and low -
+
+abundance  minor  phases.  All  40 experimental  samples were prepared on the automated A -Lab 
+
+synthesis platform  via a standardized workflow of  batching, weighing, grinding, and  thermal 
+
+treatment , with precisely  predefined phase compositions. The dataset  cover s binary and ternary mixtures with  varied  mass -fraction distributions.  XRPD  data were collected on a Bruker D8 
+
+Discover diffractometer using Cu Kα radiation (λ = 1.5418 Å),  over  a 2θ range of 10° –90° with 
+
+a step size of 0.02° . The  average analysis time per pattern  was also quantified  to assess the 
+
+practical  suitability  of MatDiffract for high -throughput  XRPD  workflows. 
+
+# 3.1 Single -Phase Identification and Automated Refinement 
+
+The  performance of MatDiffract on the  single -phase dataset  was evalu ated to  provide a 
+
+straightforward benchmark of the platform’s ability to  identify the target structure from real 
+
+experimental data. The  curated  dataset  of  875 experimental patterns was used to assess both 
+
+phase identification  retrieval accuracy and the quality of  automated Rietveld refinement.              
+
+> Figure 2. Single -phase XRPD phase identification performance. (a) Identification a ccuracy of
+> JADE, initial MatDiffract retrieval, and the full automated -refinement results ,as a function of
+> Top -kcutoff . (b) Top -1 accuracy of JADE, initial MatDiffract retrieval, and the best refined
+> MatDiffract result across all seven crystal systems. (c) Top -1 a ccuracy heat map for JADE, initial
+> MatDiffract Top -1 retrieval, and the best refined result across the 15 most frequent space groups.
+
+Benchmark comparisons were performed against JADE, a widely adopted commercial 
+
+XRPD  analysis suite for phase identification, quantitative phase analysis, and full -pattern 
+
+fitting. JADE was operated with prior elemental information, such that its reported accuracy 
+
+corresponds to element -constrained search rather than blind open -compositio n identification. 
+
+Figure 2a compares  the Top -k identification accuracy of  JADE,  the  initial  vector  retrieval  stage 
+
+of  MatDiffract , and  the full -pattern fitting  stages  with  automated refinement  of  MatDiffract .
+
+JADE  achieved a  Top -1 accuracy  of  68.7% and  a Top -10 accuracy  of  83.1%.  The i nitial  vector 
+
+retrieval  stage of  MatDiffract achieved  a Top -1 accuracy  of  89.0% and  a Top -10 accuracy  of 97.2%.  Following  automated refinement and reranking, Top -1 accuracy  improved  to 91.3%, 
+
+with  Top -3 and Top -5 accuracies  reach ing  96.1% and 96.9%,  respectively,  Top -10 accuracy 
+
+remained  at  97.2% because refinement only rerank s candidates  already retrieved within the 
+
+initial  candidate  pool . This indicates that  the  correct phases  are  consistently ranked  near the top 
+
+of the candidate list , such that  users  typically need to  inspect only the  highest -ranked  candidates 
+
+and  the fitted profiles , rather than manually screening long candidate lists. For benchmarking 
+
+purpose , all  Top -k candidates  were refined  systematically , in  fact , the number of refined 
+
+candidates can be limited to  balance accuracy and computational runtime .
+
+Figures 2b and 2c  evaluate the  robustness  of  phase  identification  across crystal systems 
+
+and space groups. MatDiffract outperformed JADE in all seven crystal systems,  with  the 
+
+refined result  maintaining  an accuracy of about 90% or higher even for  inherently challenging 
+
+triclinic and monoclinic systems. The space -group heat map shows that the  performance gains 
+
+are not  only  restricted  to high -symmetry structures  but also  common low -symmetry groups 
+
+such as P21/c, P -1, Pnma  and C2/c.  Since c rystal system and space group  govern  peak 
+
+distributions, extinction rules, feature counts, and peak overlap , the  consistent  improvement 
+
+across all classes stems from robust  pattern representations and candidate reranking , rather than 
+
+favorable bias toward a small subset of  a small subset of  simple  structures. 
+
+This performance aligns with the core design principles of the MatDiffract  workflow. 
+
+Database  augmentation via controlled perturbation expands  candidate coverage, while multi -
+
+feature retrieval  integrates  peak positions, relative intensities,  peak  widths, and local profile 
+
+information, reducing dependence on a  small set of  intense peaks or simple  peak -list  matching .
+
+The use of  Perturbed simulated patterns further improve s robustness  against  experimental peak 
+
+shifts and profile  distortions . Most  critically , automated refinement constrains the  candidate 
+
+ranking  through  full -pattern  crystallographic  interpretability. In  XRPD , local peak similarity 
+
+does not guarantee  a physically meaningful full -pattern fit , such that  related structures, peak 
+
+overlap, preferred orientation, and peak -shape  variations  all produce locally similar but 
+
+globally inconsistent  matches . MatDiffract therefore  addresses this by coupling retrieval with 
+
+automated Rietveld refinement , validating candidate structures using goodness -of -fit metrics 
+
+(Rwp), residual profiles,  and Bragg -position consistency. 
+
+Figure 3  characterizes the performance of  automated Rietveld refinement from the 
+
+perspective of full -pattern fitting.  Whereas i nitial retrieval mainly ranks candidates  based on 
+
+the similarity of peak positions,  peak  intensities, and local profile features , Rietveld refinement 
+
+optimizes background, lattice parameters, profile shape, and scale factors for a given structural 
+
+model  to minimize discrepancy between  calculated  and  experiment  patterns  over the full 2θ 
+
+range.  Accordingly, r efinement  mitigates  mismatches  arising from  experimental  artifacts ,
+
+lattice -parameter  deviation s, or profile differences and  provides a rigorous test of  whether a 
+
+candidate can plausibly  account for  the complete  diffraction  pattern. Figure 3.  Performance of  automated Rietveld refinement. (a)  Distributions of  weighted -profile  R-
+
+factor  (Rwp) for the initial Top -1 retrieved  candidate and the best refined candidate; dashed lines 
+
+mark  median  value s. (b) Representative  Rietveld  refinement for andalusite (Al₂SiO₅),  showing 
+
+the full  diffraction  profile,  magnified low -angle region , refined  lattice parameters,  crystal 
+
+structural model, and Rwp = 8.91%. (c) Representative refinement for scolecite 
+
+(Ca(Si₃Al₂)O₁₀·3H₂O),  showing  the full  diffraction  profile,  magnified low -angle region , refined 
+
+lattice parameters,  crystal  structural model, and Rwp = 9.12%. Black, red, and gray lines 
+
+represent  the experimental  pattern , calculated  pattern , and  fitting  residual, respectively;  vertical 
+
+tick marks denote Bragg positions. Figure 3a  demonstrate s that refinement  substantially  improves candidate validation and 
+
+reranking. The Top -1 candidates  on  initial  stage exhibited  a broad  distribution of  Rwp  values ,
+
+with a median of 9.54% and a mean of 10.23%, indicating that some highly  ranked  candidates 
+
+remained poor full -pattern fits. After automated refinement and reranking, the distribution  of 
+
+best -candidate  Rwp  shifted  markedly  to ward  smaller  values, with a median of 5.32% and a 
+
+mean of 5.43%.  Th is confirms that  refinement  leverage s information from the full diffraction 
+
+profile to  distinguish physically  plausible structures from locally similar  but globally 
+
+inadequate  alternatives. 
+
+Figure 3b  present s a representative refinement for andalusite (Al₂SiO₅). The refined 
+
+lattice parameters were a=7.871Å, b=7.923Å, c=5.588Å, and α=β=γ=90.00°, with Rwp=8.91%. 
+
+The calculated pattern  accurately  reproduced the positions and relative intensities  of all major 
+
+peaks  over the full profile, and the inset  covering  15° -26° further  shows that both the  intense 
+
+peak profile and nearby weak peaks were well constrained. Refinement therefore  elevates  a
+
+mere  phase label into inspectable crystallographic evidence , including  lattice parameters, fitted 
+
+profile, residuals, and Bragg  peak  positions. 
+
+Figure 3c shows  a representative refinement for scolecite, a low -symmetry hydrated 
+
+silicate  characterized by  dense  peak  packing  and substantial local overlap. The refined lattice 
+
+parameters were a=6.587Å, b=19.128Å, c=9.875Å, α=90.00°, β=109.38°, and γ=90.00°, with 
+
+Rwp= 9.12%. Despite  the abundance of  weak and adjacent peaks, the calculated pattern  closely 
+
+follow s the main peak groups and overall profile, with residuals concentrated mainly around a 
+
+few strong or overlapping peaks. This example  demonstrate s that the workflow  reliably 
+
+validate complex low -symmetry structures as well as simpler high -symmetry patterns. 
+
+Collectively , the sta tistical results in  Figure 3a and the representative  case studies  in 
+
+Figures 3b and 3c  illustrate  that automated refinement converts  raw  candidate similarity into 
+
+quantitative  full -pattern interpretability.  For candidates with comparable local similarity , full -
+
+pattern  fitting exploits weak peaks, profile shape and residual information that are not fully 
+
+constrained during  the  vector  retrieval  stage . For already well -identified candidates,  refinement 
+
+delivers physically meaningful  lattice parameters and fit quality that  enable direct assessment 
+
+of result credibility . This  closed -loop  architecture,  from  rapid  retrieval to  rig orous  structural 
+
+validation , constitutes  a key advantage of MatDiffract over label -only  classification or peak -
+
+list matching. 
+
+# 3.2 Multiphase Identification and Quantitative  Phase  Analysis 
+
+Under  realistic  experimental conditions, the relation ship  between a  XRPD  pattern and 
+
+the underlying  phase composition is rarely one -to -one. In multiphase systems,  multiple  phases 
+
+contribute  diffract ed  intensity  simultaneously, and  peak  overlap  often render  individual  Bragg 
+
+reflections difficult to  resolve and  assign. Peak broadening, background noise, and  finite instrumental resolution further  obscure  weak  diffraction features , such that  low -abundance 
+
+minor  phases  are readily  masked by intense peaks from the major phase.  Reliable m ultiphase 
+
+XRPD  analysis therefore requires both  accurate  identification of the phase combination that 
+
+account for  the  full diffraction  pattern and quantitative  determination  of the mass fraction of 
+
+each  constitute  phase. 
+
+MatDiffract  implements a two -stage workflow for  multiphase analysis.  In the first stage, 
+
+candidate phase combinations and initial mass -fraction estimates  are returned via vector 
+
+retrieval.  In the second stage,  these candidates  are refined  by multiphase full -pattern fitting to 
+
+obtain the final phase combination and  quantitative  mass fractions.  Accordingly,  multiphase 
+
+performance  was evaluated with respect to  both phase -combination identification  accuracy  and 
+
+quantitative phase analysis  precision .                        
+
+> Figure 4. Phase -combination identification in multiphase experimental XRPD patterns. (a)
+> Identification accuracy of initial retrieval and full -pattern fitting results for binary and ternary
+> samples as a function of Top -kcutoff . (b) Top -1identification accuracy comparison of JADE, initial
+> MatDiffract retrieval, and full -pattern fitting MatDiffract results.
+
+To evaluate MatDiffract under conditions  representative of routine  materials 
+
+characterization, binary and ternary  powder  mixtures  were prepared  from  well -characterized 
+
+phase powders at predefined mass ratios.  Nominal  compositions serve only as  an initial 
+
+reference , because  minor  phase changes , contamination, or oxidation  can occur during 
+
+preparation, storage, or measurement.  Manually refined Rietveld results  were therefore 
+
+adopted  as the  ground -truth  benchmark.  All multiphase patterns were manually refined using 
+
+GSAS -II 39  by researchers with extensive expertise in  XRPD  analysis and Rietveld refinement, 
+
+considering the nominal  compositions , candidate  crystal  structures, and experimental pattern 
+
+features. The resulting reference phase combinations and mass fractions were used to 
+
+benchmark  MatDiffract  across  40 valid experimental patterns. Figure 4a  presents the  phase -combination  identification  accuracy for binary and ternary 
+
+samples  as a function of  Top -k cutoff . Unlike single -phase identification, multiphase 
+
+identification  result  is  considered  correct only when all  constituent  phases in the candidate 
+
+combination  exactly  match the reference  set . Increasing the number of phases  exponentially 
+
+expands the  combinatorial  candidate space and  amplifies  uncertainty  arising  from peak overlap 
+
+and  low -abundance  phases. For binary samples, initial MatDiffract retrieval  achieved  Top -1, 
+
+Top -3, Top -5, and Top -10 accuracies of 75.0%, 80.0%, 90.0%, and 95.0%, respectively. 
+
+Following  full -pattern fitting  and reranking , Top -1 accuracy  improved  to 85.0%, Top -3
+
+accuracy reached 90.0%, and  both  Top -5 and Top -10 accuracies were  remained at  95.0%.  Thus, 
+
+correct binary combinations  are  therefore  consistently ranked  near the top  of the candidate list 
+
+and  ca n be  readily distinguished via subsequent full -pattern  fitting. 
+
+Identification  performance declined notably  for ternary samples.  The i nitial  retrieval 
+
+stage yielded  Top -1, Top -3, Top -5, and Top -10 accuracies  of  60.0%, 70.0%, 80.0%, and 85.0%, 
+
+respectively. After full -pattern fitting, Top -1 accuracy increased to 70.0%,  with  Top -3, Top -5, 
+
+and Top -10 accuracies  reach ing  75.0%, 85.0%, and 90.0% , respectively . The  increased 
+
+difficulty of  ternary  analysis  does  not  stem merely from  the  addition of  one more phase . With 
+
+multiple  phases contribute to the same  diffraction  pattern , the correct combination  must be 
+
+distinguished from a far larger set of competing candidate combinations.  Low -abundance 
+
+phases are especially  susceptible  to masking by  intense  major -phase  peaks or background 
+
+signals,  which hinders their  rank highly during initial retrieval.  Nevertheless , correct ternary 
+
+combinations  typically  appear within the Top -5 to Top -10 candidate  range , providing a 
+
+tractable candidate pool for downstream  fitting  an d validation .
+
+Figure 4b compares  the Top -1 identification accuracy of  JADE, initial MatDiffract 
+
+retrieval, and MatDiffract  with full -pattern  fitting  reranking . For binary samples, JADE 
+
+reached  an  accuracy  of  55.0%, whereas MatDiffract reached 75.0%  prior to  full -pattern  fitting 
+
+and 85.0% after  full -pattern  fitting. For ternary samples, JADE  performance dropped  to 40.0%, 
+
+while MatDiffract  main tained  60.0%  prior to  full -pattern  fitting and 70.0% after  full -pattern 
+
+fitting.  These results demonstrate tha t in multiphase systems with  severe  peak overlap and 
+
+larger combination  search  spaces, MatDiffract  outperforms conventional search -match 
+
+workflows in  retain ing  correct  phase  combinations , and uses full -pattern fitting to select 
+
+candidates that  provide a physically meaningful explanation of  the overall experimental profile. Figure 5.  Quantitative  mass -fraction estimation  for  multiphase experimental  XRPD  patterns.  Left :             
+
+> parity plot of major -phase mass fractions from initial retrieval and full -pattern fitting against
+> reference values for binary samples. Middle and right :ternary composition diagrams for initial
+> retrieval and full -pattern fitting results, respectively , respectively; open circles indicate reference
+> compositions and crosses indicate estimated compositions. Corresponding m ean absolute errors
+> (MAEs) are labeled in each panel.
+
+Beyond phase identification,  multiphase  XRPD  analysis requires  accurate quantification 
+
+of  phase  mass  fractions. Figure 5  demonstrates  that  full -pattern  fitting substantially improved 
+
+the accuracy of  mass -fraction estimates. For binary samples, the  mean absolute error  (MAE )
+
+of the major -phase mass fraction decreased from 4.3%  at  initial retrieval  stage  to 1.2% after 
+
+full -pattern  fitting,  with data points converging toward the reference  diagonal  line . For ternary 
+
+samples, the  initially  retrieved compositions  exhibited noticeable deviation  from the  reference 
+
+line , with an overall MAE of 4.5%.  Following full -pattern  fitting, the estimated compositions 
+
+approached  closer to the  reference  line  and the MAE  was reduced  to 1.8%. Full -pattern fitting 
+
+therefore  enhances  both candidate screening and  the accurate partitioning of diffracted  intensity 
+
+among  constituent  phases. 
+
+The reduction in mass -fraction error  arise s from  two  complementary  improvement s. For 
+
+binary samples, the  primary challenge lies in  partitioning  intensity between the major and 
+
+minor phases . The  convergence toward the  reference  diagonal  line  after  full -pattern  fitting 
+
+co nfirm s that scale -factor and profile optimization  correct s most  of the initial fraction bias  in 
+
+fraction estimates . For  ternary samples, errors are redistributed among the major, secondary, 
+
+and  minor  phases,  a trend more clearly visualized in ternary composition plots . While f itted 
+
+compositions  shift  toward the  reference  line , low -abundance or weakly diffracting phases 
+
+remain more sensitive to peak overlap, background  interference , and masking by intense major -
+
+phase peaks.  Accordingly, the results  of  Figure 5  should therefore be  interpreted  as  a substantial 
+
+improvement from candidate combinations to quantitative compositions,  rather than  complete 
+
+elimination of uncertainty for low -abundance phases. Figure 6.  Representative full -pattern fitting  results , local peak alignment, and  refined  structural                 
+
+> parameters for MgO –TiO₂ binary samples. (a) MgO:TiO₂ = 3:7 (Mg3 -Ti7). (b) MgO:TiO₂ = 7:3 (Mg7 -
+> Ti3). Black, blue, and red curves denote the experimental pattern, the initial -retrieval calculation
+> based on the unrefined TiO₂ unit cell, and the final fitted profile , respectively. Fitting r esiduals and
+> Bragg positions for TiO₂ and MgO are ploted below each pattern. Insets highlight selected local 2θ
+> regions showing peak -position and profile differences; right panels summarize fitted mass fractions,
+> lattice parameters, and crystal structural models.
+
+Figure 6  presents a  compar ative analysis of  two MgO -TiO₂ samples with  inverted  nominal 
+
+compositions: Mg3 -Ti7 (MgO:TiO₂=3:7) and Mg7 -Ti3 (MgO:TiO₂=7:3). For  sample  Mg3 -Ti7, 
+
+MatDiffract refined the TiO₂ and MgO mass fractions to 70.36 wt% and 29.64 wt%, 
+
+respectively. The refined  lattice parameters  were  a=b=3.7886Å and c=9.5238Å  for  TiO₂ , and 
+
+a=4.2167Å  for  MgO , with  Rwp=11.68%. For  sample  Mg7 -Ti3, the fitted TiO₂ and MgO mass 
+
+fractions  refined by MatDiffract  were 30.59 wt% and 69.41 wt%,  respectively. The refined 
+
+lattice parameters a=b=3.7881 Å and c=9.5228 Å  for  TiO₂ , and  a=4.2160 Å  for  MgO , with 
+
+Rwp=12.57%. In both samples, the fitted fractions were  in good agreement with  to the nominal 
+
+ratios. In the TiO₂/MgO peak -rich windows  of  35 °-39° , 46.8° -49.6° , and about 60.5 °-63.9° , the 
+
+red fitted profile  reproduces  the experimental peak positions and relative intensities significantly better  than the blue initial -retrieval  profile  calculat ed from  unrefined  crystal 
+
+structures .
+
+This comparison  reveal s that multiphase  quantification  error  does  not only  originate from 
+
+misallocation of phase fractions between  TiO₂  and  MgO. The  as -calculated  TiO₂  structure from 
+
+the source database  exhibits  lattice parameters  of  a=3.80313Å and c=9.74365Å,  which are 
+
+systematically  larger  than the effective TiO₂  lattice parameters refined  for both samples (a≈ 
+
+3.788Å and c≈9.523Å).  According to  Bragg's law, an  expanded unit  cell increases interplanar 
+
+d-spacings and shifts calculated  diffraction  peaks to ward  lower 2θ  angles . Consequently,  the 
+
+systematic low -angle offset of the blue reference profile near TiO₂ peaks therefore cannot be 
+
+eliminated  by  merely  rescaling  the  fractions  of  TiO₂ and MgO  Previous computational studies 
+
+have established that  DFT -calculated  TiO₂ lattice parameters  are sensitive to the choice of  the 
+
+exchange -correlation functional and computational  parameters, with  generalized -gradient 
+
+approximation(GGA) calculations  using  Perdew -Burke -Ernzerhof(PBE)  functional  often 
+
+yielding appreciable deviations  from experimental structures 40 . By  simultaneously  refining 
+
+lattice parameters, profile shape, and scale factors together, MatDiffract  corrects  TiO₂ Bragg 
+
+peak  positions to  match  the experimental profile , while preserving phase fractions  consistent 
+
+with  the nominal compositions. 
+
+Collectively,  Figures 4 -6 show three  interconnected strengths of the  MatDiffract  workflow 
+
+for  multiphase analysis. First, it  enhance s phase -combination identification  accuracy  for  both 
+
+binary and ternary samples, with  a more pronounced performance advantage  over JADE 
+
+observed for ternary mixtures. Second, the Top -k results  confirm  that correct combinations are 
+
+consistently  retained among the  highest -ranked  candidates,  enabling  users to focus  subsequent 
+
+full -pattern  fitting and manual inspection on a  compact  candidate set. Third,  as shown in 
+
+Figures 5 and 6 , full -pattern  fitting not only  validates  phase combinations and optimizes mass 
+
+fractions but also  identifies  and corrects  systematic  lattice -parameter  deviations  in  database -
+
+derived  crystal  structures. The  MatDiffract  workflow therefore  progresses  from  qualitative 
+
+phase recognition to quantitative  full -interpretation  explanation and structural -model 
+
+refinement .
+
+Overall, MatDiffract  delivers robust performance in  phase -combination identification and 
+
+mass -fraction estimation  for  binary and ternary experimental  XRPD  patterns.  The challenge of 
+
+peak  overlap and  detecting low -abundance  detection  render  multiphase analysis  inherently 
+
+more difficult than single -phase analysis, as reflected  in  the lower  accuracy values for  ternary 
+
+sample . Nevertheless, MatDiffract achieved post -fitting Top -1 accuracies of 85.0% for binary 
+
+samples and 70.0% for ternary samples, and reduced the mass -fraction MAEs to 1.2% and 1.8% 
+
+for  binary and ternary  samples , respectively. These results  confirm  that the platform extends 
+
+its capabilities  beyond single -phase structure identification to multiphase mixtures  routinely 
+
+encountered  in practical materials characterization. 3.3 Platform Performance 
+
+The  online analysis performance  of MatDiffract was evaluated following  construction of 
+
+the  full  candidate database.  Total  analysis  run time  encompasses  the complete workflow from 
+
+experimental -pattern input to final  result  output, and  the dependence of retrieval time on 
+
+candidate -database size  was also taken into consideration . MatDiffract  adopts a decoupled 
+
+architecture comprising  offline database construction  and  online pattern analysis. The offline 
+
+workflow , including  crystal  structure calculation and simulated  XRPD  pattern generation, can 
+
+be completed  prior to analysis  and  expanded  incrementally. The online  workflow  is dominated 
+
+by  experimental  pattern preprocessing,  vector search for  candidate retrieval, and  full -pattern 
+
+fitting for  structural refinement or mass -fraction optimization. This  decoupled design 
+
+eliminates redundant recalculation  of simulated -pattern for  each  experimental  sample,  such 
+
+that  online  runtime  is  governed primarily  by retrieval and subsequent refinement  stages .
+
+> Figure 7. Online analysis performance of MatDiffract and the effect of candidate -database size. (a)
+> Runtime components for single -phase and multiphase samples after construction of the candidate
+> database, including preprocessing, retrieval, structural refi nement, and mass -fraction fitting. (b)
+> Relation between candidate -database size and retrieval time. Points indicate validation samples; pink
+> dashed lines denote median candidate -database size and median retrieval time. Offline candidate -
+> database constructi on is not included in the online runtime.
+
+Figure 7a  decompose s the  online runtime  into constituent stages  for single -phase and 
+
+multiphase samples. The single -phase workflow  comprises  pattern preprocessing, candidate 
+
+retrieval, and structural refinement,  yielding  a total runtime of about 16.0s per pattern , with 
+
+structural refinement  accounting for the majority (~14.5s) of the computational cost . The 
+
+multiphase workflow  comprises  pattern preprocessing, candidate -combination retrieval, and 
+
+mass -fraction fitting,  yielding  a total runtime of about 21.0s per pattern , with  mass -fraction 
+
+fitting account ing  for  the majority  (~ 18.0s ). Collectively , these results demonstrate that 
+
+MatDiffract completes online analysis of a single experimental  XRPD  pattern within tens of 
+
+seconds once the candidate database is preconstructed. The  computational cost of the retrieval st age was analyzed  by plotting  retrieval time 
+
+against  candidate -database size on log -log axes (Figure 7b). The median candidate -database 
+
+size was  approximately  9.2× 10³ , with a corresponding  median retrieval time  of  about 2.9 s. 
+
+Larg er candidate databases generally  incur higher retrieval cost , but most samples remain 
+
+with in the  sub -10 -second range, with only a  small number of exceptionally  large candidate sets 
+
+requiring  tens of seconds or longer. Vector -database retrieval therefore c  efficiently narrows  a
+
+large library  of  simulated -pattern s into a rapidly rankable candidate  pool , s uch that  database 
+
+expansion does not translate directly into a linear increase in manual screening  effort . Given 
+
+that  structural refinement for single -phase samples and mass -fraction fitting for multiphase 
+
+samples dominate the current runtime, retrieval is not the  primary performance  bottleneck  of 
+
+the current implementation . Future implementations  of MatDiffract may  reduce total runtime 
+
+by  restricting refinement to  only a small number of high -ranked  Top -k candidates. All  runtime 
+
+benchmarks  were performed on the same workstation  equipped  with dual Intel Xeon Gold 6530 
+
+CPUs, 64 physical cores, 128 threads, 256GB memory, about 251GB available memory, and 
+
+Python 3.9.23. 
+
+# 4 Conclusions 
+
+In summary, we present MatDiffract, a  material -informed computational platform for 
+
+automated, high -throughput powder X-ray diffraction analysis designed to close the 
+
+characterization throughput gap in modern materials discovery. Built on a first -principles 
+
+inorganic crystal structure database, the fra mework integrates a perturbation -augmented 
+
+simulated pattern  database , multi -feature vector retrieval, and full -pattern  fitting  Rietveld 
+
+refinement into a single end -to -end workflow. Unlike label -only machine learning classifiers, 
+
+this architecture preserves rigorous crystallographic interpretability and physical consistency 
+
+throughout the analysis pipeline, while retaining the spe ed and scalability of data -driven 
+
+retrieval methods. 
+
+Systematic benchmarking on experimental single -phase and multiphase datasets 
+
+demonstrates robust quantitative performance: 91.3% Top -1 identification accuracy for single -
+
+phase samples, and 85.0%/70.0% Top -1 accuracy for binary/ternary mixtures, with mass 
+
+fraction mean absolute errors below 2%. All analyses are completed within tens of seconds per 
+
+sample, matching the throughput requirements of automated synthesis platforms and high -
+
+throughput materials screening workflows. 
+
+A defining feature of the vector -based retrieval architecture is its native support for 
+
+incremental expansion: new crystal structures, chemical systems, and perturbation conditions 
+
+can be incorporated into the database without model retraining or label red efinition. This modularity distinguishes MatDiffract from fixed -dataset machine learning models, and enables 
+
+seamless adaptation to emerging material systems and custom research needs. 
+
+The current validation focuses on well -crystallized multiphase mixtures. Moving forward, 
+
+extending the framework to handle more complex systems , including solid solutions, 
+
+amorphous backgrounds, strong preferred orientation, and  in situ/operando  diffraction data —
+
+will further broaden its applicability. Integrating MatDiffract with self -driving laboratory 
+
+workflows to enable closed -loop, feedback -driven materials synthesis and optimization 
+
+represents a particularly promising direction. The underlyi ng vector -retrieval methodology is 
+
+also readily generalizable to other diffraction modalities, most notably neutron powder 
+
+diffraction, opening avenues for cross -modal structural analysis. 
+
+Overall, MatDiffract provides a robust, extensible, and physically consistent solution for 
+
+automated diffraction analysis, removing a key bottleneck in high -throughput materials 
+
+characterization and accelerating the transition toward fully autonomous mater ials discovery 
+
+workflow s. 
+
+# 5 Code Availability 
+
+An online  instance of  MatDiffract  analy tical  workflow  is hosted  by the National High 
+
+Energy Physics Scientific Data Center (NHEPSDC) and is accessible  at 
+
+https://matdiffract.nhepsdc.cn. 
+
+# 6 Acknowledgments 
+
+This work was  supported by  National Key R&D Program of China (Grant No. 
+
+2024YFF0508500)  and  the open research fund of Songshan Lake Materials Laboratory  (No. 
+
+2023SLABFK08 ). We  are grateful to  Prof.  Erxi Feng for  his  insightful  discussions and  valuable 
+
+guidance on  the development, design, and result interpretation of MatDiffract.  We thank the 
+
+National High Energy Physics Science Data Center  (NHEPSDC)  for  providing  support  for  the 
+
+deployment, operation, and online  hosting  of MatDiffract. We also  acknowledge  Dongguan 
+
+Institute of Materials Science and Technology of the Chinese Academy of Sciences  (DIMS) 
+
+and Songshan Lake Materials Laboratory for  their  support  in  platform testing, data acquisition, 
+
+and application validation. 
+
+# References  
+
+> 1.Nathan J. Szymanski, Christopher J. Bartel, Yan Zeng, Mouhamad Diallo, Haegyeom Kim, and
+> Gerbrand Ceder. Adaptively driven X -ray diffraction guided by machine learning for autonomous
+> phase identification. npj Computational Materials, 9(1):31, 2023. https:/ /doi.org/10.1038/s41524 -023 -
+> 00984 -y.
+
+2.  Yuto Yotsumoto, Yusaku Nakajima, Ryusei Takamoto, Yasuo Takeichi, and Kanta Ono. Autonomous 
+
+robotic experimentation system for powder X -ray diffraction. Digital Discovery, 3(12):2523 –2532, 
+
+2024. https://doi.org/10.1039/D4DD00190G. 
+
+3.  Dongfang Yu, Sean Griesemer, Tzu -chen Liu, Chris Wolverton, and Yizhou Zhu. Automated phase 
+
+mapping of high -throughput X -ray diffraction data encoded with domain -specific materials science 
+
+knowledge. npj Computational Materials, 11(1):354, 2025. https://do i.org/10.1038/s41524 -025 -01837 -
+
+6. 
+
+4.  Shingo Maruyama, Kana Ouchi, Tomoyuki Koganezawa, and Yuji Matsumoto. High -throughput and 
+
+autonomous grazing incidence X -ray diffraction mapping of organic combinatorial thin -film library 
+
+driven by machine learning. ACS Combinatorial Science, 22(7):348 –355 , 2020. 
+
+https://doi.org/10.1021/acscombsci.0c00037. 
+
+5.  J. D. Hanawalt, H. W. Rinn, and L. K. Frevel. Chemical analysis by X -ray diffraction. Industrial & 
+
+Engineering Chemistry Analytical Edition, 10(9):457 –512, 1938. 
+
+https://doi.org/10.1021/ac50125a001. 
+
+6. L. K. Frevel, C. E. Adams, and L. R. Ruhberg. A fast search –match program for powder diffraction 
+
+analysis. Journal of Applied Crystallography, 9(3):199 –204, 1976. 
+
+https://doi.org/10.1107/S0021889876010959. 
+
+7. H. M. Rietveld. A profile refinement method for nuclear and magnetic structures. Journal of Applied 
+
+Crystallography, 2(2):65 –71, 1969. https://doi.org/10.1107/S0021889869006558. 
+
+8. R. J. Hill and C. J. Howard. Quantitative phase analysis from neutron powder diffraction data using the 
+
+Rietveld method. Journal of Applied Crystallography, 20(6):467 –474, 1987. 
+
+https://doi.org/10.1107/S0021889887086199. 
+
+9. Asif Ali, Yi Wai Chiang, and Rafael M. Santos. X -ray diffraction techniques for mineral 
+
+characterization: A review for engineers of the fundamentals, applications, and research directions. 
+
+Minerals, 12(2):205, 2022. https://doi.org/10.3390/min12020205. 
+
+10 . Mattia Lopresti, Beatrice Mangolini, Marco Milanesio, Rocco Caliandro, and Luca Palin. Multivariate 
+
+versus traditional quantitative phase analysis of X -ray powder diffraction and fluorescence data of 
+
+mixtures showing preferred orientation and microabsorpt ion. Journal of Applied Crystallography, 
+
+55(4):837 –850, 2022.  https://doi.org/10.1107/S1600576722004708 .
+
+11 . Yuta Suzuki. Automated data analysis for powder X -ray diffraction using machine learning. 
+
+Synchrotron Radiation News, 35(4):9 –15, 2022. https://doi.org/10.1080/08940886.2022.2112496. 
+
+12 . Jerardo E. Salgado, Samuel Lerman, Zhaotong Du, Chenliang Xu, and Niaz Abdolrahim. Automated 
+
+classification of big X -ray diffraction data using deep learning models. npj Computational Materials, 
+
+9(1):214, 2023. https://doi.org/10.1038/s41524 -023 -01164 -8. 
+
+13 . Connor Davel, Nazanin Bassiri -Gharb, and Juan -Pablo Correa -Baena. Machine learning in X -ray 
+
+diffraction for materials discovery and characterization. Matter, 8(9):102272, 2025. 
+
+https://doi.org/10.1016/j.matt.2025.102272. 
+
+14 . Nam Q. Le, Michael Pekala, Alexander New, Edwin B. Gienger, Christine Chung, Timothy J. 
+
+Montalbano, Elizabeth A. Pogue, Janna Domenico, and Christopher D. Stiles. Deep learning models to 
+
+identify common phases across material systems from X -ray diffractio n. The Journal of Physical 
+
+Chemistry C, 127(44):21758 –21767, 2023. https://doi.org/10.1021/acs.jpcc.3c05147. 15 . Shouyang Zhang, Bin Cao, Tianhao Su, Yue Wu, Zhenjie Feng, Jie Xiong, and Tong -Yi Zhang. 
+
+Crystallographic phase identifier of a convolutional self -attention neural network (CPICANN) on 
+
+powder diffraction patterns. IUCrJ, 11(4):634 –642, 2024. 
+
+https://doi.o rg/10.1107/S2052252524005323. 
+
+16 . Litao Chen, Bingxu Wang, Wentao Zhang, Shisheng Zheng, Zhefeng Chen, Mingzheng Zhang, Cheng 
+
+Dong, Feng Pan, and Shunning Li. Crystal structure assignment for unknown compounds from X -ray 
+
+diffraction patterns with deep learning. Journal of the American Che mical Society, 146(12):8098 –
+
+8109, 2024. https://doi.org/10.1021/jacs.3c11852. 
+
+17 . Jin -Woong Lee, Woon Bae Park, Jin Hee Lee, Satendra Pal Singh, and Kee -Sun Sohn. A deep -learning 
+
+technique for phase identification in multiphase inorganic compounds using synthetic XRD powder 
+
+patterns. Nature Communications, 11(1):86, 2020. https://doi.o rg/10.1038/s41467 -019 -13749 -3. 
+
+18 . Ansu Mathew, Ahmer A. B. Baloch, Alamin Yakasai, Hemant Mittal, Vivian Alberts, and Jayakumar 
+
+V. Karunamurthy. Machine learning -driven crystal system prediction for perovskites using augmented 
+
+XRD data. Engineering Applications of Artificial Intelligence,  164:113247, 2026. 
+
+https://doi.org/10.1016/j.engappai.2025.113247. 
+
+19 . Rongchang Xing, Haodong Yao, Zuoxin Xi, Minghui Sun, Qingmeng Li, Jinglong Tian, Hairui Wang, 
+
+DeTing Xu, Zhaohai Ma, and Lina Zhao. Interpretable X -ray diffraction spectra analysis using 
+
+confidence evaluated deep learning enhanced by template element repl acement. npj Computational 
+
+Materials, 11(1):281, 2025. https://doi.org/10.1038/s41524 -025 -01743 -x. 
+
+20 . Bin Cao, Zinan Zheng, Yang Liu, Longhan Zhang, Lawrence W. -Y. Wong, Lu -Tao Weng, Jia Li, 
+
+Haoxiang Li, and Tong -Yi Zhang. XQueryer: an intelligent crystal structure identifier for powder X -
+
+ray diffraction. National Science Review, 12(12):nwaf421, 2025. htt ps://doi.org/10.1093/nsr/nwaf421. 
+
+21 . Felipe Oviedo, Zekun Ren, Shijing Sun, Charles Settens, Zhe Liu, Noor Titan Putri Hartono, Savitha 
+
+Ramasamy, Brian L. DeCost, Siyu I. P. Tian, Giuseppe Romano, Aaron Gilad Kusne, and Tonio 
+
+Buonassisi. Fast and interpretable classification of small X -ray d iffraction datasets using data 
+
+augmentation and deep neural networks. npj Computational Materials, 5(1):60, 2019. 
+
+https://doi.org/10.1038/s41524 -019 -0196 -x. 
+
+22 . Pascal Marc Vecsei, Kenny Choo, Johan Chang, and Titus Neupert. Neural network based 
+
+classification of crystal symmetries from X -ray diffraction patterns. Physical Review B, 
+
+99(24):245120, 2019. https://doi.org/10.1103/PhysRevB.99.245120. 
+
+23 . Alexander N. Zaloga, Vladimir V. Stanovov, Oksana E. Bezrukova, Petr S. Dubinin, and Igor S. 
+
+Yakimov. Crystal symmetry classification from powder X -ray diffraction patterns using a 
+
+convolutional neural network. Materials Today Communications, 25:101662, 2 020. 
+
+https://doi.org/10.1016/j.mtcomm.2020.101662. 
+
+24 . Jaimie Greasley and Patrick Hosein. Exploring supervised machine learning for multi -phase 
+
+identification and quantification from powder X -ray diffraction spectra. Journal of Materials Science, 
+
+58(12):5334 –5348, 2023. https://doi.org/10.1007/s10853 -023 -083 43 -4. 
+
+25 . Dongfang Yu, Zhewen Zhu, Fucheng Leng, and Yizhou Zhu. Equivariant diffusion solution for 
+
+inorganic crystal structure determination from powder X -ray diffraction data. Nature Communications, 
+
+17(1):3274, 2026. https://doi.org/10.1038/s41467 -026 -70035 -9. 
+
+26 . Chenlei Xu, Tianhao Su, Jie Xiong, Yue Wu, Shuya Dong, Tian Jiang, Mengwei He, Shuai Chen, and 
+
+Tong -Yi Zhang. KAN -enhanced contrastive learning: the accelerator of crystal structure identification from XRD patterns. npj Computational Materials, 12(1):144, 2026. https://doi.org/10.1038/s41524 -
+
+026 -02015 -y. 
+
+27 . Abhijith S. Parackal, Rhys E. A. Goodall, Felix A. Faber, and Rickard Armiento. Identifying crystal 
+
+structures beyond known prototypes from X -ray powder diffraction spectra. Physical Review 
+
+Materials, 8(10):103801, 2024. https://doi.org/10.1103/PhysRevMat erials.8.103801. 
+
+28 . Yuxing Fei, Matthew J. McDermott, Christopher L. Rom, Shilong Wang, and Gerbrand Ceder. Dara: 
+
+Automated multiple -hypothesis phase identification and refinement from powder X -ray diffraction. 
+
+Chemistry of Materials, 38(3):1364 –1376, 2026. https://doi.org/1 0.1021/acs.chemmater.5c02820. 
+
+29 . Miao Liu and Sheng Meng. Atomly.net materials database and its application in inorganic chemistry. 
+
+Scientia Sinica Chimica, 53(1):19 –25, 2023. https://doi.org/10.1360/SSC -2022 -0167. 
+
+30 . Fankai Xie, Tenglong Lu, Sheng Meng, and Miao Liu. GPTFF: A high -accuracy out -of -the -box 
+
+universal AI force field for arbitrary inorganic materials. Science Bulletin, 69(22):3525 –3532, 2024. 
+
+https://doi.org/10.1016/j.scib.2024.08.039. 
+
+31 . T. Riaz, S. Shyamal, S. K. Shee, L. P. Karjalainen, and P. Sahu. X -ray line profile analysis on the 
+
+deformation microstructure of Al -bearing high -Mn steels. Materials Characterization, 196:112567, 
+
+2023. https://doi.org/10.1016/j.matchar.2022.112567. 
+
+32 . Dylan Madisetti, Markus Sudmanns, Christopher D. Stiles, and Jaafar A. El -Awady. Computational 
+
+investigation into XRD peak broadening effects with discrete dislocation dynamics in additively 
+
+manufactured 316L stainless steel. Journal of the Mechanics and  Physics of Solids, 196:105970, 2025. 
+
+https://doi.org/10.1016/j.jmps.2024.105970. 
+
+33 . Yu A. Malkov and D. A. Yashunin. Efficient and robust approximate nearest neighbor search using 
+
+hierarchical navigable small world graphs. IEEE Transactions on Pattern Analysis and Machine 
+
+Intelligence, 42(4):824 –836, 2020. https://doi.org/10.1109/TPAMI.2 018.2889473. 
+
+34 . Jeff Johnson, Matthijs Douze, and HervéJé gou. Billion -scale similarity search with GPUs. IEEE 
+
+Transactions on Big Data, 7(3):535 –547, 2021. https://doi.org/10.1109/TBDATA.2019.2921572. 
+
+35 . Jianguo Wang, Xiaomeng Yi, Rentong Guo, Hai Jin, Peng Xu, Shengjun Li, Xiangyu Wang, 
+
+Xiangzhou Guo, Chengming Li, Xiaohai Xu, Kun Yu, Yuxing Yuan, Yinghao Zou, Jiquan Long, 
+
+Yudong Cai, Zhenxiang Li, Zhifeng Zhang, Yihua Mo, Jun Gu, Ruiyi Jiang, Yi Wei, an d Charles Xie. 
+
+Milvus: A purpose -built vector data management system. In Proceedings of the 2021 International 
+
+Conference on Management of Data, pages 2614 –2627, 2021. 
+
+https://doi.org/10.1145/3448016.3457550. 
+
+36 . James Jie Pan, Jianguo Wang, and Guoliang Li. Survey of vector database management systems. The 
+
+VLDB Journal, 33(5):1591 –1615, 2024. https://doi.org/10.1007/s00778 -024 -00864 -x. 
+
+37 . Qianxi Zhang, Shuotao Xu, Qi Chen, Guoxin Sui, Jiadong Xie, Zhizhen Cai, Yaoqi Chen, Yinxuan He, 
+
+Yuqing Yang, Fan Yang, Mao Yang, and Lidong Zhou. VBASE: Unifying online vector similarity 
+
+search and relational queries via relaxed monotonicity. In 17th USE NIX Symposium on Operating 
+
+Systems Design and Implementation (OSDI 23), pages 377 –395, 2023. 
+
+https://www.usenix.org/conference/osdi23/presentation/zhang -qianxi. 
+
+38 . B. Lafuente, R. T. Downs, H. Yang, and N. Stone. The power of databases: the RRUFF project. In T. 
+
+Armbruster and R. M. Danisi, editors, Highlights in Mineralogical Crystallography, pages 1 –30. 
+
+Walter de Gruyter, Berlin, Germany, 2015. https://doi.org/10.1 515/9783110417104 -003. 39 . B. H. Toby and R. B. Von Dreele. GSAS -II: the genesis of a modern open -source all purpose 
+
+> crystallography software package. Journal of Applied Crystallography, 46(2):544 –549, 2013.
+> https://doi.org/10.1107/S0021889813003531.
+
+40 . Fré dé ric Labat, Philippe Baranek, Christophe Domain, Christian Minot, and Carlo 
+
+Adamo. Density functional theory analysis of the structural and electronic properties of 
+
+rutile and anatase polytypes: Performances of different exchange -correlation functiona ls. 
+
+The Journal of Chemical Physics, 126(15):154703, 2007. 
+
+https://doi.org/10.1063/1.2717168.

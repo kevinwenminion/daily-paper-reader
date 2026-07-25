@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-07-25 <!--dpr-date:20260725-->
+    * 速读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202607/25/2607.20906v1-uni-xas-alignment-driven-bidirectional-multimodal-learning-for-x-ray-absorption-spectroscopy" data-sidebar-item="{&quot;title&quot;: &quot;Uni-XAS: Alignment-Driven Bidirectional Multimodal Learning for X-ray Absorption Spectroscopy&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2607.20906v1-uni-xas-alignment-driven-bidirectional-multimodal-learning-for-x-ray-absorption-spectroscopy&quot;, &quot;score&quot;: &quot;7.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;aimat-mlpot&quot;}], &quot;evidence&quot;: &quot;面向XAS光谱与结构双向推理的多模态学习&quot;}">Uni-XAS: Alignment-Driven Bidirectional Multimodal Learning for X-ray Absorption Spectroscopy</a>
   * 2026-07-24 <!--dpr-date:20260724-->
     * 精读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202607/24/2607.20681v1-a-high-dimensional-neural-network-potential-for-finite-temperature-phenomena-in-niti-martensite" data-sidebar-item="{&quot;title&quot;: &quot;A high-dimensional neural network potential for finite-temperature phenomena in NiTi martensite&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2607.20681v1-a-high-dimensional-neural-network-potential-for-finite-temperature-phenomena-in-niti-martensite&quot;, &quot;score&quot;: &quot;9.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;aimat-mlpot&quot;}], &quot;evidence&quot;: &quot;针对NiTi马氏体的高维神经网络势&quot;}">A high-dimensional neural network potential for finite-temperature phenomena in NiTi martensite</a>

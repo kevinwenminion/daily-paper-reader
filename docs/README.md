@@ -6,35 +6,24 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-24
-- 运行时间：2026-07-24 21:27:23 UTC
+- 最新运行日期：2026-07-25
+- 运行时间：2026-07-25 21:04:14 UTC
 - 运行状态：成功
-- 本次总论文数：5
-- 精读区：3
-- 速读区：2
+- 本次总论文数：1
+- 精读区：0
+- 速读区：1
 
 ### 今日简报（AI）
-今日精读两篇9分顶刊，聚焦NiTi马氏体高温神经网络势与二维TMD合金光学性质预测；速读材料XRD自动分析平台与锂电池放电代理模型。最值得关注：基于物理信息采样实现高精度光学性质预测，以及面向有限温度相变的高维势函数方法。建议普通读者可由此切入机器学习在材料模拟与性能预测中的前沿应用。
-- 详情：[/202607/24/README](/202607/24/README)
+今日重点速读了一篇利用对齐驱动双向多模态学习实现X射线吸收光谱分析的论文。该研究提出Uni-XAS模型，通过跨模态对齐显著提升了光谱预测与解析的精度。建议对AI+材料科学感兴趣的读者关注其多模态融合思路，可尝试应用于相似谱学数据分析。
+- 详情：[/202607/25/README](/202607/25/README)
 
 ### 精读区论文标签
-1. [A high-dimensional neural network potential for finite-temperature phenomena in NiTi martensite](/202607/24/2607.20681v1-a-high-dimensional-neural-network-potential-for-finite-temperature-phenomena-in-niti-martensite)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：针对NiTi马氏体的高维神经网络势
-2. [Machine learning based prediction of optical properties in two-dimensional Mo-W-S-Se-Te transition-metal dichalcogenide alloys through physics-informed sampling](/202607/24/2607.21246v1-machine-learning-based-prediction-of-optical-properties-in-two-dimensional-mo-w-s-se-te-transition-metal-dichalcogenide-alloys-through-physics-informed-sampling)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：机器学习预测二维过渡金属硫族化合物合金的光学性质
-3. [Graph Neural Network Force Fields (GPTFF-mol) for Organic Molecules from Optimization Trajectories (OpenGEM26)](/202607/24/2607.21369v1-graph-neural-network-force-fields-gptff-mol-for-organic-molecules-from-optimization-trajectories-opengem26)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：用于有机分子的图神经网络力场
+- 本次无精读推荐。
 
 ### 速读区论文标签
-1. [MatDiffract: A Material-Informed Automated Analysis Platform for X-ray Powder Diffraction](/202607/24/2607.20880v1-matdiffract-a-material-informed-automated-analysis-platform-for-x-ray-powder-diffraction)  
+1. [Uni-XAS: Alignment-Driven Bidirectional Multimodal Learning for X-ray Absorption Spectroscopy](/202607/25/2607.20906v1-uni-xas-alignment-driven-bidirectional-multimodal-learning-for-x-ray-absorption-spectroscopy)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：用于材料科学中X射线衍射自动分析的人工智能
-2. [AI-Driven Surrogate Models for Predicting Electrode-Scale Discharge Behavior in Lithium-Ion Batteries](/202607/24/2607.20577v1-ai-driven-surrogate-models-for-predicting-electrode-scale-discharge-behavior-in-lithium-ion-batteries)  
-   标签：评分：6.0/10、query:aimat-mlpot
-   evidence：深度学习代理模型预测电池放电行为
+   evidence：面向XAS光谱与结构双向推理的多模态学习
 
 
 <div class="dpr-home-promo-card">

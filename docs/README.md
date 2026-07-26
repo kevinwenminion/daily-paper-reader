@@ -6,24 +6,29 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-25
-- 运行时间：2026-07-25 21:04:14 UTC
+- 最新运行日期：2026-07-26
+- 运行时间：2026-07-26 20:24:33 UTC
 - 运行状态：成功
-- 本次总论文数：1
-- 精读区：0
-- 速读区：1
+- 本次总论文数：3
+- 精读区：1
+- 速读区：2
 
 ### 今日简报（AI）
-今日重点速读了一篇利用对齐驱动双向多模态学习实现X射线吸收光谱分析的论文。该研究提出Uni-XAS模型，通过跨模态对齐显著提升了光谱预测与解析的精度。建议对AI+材料科学感兴趣的读者关注其多模态融合思路，可尝试应用于相似谱学数据分析。
-- 详情：[/202607/25/README](/202607/25/README)
+今日精读1篇语言模型解读材料科学机制，速读2篇涉及贝叶斯筛选与物理增强神经网络。最值得关注：开放权重语言模型如何表征材料科学机理；物理增强神经网络(iPANN/fPANN)用于本构建模的不确定性量化。建议普通读者重点关注语言模型在科学发现中的可解释性，以及物理约束对模型可靠性的提升。
+- 详情：[/202607/26/README](/202607/26/README)
 
 ### 精读区论文标签
-- 本次无精读推荐。
+1. [Reading and Steering Representations of Materials-Science Mechanisms in an Open-Weight Language Model](/202607/26/2607.20058v1-reading-and-steering-representations-of-materials-science-mechanisms-in-an-open-weight-language-model)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：利用大语言模型表示和操控材料科学机制，直接关联材料科学中的人工智能研究
 
 ### 速读区论文标签
-1. [Uni-XAS: Alignment-Driven Bidirectional Multimodal Learning for X-ray Absorption Spectroscopy](/202607/25/2607.20906v1-uni-xas-alignment-driven-bidirectional-multimodal-learning-for-x-ray-absorption-spectroscopy)  
+1. [Deep Adaptive Bayesian Screening](/202607/26/2607.16927v1-deep-adaptive-bayesian-screening)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：面向XAS光谱与结构双向推理的多模态学习
+   evidence：高维离散设计空间的自适应贝叶斯实验设计
+2. [Interval and fuzzy physics-augmented neural networks (iPANN and fPANN) for uncertainty quantification and propagation in constitutive modeling](/202607/26/2607.20339v1-interval-and-fuzzy-physics-augmented-neural-networks-ipann-and-fpann-for-uncertainty-quantification-and-propagation-in-constitutive-modeling)  
+   标签：评分：7.0/10、query:aimat-mlpot
+   evidence：用于材料属性预测的机器学习，考虑不确定性
 
 
 <div class="dpr-home-promo-card">

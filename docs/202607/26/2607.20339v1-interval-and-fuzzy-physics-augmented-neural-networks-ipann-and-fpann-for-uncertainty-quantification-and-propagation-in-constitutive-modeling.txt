@@ -1,0 +1,1363 @@
+Title: Interval and fuzzy physics-augmented neural networks (iPANN and fPANN) for uncertainty quantification and propagation in constitutive modeling
+
+URL Source: https://arxiv.org/pdf/2607.20339v1
+
+Published Time: Thu, 23 Jul 2026 01:16:01 GMT
+
+Number of Pages: 41
+
+Markdown Content:
+# Interval and fuzzy physics-augmented neural networks (iPANN and fPANN) for uncertainty quantification and propagation in constitutive modeling 
+
+Somesh Pratap Singh a, Govinda Anantha Padmanabha b, Jingye Tan d, Steven Yang a,Reese E. Jones c, D. Thomas Seidl c, Nikolaos Bouklas a,e, ∗
+
+> aSibley School of Mechanical and Aerospace Engineering, Cornell University, Ithaca, 14853, NY, USA
+> bEcole Polytechnique Federale de Lausanne (EPFL), 1015, Lausanne, Switzerland
+> cSandia National Laboratories, Livermore, 94551, CA, USA
+> dDepartment of Aerospace and Mechanical Engineering, University of Southern California, Los Angeles, 90007, CA, USA
+> ePasteur Labs, Brooklyn, 11205, NY, USA
+
+Abstract 
+
+Constitutive modeling under uncertainty remains a central challenge for reliable mechanics simulations, particularly when the available stress–deformation data are sparse, noisy, or heterogeneous. We propose interval and fuzzy physics-augmented neural networks (iPANNs and fPANNs) for uncertainty-aware hyperelastic constitutive modeling. iPANNs learn sparse lower, mean, and upper free energy density branches whose stresses, obtained by automatic differentiation, ultimately enclose noisy stress observations. In contrast to this determinis-tic interval description, fPANNs embed the learned iPANN branches into a fuzzy-set rep-resentation through α-cut interpolation, yielding a nested family of admissible responses. iPANNs and fPANNs encode mechanistic constraints –preserving objectivity, consistency and promoting polyconvexity– and, smoothed L0 regularization promotes interpretable en-ergy representations. The bound models are trained through a two-stage transfer-learning procedure in which a sparse mean constitutive response is learned first and then fine-tuned into lower and upper energy branches. We evaluate the framework on synthetic isotropic hy-perelastic data with heteroscedastic noise, varying random realizations, shifted noise means, and varying noise magnitudes. The results show that the learned bounds enclose noisy stress observations while generalizing to the test set. Further, we examine the propagation of un-certainty through the mean, upper and lower bound predictions of the learned iPANN models in a finite element setting. The proposed framework provides a compact, physics-consistent route for distribution-free aleatoric uncertainty quantification in hyperelastic constitutive modeling, and propagation in downstream finite element simulations. 
+
+Keywords: Uncertainty quantification, constitutive modeling, interval analysis, fuzzy set theory, input convex neural networks arXiv:2607.20339v1 [cs.LG] 22 Jul 2026 1. Introduction 
+
+Constitutive laws have been one of the most important areas of research in mechanics since they form the link between the kinematics and the response of the material to an applied load; however, developing new constitutive laws, calibrating their parameters, and quantifying the uncertainty of the data and the developed models has been a persistent bottleneck for a multitude of reasons. Traditionally, constitutive laws have been developed using phenomenological approach where one poses an ansatz based on experimental obser-vations and physical requirements. The parameters in the ansatz, as well as the form of the ansatz itself, are selected to characterize the material response [1, 2, 3]. Phenomenolog-ical modeling is the archetype of data-driven modeling in mechanics. However, in order to capture the response in complex three-dimensional deformation states, constitutive laws are commonly cast in terms of tensor-valued tensor functions between stress and various defor-mation metrics [4, 5]. Due to the limitations associated with traditional mechanical testing, macroscopically homogeneous deformations are only accessible for a limited set of load cases (uniaxial, biaxial, hydrostatic, simple shear, etc.), which restricts access to data that are uniformly sampled in deformation or deformation-rate space. An individual loading curve might have many of data points, but in strain or strain-rate space, which are inherently high-dimensional, only a few states are accessible, providing limited observations. The field of continuum mechanics traditionally enabled closing the gap between limited experimental observations (as is common in mechanical testing) and constitutive laws that proficiently generalize to complex loading conditions. This approach is similar to current trends in improving machine learning (ML) approaches under sparse observations utilizing implicit biases. Beyond simple mechanical testing, maturation of imaging technologies enabled the acquisition of full-field observations and the detailed analysis of heterogeneous deformation states. Such approaches include digital image correlation (DIC) [6, 7], digital volume cor-relation [8], X-ray computed tomography [9], and X-ray diffraction more broadly [10], pro-viding richer information for mechanical testing and more complex datasets. Consequently, verification and validation of constitutive laws in more complex loading states exhibiting heterogeneous deformations have also been intense topics of investigation. Finite element method updating (FEMU) [11, 12] and the virtual fields method (VFM) [13] have been the major approaches for parameter calibration in this context. Overall, the paradigm of phe-nomenological modeling often remains a bottleneck in engineering practice, as constitutive modeling remains a heavily user-controlled iterative process without tools for automation. Data-driven approaches for constitutive modeling [14] had emerged multiple decades ago [15], but until recently were limited to simple problems and often only uniaxial re-sponses. Data-driven constitutive modeling approaches can be broadly classified into two categories: machine learning (ML)-based and model-free approaches. Model-free approaches remove the need for an explicit constitutive model by directly embedding material observa-tions into the solution of the governing equations. The dataset is itself a part of the solution   
+
+> ∗corresponding author: Nikolaos Bouklas
+> Email address: nbouklas@cornell.edu (Nikolaos Bouklas)
+
+2for model-free approaches [16, 14]. On the other hand, supervised ML-based approaches aim to learn the map between input-output pairs (e.g., strain-stress space). One of the most widely used approaches to learn the input-output map is neural networks (NNs), where their property as universal approximators [17, 18, 19, 20, 21] is utilized. This implies that NNs fit even highly non-linear maps, but this often comes with a large number of parameters, which can cause overfitting and limit interpretability. Several solutions for this problem, pertaining to both interpretability and encoding physics, have been proposed. A common approach for enabling interpretability in data-driven learning is through symbolic regression [22, 23, 24] and sparse regression [25, 26]. Physical priors can be encoded as soft constraints, as in the case of physics-informed neural networks (PINNs) [27], where a PDE residual is evaluated in the loss, or by choosing an architecture that strongly enforces a physical constraint such as in the case of input convex neural networks (ICNNs) [28]. Analogous embedding of physical or mechanistic priors in neural networks used for constitutive modeling is commonly termed as physics-augmented neural networks (PANNs). In the context of constitutive modeling, there has been an array of works focusing on learning from labeled data pairs from experimental and synthetic sources. They have enabled: ensuring objectivity and enforcing symmetry classes for anisotropy [29, 30, 31], polyconvexity [32, 33] and monotonicity [34] in the con-text of hyperelasticity, as well as: enforcing mechanistic constraints 1 for elastoplasticity [35] and inelasticity more broadly [36, 37, 38]. Regarding learning from complex imaging data, EUCLID [39] showed that isotropic hyperelastic constitutive laws can be developed using unsupervised learning within a virtual fields framework using only full-field displacements and global force data quantities readily obtained from DIC and standard mechanical testing, without labeled stress observations. By enforcing equilibrium in the bulk and on the loaded boundary, and selecting sparse combinations from a library of candidate free energy density terms, the method recovers compact, interpretable model forms rather than black-box sur-rogates. More recent works instead combine ML with adjoint methods closer to the FEMU paradigm [40, 12, 11]. For safe and trustworthy implementations in engineering applications and downstream simulations, deterministic point predictions from NNs are not sufficient and uncertainty quantification is required [41, 42, 43, 44, 45, 46]. Both aleatoric and epistemic uncer-tainty [47] are important in the study of engineering systems. Epistemic uncertainty arises due to inadequate knowledge, common in model form error. Aleatoric uncertainty is in-nate to the data distribution, is irreducible, and commonly emanates from the presence of noise. Uncertain parameters in most applications are modeled through probability distri-butions and stochastic fields [48, 49, 50, 51]. Particularly for deep learning applications, Bayesian Neural Networks (BNNs) are one of the most widely used uncertainty quantifica-tion methods [52, 53, 54, 55]. They provide a probabilistic treatment of model parameters rather than estimating a single deterministic set of weights. BNNs follow a Bayesian for-mulation [56] where prior distributions are assigned to the network weights and biases, and training updates these priors into posterior distributions conditioned on the observed data. 
+
+> 1We refer to mechanistic constraints as a separate class, as opposed to physical constraints, as they encode specific knowledge for the materials system rather than enforcing physical laws directly.
+
+3Predictions are then obtained by marginalizing over the posterior distribution of the model parameters, which enables the predictive distribution to reflect both the expected response and the associated uncertainty [53, 57]. This framework is especially useful for quantifying epistemic uncertainty, since uncertainty in the weights naturally captures the effect of lim-ited or sparse training data, while appropriate likelihood formulations can also account for aleatoric uncertainty [58]. In practice, exact Bayesian inference in deep neural networks is generally intractable due to the number of parameters, so approximate inference techniques such as variational inference, Monte Carlo dropout, and related sampling-based methods are commonly employed [59, 54, 60]. Other methods which combine ensembles and opti-mization, such as Stein variational descent [61], have also shown to be effective with neural networks [62]. A detailed review of uncertainty quantification methods in deep learning can be found in Ref. [63]. Much of the work on uncertainty quantification for constitutive laws focuses on epis-temic uncertainty [64, 62] and model-form error [65]. In Bayesian inverse problems arising from parameter identification, [66] developed uncertainty-quantification variational autoen-coders (UQ-VAEs) that approximate the posterior mean and covariance of model parame-ters from noisy observational data, with a reformulated training objective that reduces cost in high-dimensional parameter spaces and supports forward uncertainty propagation. For history-dependent responses, Ref. [67] extended data-driven constitutive modeling to single-and multi-fidelity datasets while jointly estimating mean predictions, epistemic model un-certainty, and aleatoric noise through hierarchical Bayesian recurrent networks. By disen-tangling these uncertainty sources, such approaches aim to improve the trustworthiness of learned constitutive maps when training data differ in fidelity, cost, and noise content. Com-plementing fully Bayesian treatments, Ref. [68] introduced a distribution-free probabilistic framework for physics-constrained anisotropic constitutive models based on conformalized quantile regression over tensor-valued stress fields. Within a polyconvex, thermodynamically consistent invariant formulation, the method learns conditional stress quantiles directly from data and can be applied in a plug-and-play manner to endow existing deterministic models with prediction intervals, without Monte Carlo sampling at inference. Unlike quantile-based probabilistic intervals, interval- and fuzzy-set formulations provide deterministic enclosures on admissible constitutive response and are particularly suited when bounds, rather than conditional distributions, are the quantity of interest. Other probabilistic approaches gener-ally require knowledge about the underlying probability distribution that is not always easy to obtain in mechanics applications due to data sparsity. For this reason, non-probabilistic approaches like interval analysis [69, 70] and fuzzy-set theory [71, 72] remain an alternative to Bayesian approaches. Interval analysis is particularly useful when deterministic bounds on the inputs are available, a case commonly utilized in engineering practice when develop-ing for worst case scenarios. Furthermore, one typically appeals to fuzzy set theory in cases where uncertainty bounds are prescribed in lexical terms. Parallel to these non-probabilistic uncertainty models, interval and fuzzy information has also been propagated directly within finite element frameworks. Ref. [73] formulated an interval finite element method for structures with bounded uncertain parameters, combining conventional assembly and solution procedures with interval arithmetic to obtain enclosures 4on structural responses when probabilistic input descriptions are difficult to validate from limited data. For fuzzy input and model parameters, Möller et al. [74] developed a general fuzzy structural analysis strategy based on α-level optimization: at each membership level, fuzzy inputs are reduced to crisp feasible sets, and extrema of the structural response are obtained by optimization around an arbitrary deterministic solution, including geometrically and physically nonlinear finite element algorithms. This nesting of deterministic solves at successive α-levels provides a practical route to fuzzy finite element propagation and anticipates later extensions in which uncertain material laws themselves are represented by data-driven or physics-augmented neural network models [75]. Early work by Freitag et al. [76] introduced recurrent neural networks for fuzzy data to identify and predict uncertain structural response dependencies from monitoring records represented as fuzzy time series. By discretizing membership functions through α-cuts and training networks to map deterministic or fuzzy inputs onto fuzzy outputs, this model-free approach enables data-driven identification of time-dependent stress-strain behavior from imprecise experimental or numerically generated sequences without prescribing a closed-form constitutive law. More recently, physics-augmented neural networks have also been extended to polymorphic uncertainty quantification in multiscale hyperelastic analyses [77]. In that framework, uncertain mesoscale descriptors enter as additional inputs to a hyper-elastic PANN surrogate of representative volume element response, while the deformation invariants remain the mechanical inputs. This separates the uncertain-parameter domain from the deformation domain and enables efficient pre-training and sampling-based propa-gation of aleatoric, epistemic, and interval-valued quantities without repeated nested finite element solvers. These developments illustrate that encoding mechanistic structure in the network architecture can reduce data demand while keeping uncertainty propagation com-patible with downstream finite element deployment. In this work, we propose a framework for uncertainty quantification on isotropic hypere-lastic constitutive responses from noisy stress-deformation data. We first construct interval physics-augmented neural networks (iPANNs), which extend physics-augmented learning and sparse input-convex representations [29, 78, 79] to learn separate lower, mean, and upper free energy density branches together with bound-aware losses that certify stress en-closures of the observables. Building on these iPANN endpoints, we then introduce fuzzy physics-augmented neural networks (fPANNs), which interpolate the three learned branches through convex α-cut constructions [80, 81]. Whereas iPANNs provide a deterministic in-terval model anchored at the extreme lower and upper bounds, fPANNs furnish a graded, membership-based description that allows less conservative enclosures when a practitioner specifies an intermediate α. Both representations retain compact analytic forms and can be incorporated seamlessly in a finite element setting for uncertainty propagation. We evalu-ate our proposed approach on synthetic stress–deformation data corrupted by multiplicative heteroscedastic noise as a baseline case and controlled perturbations of the noise seed, mean, and standard deviation on top of the baseline case. The remainder of this paper is organized as follows. Section 2 introduces the theoreti-cal and computational preliminaries required for the proposed framework, including inter-val analysis, fuzzy set theory and α-cuts, hyperelastic constitutive modeling, and interval 5concepts in hyperelasticity. Section 3 presents the proposed fuzzy physics-augmented neu-ral network framework for isotropic hyperelasticity, starting from preliminaries for input-convex neural networks and smoothed L0 sparsification. We first formulate interval-valued free energy density functions and the associated stress enclosures, then introduce interval physics-augmented neural networks for learning lower and upper constitutive bounds, and finally construct fuzzy constitutive representations through membership-based interpola-tion of the learned energy branches. Section 4 describes the numerical experiments used to illustrate and evaluate the approach, including the synthetic data-generation procedure, the two-stage transfer-learning strategy, stress and energy-bound predictions under different noise models, and the resulting α-cut membership analysis. Section 5 concludes the paper by summarizing the main findings and discussing the implications of the proposed framework for uncertainty-aware constitutive modeling and downstream finite element simulations for uncertainty propagation. 
+
+2. Preliminaries 
+
+2.1. Interval analysis 
+
+An interval x is defined by its lower and upper bounds, 
+
+x = [ x, x ], x ≤ x, (1) and represents the set of all real numbers x such that x ∈ [x, x ]. For two intervals x = [ x, x ]
+
+and y = [ y, y ], interval addition is defined as 
+
+x + y = [ x + y, x + y], (2) Scalar multiplication by a real number α ∈ R is defined as: 
+
+αx =
+
+([αx, αx ], α ≥ 0,
+
+[αx, αx ], α < 0. (3) Furthermore, if a function g is a strictly increasing function, then its interval extension can be obtained by evaluating g at the interval endpoints. Using this interval arithmetic, one can construct the output from a neural network layer using 
+
+y = g(wx + b) (4) for a scalar neuron with weight w, bias b, and activation function g [69, 70, 82]. 
+
+2.2. Fuzzy set theory and α-cuts 
+
+Fuzzy set theory provides a further generalization of interval analysis by relaxing the binary notion of set membership. Instead of declaring whether a value belongs to a set or not, a membership function μ assigns each element x ∈ X a degree of membership between 0 and 1 [71, 72]: 
+
+μ : X → [0 , 1] , x 7 → μ(x). (5) 6When μ(x) = 1 , the element x has full membership in the fuzzy set, whereas μ(x) = 0 
+
+indicates no membership. A fuzzy set on the domain X can therefore be represented by the pair (X, μ ). This framework is well suited to describing “informal” or linguistic uncertainty, for which only qualitative statements such as “likely”, “typical”, or “extreme” are available. The link between fuzzy sets and interval analysis is made through the concept of α-cuts .For a given level α ∈ (0 , 1] , the α-cut of the fuzzy set (X, μ ) is defined as 
+
+Xαf = {x ∈ X | μ(x) ≥ α}. (6) If the fuzzy set is convex, each α-cut reduces to a closed interval 
+
+Xαf = [ XαL , X αU ], (7) where XαL and XαU denote the lower and upper bounds of the α-cut, respectively. The full fuzzy set can be reconstructed from a nested family of intervals 
+
+{[XαL , X αU ]} ∀ α ∈ (0 , 1] . (8) In many applications one works with a small number of representative α-levels. A com-mon choice is a triangular membership function whose peak ( α = 1 ) corresponds to the most likely (or nominal) state and whose base ( α → 0+) spans the full range of admissible uncertainty [80]. 
+
+2.3. Preliminaries for Hyperelasticity 
+
+For a body occupying the reference configuration Ω0, kinematics define its motion from the reference configuration to the current configuration Ω. Let X ∈ Ω0 denote the material position vector and x ∈ Ω its spatial counterpart. The deformation gradient tensor is then defined as F(X) = ∂x/∂ X, which locally characterizes the mapping of material line elements from the reference configuration to their deformed counterparts in the current configuration. A hyperelastic material possesses a Helmholtz free energy density function Ψ, defined per unit reference volume. If Ψ depends only on the deformation gradient tensor F or on some derived strain tensor, then the Helmholtz free energy function is called a free energy density. For homogeneous hyperelastic materials, the free energy density depends only upon the deformation gradient tensor F, i.e. Ψ = Ψ( F). The associated response function of a hyperelastic material is of the form: 
+
+P = ∂Ψ
+
+∂F (9) where P denotes the first Piola–Kirchhoff stress tensor. The following are some common assumptions and restrictions on the free energy density Ψ: (a) Ψ is a continuous function of F that vanishes in the reference configuration, Ψ( I) = 0 and increases with deformation, 
+
+Ψ( F) ≥ 0; (b) Ψ has no other stationary points in strain space, and satisfies the growth conditions i.e. Ψ( F) → ∞ as det( F) → 0+ or det( F) → ∞ and (c) Ψ( F), as generated by the motion x = χ(X, t ) is objective Ψ( F) = Ψ( QF ) ∀Q ∈ Orth +. If the material is isotropic, one can combine objectivity with polar decomposition to show that the scalar-valued isotropic tensor function Ψ is invariant with the right Cauchy-Green tensor C = FT F.Using a representation theorem for invariants, one can express this Ψ in terms of principal invariants I1, I 2, I 3 of C [83, 5]. 72.4. Interval Hyperelasticity and Stress Enclosure 
+
+It is important to note that experimental observables are mostly deformation- and force-like quantities (with stresses and strains being tensor-valued), but hyperelasticity is based on assuming a scalar-valued free energy density function. As such, it is convenient to develop an interval representation in terms of the free energy density function, but the difficulty lies in connecting it to the stress observables and the corresponding stress enclosure. Effectively, the interval representation is developed for an unseen quantity. We introduce an interval-valued free energy density representation :
+
+Ψ(F) = [Ψ( F), Ψ( F)] (10) where Ψ(F) is an interval where the upper and lower bounds characterizing the interval are functions of F, which is a deterministic quantity in the ensuing formulation. The interval structure on Ψ induces a corresponding stress enclosure for the second Piola-Kirchhoff stress tensor: 
+
+S(F) ∈ S (F) := 
+
+
+
+2∂Ψ(F)
+
+∂C | Ψ = [Ψ , Ψ] 
+
+
+
+. (11) The second Piola-Kirchhoff stress corresponding to Ψ and Ψ is an interval quantity, 
+
+S = 2 ∂Ψ
+
+∂C, S = 2 ∂Ψ
+
+∂C. (12) The overline and underline for the stress tensor do not yet refer to an ordering for the stress tensor itself, but for now just indicate that the stress tensor is defined corresponding to the lower and upper free energy density branches. The Green Lagrange strain tensor is defined as E = 12 (C − I), has principal values 
+
+Ei = 12 (λ2 
+
+> i
+
+− 1) , i = 1 , 2, 3 (in terms of the principal stretches λi)and 
+
+E =
+
+> 3
+
+X
+
+> i=1
+
+EiAi ⊗ Ai (13) is its spectral decomposition, where Ai are the corresponding orthonormal eigenvectors. For an isotropic hyperelastic material, the stored energy may be written as bΨ( E1, E 2, E 3).Moreover, the second Piola stress tensor S is coaxial with E. Hence 
+
+S = ∂Ψ
+
+∂E =
+
+> 3
+
+X
+
+> i=1
+
+SiAi ⊗ Ai, (14) where 
+
+Si = ∂ bΨ
+
+∂E i
+
+. (15) 8We assume that the reference configuration E = 0 is stress-free for the lower-bound, mean, and upper-bound responses. That is, 
+
+S(0) = S(0) = S(0) = 0 (16) underlying the fact that, in this construction, the stress enclosure collapses at that defor-mation state. Equivalently, in principal stress and strain notation, 
+
+Si({Ej = 0 }) = Si({Ej = 0 }) = Si({Ej = 0 }) = 0 , i, j = 1 , 2, 3. (17) We also choose arbitrary additive constants in the strain-energy densities so that all three energies vanish at the reference configuration: 
+
+Ψ( 0) = Ψ( 0) = Ψ( 0) = 0 . (18) This energy normalization is independent of the stress-free reference assumption, since stresses are derivatives of the energy and are unchanged by additive constants. 
+
+Proposition 1. In the context of isotropic hyperelasticity, let Ψ, Ψ, Ψ be free energy density functions with associated principal second Piola-Kirchhoff stresses Si, S i, S i. For any given admissible strain state E, if the following ordering holds for the principal stresses 
+
+sign( Ei)Si ≤ sign( Ei)Si ≤ sign( Ei)Si, i = 1 , 2, 3, (no sum) (19) 
+
+where sign( ) passes the sign of the scalar quantity in parentheses, then the following ordering holds for the free energy density branches 
+
+Ψ( E) ≤ Ψ( E) ≤ Ψ( E). (20) 
+
+Proof. Consider a loading path from the zero stress reference configuration E = 0 to any strain state E, following a ray in strain space as 
+
+ˆE(γ) = γE, γ ∈ [0 , 1] , (21) with γ monotonically non-decreasing. The increment of the principal strain along the ray is 
+
+dγ Ei = dE i
+
+dγ dγ (22) Along this ray, the following holds for the principal strain values and their corresponding increments 
+
+sign( dγ Ei) = sign( Ei). (23) The corresponding increment of the free energy density along the ray is 
+
+dγ Ψ = 
+
+> 3
+
+X
+
+> i=1
+
+Si dγ Ei, (24) 9and similarly for Ψ and Ψ. Assuming that sign( Ei)Si ≤ sign( Ei)Si ≤ sign( Ei)Si, i = 1 , 2, 3(no sum) for any admissible strain state E, two cases follow: i) If λi ≥ 1, then Ei ≥ 0 and, by assumption, 0 ≤ Si ≤ Si ≤ Si with dγ Ei ≥ 0, so 
+
+Si dγ Ei ≤ Si dγ Ei ≤ Si dγ Ei. (25) ii) If λi ≤ 1, then Ei ≤ 0 and Si ≤ Si ≤ Si ≤ 0 with dγ Ei ≤ 0, which again yields 
+
+Si dγ Ei ≤ Si dγ Ei ≤ Si dγ Ei. (26) As the inequalities from Eqs, 25-26 align, summing over i for any admissible path gives 
+
+dγ Ψ ≤ dγ Ψ ≤ dγ Ψ. (27) Integration along the path from γ = 0 (at the reference E = 0) to γ = 1 , and invoking path independence yields 
+
+Ψ( E) − Ψ( 0) ≤ Ψ( E) − Ψ( 0) ≤ Ψ( E) − Ψ( 0). (28) As a common energy datum was assumed at the reference state per Eq. 18, then the energy ordering is retrieved 
+
+Ψ( E) ≤ Ψ( E) ≤ Ψ( E). (29) The differential inequalities in Eq. 27 are established along a particular path in strain space, but the resulting energy bounds follow from path independence for any path. Since the response is hyperelastic, dΨ = S : dE is an exact differential. Thus, to bound the energy at a given state E, it is sufficient to choose any convenient admissible path from the reference state to E. Along this comparison path, the stress–strain sign assumptions preserve the ordering of the principal incremental work terms. Integrating along this path then yields bounds on Ψ( E), which hold for the endpoint state by path independence. As such, an interval enclosure for the principal values of the second Piola-Kirchhoff stress tensor is defined as: 
+
+Si ∈ S i = [sign( Ei)Si, sign( Ei)Si], i = 1 , 2, 3, no sum (30) following the interval of the free energy densities (with a common datum), as defined in Eq. 10. It is important to establish the function of the stress ordering in Eq. 30 in this interval construction. In this setting, the stresses are noisy observables paired with a corresponding strain state. As such, Eq. 30 establishes that for every principal second Piola-Kirchhoff stress the upper and lower bounds of the interval enclosure flip as the corresponding prin-cipal Green-Lagrange strain changes sign 2. The corresponding free energy ordering of Eq.        
+
+> 2For positive Eithe upper bound Sibounds the data from above, whereas for negative Eiit bounds the data from below, and the dual statement holds for the lower bound Si.
+
+10 20 enables the consistent interval construction of Eq. 10 that matches the ordering of stress observations. Matching interval bounds of observed stresses to free energy density interval bounds is central to obtaining an interval hyperelasticity formulation that learns the un-certainty of the free energy and propagates it to the observable, which in this case is the stress-strain pair. Furthermore, we propose a data-driven scheme for learning the interval free energy density and its extension to the fuzzy setting 
+
+3. Interval and Fuzzy Physics Augmented Neural Networks for Hyperelasticity 
+
+Towards an ML-enabled construction for interval and fuzzy hyperelasticity, this section summarizes constructions for enhancing implicit biases for structure and sparsity of neural networks. In the following, Interval and Fuzzy Physics Augmented Neural Networks (fPANN and iPANN) are introduced. 
+
+3.1. Polyconvexity and Input Convex Neural Networks (ICNN) 
+
+Polyconvexity is a sufficient (not necessary) condition on the free energy density function 
+
+Ψ( F) which guarantees weak lower semicontinuity of the energy functional and thus the exis-tence of minimizers under appropriate growth conditions. The potential Ψ( F) is polyconvex if it can be written as a convex function of F and all of its minors [84]. Polyconvexity is a convenient restriction to pose so that the material exhibits a stable response, thus avoiding the issues that might manifest during finite element analysis [40]. ICNNs are a class of neu-ral networks that are guaranteed to be convex in their inputs by construction [28]. In the context of isotropic hyperelasticity, ICNNs can represent a potential which is convex in the inputs I1, I2 and J (J = √I3). Achieving polyconvexity in an NN setting requires additional structural considerations beyond input convexity. More extensive discussions are included in several works regarding the translation of this condition in an NN setting [32, 34, 85]. For a k-layer fully connected ICNN, the architecture is defined as 
+
+zi+1 = gi
+
+
+
+W (z) 
+
+> i
+
+zi + W (y) 
+
+> i
+
+y + bi
+
+
+
+, f (y; θ) = zk, (31) for i = 0 , . . . , k − 1, where zi denotes the layer activations (with z0, W (z)0 ≡ 0), and θ =
+
+{W (y)0: k−1, W (z)1: k−1, b0: k−1} denotes the set of trainable parameters. The function f is convex in y provided that the weights W (z)1: k−1 are constrained to be non-negative and the activation functions gi are convex and non-decreasing. Pass-through layers, which directly connect the input y to hidden units in deeper layers via the W (y) 
+
+> i
+
+terms, are essential for ICNNs. In standard feedforward networks, previous hid-den units can always be mapped to subsequent layers with identity mappings. However, for ICNNs, the non-negativity constraint on W (z) weights restricts the use of hidden units that mirror the identity mapping. Passthrough layers explicitly provide direct connections from input to deeper layers, enabling the network to learn more expressive convex functions [28]. 11 3.2. Smoothed L0 sparsification 
+
+Regularization is commonly used to improve the robustness of neural network models and mitigate overfitting. A widely used choice is L2 regularization, which penalizes the squared magnitude of the parameters, thereby suppressing large parameter values and encouraging smoother learned responses. However, because this penalty continuously shrinks parameters rather than driving them exactly to zero, it does not typically produce sparse models. While 
+
+L1 regularization is often used to encourage sparsity by penalizing the absolute magnitude of the parameters, it penalizes parameter magnitudes rather than explicitly counting the number of nonzero parameters, as in L0 regularization. For neural network-based consti-tutive laws, explicit sparsification is important because a large number of active trainable parameters can reduce the interpretability of the learned material response, even when the model achieves high predictive accuracy. We therefore employ a smoothed L0 regularization strategy to obtain a compact representation with fewer active parameters while preserving predictive accuracy [86, 87, 78]. Because the exact L0 penalty is non-differentiable, a dif-ferentiable relaxation is required for gradient-based training. We adopt the hard-concrete stochastic gating framework of Louizos et al. [86], where each trainable parameter is re-parameterized as 
+
+θ = ¯θ ⊙ z, (32) Here z is defined as follows: 
+
+z = min  1, max( 0, s), s = s(ζ − γ) + γ1, (33) and 
+
+s = sig 
+
+log u − log(1 − u) + log α
+
+β
+
+
+
+. (34) Here ⊙ denotes the Hadamard product, and u ∼ U (0 , 1) is sampled element-wise from a uniform distribution. The gate parameters are initialized by sampling log α ∼ N (0 , σ ), with 
+
+σ = 0 .01 . The corresponding differentiable approximation of the expected L0 penalty is 
+
+L0(θ) = 
+
+> |θ|
+
+X
+
+> j=1
+
+sig 
+
+
+
+log αj − β log −γζ
+
+
+
+. (35) When stochastic hard-concrete gates are used, the gate vector z is random, so the expected data-fitting loss can be approximated using Monte Carlo sampling: 
+
+Ltotal (¯θ, α) = 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+Ldata 
+
+ ¯θ ⊙ z(m) + λ0L0(θ). (36) Here, M is the number of Monte Carlo samples, z(m) is obtained from the hard-concrete sampling procedure, and λ0 controls the strength of the sparsity penalty. The constants are set to γ = −0.1, ζ = 1 .1, and β = 23 as in [78, 64], We use a hybrid gating strategy, i.e., stochastic hard-concrete sampling is used only in the first training forward pass. Subsequent training and inference passes use deterministic mean gates. This improves training stabil-ity and speeds up training convergence while retaining a sparsity-promoting regularization effect. 12 3.3. iPANNs 
+
+iPANNs are constructed to learn free energy density bounds from limited noisy stress-strain observations and aim to propagate the uncertainty bounds in unseen loading states. Starting from the definition of the free energy density interval Eq. 10 and principal stress in-terval Eq. 30, and the consistent physics augmentation of neural networks for hyperelasticity as discussed in Section 3.1, we introduce iPANNs in the following as an extension of interval neural networks [82]. iPANNs are networks that, given a deformation state, can predict the free energy density interval Eq. 10 and the corresponding principal stress interval Eq. 30, The learned interval-valued free energy density representation is denoted as: 
+
+Ψ∗(F) ∈ Ψ∗(F) = [Ψ ∗(F), Ψ∗(F)] (37) where ( ) ∗ denotes a learned quantity. The corresponding enclosure for the principal values of the second Piola-Kirchhoff stress tensor can be calculated through automatic differentia-tion [88]: 
+
+S∗ 
+
+> i
+
+∈ S ∗ 
+
+> i
+
+= [sign( Ei)S∗ 
+
+> i
+
+, sign( Ei)S∗ 
+
+> i
+
+], i = 1 , 2, 3.. (no sum ) (38) Following common approaches for training PANNs [14], the learned model would aim to minimize MSE across observations, leading to a prediction that is an approximation to the mean response. As the noisy observables here are stresses, the learned interval models should provide predictions that enforce the physics augmentations as discussed in Sec. 3.1, and at the same time approximate the bounds of the interval from Eq. 38. Additionally, to enable interpretability, we also aim to promote sparsity in network parameters [78] as discussed in Sec. 3.2. This is achieved, separately for the upper and the lower bound of the energy, through the following loss function structure: 
+
+L = λmse Lmse + λsparse Lsparse + λbound Lbound (39) Here Lmse is the mean squared error (MSE) evaluated on stresses , computed over the train-ing dataset {(xi, yi)}Ni=1 , where xi collects the deformation state (in terms of the invariants) and yi is the corresponding observed second Piola-Kirchhoff stress tensor. It is important to note that the network f (xi; ¯θ ⊙ z) does not output the stress directly; its scalar output is a free energy density. Following the normalization used for physics-augmented constitu-tive networks in Fuhg et al. [78], we enforce the stress-free reference condition and energy normalization introduced in Section 2.4 by correcting each learned energy branch according to 
+
+Ψθ(I1, I 2, J ) = f (I1, I 2, J ; θ) − nref (J − 1) − f (3 , 3, 1; θ), (40) where 
+
+nref = 2 
+
+ ∂f ∂I 1
+
++ 2 ∂f ∂I 2
+
++ 12
+
+∂f ∂J 
+
+
+
+> (I1,I 2,J )=(3 ,3,1)
+
+. (41) The constant subtraction sets Ψθ(3 , 3, 1) = 0 , while the term linear in J ensures S(F = I) = 
+
+0. The stress prediction is obtained from this corrected energy by automatic differentiation, 13 consistent with Eq. (38). The derived stress from the corrected energy in Eq (40) enters the loss. Denoting the energy-to-stress operator by S[·] = 2 ∂(·)/∂ C, the MSE loss reads 
+
+Lmse = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+SΨθ(xi) − yi 
+
+> 22
+
+, (42) where Ψθ(xi) is obtained from the gated parameters θ = ¯θ ⊙ z as defined in Section 3.2, and ∥ · ∥ 2 is the Frobenius norm over the stress components. The second term in the loss (39), Lsparse , is identified with the smoothed L0 regularization of Eq. (35), i.e. Lsparse ≡ L 0 and λsparse ≡ λ0, and acts by penalizing the number of active parameters. As the aim is to learn the free energy density interval that covers the observables, penal-ization for violations of the learned interval bounds in terms of principal stresses is required for cases where the data does not comply with the learned bounds. To achieve this, in the third loss term Lbound we utilize the Macaulay bracket 
+
+⟨x⟩ =
+
+(
+
+0, x < 0,x, x ≥ 0,
+
+which activates only when the constraint is violated. Since this function is non-differentiable at x = 0 , we replace it with a smooth, differentiable approximation 
+
+g(x) = sig( x/ε )  2 sig( mx ) − 1, (43) where sig( x) = (1 + e−x)−1 denotes the sigmoid function. The parameter ε controls the sharpness of the gating function sig( x/ε ), which suppresses contributions for x < 0 and approaches unity for x > 0, while m controls the steepness of the ramp 2 sig( mx ) − 1 as the violation increases. The influence of these parameters on the shape of g(x) is illustrated in Fig. 1. We formulate the constraint in terms of the magnitude of the observables |Si| and of the learned representation of the interval from Eq. 38. The violation variable x is defined for the upper and lower bounds as 
+
+x =
+
+
+
+sign( Ei)( Si − S∗ 
+
+> i
+
+), upper bound ,
+
+sign( Ei)( S∗ 
+
+> i
+
+− Si), lower bound ,
+
+(44) and the smooth Macaulay approximation g(x) is applied in both cases. The bound term for the loss function can be written as 
+
+Lbound = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+g(xi). (45) Ultimately, the iPANN construction enables a data-driven approximation of the upper and lower free energy bounds that enclose all the stress observations. Predictively, it enables propagating the aleatoric uncertainty in unseen strain states. 14 (a) Effect of the parameter m on the ramp steepness of g(x).  
+
+> (b) Effect of εon the sharpness of the gating func-tion. Figure 1: Smooth approximation of the Macaulay bracket used in the bound loss.
+
+3.4. fPANNs and membership 
+
+Furthermore, fPANNs are constructed based on iPANNs, enabling approximation of free energy density bounds for different levels of membership. Following the discussion in Section 2.2, in order to construct a fuzzy set for the free energy density, a membership function μ
+
+assigns to each element Ψ( F) a degree of membership between 0 and 1: 
+
+μ : Ψ( F) → [0 , 1] , Ψ( F) 7 → μ(Ψ( F)) . (46) The α-cut of a fuzzy set of free energy densities, for a given level α ∈ (0 , 1] , is defined as 
+
+Ψαf (F) = {Ψ( F) ∈ Ψ(F) | μ(Ψ) ≥ α}. (47) Assuming the construction of a fuzzy set of free energy densities is convex, each α-cut reduces to a closed interval 
+
+Ψαf (F) = [Ψ α(F), Ψα(F)] . (48) so that the full fuzzy set can be reconstructed from a nested family of intervals 
+
+{[Ψ α(F), Ψα(F)] } ∀ α ∈ (0 , 1] . (49) The concepts introduced in this subsection are illustrated schematically in Fig. 2. Furthermore, we construct a convex fuzzy set based on the learned iPANN for the bounds 
+
+Ψ∗(F), Ψ∗(F) and PANN for the mean Ψ∗(F). Through Eq. 39, removing the term Lbound 
+
+from the loss will result in learning an approximation of the mean response, and correspond-ing mean free energy density, for which the following inequality holds Ψ∗(F) ≤ Ψ∗(F) ≤
+
+Ψ∗(F). To maintain convexity with respect to membership, we employ a piecewise linear interpolation between the three models following 
+
+Ψ∗
+
+> α
+
+(F) = (1 − α)Ψ ∗(F) + αΨ∗(F), (50) 15 Figure 2: Triangular fuzzy membership function for the learned free energy densities. 
+
+Ψ∗
+
+> α
+
+(F) = αΨ∗(F) + (1 − α)Ψ ∗(F). (51) Following Eqs. 10 and 37, an enclosure for the principal values of the second Piola-Kirchhoff stress tensor, the corresponding α−cut is given as: 
+
+S∗ 
+
+> α,i
+
+∈ S ∗ 
+
+> α,i
+
+= [sign( Ei)S∗
+
+> α,i
+
+, sign( Ei)S∗
+
+> α,i
+
+], i = 1 , 2, 3, (no sum) . (52) The second Piola-Kirchhoff stress for a given α−cut can be calculated using Eqs. 50 and 51 as 
+
+S∗ 
+
+> α
+
+= 2 ∂Ψ∗
+
+> α
+
+∂C , S∗ 
+
+> α
+
+= 2 ∂Ψ∗
+
+> α
+
+∂C . (53) 
+
+4. Numerical results and illustration 
+
+4.1. Data generation 
+
+While the free energy density is a fundamental quantity in hyperelasticity, it is not directly observable in experiments. Our training data consists of input-output pairs where the inputs are the principal invariants of the right Cauchy–Green tensor, and the outputs are the corresponding stress components of the second Piola-Kirchhoff stress tensor. These labels are generated from the Gent-Gent hyperelastic model, with free energy density given by Eq. (54): 
+
+Ψ( I1, I 2, J ) = −μ
+
+2 Jm log 
+
+
+
+1 − I1 − 3
+
+Jm
+
+
+
++ C2 log 
+
+I2
+
+3
+
+
+
++ k
+
+12(J2 − 1) − log J
+
+
+
+, (54) where the material parameters are taken as μ = 2 .4195 , Jm = 77 .931 , C2 = −0.75 μ, and 
+
+k = μ/ 2. It is noted that this model is not polyconvex, a purposeful choice to create some discrepancy from polyconvex representations in the learning scheme [40, 89, 90]. 16 Following Fuhg et al. [30, 91, 40], we generate data on complex heterogeneous stress states. Starting from the undeformed configuration F0 = I, we sample deformation gra-dients around this reference state using Latin Hypercube Sampling (LHS) over the full 9-dimensional space of components, with 
+
+Fij ∈
+
+(1 + U(−δ, δ ), i = j, 
+
+U(−δ, δ ), i̸ = j, (55) and a bound of δ = 0 .2, where U(−δ, δ ) denotes the uniform distribution on (−δ, δ ).For each sampled F, we compute the right Cauchy–Green tensor C = FT F and its principal invariants, forming a point cloud of 250 ,000 physically valid samples (i.e., det( F) >
+
+0) that approximates the convex hull of physically feasible invariant states. From this convex hull, we then run a hybrid farthest-point sampling (FPS) and simulated annealing (SA) [30, 40] optimization scheme to select a representative subset of 500 well-spaced invariant triples 
+
+(Ii
+
+> 1
+
+, I i
+
+> 2
+
+, I i
+
+> 3
+
+) that maximizes spatial coverage while maintaining diversity. The origin of the invariant space (3 , 3, 1) , corresponding to the undeformed state, is manually enforced to be included in the selection. The resulting 500 -point subset and the underlying invariant convex hull are shown in Appendix B (Fig. B.12). It is important to note that this initial sampling of general deformation gradients serves only to populate the invariant space: ageneral F with all nine components need not produce a diagonal C, and hence need not yield a diagonal second Piola–Kirchhoff stress S. Following Burnside [92], for each selected invariant triple we therefore recover a canonical diagonal representative of the right Cauchy– Green tensor by inverting the principal-invariant map and expressing the principal stretches as C = diag( λ21, λ 22, λ 23). In contrast to the simulated annealing sampling scheme of [30], this selection scheme retains access to the corresponding (non-diagonal) true deformation gradient Ftrue for each selected triple, which we use solely to verify the reconstruction and is not required for training. Evaluating the Gent-Gent model on this diagonal C yields 
+
+S = diag( S11 , S 22 , S 33 ) with off-diagonal components vanishing identically by construction. We denote by clean stress the corresponding noise-free Gent-Gent response evaluated at each deformation state. This quantity serves as a synthetic reference trajectory ; it is not intended to represent a directly measurable experimental but rather provides controlled ground truth against which the mean branch learned in Section 3.3 and the interval and fuzzy bounds constructed in Section 3.4 can be assessed. To emulate measurement noise, each clean stress component Sclean  
+
+> ij
+
+is corrupted with multiplicative heteroscedastic Gaussian noise, 
+
+˜Sij =  1 + μ + σ ε ij 
+
+ Sclean  
+
+> ij
+
+, εij 
+
+> i.i.d.
+
+∼ N (0 , 1) , (56) where μ and σ control the mean and standard deviation of the perturbation, respectively. The specific values of (μ, σ ) and the random seed used to instantiate Eq. (56) for each experiment are given in Sections 4.3.1 and 4.3.2. The resulting ˜Sij are the noisy observations 
+
+presented to the network during training. Throughout Section 4, models are fit on the training set and evaluated on the independent test set. Whereas the training data form a point cloud sampled over the full nine-dimensional deformation-gradient space, the test data are generated along a single coherent loading path 17 so as to probe how the learned models generalize along a physically interpretable deformation mode. We use a constrained uniaxial deformation F = diag( λ, 1, 1) , in which the axial stretch 
+
+λ is varied while the two transverse stretches are held fixed at unity. We take 1000 equally spaced values of λ ∈ [0 .6, 1.4] , i.e. a ±40% axial stretch about the undeformed state, and, for each, form C = FT F and evaluate the corresponding second Piola–Kirchhoff stress and free energy density from the same Gent-Gent model, yielding diagonal stress components as in the training set. We note that the axial-stretch range of this test path exceeds the per-component training interval [1 − δ, 1 + δ] = [0 .8, 1.2] ; consequently the test set probes both interpolation (for λ ∈ [0 .8, 1.2] ) and mild extrapolation, providing a more strict assessment of the learned bounds than the training distribution alone. 
+
+4.2. Two-stage warm-start training procedure 
+
+Motivated by transfer learning and two-stage approaches in which a pretrained point-prediction model provides the initialization for learning prediction bounds [40, 93, 94], we employ a sequential two-stage warm-start strategy, rather than training the mean, lower, and upper branches simultaneously. Joint optimization of all three networks from random initialization is less efficient because the objectives compete: the stress MSE term drives each branch toward the central noisy trend, whereas the bound penalties in Eq. (44) require the lower and upper responses to shift and widen so as to enclose the noisy observations. Training the mean first with λbound = 0 and a comparatively strong L0 penalty isolates the task of learning a sparse, physics-consistent approximation of the mean response. 
+
+Step 1: Train mean response. In the first stage, we train an ICNN to learn the mean free energy density Ψ using the stress-based mean squared error loss together with the smoothed L0 sparsification penalty, while setting λbound = 0 . This stage therefore produces a physics-consistent baseline constitutive model that fits the central trend of the stress observations while promoting a compact and interpretable representation. The resulting mean model serves as the reference branch of the fuzzy representation and also provides the initialization for the subsequent bound-learning stage. 
+
+Step 2: Train lower and upper bounds. In the second stage, two additional ICNNs are initialized from the trained mean network and then optimized to represent the lower and upper free energy density branches of the iPANN. The bound loss in Eq. 44 is activated by setting λbound ̸ = 0 . In this stage, the sparsification penalty is substantially reduced relative to the first stage. This choice preserves the sparse constitutive structure inherited from the mean model, while allowing the lower and upper networks sufficient flexibility to adjust their active parameters and widen or shift the response as needed to enclose the noisy stress data. Thus, the second stage does not relearn the entire constitutive law from scratch, it fine-tunes the mean representation into two physically consistent bounding models. This transfer learning procedure improves optimization stability and reduces the ten-dency of the bound models to develop unnecessarily complex representations. It also ensures that the learned interval is organized around a meaningful central response. The resulting three learned free energy density functions from this iPANN, are then used to construct the fuzzy constitutive representation through the membership-based interpolation described in Section 3.4. 18 4.3. Results 
+
+We illustrate the framework on the synthetic data of Section 4.1. The baseline case is presented in Section 4.3.1, followed by performance on noise-perturbation illustrated in Sec-tion 4.3.2. The learned bounds are subsequently interpreted through the fuzzy membership analysis of Section 4.3.3, and their downstream deployment is demonstrated in the finite el-ement method (FEM) setting of Section 4.3.4. For convenience, we use the notation E1 –E4 
+
+to refer to the individual numerical experiments presented in this section, as summarized in Table 1.      
+
+> Table 1: Data generation modalities for the performed numerical experiments.
+> ID Data generation cases
+> E1 Baseline dataset with heteroscedastic noise
+> E2 Repeated realizations by random seed perturbation
+> E3 Repeated realizations by shifting the noise mean
+> E4 Repeated realizations by shifting the standard deviation
+
+4.3.1. Baseline case: heteroscedastic noise 
+
+The baseline experiment E1 evaluates the proposed framework under the multiplicative heteroscedastic noise of Eq. (56) with μ = 0 and σ = 0 .1, and serves as the reference case for the subsequent noise-attribute perturbations. Training and testing use the synthetic data of Section 4.1. Following the two-stage procedure of Section 4.2, the mean model is trained first and then used as a warm start for the upper and lower bound networks of the iPANN. The learned stress responses are shown in Figure 3 for the three principal components 
+
+S11 , S22 and S33 , on both the training and test sets. The mean prediction follows the clean Gent-Gent reference closely across all three components, while the lower and upper bounds enclose the scattered noisy observations over the entire deformation range. The enclosure is not a fixed-width band: it widens where the noisy data are more dispersed and tightens where they concentrate, reflecting the multiplicative nature of the noise. Close agreement between the training and test panels indicates that the bounds learned on the training data carry over to the test set. The corresponding free energy density Ψ is reported in Figure 4. Each of the three converged networks reduces to a compact closed-form expression. The resulting mean and bound energies for E1 , together with their coefficients, are reported in Appendix C. The iPANN deployment for this case in a finite element solver is demonstrated in Sec. 4.3.4. With this baseline established, Section 4.3.2 perturbs one noise attribute at a time: seed, mean, or standard deviation, relative to E1 .
+
+4.3.2. Results with different type of noise 
+
+The robustness of the framework is verified by varying one noise attribute at a time while keeping all remaining settings aligned with E1 . Three experiments are considered: 19 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S11 )
+
+−7.5 
+
+−5.0 
+
+−2.5 
+
+0.0 
+
+2.5 
+
+> S11
+
+(a) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−4 
+
+−2 
+
+0
+
+2 
+
+> S11
+
+(b) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S22 )
+
+−6 
+
+−4 
+
+−2 
+
+0
+
+2
+
+> S22
+
+(c) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−1 
+
+0
+
+1
+
+2 
+
+> S22
+
+(d) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S33 )
+
+−2 
+
+0
+
+2
+
+> S33
+
+(e) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−1 
+
+0
+
+1
+
+2 
+
+> S33
+
+(f) 
+
+Figure 3: E1 : Stress components ( S11 , S22 , S33 ) with mean and bounds on training (left) and test (right) data. 
+
+20 0 100 200 300 400 500            
+
+> Sample index
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> 1.25
+> ª(a) Ψ, train. 0.6 0.8 1.0 1.2 1.4
+> Stretch ratio ¸1
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> ª(b) Ψ, test.
+> Figure 4: E1 : Free energy density Ψwith mean and bounds on training (left) and test data(right)
+
+multiple independent noise realizations obtained by changing the random seed of the noise generator ( E2 ), a shift in the noise mean ( E3 ), and a change in the noise standard deviation (E4 ). These synthetic perturbations are motivated by scenarios encountered in mechanical testing of materials, namely (i) random variations arising from measurement noise, specimen variability, or slightly different initial conditions, (ii) effects such as load-cell zero offset, calibration drift, strain-gauge bias, or a systematic preprocessing error, and (iii) changes in sensor precision, environmental disturbances, specimen-to-specimen variability, or signal quality. The corresponding results are collected in Figure 5 for E2 , Figure 6 for E3 , and Figure 7 for E4 .Across all three perturbations the qualitative behavior observed for the baseline is pre-served: the mean tracks the underlying clean response, and the learned bounds enclose the noisy observations on both the training and test sets. The width of the enclosure adapts to the imposed noise. When several independent realizations are presented simultaneously (E2 ), the bounds broaden to contain the additional spread introduced by the differing seeds; when the noise mean is shifted ( E3 ), the enclosure follows the displaced data while remain-ing centered on the mean response; and when the noise standard deviation is increased (E4 ), the bounds widen. In every case the agreement between the training and test panels remains close, confirming that the learned bounds generalize to the test set and are not unduly sensitive to the specific noise setting used during training. 
+
+4.3.3. Fuzzy sets, α-cuts and membership analysis 
+
+Following the α-cut construction of Sections 2.2 and 3.4, we now quantify how well the learned fPANN enclosure contains the noisy stress observations for each of the experiment types reported above. Since, by construction of the data-generation and training stages, the off-diagonal components of the second Piola-Kirchhoff stress vanish identically and therefore carry no enclosure information, we restrict the analysis to the three diagonal components. 21 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S11 )
+
+−6 
+
+−4 
+
+−2 
+
+0
+
+2
+
+4
+
+> S11
+
+(a) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−4 
+
+−2 
+
+0
+
+2 
+
+> S11
+
+(b) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S22 )
+
+−4 
+
+−2 
+
+0
+
+2
+
+4
+
+> S22
+
+(c) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−1 
+
+0
+
+1
+
+2 
+
+> S22
+
+(d) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S33 )
+
+−2 
+
+0
+
+2
+
+> S33
+
+(e) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−1 
+
+0
+
+1
+
+2 
+
+> S33
+
+(f) 
+
+Figure 5: E2 : Stress components ( S11 , S22 , S33 ) on training (left) and test (right) data. 
+
+22 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S11 )
+
+−7.5 
+
+−5.0 
+
+−2.5 
+
+0.0 
+
+2.5 
+
+> S11
+
+(a) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−6 
+
+−4 
+
+−2 
+
+0
+
+2 
+
+> S11
+
+(b) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S22 )
+
+−6 
+
+−4 
+
+−2 
+
+0
+
+2
+
+4
+
+> S22
+
+(c) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−2 
+
+−1 
+
+0
+
+1
+
+2 
+
+> S22
+
+(d) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S33 )
+
+−2 
+
+0
+
+2
+
+4
+
+> S33
+
+(e) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−2 
+
+−1 
+
+0
+
+1
+
+2 
+
+> S33
+
+(f) 
+
+Figure 6: E3 : Stress components ( S11 , S22 , S33 ) on training (left) and test (right) data. 
+
+23 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S11 )
+
+−5 
+
+0
+
+5
+
+> S11
+
+(a) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−6 
+
+−4 
+
+−2 
+
+0
+
+2 
+
+> S11
+
+(b) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S22 )
+
+−7.5 
+
+−5.0 
+
+−2.5 
+
+0.0 
+
+2.5 
+
+> S22
+
+(c) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−2 
+
+−1 
+
+0
+
+1
+
+2
+
+3 
+
+> S22
+
+(d) 0 100 200 300 400 500 
+
+Sample index 
+
+(sorted by clean S33 )
+
+−2 
+
+0
+
+2
+
+4
+
+> S33
+
+(e) 0.6 0.8 1.0 1.2 1.4 
+
+Stretch ratio ¸1
+
+−2 
+
+−1 
+
+0
+
+1
+
+2
+
+3 
+
+> S33
+
+(f) 
+
+Figure 7: E4 : Stress components ( S11 , S22 , S33 ) on training (left) and test (right) data. 
+
+24 In continuation of Eq. (52), the componentwise α-cuts on the diagonal entries are written as 
+
+S∗
+
+> ii, α
+
+(F) = 
+
+h
+
+S∗
+
+> ii, α
+
+(F), S ∗
+
+> ii, α
+
+(F)
+
+i
+
+, i = 1 , 2, 3, α ∈ (0 , 1] , (57) where the lower and upper bounds are obtained by applying Eq. (53) to the interpolated free energies Ψ∗
+
+> α
+
+, Ψ∗ 
+
+> α
+
+of Eqs. (50)–(51). Given N noisy samples {S(n) 
+
+> ii, noisy
+
+}Nn=1 at deformations {F(n)}Nn=1 , we quantify how com-pletely the α-cut stress enclosure S∗
+
+> ii, α
+
+(F) of Eq. (57) contains the observations. For each diagonal component i = 1 , 2, 3, define 
+
+bii (α) = 1
+
+N
+
+> N
+
+X
+
+> n=1
+
+1
+
+n
+
+S(n)  
+
+> ii, noisy
+
+∈ S∗
+
+> ii, α
+
+ F(n)o
+
+, i = 1 , 2, 3, (58) where 1 denotes the indicator function. Thus, bii (α) is the fraction of samples whose noisy 
+
+Sii lies inside the predicted α-cut enclosure. Averaging over the three diagonal components we define the empirical membership fraction (emf) 
+
+bemf (α) = 13
+
+ b11 (α) + b22 (α) + b33 (α). (59) When an experiment comprises K independent noise realizations (as in E2 , E3 and E4 ), N
+
+counts all realization–sample pairs, so N = K N def , where Ndef is the number of training or test samples of Section 4.3.1 ( Ndef = 500 for training and Ndef = 1000 for testing). Applying Eqs. (58)–(59) to the training and test set yields bemf ,train (α) and bemf ,test (α),respectively. In Figs. 8 and 9, panels (b)–(c) report these quantities as bemf (%) (i.e., 
+
+100 bemf (α)), while panel (d) shows the absolute train–test gap |∆bemf | ≡ 100 bemf ,train (α) −
+
+bemf ,test (α) .We plot these quantities against the |a| ∈ [0 , 1] , related to the membership level by 
+
+α = 1 − | a|, as illustrated schematically in Fig. 2. The two extremes correspond to the trivial α-cuts: |a| = 0 ( α = 1) collapses the enclosure to the mean response Ψ∗, while 
+
+|a| = 1 ( α = 0) recovers the widest interval [Ψ ∗, Ψ∗]. As shown in Section 4.3.1 for E1 
+
+(and analogously for E2 –E4 ), the mean branch closely tracks the clean Gent-Gent reference stress across all diagonal components on both training and test data; this agreement is central to the membership interpretation, because the innermost α-cut is anchored on the mean response. The panels in Figs. 8 and 9 therefore overlay the clean reference, the learned mean, the noisy observations, and the family of α-cut bounds. We illustrate the membership analysis for the representative experiments E1 and E2 ; the remaining noise variants ( E3 and E4 ) exhibit qualitatively similar behavior and are omit-ted to avoid redundancy. In both experiments, the enclosures widen monotonically as |a|
+
+increases (equivalently, as α decreases), and the empirical membership fraction approaches 
+
+100% as α → 0. The synthetic noise in Eq. (56) is Gaussian, the curves bemf (|a|) in pan-els (b)–(c) of Figs. 8 and 9 take on the characteristic sigmoidal-like shape of non-negative branch of the error-function profile. The coverage rises rapidly at small |a| and then satu-rates on extremes. Another important point worth noting is that the widest α-cut ( |a| = 1 )does not appear especially tight relative to the noisy samples, yet panels (b)–(c) show that 25 a large fraction of the observations is captured only for |a| close to 1. This is expected for approximately Gaussian residuals. Intermediate cuts (e.g., |a| = 0 .5) leave out a nontrivial fraction even when the extreme bounds look only moderately wide.       
+
+> (a)
+> (b) (c) (d) Figure 8: E1 : Membership analysis. (a) Test S11 data and learned α-cut bounds. (b)–(c) Training and test empirical membership fractions. (d) Absolute train–test gap.
+
+26 (a)         
+
+> (b) (c) (d) Figure 9: E2 : Membership analysis with five noise realizations. (a) Test S11 data and learned α-cut bounds. (b)–(c) Training and test empirical membership fractions with K= 5 . (d) Absolute train–test gap.
+
+4.3.4. Uncertainty propagation in a FEM setting 
+
+To demonstrate that the learned closed-form free energy density expressions are directly usable in a downstream mechanics simulation, we deploy the three learned potentials from the baseline experiment E1 of Section 4.3.1 ( Ψ∗(F), Ψ∗(F), and Ψ∗(F)), each corrected to a stress-free reference configuration, in a 3D finite element solver implemented in FEniCS [95, 96]. The domain is the unit cube discretized with a 15 ×15 ×15 structured tetrahedral mesh. We impose a uniaxial stretch boundary condition along the z-axis: the bottom face z = 0 is clamped, while the top face z = 1 is prescribed a 20% axial stretch over 20 load steps. The lateral faces are traction-free, we adopt a nearly incompressible setting with ν = 0 .49 , and no body forces or surface tractions are applied. Figure 10 shows the deformed configurations at the final load step. All three potentials yield smooth, physically admissible states. As observed in the figure, the upper-bound configuration develops higher S33 magnitudes than the mean, while the lower-bound configuration develops lower magnitudes. 27 (a) Deformed, Ψ∗ (LB) (b) Deformed, Ψ∗ (Mean) (c) Deformed, Ψ∗ (UB)  
+
+> Figure 10: E1 : FEM demonstration of learned free energy density.
+
+5. Conclusion 
+
+This work introduced interval and fuzzy physics-augmented neural network framework for uncertainty-aware hyperelastic constitutive modeling. Relative to widely used Bayesian neu-ral network approaches, the proposed formulation offers a complementary non-probabilistic route to uncertainty quantification that is comparatively lightweight at inference: once trained, each constitutive branch is evaluated deterministically, without posterior sampling or Monte Carlo propagation. This is attractive in mechanics settings where labeled stress data are limited, distributional assumptions on aleatoric noise are difficult to justify, and practitioners often require certified worst- or best-case bounds rather than full predictive dis-tributions. In addition, smoothed L0 sparsification yields compact, inspectable free energy density expressions, in contrast to typically dense Bayesian surrogates, while input-convex architectures promote convexity with respect to the chosen invariants. The framework is built in two layers that share the same learned mean, lower, and upper energy branches. At the interval level, iPANNs combine these ingredients to produce physics-consistent stress predictions through automatic differentiation and to certify whether noisy observations lie inside a deterministic admissible enclosure. At the fuzzy level, fPANNs embed the three iPANN branches into a membership-based representation through α-cut interpolation, yielding a nested family of admissible responses between the central mean (α = 1 ) and the extreme bounds ( α = 0 ). Thus, whereas an iPANN is appropriate when a binary containment statement or a conservative envelope suffices, an fPANN additionally lets the practitioner tune conservatism through α and interpret coverage in membership terms, as quantified in Section 4.3.3, without retraining separate models for each target coverage level. The numerical studies demonstrate that the framework can capture aleatoric uncertainty arising from synthetic noise, representative of different modalities (experimental data acquisition noise, batch-to-batch material variability, etc). Despite this conceptual dis-tinction, both representations remain equally suited to forward deployment in finite element 28 analysis: any selected iPANN bound or fPANN α-cut defines a physics-consistent energy branch that can be passed directly to a solver for uncertainty propagation. Future work will extend the proposed framework beyond synthetic stress–deformation datasets toward richer experimental settings and broader material behaviors. A key direc-tion is the integration of multi-modal experiments, where global force–displacement data, local deformation measurements, imaging, and possibly microstructural descriptors are used jointly to constrain the learned uncertainty bounds. Full-field experimental data from digital image correlation or digital volume correlation will be particularly important for training and validating the framework under heterogeneous deformation states that are more representa-tive of realistic boundary value problems. In addition, future developments will incorporate dissipative mechanisms, including viscoelasticity, plasticity and damage, where uncertainty must be propagated not only through the free energy density but also through internal variables, evolution laws, and path-dependent dissipation. Towards this goal, past work on modular constructions for learning inelastic responses will be central to this effort [35]. These extensions will broaden the applicability of fuzzy physics-augmented learning toward experimentally grounded, uncertainty-aware constitutive models for complex materials and engineering simulations that are structured in-line with data acquisition approaches from mechanics experimental modalities, but also maintain trustworthiness in forward deployment for the solution of specific boundary value problems. 
+
+Declaration of generative AI and AI-assisted technologies use 
+
+During the preparation of this work, the author(s) used generative AI and AI-assisted tools, including ChatGPT and Cursor, in order to improve the language, clarity, and read-ability of the manuscript text. Additionally, these tools were utilized to assist in debugging and optimizing the source code used for data processing and simulation. After using these tools, the author(s) thoroughly reviewed, verified, and edited all outputs to ensure factual and technical accuracy, and take full responsibility for the final content of the publication. 
+
+Declaration of competing interest 
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper. 
+
+Code and data availability 
+
+The codes and data generated during the current study are available from the authors upon reasonable request. 
+
+Acknowledgements 
+
+This work was funded by the Laboratory Directed Research and Development (LDRD) program at Sandia National Laboratories; this funding is gratefully acknowledged. San-dia National Laboratories is a multi-mission laboratory managed and operated by National 29 Technology & Engineering Solutions of Sandia, LLC (NTESS), a wholly owned subsidiary of Honeywell International Inc., for the U.S. Department of Energy’s National Nuclear Se-curity Administration (DOE/NNSA) under contract DE-NA0003525. This written work is authored by an employee of NTESS. The employee, not NTESS, owns the right, title and interest in and to the written work and is responsible for its contents. Any subjective views or opinions that might be expressed in the written work do not necessarily represent the views of the U.S. Government. The publisher acknowledges that the U.S. Government re-tains a non-exclusive, paid-up, irrevocable, world-wide license to publish or reproduce the published form of this written work or allow others to do so, for U.S. Government purposes. The DOE will provide public access to results of federally sponsored research in accordance with the DOE Public Access Plan. 
+
+References 
+
+[1] R. S. Rivlin, Large elastic deformations of isotropic materials. i. fundamental concepts, Philosophical Transactions of the Royal Society of London, Series A: Mathematical and Physical Sciences 240 (822) (1948) 459–490. [2] M. Mooney, A theory of large elastic deformation, Journal of applied physics 11 (9) (1940) 582–592. [3] R. W. Ogden, Large deformation isotropic elasticity–on the correlation of theory and experiment for incompressible rubberlike solids, Proceedings of the Royal Society of London. A. Mathematical and Physical Sciences 326 (1567) (1972) 565–584. [4] M. E. Gurtin, An introduction to continuum mechanics, Vol. 158, Academic press, 1982. [5] G. A. Holzapfel, Nonlinear solid mechanics: a continuum approach for engineering science (2002). [6] M. A. Sutton, Computer vision-based, noncontacting deformation measurements in mechanics: A generational transformation, Applied Mechanics Reviews 65 (2013). doi: 10.1115/1.4024984 .[7] M. A. Sutton, F. Hild, Recent advances and perspectives in digital image correlation, Experimental Mechanics 55 (2015) 1–8. doi:10.1007/s11340-015-9991-6 .[8] H. Leclerc, J.-N. Périé, S. Roux, F. Hild, Voxel-scale digital volume correlation, Exper-imental mechanics 51 (4) (2011) 479–490. [9] P. J. Withers, C. Bouman, S. Carmignato, V. Cnudde, D. Grimaldi, C. K. Hagen, E. Maire, M. Manley, A. D. Plessis, S. R. Stock, X-ray computed tomography (12 2021). doi:10.1038/s43586-021-00015-4 .[10] M. Miller, P. Dawson, Understanding local deformation in metallic polycrystals using high energy x-rays and finite elements, Current opinion in solid state and materials science 18 (5) (2014) 286–299. 30 [11] F. Mathieu, H. Leclerc, F. Hild, S. Roux, Estimation of elastoplastic parameters via weighted femu and integrated-dic, Experimental Mechanics 55 (1) (2015) 105–119. [12] S. Kumar, D. T. Seidl, B. N. Granzow, J. Yang, J. N. Fuhg, A comparative study of calibration techniques for finite strain elastoplasticity: Numerically-exact sensitivities for femu and vfm, Computer Methods in Applied Mechanics and Engineering 444 (2025) 118159. [13] F. Pierron, M. Grédiac, The virtual fields method: extracting constitutive mechani-cal parameters from full-field deformation measurements, Springer Science & Business Media, 2012. [14] J. N. Fuhg, G. A. Padmanabha, N. Bouklas, B. Bahmani, W. C. Sun, N. N. Vlassis, M. Flaschel, P. Carrara, L. D. Lorenzis, A review on data-driven constitutive laws for solids (4 2025). doi:10.1007/s11831-024-10196-2 .[15] J. Ghaboussi, J. Garrett Jr, X. Wu, Knowledge-based modeling of material behavior with neural networks, Journal of engineering mechanics 117 (1) (1991) 132–153. [16] P. Carrara, M. Ortiz, L. De Lorenzis, Model-free fracture mechanics and fatigue, in: Current trends and open problems in computational mechanics, Springer, 2022, pp. 75–82. [17] I. Goodfellow, Deep learning (2016). [18] G. Cybenko, Approximation by superpositions of a sigmoidal function, Mathematics of control, signals and systems 2 (4) (1989) 303–314. [19] K. Hornik, M. Stinchcombe, H. White, Multilayer feedforward networks are universal approximators, Neural networks 2 (5) (1989) 359–366. [20] J. Park, I. W. Sandberg, Universal approximation using radial-basis-function networks, Neural computation 3 (2) (1991) 246–257. [21] K. Hornik, Approximation capabilities of multilayer feedforward networks, Neural net-works 4 (2) (1991) 251–257. [22] M. Schmidt, H. Lipson, Distilling free-form natural laws from experimental data, science 324 (5923) (2009) 81–85. [23] J. R. Koza, Genetic programming as a means for programming computers by natural selection, Statistics and computing 4 (2) (1994) 87–112. [24] Y. Wang, N. Wagner, J. M. Rondinelli, Symbolic regression in materials science, MRS communications 9 (3) (2019) 793–805. 31 [25] S. L. Brunton, J. L. Proctor, J. N. Kutz, Discovering governing equations from data by sparse identification of nonlinear dynamical systems, Proceedings of the national academy of sciences 113 (15) (2016) 3932–3937. [26] R. Tibshirani, Regression shrinkage and selection via the lasso, Journal of the Royal Statistical Society Series B: Statistical Methodology 58 (1) (1996) 267–288. [27] M. Raissi, P. Perdikaris, G. E. Karniadakis, Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations, Journal of Computational physics 378 (2019) 686–707. [28] B. Amos, L. Xu, J. Z. Kolter, Input convex neural networks, in: International conference on machine learning, PMLR, 2017, pp. 146–155. [29] K. Linka, E. Kuhl, A new family of constitutive artificial neural networks towards automated model discovery, Computer Methods in Applied Mechanics and Engineering 403 (2023) 115731. [30] J. N. Fuhg, N. Bouklas, On physics-informed data-driven isotropic and anisotropic constitutive models through probabilistic machine learning and space-filling sampling, Computer Methods in Applied Mechanics and Engineering 394 (2022) 114915. [31] R. G. Patel, R. E. Jones, B. N. Granzow, D. T. Seidl, J. N. Fuhg, A general, auto-mated method for building structural tensors of arbitrary order for anisotropic function representations, Mathematics and Mechanics of Solids (2025) 10812865261429943. [32] D. K. Klein, M. Fernández, R. J. Martin, P. Neff, O. Weeger, Polyconvex anisotropic hyperelasticity with neural networks, Journal of the Mechanics and Physics of Solids 159 (2022) 104703. [33] J. N. Fuhg, A. Jadoon, O. Weeger, D. T. Seidl, R. E. Jones, Polyconvex neural network models of thermoelasticity, Journal of the Mechanics and Physics of Solids 192 (2024) 105837. [34] D. K. Klein, M. Hossain, K. Kikinov, M. Kannapinn, S. Rudykh, A. J. Gil, Neural networks meet hyperelasticity: A monotonic approach, European Journal of Mechanics-A/Solids (2025) 105900. [35] J. N. Fuhg, C. M. Hamel, K. Johnson, R. Jones, N. Bouklas, Modular machine learning-based elastoplasticity: Generalization in the context of limited data, Computer Methods in Applied Mechanics and Engineering 407 (2023) 115930. [36] R. E. Jones, A. L. Frankel, K. L. Johnson, A neural ordinary differential equation framework for modeling inelastic stress response via internal state variables, Journal of Machine Learning for Modeling and Computing 3 (3) (2022) 1–35. doi:10.1615/ JMachLearnModelComput.2022042917 .URL https://doi.org/10.1615/JMachLearnModelComput.2022042917 
+
+32 [37] P. Steinmann, Geometrical foundations of continuum mechanics, Lecture Notes in Ap-plied Mathematics and Mechanics 2 (2015). [38] R. E. Jones, J. N. Fuhg, A hierarchy of thermodynamics learning frameworks for in-elastic constitutive modeling, arXiv preprint arXiv:2603.02645 (2026). [39] M. Flaschel, S. Kumar, L. De Lorenzis, Unsupervised discovery of interpretable hypere-lastic constitutive laws, Computer Methods in Applied Mechanics and Engineering 381 (2021) 113852. [40] J. Tan, G. A. Padmanabha, S. J. Yang, N. Bouklas, Towards rapid constitutive model discovery from multi-modal data: Physics augmented finite element model updating (pafemu), arXiv preprint arXiv:2604.07746 (2026). [41] V. Nemani, L. Biggio, X. Huan, Z. Hu, O. Fink, A. Tran, Y. Wang, X. Zhang, C. Hu, Uncertainty quantification in machine learning for engineering design and health prog-nostics: A tutorial, Mechanical Systems and Signal Processing 205 (2023) 110796. [42] J. Fernandez, M. Chiachio, J. Chiachio, R. Munoz, F. Herrera, Uncertainty quantifica-tion in neural networks by approximate bayesian computation: Application to fatigue in composite materials, Engineering Applications of Artificial Intelligence 107 (2022) 104511. [43] J. T. Fong, J. J. Filliben, R. dewit, R. J. Fields, B. Bernstein, P. V. Marcal, Uncertainty in finite element modeling and failure analysis: A metrology-based approach (2006). [44] C.-H. Cheng, F. Diehl, G. Hinz, Y. Hamza, G. Nührenberg, M. Rickert, H. Ruess, M. Truong-Le, Neural networks for safety-critical applications—challenges, experiments and perspectives, in: 2018 Design, Automation & Test in Europe Conference & Exhi-bition (DATE), IEEE, 2018, pp. 1005–1006. [45] Z. Abulawi, R. Hu, P. Balaprakash, Y. Liu, Bayesian optimized deep ensemble for un-certainty quantification of deep neural networks: a system safety case study on sodium fast reactor thermal stratification modeling, Reliability Engineering & System Safety 264 (2025) 111353. [46] E. Begoli, T. Bhattacharya, D. Kusnezov, The need for uncertainty quantification in machine-assisted medical decision making, Nature Machine Intelligence 1 (1) (2019) 20–23. [47] E. Hüllermeier, W. Waegeman, Aleatoric and epistemic uncertainty in machine learning: An introduction to concepts and methods, Machine learning 110 (3) (2021) 457–506. [48] M. Ostoja-Starzewski, Random field models of heterogeneous materials, International Journal of Solids and Structures 35 (19) (1998) 2429–2455. 33 [49] M. Ostoja-Starzewski, Material spatial randomness: From statistical to representative volume element, Probabilistic engineering mechanics 21 (2) (2006) 112–132. [50] A. Der Kiureghian, J.-B. Ke, The stochastic finite element method in structural relia-bility, Probabilistic engineering mechanics 3 (2) (1988) 83–91. [51] G. Stefanou, The stochastic finite element method: past, present and future, Computer methods in applied mechanics and engineering 198 (9-12) (2009) 1031–1051. [52] D. J. C. MacKay, A practical bayesian framework for backpropagation networks, Neural Computation 4 (3) (1992) 448–472. doi:10.1162/neco.1992.4.3.448 .[53] R. M. Neal, Bayesian learning for neural networks, Ph.D. thesis, University of Toronto (1996). [54] C. Blundell, J. Cornebise, K. Kavukcuoglu, D. Wierstra, Weight uncertainty in neural networks, in: Proceedings of the 32nd International Conference on Machine Learning, Vol. 37 of Proceedings of Machine Learning Research, 2015, pp. 1613–1622. [55] Y. Zhu, N. Zabaras, Bayesian deep convolutional encoder–decoder networks for surro-gate modeling and uncertainty quantification, Journal of Computational Physics 366 (2018) 415–447. [56] A. Gelman, J. B. Carlin, H. S. Stern, D. B. Rubin, Bayesian data analysis, Chapman and Hall/CRC, 1995. [57] L. V. Jospin, H. Laga, F. Boussaid, W. Buntine, M. Bennamoun, Hands-on bayesian neural networks—a tutorial for deep learning users, IEEE Computational Intelligence Magazine 17 (2) (2022) 29–48. doi:10.1109/MCI.2022.3155327 .[58] A. Kendall, Y. Gal, What uncertainties do we need in bayesian deep learning for com-puter vision?, in: Advances in Neural Information Processing Systems, Vol. 30, 2017. [59] A. Graves, Practical variational inference for neural networks, in: Advances in Neural Information Processing Systems, Vol. 24, 2011. [60] Y. Gal, Z. Ghahramani, Dropout as a bayesian approximation: Representing model uncertainty in deep learning, in: Proceedings of the 33rd International Conference on Machine Learning, Vol. 48 of Proceedings of Machine Learning Research, 2016, pp. 1050–1059. [61] Q. Liu, D. Wang, Stein variational gradient descent: A general purpose bayesian infer-ence algorithm, Advances in neural information processing systems 29 (2016). [62] G. A. Padmanabha, C. Safta, N. Bouklas, R. E. Jones, Concurrent, condensed stein variational gradient descent for uncertainty quantification of neural networks, Journal of Machine Learning for Modeling and Computing 6 (3) (2025). 34 [63] M. Abdar, F. Pourpanah, S. Hussain, D. Rezazadegan, L. Liu, M. Ghavamzadeh, P. Fieguth, X. Cao, A. Khosravi, U. R. Acharya, et al., A review of uncertainty quan-tification in deep learning: Techniques, applications and challenges, Information fusion 76 (2021) 243–297. [64] G. A. Padmanabha, J. N. Fuhg, C. Safta, R. E. Jones, N. Bouklas, Improving the performance of stein variational inference through extreme sparsification of physically-constrained neural network models, Computer Methods in Applied Mechanics and En-gineering 432 (2024) 117359. [65] M. C. Kennedy, A. O’Hagan, Bayesian calibration of computer models, Jour-nal of the Royal Statistical Society: Series B (Statistical Methodology) 63 (3) (2001) 425–464. arXiv:https://rss.onlinelibrary.wiley.com/doi/pdf/10.1111/ 1467-9868.00294 , doi:https://doi.org/10.1111/1467-9868.00294 .URL https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/1467-9868.00294 
+
+[66] A. Tonini, T. Bui-Thanh, F. Regazzoni, L. Dede’, A. Quarteroni, Improvements on uncertainty quantification with variational autoencoders, Mathematical Models and Methods in Applied Sciences 36 (04) (2026) 787–823. [67] J. Yi, B. P. Ferreira, M. A. Bessa, Single-to-multi-fidelity history-dependent learning with uncertainty quantification and disentanglement: Application to data-driven consti-tutive modeling, Computer Methods in Applied Mechanics and Engineering 448 (2026) 118479. [68] B. Bahmani, Conformal quantile regression for neural probabilistic constitutive model-ing, Computer Methods in Applied Mechanics and Engineering 457 (2026) 118981. [69] G. Alefeld, Introduction to interval analysis, SIAM Review 53 (2) (2011) 380. [70] A. Neumaier, Interval methods for systems of equations, no. 37, Cambridge university press, 1990. [71] G. Klir, B. Yuan, Fuzzy sets and fuzzy logic, Vol. 4, Prentice hall New Jersey, 1995. [72] H.-J. Zimmermann, Fuzzy set theory—and its applications, Springer Science & Business Media, 2011. [73] S.-H. Chen, X.-W. Yang, Interval finite element method for beam structures, Finite elements in analysis and design 34 (1) (2000) 75–88. [74] B. Möller, W. Graf, M. Beer, Fuzzy structural analysis using α-level optimization, Computational mechanics 26 (6) (2000) 547–565. [75] W. Graf, S. Freitag, J.-U. Sickert, M. Kaliske, Structural analysis with fuzzy data and neural network based material description, Computer-Aided Civil and Infrastructure Engineering 27 (9) (2012) 640–654. 35 [76] S. Freitag, W. Graf, M. Kaliske, Recurrent neural networks for fuzzy data, Integrated Computer-Aided Engineering 18 (3) (2011) 265–280. [77] F. Harazin, J. Platen, F. N. Schietzold, W. Graf, M. Kaliske, Multiscale polymor-phic uncertainty quantification based on physics-augmented neural networks, Computer Methods in Applied Mechanics and Engineering 452 (2026) 118726. [78] J. N. Fuhg, R. E. Jones, N. Bouklas, Extreme sparsification of physics-augmented neural networks for interpretable model discovery in mechanics, Computer Methods in Applied Mechanics and Engineering 426 (2024) 116973. [79] S. Yang, M. Levin, G. A. Padmanabha, M. Borshevsky, O. Cohen, D. T. Seidl, R. E. Jones, N. Bouklas, N. Cohen, Physics augmented machine learning discovery of composition-dependent constitutive laws for 3d printed digital materials, International Journal of Engineering Science 217 (2025) 104381. [80] J. N. Fuhg, I. Kalogeris, A. Fau, N. Bouklas, Interval and fuzzy physics-informed neural networks for uncertain fields, Probabilistic Engineering Mechanics 68 (2022) 103240. [81] J. Fish, T. Belytschko, A first course in finite elements, Vol. 1, Wiley New York, 2007. [82] Z. Garczarczyk, Interval neural networks, in: 2000 IEEE International Symposium on Circuits and Systems (ISCAS), Vol. 3, 2000, pp. 567–570 vol.3. doi:10.1109/ISCAS. 2000.856123 .[83] C. Truesdell, W. Noll, The Non-Linear Field Theories of Mechanics, Springer Berlin Heidelberg, 2013. [84] J. M. Ball, Convexity conditions and existence theorems in nonlinear elasticity, Archive for rational mechanics and Analysis 63 (4) (1976) 337–403. [85] J. Schröder, P. Neff, Invariant formulation of hyperelastic transverse isotropy based on polyconvex free energy functions, International journal of solids and structures 40 (2) (2003) 401–445. [86] C. Louizos, M. Welling, D. P. Kingma, Learning sparse neural networks through l_0
+
+regularization, arXiv preprint arXiv:1712.01312 (2017). [87] J. A. McCulloch, S. R. St. Pierre, K. Linka, E. Kuhl, On sparse regression, lp-regularization, and automated model discovery, International Journal for Numerical Methods in Engineering 125 (14) (2024) e7481. [88] A. Paszke, S. Gross, S. Chintala, G. Chanan, E. Yang, Z. DeVito, Z. Lin, A. Desmaison, L. Antiga, A. Lerer, Automatic differentiation in pytorch (2017). [89] E. M. Arruda, M. C. Boyce, A three-dimensional constitutive model for the large stretch behavior of rubber elastic materials, Journal of the Mechanics and Physics of Solids 41 (2) (1993) 389–412. 36 [90] A. N. Gent, A new constitutive relation for rubber, Rubber chemistry and technology 69 (1) (1996) 59–61. [91] J. N. Fuhg, N. Bouklas, R. E. Jones, Stress representations for tensor basis neural networks: alternative formulations to finger–rivlin–ericksen, Journal of Computing and Information Science in Engineering 24 (11) (2024) 111007. [92] W. S. Burnside, A. W. Panton, The theory of equations: with an introduction to the theory of binary algebraic forms, Hodges, Figgis, 1892. [93] S. J. Pan, Q. Yang, A survey on transfer learning, IEEE Transactions on knowledge and data engineering 22 (10) (2009) 1345–1359. [94] K. Patel, S. Waslander, Accurate prediction and uncertainty estimation using decoupled prediction interval networks, arXiv preprint arXiv:2202.09664 (2022). [95] A. Logg, K.-A. Mardal, G. Wells, Automated solution of differential equations by the finite element method: The FEniCS book, Vol. 84, Springer Science & Business Media, 2012. [96] M. Alnæs, J. Blechta, J. Hake, A. Johansson, B. Kehlet, A. Logg, C. Richardson, J. Ring, M. E. Rognes, G. N. Wells, The fenics project version 1.5, Archive of numerical software 3 (100) (2015). [97] A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury, G. Chanan, T. Killeen, Z. Lin, N. Gimelshein, L. Antiga, et al., Pytorch: An imperative style, high-performance deep learning library, in: Advances in Neural Information Processing Systems, Vol. 32, 2019, pp. 8024–8035. [98] D. P. Kingma, J. Ba, Adam: A method for stochastic optimization, arXiv preprint arXiv:1412.6980 (2014). 
+
+Appendix A. Hyperparameter tuning and experiment summary 
+
+Presented here is the hyperparameter tuning procedure and the experiment-specific set-tings used to produce the numerical results in Section 4. 
+
+Appendix A.1. Hyperparameter tuning 
+
+To determine optimal hyperparameters for the loss-function weights in Eq. (39), we perform a full factorial grid search over four orders of magnitude in λbound for experiment 
+
+E1 . The label raw on the axes denotes the unweighted loss terms prior to multiplication by the corresponding weights λmse or λbound .Figure A.11 summarizes the log–log trade-off between MSE and upper-bound violation over the grid for λmse ∈ { 1, 10 , 10 2, 10 3} and λbound ∈ { 10 −1, 1, 10 , 10 2, 10 3}.37 Figure A.11: Log–log trade-off between the raw MSE term and the raw upper-bound (UB) violation term. The four panels correspond to λmse = 1 (top left), λmse = 10 (top right), λmse = 10 2 (bottom left), and 
+
+λmse = 10 3 (bottom right). 
+
+Appendix A.2. Experiment summary 
+
+All models are implemented in PyTorch [97] and trained with the Adam optimizer [98] at a fixed learning rate of 10 −3. Each network is an input convex neural network with two hidden layers of 30 neurons and softplus activations. Table A.2 lists the hyperparameter values used for each experiment ( E1 –E4 ). 
+
+Table A.2: Experiment-specific hyperparameters. 
+
+ID Experiment λmse λbound(UB ,LB) λM(mean) sparse λbound(UB ,LB) sparse N M(mean) epochs N UB epochs N LB epochs 
+
+E1 500 samples 1 100 5×10 −3 5×10 −6 250 150 150 
+
+E2 Diff. seeds (500 ×5)
+
+1 100 5×10 −3 5×10 −6 50 50 50 
+
+E3 Diff. means (500 ×5)
+
+1 100 5×10 −3 5×10 −6 50 50 50 
+
+E4 Diff. std (500 ×5)
+
+1 1000 5×10 −3 5×10 −6 50 50 50 
+
+38 Appendix B. Invariant-space sampling 
+
+Figure B.12 shows the 500 FPS–SA selected invariant triples used for training-data gen-eration, together with the underlying convex hull of physically admissible invariant states obtained from the Latin Hypercube sampling of Section 4.1. 
+
+Appendix C. Learned free energy density expressions 
+
+For each experiment, L0 sparsification leaves us with an interpretable free energy density expression. We report the free energy density expressions for experiments E1 –E4 in the tables C.3 –C.4, C.5 –C.8. 
+
+Table C.3: Elementary function forms used in the learned free energy density, and the experiments in which each appears. Symbol Definition Used in 
+
+sp( x) ex + 1 E1 –E4 
+
+g sp( aI 1 − bJ ) (E1 ); sp( aI 1) (E4 ) E1 , E4 
+
+ϕk sp( −akI2), k = 1 , 2, 3 E2 , E3 
+
+ψℓ sp( bℓI1), ℓ = 1 , 2 E2 , E3 
+
+L1 log  c4 gp1 ed1I2+d2J + 1  E1 , E4 
+
+L′ 
+
+> 1
+
+log  ϕp1 
+
+> 1
+
+ϕp2 
+
+> 2
+
+ϕp3 
+
+> 3
+
+ψp4 
+
+> 1
+
+ψp5 
+
+> 2
+
+ed1I2+d2J + 1  E2 , E3 
+
+L2 log  gp2 ed3I2 + 1  E1 
+
+L′ 
+
+> 2
+
+log  gp2 ed3I2+d4J + 1  E4 
+
+L3 log  sp( d⋆I2), d⋆ = d4 (E1 ), d⋆ = d3 (E2 , E3 ) E1 , E2 , E3 
+
+Table C.4: Final learned free energy density for each experiment, written using the function forms of Table C.3. Coefficient values are listed in Tables C.5–C.8. 
+
+ID Ψ( I1, I 2, J )
+
+E1 c1I1 + c2J + c3L1 + c10 L2 + c13 L3 + c15 
+
+E2 c2J + c3L′ 
+
+> 1
+
++ c10 L3 + c15 
+
+E3 c1I1 + c2J + c3L′ 
+
+> 1
+
++ c10 L3 + c15 
+
+E4 c1I1 + c2I2 + c3J + c10 L1 + c13 L′ 
+
+> 2
+
++ c15 
+
+39 (a) (I1, −I2) plane. 
+
+(b) (I1, I 3) plane. 
+
+(c) (−I2, I 3) plane. Figure B.12: Invariant space with convex hull and selected invariants used for synthetic data generation. 
+
+40 Table C.5: Coefficient values for E1 (LB, M, UB). Parameter LB M UB 
+
+c1 0.452959 0.594047 0.849586 
+
+c2 0.457589 0.452273 0.462377 
+
+c3 1.7295 1.87905 2.22363 
+
+c4 2.47051 2.91966 3.5611 
+
+a 0.347429 0.400356 0.417636 
+
+b 0.645014 0.420269 0.522768 
+
+p1 0.591559 0.722871 0.742294 
+
+d1 −1.10195 −1.02393 −1.31852 
+
+d2 −2.2273 −2.00959 −1.92994 
+
+c10 1.29483 1.44046 1.72594 
+
+p2 2.14771 2.18066 2.37474 
+
+d3 −0.674068 −0.788953 −0.937646 
+
+c13 0.307104 0.382489 0.370604 
+
+d4 0.477827 0.61749 0.616056 
+
+c15 −3.20733 −4.19261 −4.87605 
+
+Table C.6: Coefficient values for E2 (LB, M, UB). Parameter LB M UB 
+
+c2 0.954417 1.26118 2.3788 
+
+c3 1.92633 2.21234 2.56081 
+
+a1 1.16395 1.08832 0.980695 
+
+p1 1.6508 2.34019 2.76091 
+
+a2 0.378614 0.466638 0.519428 
+
+p2 0.553723 0.607677 0.830039 
+
+a3 0.228918 0.23031 0.370241 
+
+p3 0.323998 0.366854 0.522393 
+
+b1 0.18661 0.243268 0.273426 
+
+p4 0.145996 0.195872 0.261537 
+
+b2 0.99083 1.06499 1.14564 
+
+p5 0.61237 0.691066 0.77266 
+
+d1 −0.386977 −0.404932 −0.425268 
+
+d2 −0.974285 −1.22536 −1.38856 
+
+c10 0.530655 0.569918 0.614059 
+
+d3 0.567252 0.722123 0.751164 
+
+c15 −3.48289 −4.55937 −6.77858 
+
+Table C.7: Coefficient values for E3 (LB, M, UB). Parameter LB M UB 
+
+c1 0.277304 0.427616 0.809184 
+
+c2 0.316756 0.573037 1.03962 
+
+c3 1.06839 1.34332 1.66632 
+
+a1 1.94751 1.34669 1.2581 
+
+p1 1.02343 1.90377 1.57522 
+
+a2 1.94579 1.34467 1.25072 
+
+p2 1.65348 1.22275 2.3485 
+
+a3 0.777113 0.707635 0.634392 
+
+p3 0.866477 1.25316 1.56753 
+
+b1 0.411716 0.501003 0.540552 
+
+p4 0.666365 0.846696 0.937391 
+
+b2 0.480243 0.581122 0.619156 
+
+p5 0.80091 1.0036 1.09526 
+
+d1 −0.600601 −0.71964 −0.828024 
+
+d2 −1.08002 −1.28093 −1.35107 
+
+c10 0.297127 0.449434 0.462303 
+
+d3 0.294613 0.534423 0.561432 
+
+c15 −2.03011 −3.6663 −5.80171 
+
+Table C.8: Coefficient values for E4 (LB, M, UB). Parameter LB M UB 
+
+c1 0.187563 0.426722 0.768818 
+
+c2 0.06284 0.292087 0.446485 
+
+c3 0.260931 0.334159 0.458835 
+
+c10 1.63037 2.06464 2.58183 
+
+c4 1.63595 2.59717 3.87735 
+
+a 0.504571 0.63259 0.673222 
+
+p1 0.107058 0.253714 0.310031 
+
+d1 −2.30536 −1.68551 −1.83049 
+
+d2 −0.386197 −0.115956 −0.103846 
+
+c13 1.44658 2.13406 2.93725 
+
+p2 0.794768 1.31416 1.58833 
+
+d3 −0.486883 −0.765099 −0.997504 
+
+d4 −0.835381 −0.842919 −0.971181 
+
+c15 −1.4934 −3.58473 −5.5055 
+
+41

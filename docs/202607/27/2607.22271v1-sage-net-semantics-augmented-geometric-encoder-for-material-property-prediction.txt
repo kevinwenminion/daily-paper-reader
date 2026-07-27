@@ -1,0 +1,1539 @@
+Title: 2607.22271v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.22271v1
+
+Published Time: Mon, 27 Jul 2026 00:44:51 GMT
+
+Number of Pages: 29
+
+Markdown Content:
+# SAGE -Net: Semantics -Augmented Geometric Encoder for Material 
+
+# Property Prediction 
+
+Guanghui Zhang 1, Yuxuan Yao 2, Kieran B. Spooner 1, Jun Yin 2, Dan Han 1* , David O. Scanlon 3,
+
+Lijun Zhang 1* 
+
+> 1
+
+State Key Laboratory of Integrated Optoelectronics, Key Laboratory of Automobile Materials of MOE ,
+
+and School of Materials Science and Engineering, Jilin University, Changchun, China 
+
+> 2
+
+Department of Physics and Materials , The Hong Kong Polytechnic University, 
+
+Kowloon, Hong Kong, China 
+
+> 3
+
+School of Chemistry, University of Birmingham , Edgbaston, Birmingham, B15 2TT, United Kingdom 
+
+*Corresponding authors: hand@jlu.edu.cn , lijun_zhang@jlu.edu.cn 
+
+# Abstract :
+
+Reliable structure –property modeling is crucial for accelerating materials discovery, where crystal graphs 
+
+and structure -derived crystallographic descriptions provide complementary geometric and semantic 
+
+information. Existing multimodal materials models primarily incorporate textual information through 
+
+post -encoding fusion, latent -space alignment, or attention -based representation interaction mechanisms .
+
+However, in most cases, crystallographic semantics are introduced after structural encoding and therefor e
+
+cannot directly guide the formation of atom -level crystal -graph representations. Here, we present 
+
+Semantics -Augmented Geometric Encoder Network (SAGE -Net), a flexible multimodal framework that 
+
+injects description -derived chemical and crystallographic semantics into geometric message passing. 
+
+SAGE -Net introduces Semantic -Guided Message Passing (SGMP), which gates atom -level updates and 
+
+enables crystallographic semantics to directly modulate local geometric interactions across multiple graph 
+
+neural network (GNN ) backbones. Across benchmarks covering band gap , mechanical, transport -related 
+
+properties, and synthesizability assessment, the SAGE -Net instantiated with different GNN backbones 
+
+achieves the lowest MAE on eight out of ten JARVIS -DFT regression targets and delivers strong or highly 
+
+competitive performance against both structure -based and multimodal baselines. For synthesizability 
+
+assessment, the SAGE -Net demonstrate outstanding classification performance and high recall rates. 
+
+Interpretability analysis unravels that SAGE -Net ef fectively captures physically inter pretable 2
+
+crystallographic features , viz. space group, dimensionality, polyhedral environments , among others .
+
+Together, these results demonstrate SGMP -based SAGE -Net as a general and transferable framework for 
+
+deeply integrated multimodal materials learning. 
+
+INTRODUCTION 
+
+Accelerating the discovery of functional materials is a central goal in modern materials science and 
+
+chemistry. 1-7 Materials design relies on establishing accurate structure –property relationships that enable 
+
+the prediction of physicochemical behavior from atomic arrangements. 8-10 While first -principles methods 
+
+such as density functional theory (DFT) serve as a theoretical benchmark, the computational cost for 
+
+accurate predictions with high -level theory limits applicability for large -scale screening across complex 
+
+systems .11 -13 Consequently, data -driven approaches, particularly machine learning (ML), 14 have emerged 
+
+as powerful alternatives for rapid property prediction with increasing accuracy. 15 -18 
+
+A persistent bottleneck is that many chemically meaningful factors are not fully captured by atomic 
+
+coordinates alone, but can be expressed in structure -derived crystallographic descriptions. These factors 
+
+include oxidation states, coordination environments, and defect chemistry. Standard structure -based 
+
+models typically do not incorporate such information explicitly. 12,19 Geometric deep learning (GDL) 
+
+models such as Crystal Graph Convolutional Neural Networks (CGCNN ), Atomistic Line Graph Neural 
+
+Network (ALIGNN ), Deeper Graph Neural Networks (DenseGNN ) and Cartesian encoding graph neural 
+
+network (CartNet ) achieve strong performance by representing crystals as graphs, with atoms as nodes 
+
+and interactions as edges .20 -24 However, standardized crystallographic descriptions can provide chemical 
+
+and structural context that is complementary to crystal graph features .12,19,25,26 In practice, structure -
+
+derived descriptions encode chemically relevant cues at multiple levels . They capture local chemistry such 
+
+as oxidation states, bonding descriptors, and coordination environments, as well as recurring structural 
+
+motifs such as polyhedra, corner - vs edge -sharing connectivity, and dimensionality, and crystallographic 
+
+symmetry such as space group and crystal system. 27 Neglecting this semantic layer would reduce property -
+
+prediction accuracy. 19,25,26,28 It also hinder s the discrimination between theoretically plausible structures 
+
+and experimentally synthesizable candidates. 3
+
+To address this challenge, multimodal learning has emerged as a strategy to enrich materials 
+
+representations by coupling crystal structures with textual descriptions. 12,19,26,28 Existing multimodal 
+
+materials models differ in how they couple structural and textual information. Crystal Multi -Modal 
+
+Network (CrysMMNet ) and Hybrid Large Language Model –Graph Neural Network (Hybrid -LLM -GNN )
+
+mainly follow a post -encoding fusion paradigm, where crystal -graph and text -derived representations are 
+
+independently encoded , and then in tegrate d at the prediction stage. 19,29 MultiMat further promotes cross -
+
+modal consistency through self -supervised alignment in a shared latent space, while MatMMFuse 
+
+enhances representation -level interaction through attention -based fusion. 12,26 Despite these advances, the 
+
+geometric message -passing backbone in these methods is generally constructed before, or largely 
+
+independently of, crystallographic descriptions. As a result, textual cues such as symmetry, dimensionality, 
+
+coordination motifs, a nd site environments do not directly condition atom -level feature updates during 
+
+crystal -graph representation learning. 
+
+Motivated by this gap, we introduce SAGE -Net, a multimodal framework that injects 
+
+crystallographic description -derived semantics into geometric message passing. Its core mechanism is 
+
+Semantic -Guided Message Passing (SGMP), which conditions atom -level feature updates on textual 
+
+crystallographic descriptors and addresses the decoupling inherent in late -fusion architectures. In this 
+
+work, we show that interaction -ba sed structure –description coupling improves both property prediction 
+
+and materials screening. SA GE -Net is designed as a flexible framework that is not limited to a specific 
+
+GNN backbone and can be instantiated with multiple structural encoders, including CGCNN, ALIGNN, 
+
+DenseGNN -Lite, and CartNet. Across ten JARVIS -DFT regression targets, SAGE -Net achieves the lowest 
+
+MAE on eight targets when instantiated with different GNN backbones. These benchmarks cover bandgap, 
+
+mechanical, dielectric, and transport -related properties, demonstrating strong or highly compet itive 
+
+performance against both structure -based and multimodal baselines. These results demonstrate that SGMP 
+
+provides a transferable strategy for integrating crystallographic semantics into geometric message passing, 
+
+establishing SAGE -Net as a general fram ework for deeply coupled multimodal materials learning. 
+
+RESULTS AND DISCUSSIO N4
+
+Description of model architecture 
+
+Figure 1a compares representative structure –description integration strategies. Unlike post -encoding 
+
+fusion and latent -space alignment, SAGE -Net introduces crystallographic semantics during graph 
+
+encoding through SGMP, thereby modulating intermediate node representations and subsequent message 
+
+passing before graph pooling. As illustrated in Fig ure 1b, SAGE -Net comprises four components : a 
+
+structural encoder, a text encoder, an SGMP module, and a gated late -fusion prediction head. The central 
+
+design principle is to introduce crystallographic description -derived semantic s into intermediate crystal -
+
+graph representations during structural encoding, rather than relying exclusively on shallow fusion after 
+
+graph -level pooling. 
+
+For each material, the structural branch is implemented with a flexible GNN backbone, including 
+
+CGCNN, ALIGNN, DenseGNN -Lite, and CartNet, to encode the geometric and chemical environments 
+
+of crystalline materials. These backbones represent distinct geomet ric learning paradigms: CGCNN 
+
+captures local crystal environments through crystal graph convolution; ALIGNN explicitly models bond -
+
+angle interactions using an additional line graph; DenseGNN -Lite enhances deep message passing through 
+
+dense and residual inf ormation propagation to alleviate oversmoothing; and CartNet incorporates 
+
+Cartesian geometric encoding to capture direction -dependent structural information in crystalline 
+
+materials. 20,21,24,30 In parallel, the text branch utilizes MatSciBERT to encode standardized structure -
+
+derived crystallographic descript ion s generated by RoboCrystallographer. 27,31 These descript ion s provide 
+
+complementary semantic cues (Table S1) , including symmetry information, coordination environments, 
+
+dimensionality, composition/site identity, and other chemically relevant priors. 
+
+To bridge atomic geometry with crystallographic descriptors , SAGE -Net adopts a dual -stage 
+
+multimodal des ign comprising (i) node -level SGMP within the selected structural encoder and (ii) gated 
+
+late fusion for adaptive modality balancing at the graph level. Through SGMP, crystallographic descriptors 
+
+are converted into node -level gating signals that modulate atom -level updates during message passing. 
+
+For example, symmetry cues, such as a space group or crystal -system label, can guide message passing 
+
+toward sym metry -consistent local environments. Coordination descriptors such as “octahedral” or 5
+
+“tetrahedral” can emphasize features associated with corresponding polyhedral motifs. Dimensionality 
+
+cues, such as “layered” or “two -dimensional,” can strengthen interactions consistent with anisotropic 
+
+connectivity. This design yields a unified materials representation that is both geometrically grounded and 
+
+crystallographically informed. By combining semantically modulated atomistic features with global text 
+
+representations, SAGE -Net captures interactions between loc al atomic environments and global 
+
+cryst allographic descriptors, providing a robust foundation for predicting band gaps , mechanical responses, 
+
+transport -related metrics, and crystal synthesizability. 
+
+Figure 1. The SAGE -Net architecture for semantics -augmented crystal property prediction. (a) 
+
+Comparison of representative structure –description integration strategies. (b) Overall workflow of the 
+
+dual -stage multimodal framework. (c) Detailed mechanism of the SGMP module. (d) The gated late -
+
+fusion module. 6
+
+SGMP : node -level semantic injection 
+
+To achieve this conditional modulation (Fig ure 1c), let ℎ! 
+
+> (#)
+
+∈ ℝ%&' denote the feature of node 𝑖 
+
+after the 𝑙 -th block of the selected GNN backbone and let 𝑡 ∈ ℝ'( be the pooled crystallographic -
+
+description embedding for the corresponding structure. We first project the text embedding to the node 
+
+feature dimension via an MLP 𝜙 : ℝ'( → ℝ%&' and modulate its magnitude with a learnable scalar 𝛾 
+
+initialized to 1.0 :
+
+𝑡 ) = 𝛾𝜙 (𝑡 ) （1）
+
+The transformed text vector 𝑡 ) is then broadcast to all nodes in the structure. A node -wise gate is 
+
+computed from the concatenation of the node and broadcasted text features: 
+
+𝑔 ! = 𝜎 (𝑊 *[ℎ! 
+
+> (#)
+
+|| 𝑡 )]) ∈ (0,1)%&' （2）
+
+and node features are updated through a residual gated injection: 
+
+ℎ! 
+
+> (#+,)
+
+= 𝐿𝑁 (ℎ! 
+
+> (#)
+
++ 𝑔 ! ⊙ 𝑡 )) （3）
+
+followed by dropout. Injecting semantics at an intermediate encoder depth allows subsequent message 
+
+passing blocks to further refine text -modulated atom representations. Concretely, the text representation 
+
+is projected in to the node feature space and adaptively modulates each atomic update via a node -wise gate, 
+
+allowing different atomic environments to respond selectively to the same global semantic cue. This 
+
+conditional modulation enables structure -derived textual information to act as a crystallographic prior 
+
+during representation formation rather than as a post hoc predictor. Additional architectural details 
+
+(including gated late fusion, as well as optio nal fine -grained fusion and optional cross -modal attention), 
+
+together with hyperparameters, are provided in the Methods .
+
+Gated late fusion 
+
+After semantic -guided encoding, we obtain a graph -level representation 𝑔 ∈ ℝ- from the block of 
+
+the selected GNN backbone and a text representation 𝑡 ∈ ℝ- from the language encoder. We combine 
+
+these modalities using a gated late -fusion module that adaptively balances their contributions (Fig ure 1d).
+
+Specifically, two lightweight gating networks map each modality to a scalar importance score: 7
+
+𝛼 < = 𝜎 (𝑓 *(𝑔 )), 𝛽 ? = 𝜎 (𝑓 .(𝑡 )) （4）
+
+where 𝜎 (∙) denotes the sigmoid function and 𝑓 *(∙) and 𝑓 .(∙) are two -layer multilayer perceptrons. 
+
+The weights are then normalized to enforce 𝛼 + 𝛽 = 1:
+
+𝛼 = /0
+
+> /0+12+3
+
+, 𝛽 = 12  
+
+> /0+12+3
+
+（5）
+
+with 𝜀 a small constant for numerical stability. Before fusion, both modalities are projected to a common 
+
+latent space using linear transformations :
+
+𝑔 Z = 𝑊 *, 𝑡 ̂ = 𝑊 . （6）
+
+The fused representation is then computed as a convex combination: 
+
+𝑧 = 𝛼 𝑔 Z + 𝛽 𝑡 ̂ （7）
+
+Finally, z is passed through a transformation block (linear layer, layer normalization, rectified linear unit 
+
+(ReLU ), and dropout) before the task -specific prediction head. This design allows the model to emphasize 
+
+the modality that provides the most informative signal for a given crystal -description pair while keeping 
+
+the fusion weights interpretable. 
+
+Model comparison and analysis 
+
+To evaluate the performance of SAGE -Net, we benchmarked it against seven representative baselines 
+
+on ten regression targets from the JARVIS -DFT dataset, covering bandgaps , mechanical, dielectric, and 
+
+transport -related properties. These baselines include four structure -based models, CGCNN, ALIGNN, 
+
+DenseGNN -Lite, and CartNet, as well as three multimodal models, CrysMMNet, MultiMat, and Hybrid -
+
+LLM -GNN. 19 -21,24,29,30 Details regarding the sources and sizes of the datasets are provided in the Methods 
+
+section. As summarized in Table 1, SAGE -Net achieves the lowest MAE on eight out of ten regression 
+
+targets when instantiated with different GNN backbones, demonstrating strong generality across diverse 
+
+property classes. Specifically, SAGE -ALIGNN obtains the best performance for electric field gradient ,
+
+SLME, and average hole mass ; SAGE -CartNet achieves the lowest MAE for mBJ bandgap, OptB88vdW 
+
+bandgap, and bulk modulus; and SAGE -DenseGNN -Lite performs the best for shear modulus and static 8
+
+dielectric constant . For the remaining two targets, Seebeck coefficient and spin –orbit spillage, 
+
+CrysMMNet and Hybrid -LLM -GNN give the lowest MAEs, respectively, while SAGE -Net remains 
+
+competitive. Parity plots for all ten regression targets are provided in Figures S1 and S2. 
+
+Table 1. Comparison of prediction performance for SAGE -Net and baseline models across ten 
+
+JARVIS -DFT regression targets. Mean absolute error (MAE) is reported for each property, with lower 
+
+values indicating better performance. The asterisk (*) denotes the best -performing model for each target. 
+
+Benchmark results in this table were obtained using the official dataset splits .
+
+Mean Absolute Error (MAE) 
+
+Model Electric field 
+
+gradient (V/Å 2)
+
+Bandgap 
+
+(mBJ) (eV) 
+
+SLME 
+
+(%) 
+
+Seebeck 
+
+(μ V/ K)
+
+Average hole 
+
+mass (m 0)
+
+CGCNN 24.670 0.413 5.660 49.317 0.157 
+
+ALIGNN 19.121 0.310 4.521 40.921 0.124 
+
+DenseGNN -Lite 21.202 0.267 4.793 44.204 0.128 
+
+CartNet 21.708 0.251 4.495 41.712 0.125 
+
+CrysMMNet 19. 021 0.2 71 4.500 40.120 * 0.125 
+
+Multi Mat 19.714 0.291 4.670 40.990 0.132 
+
+Hybrid -LLM -GNN 21.729 0.313 4.801 45.725 0.118 
+
+SAGE -CGCNN 22.404 0.302 4.853 48.768 0.1 32
+
+SAGE -ALIGNN 18. 472 * 0.2 57 4. 281 * 42.4 38 0.1 14*
+
+SAGE -DenseGNN -Lite 19.246 0.243 4.498 41.809 0.120 
+
+SAGE -CartNet 20.811 0.234 * 4.396 40.552 0.121 
+
+Mean Absolute Error (MAE) 
+
+Model Static dielectric 
+
+constant ( /)
+
+Spillage 
+
+(/) 
+
+Bandgap 
+
+(Opt B88vd W) (eV) 
+
+Bulk moduli 
+
+(GPa) 
+
+Shear moduli 
+
+(GPa) 
+
+CGCNN 36.054 0.397 0.200 14.120 11.980 
+
+ALIGNN 23.731 0.351 0.142 10.400 9.481 
+
+DenseGNN -Lite 23. 368 0.361 0.140 9.511 8.900 9
+
+CartNet 24.307 0.373 0.117 8.776 8.826 
+
+CrysMMNet 24.015 0.348 0.124 10.308 9.587 
+
+MultiMat 24.187 0.363 0.155 10.669 9.605 
+
+Hybrid -LLM -GNN 24.532 0.343 * 0.144 17.979 11.498 
+
+SAGE -CGCNN 25.3 57 0.355 0.151 12.235 10.293 
+
+SAGE -ALIGNN 23. 057 0.348 0.122 10.420 9.305 
+
+SAGE -DenseGNN -Lite 22.908 * 0.349 0.125 9.232 8.772 *
+
+SAGE -CartNet 23.595 0.360 0.106 * 8.508* 8.970 
+
+To provide a more global view of model performance, Figure 2 summarizes the task -wise rankings 
+
+and relative improvements across the ten JARVIS -DFT regression targets. Figure 2a shows that SAGE -
+
+CartNet and SAGE -ALIGNN each rank first on three targets and secon d on two additional targets, while 
+
+SAGE -DenseGNN -Lite ranks first on two targets and second on one target. Together with the results in 
+
+Table 1, these rankings indicate that no single geometric backbone dominates all property targets, either 
+
+before or afte r SGMP integration. This reflects the different inductive biases of the backbones, including 
+
+angle -aware message passing in ALIGNN, Cartesian geometric encoding in CartNet, and dense 
+
+information propagation in DenseGNN -Lite. Consistently, the average -rank analysis in Figure 2b 
+
+identifies SAGE -CartNet as the top -ranked model with an average rank of 3.20, followed by SAGE -
+
+DenseGNN -Lite and SAGE -ALIGNN with average ranks of 3.30 and 3.35, respectively. These results 
+
+support SAGE -Net as a flexible SGMP -based fr amework that injects crystallographic semantics into 
+
+different geometric encoders while preserving their target -dependent strengths. 
+
+Figure 2c further compares each SAGE -Net model with its corresponding structure -only backbone. 
+
+The SGMP -enhanced models generally improve over their base models across most targets, confirming 
+
+that crystallographic description -derived information provides useful priors beyond the original crystal -
+
+graph representation. The improvement is particularl y evident for SAGE -CGCNN, which shows broad 
+
+gains relative to CGCNN, and for SAGE -CartNet and SAGE -ALIGNN, which achieve high overall 
+
+rankings while improving sev eral properties, viz. bandgaps , dielectric, mechanical, and transport -related 10 
+
+properties . Although the magnitude of improvement varies across properties and backbones, these 
+
+backbone -level comparisons support the view that SGMP is not tied to a specific GNN architecture. 
+
+Figure 2. Overall benchmark summary of SAGE -Net and baseline models across ten JARVIS -DFT 
+
+regression targets. (a) Number of properties for which each model ranks first or second in terms of test 
+
+MAE. Solid bars denote first -place counts, and hatched bars denote second -place counts. (b) Average rank 
+
+of each model across the ten regression targets, where a lower rank indicates better overall performance. 11 
+
+(c) Percentage improvement of each SAGE -Net instantiation over its corresponding structure -only 
+
+backbone, including SAGE -CGCNN versus CGCNN, SAGE -ALIGNN versus ALIGNN, SAGE -
+
+DenseGNN -Lite versus DenseGNN -Lite, and SAGE -CartNet versus CartNet. (d) Percentage 
+
+improvement over the ALIGNN baseline for SAGE -ALIGNN and representative multimodal baselines, 
+
+including CrysMMNet, MultiMat, and Hybrid -LLM -GNN. Positive values indicate lower MAE than the 
+
+reference baseline, whereas negative values indicate pe rformance d egradation. 
+
+Mo reover, Figure 2d compares SAGE -ALIGNN with representative multimodal baselines using 
+
+ALIGNN as the reference model. SAGE -ALIGNN shows more stable positive improvements over 
+
+ALIGNN across most targets, whereas MultiMat and Hybrid -LLM -GNN exhibit performance degrad ation 
+
+on certain properties. CrysMMNet performs well on some targets, but its improvements are less uniform 
+
+across the benchmark suite. These observations indicate that simply introducing textual information 
+
+through post -encoding fusion, latent -space alignment, or representation -level multimodal interaction does 
+
+not necessarily lead to consistent gains. However , SAGE -Net benefits from injecting crystallographic 
+
+semantic information into atom -level message passing, allowing structure -derived descriptions to shape 
+
+crystal -graph representations before graph -level pooling. 
+
+Because RoboCrystallographer descriptions are generated from crystal structures, we performed two 
+
+tests to verify that the improvement arises from structure -consistent semantics rather than incidental 
+
+effects of adding a text branch. In a structure –text mismatch test, we randomly permuted the descriptions 
+
+across the test set while keeping each crystal graph fixed. For SAGE -ALIGNN, this perturbation increases 
+
+the mBJ bandgap MAE from 0.246 eV with matched text to 0.311 eV with mismatched text (Figure s S3a 
+
+and S3b ), nearly reverting to the structure -only ALIGNN baseline (0.310 e V). This indicates that 
+
+unaligned textual information does not provide useful gains and may weaken semantic -guided message 
+
+passing. We further replaced the MatSciBERT representation with an explicit crystallographic prior vector 
+
+computed from CIF, including symmetry, dimensionality, and c oordination -number statistics, and injected 
+
+it using the same gating mechanism. This explicit -prior baseline partially recovers the improvement, 
+
+reaching an mBJ MAE of 0.279 eV (Table S2), but remains inferior to the matched -text model. These 12 
+
+trials show that the performance gain is not merely caused by additional input features or increased model 
+
+capacity, but depends on aligned semantic information coupled to atom -level message passing. 
+
+Ablation study 
+
+To quantify the contribution of each multimodal component, we performed an ablation study on four 
+
+representative property prediction tasks (Table 2). The baseline is a gated late -fusion model, in which 
+
+graph and text representations are independently encod ed and adaptively combined only at the prediction 
+
+stage. Model 1 adds Semantic -Guided Message Passing (SGMP), where crystallographic description -
+
+derived semantics modulate atom -level updates through semantic gating during geometric encoding. As 
+
+shown in Ta ble 2, enabling SGMP yields the most consistent improvements . We further evaluate optional 
+
+modules both individually and in combination with SGMP. Model 2 adds fine -grained fusion only, and 
+
+Model 3 adds cross -modal attention only. For SLME, the best result is obtained when SGMP is combined 
+
+with fine -grained fusion (Model 1+2), reducing the MAE from 4.332% to 4.229%, while Model 1 alone 
+
+still provides a modest improvement (4.276%). By contrast, enabling fine -grained fusion or cross -modal 
+
+attention without SG MP (Model 2 or Model 3) does not yield systematic benefits , and can even degrade 
+
+performance. An end -to -end schematic of these module configurations is provided in Figure S 4. Overall, 
+
+the ablation studies indicate that textual semantics are the most effective when introduced as chemically 
+
+meaningful constraints during message passing, whereas additional fusion/attention mechanisms provide 
+
+target -dependent and generally incremental improvements. 
+
+Table 2. Ablation study of model components on four property prediction tasks. The baseline 
+
+corresponds to a gated late -fusion model, in which graph and text representations are independently 
+
+encoded and adaptively combined at the prediction stage. Model 1 adds SGMP only. Model 2 adds fine -
+
+grained fusion only. Model 3 adds cross -modal attention only. An asterisk (*) indicates the best 
+
+performance. 
+
+Mean Absolute Error (MAE) 
+
+Model Spillage 
+
+(/) 
+
+Bandgap 
+
+(mBJ) (eV) 
+
+SLME 
+
+(%) 
+
+Average hole mass 
+
+(m 0)13 
+
+Baseline 0.347 0.288 4.332 0.121 
+
++Model (1) 0.346 * 0.24 6* 4.276 0.119 *
+
++Model (1+2) 0.349 0.258 4.229 * 0.126 
+
++Model (1+2+3) 0.353 0.251 4.314 0.119 *
+
++Model (2) 0.353 0.282 4.421 0.119 *
+
++Model (2+3) 0.34 7 0.269 4.308 0.122 
+
+Mechanistic insights into semantic conditioning 
+
+To elucidate the origin of the observed performance gains, we analyze how crystallographic 
+
+descriptions influence the evolution of crystal -graph representations during message passing. Unless 
+
+otherwise menti oned , this section uses SAGE -ALIGNN , trained on the mBJ bandgap task as a 
+
+representative example. To examine when structure -derived textual descriptors begin to affect the crystal 
+
+representation, we tracked the layer -wise consistency between atom -level crystal -graph features and the 
+
+corresponding crystal lographic description features (Figure 3a). In the early ALIGNN blocks (Blocks 1 –
+
+3), the consistency remains low, indicating that the model first focuses on establishing local bonding 
+
+geometry, coordination environments, and short -range structural connectivity. After SGMP is introduced 
+
+at Block 3, the consistency increases sharply, suggesting that crystallographic descriptors such as 
+
+symmetry, coordination motifs, dimensionality, and site information begin to guide the evolution of atom -
+
+level representation s. In deeper ALIGNN blocks, the consistency gradually relaxes toward Block 8, 
+
+implying that the injected crystal -level semantic information is not simply copied into the graph 
+
+representation, but is further reorganized under local geometric and bonding con straints. This trend agrees 
+
+with the injection -depth ablation in Table S3, where intermediate SGMP insertion gives the lowest 
+
+prediction error, whereas too -early or repeated semantic injection leads to inferior performance. 14 
+
+Figure 3. Crystallographic descriptions modulate crystal -graph representations to resolve hard 
+
+samples and enhance physical interpretability. (a) Layer -wise cosine similarity (node features vs text 
+
+embeddings) . (b) Feature statistics , (c) Hard -sample error distribution /MAE shift . (d) Test -time keyword 
+
+retention /masking (MAE and R 2). (e) Element -wise average gating coefficients α.
+
+Taken together, these results suggest a consistent design rule: crystallographic descriptions are the 
+
+most beneficial when introduced after the crystal graph has already established basic local structural 15 
+
+information. In the early ALIGNN blocks, the model primarily learns local coordination geometry, bond 
+
+connectivity, and short -range atomic environments from the crystal graph. Introducing global 
+
+crystallographic descriptors too early may disturb this initi al construction of local structural 
+
+representations. In contrast, mid -level SGMP allows symmetry, coordination, dimensionality, and site -
+
+related descriptors to act as crystallographic priors, which can then be further refined by subsequent 
+
+message -passing layers under local bonding and geometric constraints. This trajectory indicates that the 
+
+information carried by the crystal descriptions is not simply copied into the graph representation, but is 
+
+progressively integrated with local structural environments during message passing. Consistent with this 
+
+behavior, SAGE -ALIGNN modifies the distribution of learned crystal representations (Figure 3b), 
+
+increasing the feature variance from 0.662 to 0.738 while maintaining a comparable feature norm, 
+
+suggesting improve d distinction among different chemical and coordination environments. 
+
+The practical impact of this structure –description coupling is most apparent for challenging crystals 
+
+(Figure 3c). For “hard” samples where the CrysMMNet baseline gives large errors (> 0.5 00 eV, n = 287 ), 
+
+SAGE -ALIGNN shifts the error distribution toward smaller values and reduces the subset MAE by 0.359 
+
+eV, corresponding to a 25.4% reduction. To examine how much the model depends on the crystallographic 
+
+description, we performed a test -time keyword retention analysis (Figure 3d). Because the text input is 
+
+constructed from curated chemistry and crystallography keywords, the retention ratio directly controls the 
+
+amoun t of available structural semantic information at inference. The prediction accuracy recovers 
+
+monotonically as more keywords are retained, with R2 increasing from 0.630 to 0.915. This confirms that 
+
+the improvement is strongly linked to the availability of structure -consistent crystallographic descriptors. 
+
+Finally, the element -resolved gating coefficients show systematic chemical trends across different 
+
+atomic species (Figure 3e). Alkali metals and hydrogen exhibit higher gate values (α > 0.45 0), indicating 
+
+stronger modulation by crystallographic descriptions, whereas halogens and more strongly coordinated 
+
+species show lower gate values ( α < 0.35 0). These differences suggest that SAGE -ALIGNN does not 
+
+apply semantic information uniformly to all atoms. Instead, the degree of description -guided modulation 16 
+
+depends on the chemical identity and local coordination environment, consistent with the chemically 
+
+heterogeneous nature of crystalline materials. 
+
+Semantic selectivity and interpretability 
+
+While the preceding analyses show that crystallographic descriptions enter and reshape crystal -graph 
+
+representations, it remains important to determine which types of descriptors are actually leveraged by the 
+
+model. As shown in Figure 4a, global crystallographic priors (crys.) and structure descriptors (stru.) are 
+
+strongly enriched in attention relative to their corpus prevalence. This indicates that SAGE -ALIGNN 
+
+preferentially amplifies low -frequency but diagnostically important crystall ographic cues beyond what 
+
+would be expected from token frequency alone. The attention distributions in Figure 4b further support 
+
+this observation: crys. tokens exhibit relatively high attention weights with concentrated distributions, 
+
+consistent with the stable use of global symmetry and lattice -level information across samples. 
+
+Because attention enrichment reflects selective use rather than marginal predictive importance, we 
+
+next quantified functional sensitivity via group -wise masking on the full test set (Figure 4c). For each 
+
+category, tokens were masked when present while all other inputs were kept unchanged; we report both 
+
+the resulting increase in MAE and the category coverage. Masking composition and site identity (comp.) 
+
+produces the largest degradation in ban dgap MAE (ΔMAE = 28. 1%), followed by local coordination and 
+
+polyh edral environment (coor.) and global crystallographic priors (crys.) ( ΔMAE = 15.6%). In contrast, 
+
+shape and geometric appearance (shap.) has negligible impact and serves as an internal negative control. 
+
+Consistent with these results, the association betwee n attention enrichment and masking impact is weak 
+
+and not statistically significant across categories (Spearman ρ = 0.357, p = 0.432; Figure 4d), underscoring 
+
+that attention selectivity and performance sensitivity capture complementary, non -interchangeable aspects 
+
+of semantic conditioning. Additionally , we further probed semantic conditioning by counterfactual 
+
+swapping of structure -type tokens while keeping the crystal structures fixed; the induced prediction shifts 
+
+are reversible across multiple prototype pairs (Figure S 5) . This intervention is intended as a sensitivity 
+
+probe and does not imply a physically realizable prototype transformation. 17 
+
+Figure 4. Category -wise ablation for the text branch. (a) Attention enrichment score (light) versus 
+
+corpus frequency (dark) for seven semantic super -categories. (b) Distributions of token -level attention 
+
+weights across categories. (c) Group -wise masking analysis reporting the relative MAE increase (bars) 
+
+and category coverage (dashed line). (d) Relationship between attention enrichment and masking impact 
+
+across categories .
+
+The practical value of deeply coupling text semantics with geometric learning is highlighted by the 
+
+mBJ bandgap predic tion for Rb 2AuGaI 6 (Figure S6a ). This pr eference for crystallographic priors, 
+
+highlighted by the enrichment and attention analyses in Figure 4a–d, is further illustrated by this 
+
+representative case study (Figure S6a , b). For this quaternary double perovskite, the multimodal late -
+
+fusion baseline, which combines text and structure only at the final prediction stage, still incurs a 
+
+substantial error (0.269 eV). 18 
+
+This behavior is consistent with the chemical complexity of double perovskites, where cation 
+
+ordering and heterogeneous coordination environments can yield similar local geometries but distinct 
+
+electronic responses. In contrast, SAGE -ALIGNN reduces the error to 0.002 eV by leveraging explicit 
+
+crystallographic descriptors such as “Fm -3m” together with coordination and polyhedral motifs such as 
+
+“cuboctahedra,” which encode chemically meaningful constraints on site symmetry and local 
+
+environmen ts. Importantly, the atom –token attention heatmap (Figure S6b ) provides chemically 
+
+interpretable grounding between language and atomic environments. Tokens associated with polyhedral 
+
+language align with the site chemistry expected for a double perovskite , attention linked to the B -site 
+
+cations (Au and Ga) concentrates on coordination descriptors such as “octahedra,” consistent with BX 6
+
+type units, whereas Rb aligns with A -site polyhedral motifs such as “cuboctahedra,” which describe the 
+
+larger coordination cage characteristic of alkali A -site cations. The attention also highlights how different 
+
+semantic cues play complementary roles, wit h space -group information providing a global symmetry 
+
+constraint and polyhedral descriptors specifying local coordination geometry. Together, these results 
+
+indicate that SAGE -ALIGNN learns interpretable cross -modal correspondences that connect 
+
+crystallographic language to specific atomic environments, thereby improving predictions for structurally 
+
+complex materials beyond what late fusion (concatenation ) alone captures. Additional interpretability case 
+
+studies for Na 4BeAlSi 4ClO 12 (six element s compound ) are provided in Figure S 6c, d .
+
+Application to synthesizability screening 
+
+Having established that SGMP improves property prediction by coupling crystallographic 
+
+descriptions with crystal -graph learning, we next examine whether this mechanism also benefits 
+
+downstream materials screening. To demonstrate the utility of SAGE -Net in practical materials discovery 
+
+workflows, we evaluated it on a binary synthesizability screening task using the dataset described in the 
+
+Methods section. The test set spans a broad chemical and structural space, is dominated by ternary and 
+
+quaternary compou nds, and covers all seven crystal systems (Figure 5a). The confusion matrix in Figure 
+
+5b indicates balanced performance, correctly identifying 3970 unsynthesizable and 4084 synthesizable 
+
+candidates. For screening, the relatively low false -negative count (120) compared with false positives (208) 19 
+
+is particularly valuable, because missing experimentally accessible candidates is often more costly than 
+
+advancing a manageable number of false positives to subsequent validation. 
+
+Figure 5. Synthesizability screening performance of SAGE -Net. (a) Dataset distribution by number of 
+
+elements and crystal system. (b) Confusion matrix for binary synthesizability classification. (c) ROC 
+
+curve with AUC = 0.988. (d) Accuracy and F1 -score stratified by crystal system (Cub, cubic; Hex, 
+
+hexagonal; Tet, tetragonal; Orth, orthorhombic; Mono, monoclinic; Trig, trigonal; Tric, triclinic). (e) 
+
+Accuracy and F1 -score stratified by number of constituent elements. 
+
+This diversity provides a stringent assessment of generalization beyond simple compositions or high -
+
+symmetry subsets. SAGE -Net shows strong global discrimination, achieving an ROC –AUC of 0.988 
+
+(Figure 5c). We further examined robustness with respect to structural and compositional complexity. 
+
+Across crystal systems from cubic to triclinic, SAGE -Net maintains consistently high accuracy (> 94 .0 %) 
+
+and F1 -Score (Figure 5d), indicating that performance is not confined to a narrow symmetry class. 
+
+Likewise, accuracy and F1 remain stable as the number of constituent elements increases from binary to 20 
+
+quinary (5+) compositions (Figure 5e), suggesting resilience to the combinatorial complexity of 
+
+multicomponent chemistry. 
+
+Finally, we benchmarked SAGE -ALIGNN against its geometric backbone ALIGNN and the 
+
+language -model -based metho d CSLLM (T able 3). 20,32 Compared with ALIGNN, SAGE -ALIGNN 
+
+improves the accuracy from 94. 80 % to 96.0 9% and increases the recall from 96.9 8% to 97.1 5%. These 
+
+gains support the premise that text -derived chemical descriptors provide information that complements 
+
+structure alone. Relative to CSLLM, SAGE -Net achieves comparable overall performance while 
+
+delivering the highest recall among the evaluated methods (97.1 5%). Taken together, these results indicate 
+
+that SAGE -Net is well suited for high -throughput screening, where prioritizing recall helps minimize 
+
+missed synthesizable candidates. 
+
+Table 3. comparison with ALIGNN (graph baseline and SAGE -ALIGNN backbone) and CSLLM. 
+
+Model Accuracy Recall F1 -Score Precision 
+
+ALIGNN 94. 80 96.9 8 94.92 92.9 6
+
+CSLLM 96.22 96.87 96.2 4 95.6 2
+
+SAGE -ALIGNN 96.0 9 97.1 5 96.1 4 95.15 
+
+CONCLUSIONS 
+
+In summary, we developed SAGE -Net, a flexible multimodal framework that couples structure -
+
+derived crystallographic descriptions with crystal -graph message passing for crystalline materials. SAGE -
+
+Net introduces crystallographic semantic information during atom -level updates, allowing descriptors 
+
+such as symmetry, dimensionality, space group, site identity, and coordination motifs to shape local 
+
+structural representations during encoding. By integrating SGMP with multiple GNN backbones, 
+
+including CGCNN, ALIGN N, DenseGNN -Lite and CartNet , SAGE -Net provides a transferable strategy 
+
+for enhancing geometric representation learning. 
+
+Across benchmarks spanning bandgaps, mechanical, dielectric, and transport -related properties, 
+
+SAGE -Net improves its corresponding structure -only backbones on most targets when instantiated with 21 
+
+different geometric encoders, and achieves the lowest MAE on eight out of ten JARVIS -DFT regression 
+
+targets. The gains are particularly evident for challenging cases where structure -only representations or 
+
+post -encoding multimodal fusion provide insufficie nt structure –property discrimination. Beyond 
+
+predictive accuracy, SAGE -Net offers chemically interpretable cross -modal grounding. Attention 
+
+enrichment, masking, and case -study analyses show that the model preferentially leverages 
+
+crystallographic priors ra ther than merely frequent tokens, and learns intuitive correspondences between 
+
+polyhedral or symmetry descriptors and the associated atomic environments. SAGE -Net also 
+
+demonstrates practical utility for materials discovery, achieving strong performance in synthesizability 
+
+screening with ROC –AUC = 0.988 and 97.1 5% recall, supporting conservative down -selection where 
+
+minimizing missed synthesizable candidates is a primary objective. 
+
+More broadly, this work establishes a general strategy for multimodal learning in materials science 
+
+by treating crystallographic language not as auxiliary metadata, but as an actionable source of chemical 
+
+and structural priors that can be grounded in cryst al graphs. By extending this principle to richer materials 
+
+knowledge sources, such as synthesis narratives, processing conditions, experimental metadata, and 
+
+multimodal pretraining, future models may move beyond static structure –property prediction toward more 
+
+context -aware, experimentally grounded, and transferable materials discovery. 
+
+ME THODS 
+
+We evaluated SAGE -Net on ten regression targets from the JARVIS -DFT dataset , whose reference 
+
+properties were computed using density functional theory (DFT) in Vienna Ab initio Simulation Package 
+
+(VASP ).33 Most targets were obtained with the optB88vdW functional, 34 while mBJ calculations were 
+
+used to provide improved ev aluation of bandgap where available. 35 Dielectric -related labels were taken 
+
+as the static dielectric constant computed via Density Functional Perturbation Theory (DFPT ), including 
+
+both electronic and ionic contributions. 36 Thermoelectric quantities were calculated using BoltzTra p
+
+software under the constant relaxation -time approximation, 37 and spin –orbit spillage was computed from 
+
+the difference between wavefunctions with and without spin –orbit coupling. 38 The mBJ frequency -
+
+dependent dielectric function is used to calculate the maximum efficiency limited by the spectrum .39 For 22 
+
+benchmark comparisons, we used the official train/validation/test splits of the corresponding JARVIS -
+
+DFT regression targets to ensure comparability with previously reported baselines. The validation set was 
+
+used for early stopping and hyperparameter select ion, and all benchmark results were evaluated on the 
+
+held -out test set. The exact numbers of samples in each official split are provided in Table S4. Unless 
+
+otherwise specified, all other experiments, including ablation studies, control experiments, interp retability 
+
+analyses, and supplementary evaluations, used train/validation/test splits randomly generated with seed 
+
+42 where applicable. 
+
+Synthesizable (positive) structures were obtained from the Materials Project (MP) by selecting 
+
+entries annotated with Inorganic Crystal Structure Database (ICSD ) tags (experimentally reported 
+
+structures). 40 -42 Non -synthesizable (negative) structures were adopted from the dataset released in Crystal 
+
+Synthesis Large Language Models (CSLLM ),32 where negatives are defined as low -likelihood crystals 
+
+selected using a PU -learning crystallization -likelihood score (CLscore). 33,41,43 -46 To standardize structural 
+
+complexity, we retained ordered structures with ≤40 atoms and ≤7 elements using strict filters and 
+
+perf ormed stratified sampling by crystal system. We note that the negative labels are proxy labels derived 
+
+from CLscore and may contain noise; therefore, we emphasize recall -oriented operating points for 
+
+conservative screening. 32 
+
+Since SAGE -Net leverages structure -derived textual descriptors as an additional modality, we first 
+
+describe how these descriptions are generated and standardized. For each crystal structure, we generated 
+
+a natural -language crystallographic description using RoboCrystallographer. 27 We then applied two 
+
+preprocessing steps to reduce linguistic redundancy and redundant local geometric details: (i ) removal of 
+
+stopwords and function words using a predefined stopword lexicon, 47 and (ii) removal of local -detail 
+
+sentences that explicitly report short -range geometric measurements, such as specific bond lengths and 
+
+bond angles, typically accompanied by Å or ° units. 48 As a result, the average number of tokens per 
+
+description was reduced by 57.4% (Figure S 7). This preprocessing was designed to encourage the text 
+
+branch to focus on higher -level crystallographic descriptors, such as symmetry, dimensionality, 
+
+coordination motifs, and site -related information, while leaving explicit local geometric measurements to 23 
+
+be captured primarily by the crystal -graph encoder. Following prior observations that filtering connective 
+
+words and overly local geometric statements can improve predictive performanc e,47,48 we evaluated the 
+
+effect of this preprocessing using SAGE -DenseGNN -Lite across ten JARVIS -DFT property prediction 
+
+tasks. The preprocessed descriptions yield lower MAE on seven out of ten targets, supporting their use in 
+
+the main experiments; detailed ablation results are provided in Table S5. Overall, the preprocessed 
+
+descriptions provide a more compact and generally robust text modality for SAGE -CartNet and are 
+
+therefore used in the main experiments. 
+
+Fine -grained fusion for atom –token interpretability. In addition to SGMP, we implemented an 
+
+optional fine -grained fusion module to resolve token -level interactions with atomic environments and to 
+
+enable atom –token attention analysis . Let ℎ! ∈ ℝ-! denote the representation of atom 𝑖 and 𝑢 4 ∈ ℝ-"
+
+denote the MatSciBERT token embedding for token 𝑗 . We `irst project atomic and token features into 
+
+a shared latent space of dimension 𝑑 5:
+
+ℎ?! = 𝑊 6ℎ!, 𝑢 <4 = 𝑊 .𝑢 4 （8）
+
+We then compute atom -to -token multi -head attention , where atoms serve as queries and tokens serve as 
+
+keys and values: 
+
+𝑄 = 𝐻 f𝑊 7, 𝐾 = 𝑈 f𝑊 8, 𝑉 = 𝑈 f𝑊 9, 𝐴 = 𝑠𝑜𝑓𝑡𝑚𝑎𝑥 (78#
+
+> :-$
+
+), 𝐶 = 𝐴𝑉 （9）
+
+Padding tokens are masked before the softmax operation to ensure that attention weights are normalized 
+
+only over valid tokens. The resulting token -conditioned context 𝐶 is projected back to the node -feature 
+
+dimension to yield a text context vector for each atom. Finally, we integrate this context through a gated 
+
+residual update :
+
+𝛼 ! = 𝜎 (𝑊 *[ℎ! ‖𝑐 ! ]), ℎ! 
+
+> )
+
+= 𝐿𝑎𝑦𝑒𝑟𝑁𝑜𝑟𝑚 (ℎ! + 𝛼 ! ⨀ 𝑐 !) （10 ）
+
+where 𝜎 (⋅) is the sigmoid function, || denotes concatenation , and ⨀ denotes elementwise multiplication. 
+
+This design allows each atom to attend to different tokens and selectively incorporate token -level chemical 
+
+information, providing a mechanistic basis for atom –token interpretability while keeping the module 
+
+optional. 24 
+
+Cross -modal attention. We implemented an optional cross -modal attention block to enable 
+
+bidirectional interaction between global graph and text representations. Let 𝑔 ∈ ℝ-% denote the pooled 
+
+graph embedding from the geometric encoder and 𝑡 ∈ ℝ-" denote the global text embedding . The 
+
+module performs two symmetric o perations: graph -to -text ( g2t) and text -to -graph ( t2g), ea ch implemented 
+
+with multi -head scaled dot -product attention in a shared hidden space of dimension 𝑑 5.
+
+For G2T, the graph embedding serves as the query and the text embedding serves as the key and value: 
+
+𝑄 *%. = 𝑊 *%. 
+
+> 7
+
+𝑔 , 𝐾 *%. = 𝑊 *%. 
+
+> 8
+
+𝑡 , 𝑉 *%. = 𝑊 *%. 
+
+> 9
+
+𝑡 ,
+
+𝑐 *%. = 𝑀𝐻𝐴𝑡𝑡𝑛 z𝑄 *%., 𝐾 *%., 𝑉 *%. { = 𝑠𝑜𝑓𝑡𝑚𝑎𝑥 (7%&"8%&"
+
+> #
+> :-$
+
+)𝑉 *%. （11）
+
+The resulting context is projected back to the graph dimension and added residually: 
+
+𝑔 ) = 𝐿𝑎𝑦𝑒𝑟𝑁𝑜𝑟𝑚 (𝑔 + 𝑊 *
+
+> ;
+
+𝑐 *%.) （12）
+
+For T2G, the roles are reversed, with text as the query and graph as key and value: 
+
+𝑄 .%* = 𝑊 .%* 
+
+> 7
+
+𝑡 , 𝐾 .%* = 𝑊 .%* 
+
+> 8
+
+𝑔 , 𝑉 .%* = 𝑊 .%* 
+
+> 9
+
+𝑔 ,
+
+𝑐 .%* = 𝑀𝐻𝐴𝑡𝑡𝑛 z𝑄 .%*, 𝐾 .%*, 𝑉 .%*{, 𝑡 ) = 𝐿𝑎𝑦𝑒𝑟𝑁𝑜𝑟𝑚 (𝑡 + 𝑊 .;𝑐 .%*) （13）
+
+Here MHAttn denotes multi -head attention with 𝐻 heads, where each head applies scaled dot -product 
+
+attention and the head outputs are concatenated and linearly projected. The enhanced embeddings (𝑔 ), 𝑡 ))
+
+are then passed to the downstream fusion and prediction blocks. This design allows the model to adjust 
+
+the global structural representation using text context and, conversely, refine the text representation using 
+
+global structural inform ation. 
+
+For SAGE -ALIGNN, w e optimized the mean squared error (MSE) loss with the AdamW optimizer 
+
+(learning rate 5 × 10 <(, weight decay 1 × 10 <=) using a batch size of 64. Training was run for up to 100 
+
+epochs with early stopping based on validation performance (patience = 30 epochs). For SAGE -Net, 
+
+SGMP was applied after ALIGNN layer 3. We use 0-based indexing in code; thus, 
+
+middle_fusion_layers=2 corresponds to inserting SGMP after the third ALIGNN block. SAGE -Net was 
+
+implemented in PyTorch. 49 Crystal structures were represented as graphs using GDL ,50 with structure 25 
+
+parsing and neighbor construction handled by the JARVIS toolkit. 33 SAGE -CGCNN was trained with a 
+
+batch size of 128 for up to 100 epochs. SAGE -CartNet was trained with a batch size of 128 for up to 300 
+
+epochs. SAGE -DenseGNN -Lite was implemented using TensorFlow/Keras through the kgcnn 
+
+framework. 30 Models were trained with a batch size of 128 for up to 300 epochs. We use 0 -based indexing 
+
+in code; thus, middle_fusion_layers =2 corresponds to inserting SGMP at the third DenseGNN -Lite block. 
+
+Text representations were obtained with MatSciBERT via the HuggingFace Transformers stack. 31,51 Data 
+
+preprocessing and evaluation were performed using standard scientific Python packages (NumPy, Pandas, 
+
+SciPy, and scikit -learn). 52 -54 All experiments were conducted on an RTX 5090 GPU (32 GB). 
+
+ASSOCIATED CONTENT 
+
+The code and full model and training configurations used in this work are available on GitHub at 
+
+https://github.com/zhanggh1999/SAGE -Ne t. 
+
+Supporting Information 
+
+Text semantics and keyword taxonomy ; model architecture and optional modules ; a dditional regression 
+
+results ; additional interpretability case studies ; effect of text preprocessing ; methods and training details .
+
+Author Contributions 
+
+Conceptualization was conducted by G.Z. and D.H. G.Z. performed the investigation, data curation, and 
+
+wrote the original draft. Y.Y. and Y.J. contributed to validation. K.B.S, and D.O.S contributed to software 
+
+development and resources. Project administrat ion and funding acquisition was handled by D.H. and L.Z. 
+
+All authors have read, revised, and agreed to the published version of the manuscript. 
+
+Notes 
+
+The authors declare no competing financial interest. 
+
+ACKNOWLEDGMENTS 
+
+We acknowledge the support by the National Key Research and Development Program of China (Grant 
+
+No. 2022YFA1402500) , the National Natural Science Foundation of China (Grant s No. 12404268 ,26 
+
+62125402, T2521005 ), and the Fundamental Research Funds for the Central Universities, JLU. 
+
+Calculations were performed in part at the High -Performance Computing Center of Jilin University. 
+
+REFERENCES 
+
+1 X. Jiang, D. Xue, Y. Bai, W. Y. Wang, J. Liu et al, "AI4Materials: Transforming the landscape of 
+
+materials science and enigneering," Review of Materials Research 1, 100010 (2025). 
+
+https://doi.org/https://doi.org/10.1016/j.revmat.2025.100010 
+
+2 M. Cheng, C. -L. Fu, R. Okabe, A. Chotrattanapituk, A. Boonkird et al, "Artificial intelligence -
+
+driven approaches for materials design and discovery," Nature Materials (2026). 
+
+https://doi.org/10.1038/s41563 -025 -02403 -7
+
+3 J. Xie, Y. Su, D. Xue, X. Jiang, H. Fu et al, "Machine Learning for Materials Research and 
+
+Development," Jinshu Xuebao/Acta Metallurgica Sinica 57, 1343 -1361 (2021). 
+
+https://doi.org/10.11900/0412.1961.2021.00357 
+
+4 F. Delgado -Licona, A. Alsaiari, H. Dickerson, P. Klem, A. Ghorai et al, "Flow -driven data 
+
+intensification to accelerate autonomous inorganic materials discovery," Nature Chemical 
+
+Engineering 2, 436 -446 (2025). https://doi.org/10.1038/s44286 -025 -00249 -z
+
+5 X. -Q. Han, P. -J. Guo, Z. -F. Gao, H. Sun,Z. -Y. Lu, "InvDesFlow -AL: active learning -based 
+
+workflow for inverse design of functional materials," npj Computational Materials 11, 364 (2025). 
+
+https://doi.org/10.1038/s41524 -025 -01830 -z
+
+6 E. O. Pyzer -Knapp, J. W. Pitera, P. W. J. Staar, S. Takeda, T. Laino et al, "Accelerating materials 
+
+discovery using artificial intelligence, high performance computing and robotics," npj 
+
+Computational Materials 8, 84 (2022). https://doi.org/10.1038/s41524 -022 -00765 -z
+
+7 M. K. Horton, P. Huck, R. X. Yang, J. M. Munro, S. Dwaraknath et al, "Accelerated data -driven 
+
+materials science with the Materials Project," Nature Materials 24, 1522 -1532 (2025). 
+
+https://doi.org/10.1038/s41563 -025 -02272 -0
+
+8 B. Madika, A. Saha, C. Kang, B. Buyantogtokh, J. Agar et al, "Artificial Intelligence for Materials 
+
+Discovery, Development, and Optimization," ACS Nano 19, 27116 -27158 (2025). 
+
+https://doi.org/10.1021/acsnano.5c04200 
+
+9 Z. Yang, Y. C. Yabansu, R. Al -Bahrani, W. -k. Liao, A. N. Choudhary et al, "Deep learning 
+
+approaches for mining structure -property linkages in high contrast composites from simulation 
+
+datasets," Computational Materials Science 151, 278 -287 (2018). 
+
+https://doi.org/https://doi.org/10.1016/j.commatsci.2018.05.014 
+
+10 S. E. Whitman,M. I. Latypov, "Machine learning of microstructure –property relationships in 
+
+materials leveraging microstructure representation from foundational vision transformers," Acta 
+
+Materialia 296, 121217 (2025). https://doi.org/https://doi.org/10.1016/j.actamat.2025.121217 
+
+11 A. Pulido, L. Chen, T. Kaczorowski, D. Holden, M. A. Little et al, "Functional materials discovery 
+
+using energy –structure –function maps," Nature 543, 657 -664 (2017). 
+
+https://doi.org/10.1038/nature21419 
+
+12 V. Moro, C. Loh, R. Dangovski, A. Ghorashi, A. Ma et al, "Multimodal foundation models for 
+
+material property prediction and discovery," Newton 1, 100016 (2025). 
+
+https://doi.org/https://doi.org/10.1016/j.newton.2025.100016 27 
+
+13 M. S. Dyer, C. Collins, D. Hodgeman, P. A. Chater, A. Demont et al, "Computationally Assisted 
+
+Identification of Functional Inorganic Materials," Science 340, 847 -852 (2013). 
+
+https://doi.org/doi:10.1126/science.1226558 
+
+14 S. Shermukhamedov, D. Mamurjonova, T. Maihom,M. Probst, "Structure to Property: Chemical 
+
+Element Embeddings for Predicting Electronic Properties of Crystals," Journal of Chemical 
+
+Information and Modeling 64, 5762 -5770 (2024). https://doi.org/10.1021/acs.jcim.3c01990 
+
+15 C. Chen, Y. Zuo, W. Ye, X. Li, Z. Deng et al, "A Critical Review of Machine Learning of Energy 
+
+Materials," Advanced Energy Materials 10, 1903242 (2020). 
+
+https://doi.org/https://doi.org/10.1002/aenm.201903242 
+
+16 W. L. Williams, L. Zeng, T. Gensch, M. S. Sigman, A. G. Doyle et al, "The Evolution of Data -
+
+Driven Modeling in Organic Chemistry," ACS Central Science 7, 1622 -1637 (2021). 
+
+https://doi.org/10.1021/acscentsci.1c00535 
+
+17 S. Curtarolo, G. L. W. Hart, M. B. Nardelli, N. Mingo, S. Sanvito et al, "The high -throughput 
+
+highway to computational materials design," Nature Materials 12, 191 -201 (2013). 
+
+https://doi.org/10.1038/nmat3568 
+
+18 J. Zhou, L. Shen, M. Yang, H. Cheng, W. Kong et al, "Discovery of Hidden Classes of Layered 
+
+Electrides by Extensive High -Throughput Material Screening," Chemistry of Materials 31, 1860 -
+
+1868 (2019). https://doi.org/10.1021/acs.chemmater.8b03021 
+
+19 K. Das, P. Goyal, S. -C. Lee, S. Bhattacharjee,N. Ganguly. in Proceedings of the Thirty -Ninth 
+
+Conference on Uncertainty in Artificial Intelligence Vol. 216 Article 48 (JMLR.org, Pittsburgh, 
+
+PA, USA, 2023). 
+
+20 K. Choudhary,B. DeCost, "Atomistic Line Graph Neural Network for improved materials property 
+
+predictions," npj Computational Materials 7, 185 (2021). https://doi.org/10.1038/s41524 -021 -
+
+00650 -1
+
+21 T. Xie,J. C. Grossman, "Crystal Graph Convolutional Neural Networks for an Accurate and 
+
+Interpretable Prediction of Material Properties," Physical Review Letters 120, 145301 (2018). 
+
+https://doi.org/10.1103/PhysRevLett.120.145301 
+
+22 C. Chen, W. Ye, Y. Zuo, C. Zheng,S. P. Ong, "Graph Networks as a Universal Machine Learning 
+
+Framework for Molecules and Crystals," Chemistry of Materials 31, 3564 -3572 (2019). 
+
+https://doi.org/10.1021/acs.chemmater.9b01294 
+
+23 C. W. Park,C. Wolverton, "Developing an improved crystal graph convolutional neural network 
+
+framework for accelerated materials discovery," Physical Review Materials 4, 063801 (2020). 
+
+https://doi.org/10.1103/PhysRevMaterials.4.063801 
+
+24 À. Solé, A. Mosella -Montoro, J. Cardona, S. Gómez -Coca, D. Aravena et al, "A Cartesian 
+
+encoding graph neural network for crystal structure property prediction: application to thermal 
+
+ellipsoid estimation," Digital Discovery 4, 694 -710 (2025). https://doi.org/10.1039/D4DD00352G 
+
+25 J. Lee, C. Park, H. Yang, S. Lim,S. Han, "CAST: Cross Attention based multimodal fusion of 
+
+Structure and Text for materials property prediction," ArXiv 2502.06836 (2025). 
+
+26 A. Bhattacharya,S. G. Cloutier, "MatMMFuse: Multimodal fusion model for material property 
+
+prediction," Machine Learning: Science and Technology 6 (2025). 
+
+27 A. M. Ganose,A. Jain, "Robocrystallographer: automated crystal structure text descriptions and 
+
+analysis," MRS Communications 9, 874 -881 (2019). https://doi.org/10.1557/mrc.2019.94 28 
+
+28 J. Ock, J. Montoya, D. Schweigert, L. Hung, S. K. Suram et al, "UniMat: Unifying Materials 
+
+Embeddings through Multi -modal Learning," ArXiv abs/2411.08664 (2024). 
+
+29 Y. Li, V. Gupta, M. N. T. Kilic, K. Choudhary, D. Wines et al, "Hybrid -LLM -GNN: integrating 
+
+large language models and graph neural networks for enhanced materials property prediction," 
+
+Digital Discovery 4, 376 -383 (2025). https://doi.org/10.1039/D4DD00199K 
+
+30 H. Du, J. Wang, J. Hui, L. Zhang,H. Wang, "DenseGNN: universal and scalable deeper graph 
+
+neural networks for high -performance property prediction in crystals and molecules," npj 
+
+Computational Materials 10, 292 (2024). https://doi.org/10.1038/s41524 -024 -01444 -x
+
+31 T. Gupta, M. Zaki, N. M. A. Krishnan,Mausam, "MatSciBERT: A materials domain language 
+
+model for text mining and information extraction," npj Computational Materials 8, 102 (2022). 
+
+https://doi.org/10.1038/s41524 -022 -00784 -w
+
+32 Z. Song, S. Lu, M. Ju, Q. Zhou,J. Wang, "Accurate prediction of synthesizability and precursors 
+
+of 3D crystal structures via large language models," Nature Communications 16, 6530 (2025). 
+
+https://doi.org/10.1038/s41467 -025 -61778 -y
+
+33 K. Choudhary, K. F. Garrity, A. C. E. Reid, B. DeCost, A. J. Biacchi et al, "The joint automated 
+
+repository for various integrated simulations (JARVIS) for data -driven materials design," npj 
+
+Computational Materials 6, 173 (2020). https://doi.org/10.1038/s41524 -020 -00440 -1
+
+34 J. Klimeš, D. R. Bowler,A. Michaelides, "Chemical accuracy for the van der Waals density 
+
+functional," Journal of Physics: Condensed Matter 22, 022201 (2010). 
+
+https://doi.org/10.1088/0953 -8984/22/2/022201 
+
+35 F. Tran,P. Blaha, "Accurate Band Gaps of Semiconductors and Insulators with a Semilocal 
+
+Exchange -Correlation Potential," Physical Review Letters 102, 226401 (2009). 
+
+https://doi.org/10.1103/PhysRevLett.102.226401 
+
+36 S. Baroni,R. Resta, "Ab initio calculation of the macroscopic dielectric constant in silicon," 
+
+Physical Review B 33, 7017 -7021 (1986). https://doi.org/10.1103/PhysRevB.33.7017 
+
+37 G. K. H. Madsen,D. J. Singh, "BoltzTraP. A code for calculating band -structure dependent 
+
+quantities," Computer Physics Communications 175, 67 -71 (2006). 
+
+https://doi.org/https://doi.org/10.1016/j.cpc.2006.03.007 
+
+38 K. Choudhary, K. F. Garrity, N. J. Ghimire, N. Anand,F. Tavazza, "High -throughput search for 
+
+magnetic topological materials using spin -orbit spillage, machine learning, and experiments," 
+
+Physical Review B 103, 155131 (2021). https://doi.org/10.1103/PhysRevB.103.155131 
+
+39 K. Choudhary, M. Bercx, J. Jiang, R. Pachter, D. Lamoen et al, "Accelerated Discovery of Efficient 
+
+Solar Cell Materials Using Quantum and Machine -Learning Methods," Chemistry of Materials 31, 
+
+5900 -5908 (2019). https://doi.org/10.1021/acs.chemmater.9b02166 
+
+40 A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards et al, "Commentary: The Materials Project: 
+
+A materials genome approach to accelerating materials innovation," APL Materials 1 (2013). 
+
+https://doi.org/10.1063/1.4812323 
+
+41 J. Jang, G. H. Gu, J. Noh, J. Kim,Y. Jung, "Structure -Based Synthesizability Prediction of Crystals 
+
+Using Partially Supervised Learning," Journal of the American Chemical Society 142, 18836 -
+
+18843 (2020). https://doi.org/10.1021/jacs.0c07384 
+
+42 G. Bergerhoff, R. Hundt, R. Sievers,I. D. Brown, "The inorganic crystal structure data base," 
+
+Journal of Chemical Information and Computer Sciences 23, 66 -69 (1983). 
+
+https://doi.org/10.1021/ci00038a003 29 
+
+43 J. Bekker,J. Davis, "Learning from positive and unlabeled data: a survey," Machine Learning 109, 
+
+719 -760 (2020). https://doi.org/10.1007/s10994 -020 -05877 -5
+
+44 A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards et al, "Commentary: The Materials Project: 
+
+A materials genome approach to accelerating materials innovation," APL Materials 1, 011002 
+
+(2013). https://doi.org/10.1063/1.4812323 
+
+45 S. Gražulis, A. Daškevič, A. Merkys, D. Chateigner, L. Lutterotti et al, "Crystallography Open 
+
+Database (COD): an open -access collection of crystal structures and platform for world -wide 
+
+collaboration," Nucleic Acids Research 40, D420 -D427 (2012). https://doi.org/10.1093/nar/gkr900 
+
+46 S. Kirklin, J. E. Saal, B. Meredig, A. Thompson, J. W. Doak et al, "The Open Quantum Materials 
+
+Database (OQMD): assessing the accuracy of DFT formation energies," npj Computational 
+
+Materials 1, 15010 (2015). https://doi.org/10.1038/npjcompumats.2015.10 
+
+47 A. Niyongabo Rubungo, C. Arnold, B. P. Rand,A. B. Dieng, "LLM -Prop: predicting the properties 
+
+of crystalline materials using large language models," npj Computational Materials 11, 186 (2025). 
+
+https://doi.org/10.1038/s41524 -025 -01536 -2
+
+48 M. Munjal, J. Lee, C. Park,S. Han , " Lattice Lingo: Effect of Textual Detail on Multimodal 
+
+Learning for Property Prediction of Crystals ," ArXiv 2412.04670 (2024) .
+
+49 A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury et al, "PyTorch: An Imperative Style, High -
+
+Performance Deep Learning Library," ArXiv 1912.01703 (2019). 
+
+50 M. Wang, D. Zheng, Z. Ye, Q. Gan, M. Li et al, "Deep Graph Library: A Graph -Centric, Highly -
+
+Performant Package for Graph Neural Networks," arXiv 1909.01315 (2019). 
+
+51 T. Wolf, L. Debut, V. Sanh, J. Chaumond, C. Delangue et al, "HuggingFace's Transformers: State -
+
+of -the -art Natural Language Processing," ArXiv 1910.03771 (2019). 
+
+52 C. R. Harris, K. J. Millman, S. J. van der Walt, R. Gommers, P. Virtanen et al, "Array programming 
+
+with NumPy," Nature 585, 357 -362 (2020). https://doi.org/10.1038/s41586 -020 -2649 -2
+
+53 P. Virtanen, R. Gommers, T. E. Oliphant, M. Haberland, T. Reddy et al, "SciPy 1.0: fundamental 
+
+algorithms for scientific computing in Python," Nature Methods 17, 261 -272 (2020). 
+
+https://doi.org/10.1038/s41592 -019 -0686 -2
+
+54 F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion et al, "Scikit -learn: Machine 
+
+Learning in Python," J. Mach. Learn. Res. 12, 2825 -2830 (2011).

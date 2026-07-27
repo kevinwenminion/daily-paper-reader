@@ -1,0 +1,509 @@
+Title: Lithium-Projected Phonon Spectral Distributions as Robust Descriptors of Ionic Conductivity in Solid Electrolytes
+
+URL Source: https://arxiv.org/pdf/2607.20591v1
+
+Published Time: Fri, 24 Jul 2026 00:06:14 GMT
+
+Number of Pages: 27
+
+Markdown Content:
+# Lithium-Projected Phonon Spectral Distributions as Robust Descriptors of Ionic Conductivity in Solid Electrolytes 
+
+Gajendra Bohara and Ramakrishna Podila ∗
+
+Department of Physics and Astronomy, Clemson University, Clemson, South Carolina 29634, United States 
+
+E-mail: rpodilar@g.clemson.edu 
+
+Abstract 
+
+Lattice dynamics are widely invoked in the design of solid electrolytes, yet phonon information is commonly compressed into a band center or another scalar softness measure. Here we test whether the complete lithium-projected phonon density of states (Li-PDOS) provides a reproducible descriptor of experimental room-temperature ionic conductivity. MatterSim forces and Phonopy were used to generate harmonic total and Li-projected spectra for crystallographically resolved entries in the OBELiX dataset. A composition and structure audit defined a primary cohort of 260 materials (212 train and 48 test), a strict cohort of 241, and an exact-composition cohort of 168. Across 20 independently generated phonon-calculation database comparisons, the mean Wasserstein-1 distance was 0.542 THz for total DOS and 0.731 THz for Li-PDOS, revealing broad agreement but systematic, projection-dependent softening. Higher conductivity was associated with redistribution of normalized Li spectral weight toward low frequencies: in the untouched test set, the Li fractions below 2 and 5 THz had Spearman coefficients of 0.333 and 0.374, while the 5% cumulative-frequency quantile 
+
+1arXiv:2607.20591v1 [cond-mat.mtrl-sci] 22 Jul 2026 had a coefficient of −0.393. A Wasserstein kernel on the full Li-PDOS achieved held-out 
+
+R2 = 0 .444, compared with 0.012 for total DOS and 0.181 for a static composition– structure kernel. The Li model remained stable in the strict ( R2 = 0 .462) and exact (R2 = 0 .451) cohorts. Family adjustment attenuated scalar associations, and Li-versus-total whole-spectrum dependence was cohort sensitive. The results therefore support mobile-ion-resolved spectral distributions as useful comparative screening descriptors, not as a universal causal softness law. 
+
+# Keywords 
+
+solid-state electrolyte, ionic conductivity, phonon density of states, lithium-projected phonons, machine-learning interatomic potential, Wasserstein kernel, materials informatics 
+
+# 1 Introduction 
+
+All-solid-state batteries are being pursued because inorganic solid electrolytes could enable nonflammable cells, lithium-metal anodes, and higher energy densities than conventional liquid-electrolyte architectures. 1–4 Their practical realization, however, requires more than high ionic conductivity. A viable solid electrolyte must also exhibit negligible electronic conductivity, chemical and electrochemical compatibility, mechanical integrity, and manufacturability. 5–10 
+
+These requirements are strongly coupled: compositional substitutions that modify carrier concentration or migration barriers can also alter phase stability, elastic response, and interfacial behavior, while current localization and mechanical defects may promote lithium penetration even through nominally stable ceramic electrolytes. 11,12 
+
+Ionic transport in a crystalline solid is therefore not determined by equilibrium geometry alone. The measured conductivity reflects carrier concentration, defect thermodynamics, migration-network connectivity, local coordination, correlated hopping, and the free-energy response of the surrounding lattice. 5,6,13,14 Lattice dynamics can influence this response 2through several complementary mechanisms. Low-frequency collective distortions may tran-siently widen migration bottlenecks, particular eigenvectors may align with ion-hopping coordinates, rotational motion of complex anions may couple to mobile ions, and anharmonic fluctuations may reshape the migration free-energy landscape. 15–25 Mode-selective excitation and time-resolved measurements further suggest that a limited subset of vibrations can affect transport disproportionately. 20,25 
+
+These observations have motivated the use of lattice-dynamical descriptors in solid-electrolyte screening. Li-phonon band centers and related softness measures have been connected to migration energetics and used in high-throughput searches for candidate conductors. 16,26 Machine-learning (ML) approaches have likewise progressed from static composition–structure descriptors to automated structural representations and phonon-informed features. 27–30 More recently, high-throughput calculations have shown that phonon-softness descriptors can enrich lithium-superionic-conductor (LISICON) candidates and guide molecular-dynamics validation. 31 At the same time, cross-chemistry studies have reported weak or inconsistent relationships between mean phonon frequencies and migration barriers, particularly when the contributing eigenvectors are poorly aligned with the relevant diffusion pathway. 23,32,33 Taken together, these studies establish the value of lattice dynamics while also exposing a limitation of most existing approaches: the vibrational spectrum is typically compressed into a band center, Debye frequency, selected peak, overlap integral, or another engineered scalar. The central question addressed here is whether the complete mobile-ion-projected spectrum 
+
+contains transferable information about experimentally measured ionic conductivity that is not preserved by such scalar summaries. This question requires distinguishing both the physical observable and its mathematical representation. Total density of states (DOS) combines mobile-ion and framework vibrations, so a Li-specific transport signature may be diluted by modes dominated by the host sublattice. Nevertheless, framework motion and Li–anion coupling remain integral to transport, and the projected spectrum should not be interpreted 3as an isolated-ion quantity. 20,21,23,25 In addition, after unit-area normalization, a phonon spectrum is a nonnegative distribution over an ordered frequency axis. Treating frequency bins as independent Cartesian coordinates ignores the distinction between shifting spectral weight over nearby and widely separated frequencies and introduces constant-sum constraints familiar from compositional data analysis. 34 Cumulative-distribution and Wasserstein representations instead retain the ordering and metric structure of the frequency coordinate and provide suitable kernels for distribution-valued inputs. 35,36 
+
+We investigate these questions using the experimentally grounded OBELiX dataset, which provides curated room-temperature ionic conductivities and a fixed, leakage-aware train/test split across chemically diverse solid electrolytes. 37 Harmonic vibrational spectra are generated at scale using the MatterSim universal machine-learning interatomic potential (MLIP) and PhonoPy, enabling a common computational treatment of materials that would be prohibitively expensive to evaluate individually using first-principles calculations. 38 For every material, we analyze both the total DOS and the lithium-projected DOS (Li-PDOS), and compare scalar descriptors with representations of the complete spectral distribution. The principal innovation is the identification of an experimentally anchored, mobile-ion-resolved spectral redistribution associated with ionic transport. Higher-conductivity materials exhibit not merely a reduction in a characteristic Li frequency, but a reproducible transfer of normalized Li spectral weight toward the low-frequency region, accompanied by compensating changes at intermediate and higher frequencies. This pattern is identified using the training cohort and reproduced directionally in the untouched OBELiX test set. Representing the complete Li-PDOS through Wasserstein geometry captures this redistribution directly and yields substantially stronger held-out prediction than either the corresponding total-DOS representation or the tested static composition–structure baseline. The performance of the Li-distribution model also remains stable across progressively restrictive composition-audit cohorts. These results show that the frequency-resolved distribution of mobile-ion vibrational weight contains transferable information about experimental conductivity that is not retained 4by a single softness parameter or by the total phonon spectrum. To establish that this result does not arise from a particular structural-processing choice, frequency grid, censoring convention, or unstable phonon calculation, we use a validation-first analysis. Crystal compositions are audited before modeling, including explicit identification of finite-cell ordering approximations. Calculated spectra are compared with exact-phase reference calculations from the National Institute for Materials Science (NIMS) Materials Data Repository phonon calculation database (PhononDB), 39,40 and numerical-convergence, imaginary-mode, frequency-warp, conductivity-censoring, and audit-cohort sensitivities are evaluated. Frequency-localized associations are selected exclusively from the training data before examination in the untouched test set, and all comparisons between static, total-DOS, and Li-PDOS representations are performed on identical material cohorts. These safeguards also clarify the scope of the discovery. Universal MLIPs can exhibit systematic phonon softening and chemistry-dependent force errors, 41–43 and several scalar asso-ciations weaken after accounting for electrolyte family. Moreover, the relative whole-spectrum dependence of total DOS and Li-PDOS varies in the smallest exact-composition cohort. These observations limit a universal mechanistic interpretation of any single harmonic descriptor, but they do not alter the main result: mobile-ion-resolved spectral redistribution provides a reproducible and quantitatively useful description of experimental ionic-conductivity variation across chemically diverse solid electrolytes. 
+
+# 2 Experimental Section 
+
+2.1 OBELiX Targets, Splits, and Audit Cohorts 
+
+The experimental targets and tabulated crystallographic metadata were taken from OBELiX. 37 
+
+The published dataset contains 599 entries, comprising 478 training and 121 test records. We 5preserved the official split throughout. Conductivity values were converted to 
+
+y = log 10 
+
+h σ
+
+1 S cm −1
+
+i
+
+. (1) Entries reported as upper limits were assigned the reported limit in the primary analysis; half-limit substitution and exclusion were evaluated as sensitivities. Paired total-DOS and Li-PDOS files were calculated for 311 entries where crystal infor-mation files (cif) was available. The production structure associated with each spectrum was compared with the intended reduced composition and, where available, the pre-relaxation source CIF. Composition matching was invariant to the number of formula units. Be-cause finite ordered approximants of partially occupied structures require integer atom counts, the audit distinguished exact proportional matches ( PASS ), acceptable nearest-integer realizations ( PASS INTEGERIZED COMPOSITION ), and limited finite-cell approximations (WARN INTEGERIZATION APPROXIMATION ). Element-set errors, general stoichiometry failures, Li-vacancy filling errors, severe atomic overlap, unreadable structures, and absent audit records were excluded. A detailed list is provided in the supporting information. The primary cohort retained all three accepted audit categories and contained 212 training and 48 test materials. The strict cohort excluded the warning-level approximations (198/43), and the exact cohort retained only proportional matches (133/35). These nested cohorts were used to test whether the scientific conclusions depended on accepting integerized or approximate representations of disordered materials. Family labels were normalized before within-family permutations and leave-one-family-out analyses. 
+
+2.2 MatterSim–Phonopy Workflow 
+
+Crystal structures were parsed with pymatgen, 44 and disordered sites were converted to an adaptive ordered approximation by sampling integer supercells while minimizing compositional error. Ordered structures were perturbed by a 0.03 ˚A random displacement and relaxed with 6the MatterSim calculator on a GPU. 38 A FIRE pre-relaxation used a force threshold of 10 −3
+
+eV ˚A−1 and at most 500 steps, followed by variable-cell Broyden–Fletcher–Goldfarb–Shanno (BFGS) optimization to 10 −5 eV ˚A−1 with at most 1500 steps. Atomic operations were implemented through the Atomic Simulation Environment. 45 
+
+Harmonic force constants were generated by finite displacement using Phonopy. 46–48 The production configuration used a 2 × 2 × 2 supercell, displacement amplitude 0.03 ˚A, symmetry tolerance 10 −3, force-constant symmetrization, and a 20 × 20 × 20 reciprocal-space mesh with eigenvectors retained. Total DOS was obtained from the mesh, while Li projections were summed over Li-site eigenvector contributions. Universal MLIPs are now accurate enough for broad phonon screening, but systematic softening remains possible and motivated the validation and cohort-sensitivity analyses below. 41–43 
+
+2.3 Spectrum Harmonization and Descriptors 
+
+Only finite frequencies satisfying 0 < ν ≤ 100 THz were included. Small negative DOS values caused by numerical broadening were clipped to zero. Total DOS and Li-PDOS were interpolated to common bins and normalized independently, 
+
+p(ν) = g(ν)
+
+R 100 THz 0 g(ν′) dν ′ . (2) The primary association grid used 1 THz bins, with 0.5 and 2 THz sensitivity analyses. Raw integrated areas were retained only for quality control because they depend on cell size and projection normalization. Prespecified scalar descriptors included spectral fractions below 2 and 5 THz, centroid frequency, and the frequency q05 containing the first 5% of cumulative weight. Additional moments, quantiles, entropy, participation, and fixed-window features are evaluated in the Supporting Information. Quartile-averaged spectra were defined from training targets only. The high-minus-low difference curve and its 95% bootstrap interval were computed by 7resampling materials within the highest and lowest training quartiles. 
+
+2.4 External Reference Validation and Numerical Convergence 
+
+Potential reference phases were screened by composition, space group, and pymatgen structure matching. Only strict phase matches entered aggregate validation. Twenty comparisons were retained, corresponding to total DOS and Li-PDOS for ten OBELiX records spanning Li 3PO 4, Li 3ClO, Li 3OBr, Li 3AlF 6, Li 3N, LiZnPS 4, Li 3SbS 4, and LiGe 2(PO 4)3. Reference force constants and structures were obtained from NIMS/PhononDB records linked to Materials Project identifiers. 47–49 Each model and reference spectrum was normalized over its common positive-frequency interval. We report the one-dimensional Wasserstein distance 
+
+W1(p, q ) = 
+
+Z ∞
+
+> 0
+
+|Fp(ν) − Fq(ν)| , dν, (3) where 
+
+Fp(ν) = 
+
+Z ν
+
+> 0
+
+p(ν′), dν ′, Fq(ν) = 
+
+Z ν
+
+> 0
+
+q(ν′), dν ′ (4) are the cumulative distribution functions of the unit-area-normalized spectra (p( ν)) and (q( ν)), respectively. We also report the spectral overlap O = R ∞ 
+
+> 0
+
+min [ p(ν), q (ν)] , dν together with the centroid error, low-frequency-fraction error, and ( q05 ) error. Convergence tests varied displacement amplitude, reciprocal-space mesh, and supercell for five representative structures. Changes in full spectral distance and in the low-frequency descriptors were evaluated relative to the production configuration. These calculations were used to bound numerical sensitivity, not to imply that a numerically converged MLIP spectrum is identical to density functional theory (DFT). 
+
+2.5 Association Tests and Whole-Spectrum Dependence 
+
+At each frequency bin, Pearson and Spearman associations with y were computed. Bootstrap intervals used 3000 resamples in the final cohort-sensitivity. Training-set multiplicity was 8controlled with a 5000-permutation maximum-absolute-statistic procedure and Benjamini– Hochberg false-discovery-rate adjustment. 50,51 Mutual information, distance correlation, and spline gains were used as complementary nonlinear diagnostics. 52,53 The test split was not used to choose frequency windows. Whole-spectrum dependence was quantified with normalized Hilbert–Schmidt indepen-dence criterion (HSIC). 54 Bandwidths were set by unsupervised median distances. Significance was evaluated using 5000 global permutations and 5000 permutations constrained within normalized electrolyte-family labels. A separate analysis tested each spectral kernel against out-of-fold residuals from the static model. Direct Li-versus-total comparisons used paired label permutations. 
+
+2.6 Distribution-Aware Prediction 
+
+Static features included elemental fractions, composition-weighted elemental statistics, space-group number, and lattice parameters. Missing values were imputed within the fitting pipeline and standardized. The static baseline used an radial basis function (RBF) kernel. Spectral models included ordinary vector RBF, centered-log-ratio RBF, cumulative-distribution RBF, and Wasserstein kernels. The one-dimensional Wasserstein representation was implemented through quantile embeddings, retaining the ordering of the frequency coordinate. 34–36 
+
+Kernel ridge regression used grouped nested cross-validation on the official training set. Hyperparameters were selected without access to the official test labels. The final model was fit to the complete training cohort and evaluated once on the corresponding official test subset. Paired differences were estimated from 3000 bootstrap samples. Strict and exact sensitivity models reused the primary-training hyperparameters, so changes reflect cohort definition rather than repeated target-driven tuning. Ridge, tree-based, scalar-only, fusion, stacking, and formal censored-regression alternatives are reported in the Supporting Information. 55,56 
+
+93 Results and Discussion 
+
+3.1 Audit-First Cohort Construction 
+
+Figure S1 summarizes data availability and cohort construction. Of 599 OBELiX records, valid CIF was used to produce 311 paired spectra. The audit retained 260 in the primary cohort, 241 in the strict cohort, and 168 in the exact-composition cohort. The reduction is scientifically important: crystallographic disorder, integerization, and vacancy preservation are not bookkeeping details when species-projected spectra are interpreted. A structure with the correct framework but an incorrectly filled Li sublattice can alter both the number and character of mobile-ion modes. The final cohort spans garnets, argyrodites, LISICON-related materials, oxides, halides, phosphates, sulfides, nitrides, antiperovskites, and smaller families. Coverage is highly imbalanced, and the test conductivity distribution remains broad, extending over more than ten orders of magnitude. Consequently, aggregate performance can be dominated by cross-family differences, while per-family estimates can have large uncertainty. This motivates the nested audit cohorts and family-constrained tests rather than a single unqualified pooled analysis. 
+
+3.2 Independent DFT References Bound the Interpretation of MLIP Spectra 
+
+The reference comparison in Figure 1 shows that MatterSim–Phonopy captures broad fre-quency ranges and cumulative shapes but does not reproduce every projected feature quanti-tatively. Across ten accepted material cases, mean total-DOS W1 was 0.542 THz, median W1
+
+was 0.513 THz, and mean overlap was 0.728. The corresponding Li-PDOS values were 0.731 THz, 0.659 THz, and 0.666. Mean centroid errors were −0.410 THz for total DOS and −0.711 THz for Li-PDOS. Thus, the universal potential is systematically softer on average, and the discrepancy is larger for the mobile-ion projection. Detailed external reference overlays are 10 presented in the Supporting Information Figs. S2-S21. The case-by-case structure matters more than the average. LiZnPS 4 shows a relatively small Li-projected distance ( W1 = 0 .275 THz), whereas Li 3SbS 4 has W1 = 1 .298 THz and lower overlap. Two independently processed Li 3PO 4 records yield nearly identical errors, suggesting that their shift is associated with the model/reference combination rather than duplicate-entry variability. The comparison also demonstrates why total-DOS agreement cannot validate a species projection: force errors localized to the Li environment can be partly hidden by framework-dominated modes. The validation supports statistical analysis of broad spectral distributions and cumulative descriptors, but it argues against assigning mechanistic significance to an individual calculated peak without mode-level or finite-temperature corroboration. The observed softening is consistent with broader assessments of universal MLIP phonons. 41,42 Numerical convergence further indicates that the selected low-frequency descriptors are generally more stable than the full spectral distance, although sensitivity remains material dependent (Figs. S2-S21). We therefore require claims to survive aggregation over neighboring frequencies, held-out replication, and audit/preprocessing sensitivities. 
+
+3.3 Conductivity Is Associated with Spectral Redistribution, Not a Single Softness Number 
+
+Training materials in the highest conductivity quartile have more normalized Li weight at low frequency than those in the lowest quartile (Figure 2a). The high-minus-low curve is positive primarily below approximately 8 THz and negative over parts of the 10–18 THz region (Figure 2b). Total DOS shows a related but broader redistribution, with positive low-frequency weight and compensating depletion extending to higher frequencies (Figure 2c). Because each spectrum has unit area, “more low-frequency weight” necessarily denotes a redistribution rather than an unconstrained increase in vibrational states. The cumulative difference (Figure 2d) emphasizes that Li and total spectra redistribute over different frequency 11 0.0 0.2 0.4 0.6 0.8 1.0 1.2 
+
+Wasserstein distance W1 (THz) 
+
+> 4ba_LiGe2_PO4_3_mp-541272
+> 4p7_Li3ClO_mp-985585
+> 9lo_Li3PO4_mp-2878
+> gvd_Li3N_mp-2251
+> i47_LiZnPS4_mp-11175
+> l9v_Li3AlF6_mp-15254
+> ldx_LiGe2_PO4_3_mp-541272
+> mq1_Li3SbS4_mp-756316
+> qbb_Li3OBr_mp-28593
+> w7d_Li3PO4_mp-2878
+
+a    
+
+> Total DOS
+> Li-PDOS
+> 0.0 0.2 0.4 0.6 0.8
+
+Spectral overlap 
+
+> 4ba_LiGe2_PO4_3_mp-541272
+> 4p7_Li3ClO_mp-985585
+> 9lo_Li3PO4_mp-2878
+> gvd_Li3N_mp-2251
+> i47_LiZnPS4_mp-11175
+> l9v_Li3AlF6_mp-15254
+> ldx_LiGe2_PO4_3_mp-541272
+> mq1_Li3SbS4_mp-756316
+> qbb_Li3OBr_mp-28593
+> w7d_Li3PO4_mp-2878
+
+b   
+
+> 810 12 14
+
+Reference centroid (THz) 
+
+> 8
+> 10
+> 12
+> 14
+> MatterSim centroid (THz)
+
+c 
+
+> Total DOS
+> Li-PDOS
+> Li-PDOS Total DOS
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> Metric value
+
+d 
+
+> Mean W1
+> Mean overlap
+
+Figure 1: External validation against strict-phase NIMS/PhononDB references. (a) Wasserstein-1 distances for total DOS and Li-PDOS in each accepted OBELiX–reference comparison. (b) Spectral overlaps. (c) Model versus reference centroids with the identity line. (d) Aggregate validation statistics for the two representations. Each spectrum was independently normalized over the common positive-frequency interval. Complete spectral overlays and per-case plotted data are provided in Figs S2-S21. ranges. The physical interpretation must remain conditional. Earlier family-specific studies con-nected low band centers to lower migration barriers, 16–18 while mode-resolved and anharmonic studies demonstrate that alignment, local bonding, and coupling can matter more than global softness. 20,21,23,25,33 Our pooled redistribution is compatible with weaker effective Li restoring forces or greater access to collective distortions, but it does not establish which normal modes participate in a hop, nor does a harmonic DOS encode finite-temperature defect populations. 12 0 5 10 15 20 25 30 35 40                         
+
+> Frequency (THz)
+> 0.00
+> 0.02
+> 0.04
+> 0.06
+> 0.08
+> 0.10
+> 0.12
+> Normalized Li-PDOS
+> a
+> Lowest quartile
+> Highest quartile
+> 0510 15 20 25 30 35 40
+> Frequency (THz)
+> −0.04
+> −0.02
+> 0.00
+> 0.02
+> 0.04
+> Δ normalized Li-PDOS
+> b
+> 0510 15 20 25 30 35 40
+> Frequency (THz)
+> −0.02
+> 0.00
+> 0.02
+> 0.04
+> 0.06
+> Δ normalized total DOS
+> c
+> 0510 15 20 25 30 35 40
+> Frequency (THz)
+> 0.000
+> 0.025
+> 0.050
+> 0.075
+> 0.100
+> 0.125
+> 0.150
+> 0.175
+> 0.200
+> Δ cumulative spectral weight
+> d
+> Li-PDOS
+> Total DOS
+
+Figure 2: Conductivity-stratified spectral redistribution in the primary training cohort. (a) Mean normalized Li-PDOS for the lowest and highest conductivity quartiles. (b) Highest-minus-lowest-quartile Li-PDOS; shading is the 95% bootstrap interval. (c) Corresponding high-minus-low difference for total DOS. (d) Cumulative high-minus-low spectral-weight differences for Li-PDOS and total DOS. Quartile thresholds were defined only from training targets. 
+
+3.4 Frequency-Resolved Effects Replicate Directionally in the Offi-cial Test Set 
+
+The training scan localizes the strongest positive Li-PDOS associations below approximately 7 THz and negative associations over broad intermediate-frequency ranges (Figure 3a). Open markers identify training bins that survive the maximum-statistic correction. The untouched test set reproduces a positive low-frequency region centered near 1–4 THz and a negative region near approximately 23–28 THz, although its confidence bands are wider because n = 48 (Figure 3b). Total DOS shows a similar low-frequency direction but a more pronounced negative intermediate-frequency region (Figure 3c,d). 13 Prespecified cumulative descriptors provide a less multiplicity-sensitive summary. In the primary test cohort, the Li fractions below 2 and 5 THz have Spearman coefficients ρ = 0 .333 (95% CI 0.038–0.588) and ρ = 0 .374 (0.079–0.616), respectively. The Li q05 is negatively associated with conductivity, ρ = −0.393 ( −0.644 to −0.089), indicating that the cumulative Li spectrum begins earlier in more conductive materials. These directions persist in the strict test cohort and strengthen in the exact test cohort: the exact-cohort values are 0.552, 0.556, and −0.545, respectively. Total-DOS centroid also replicates negatively in the primary test set ( ρ = −0.429), underscoring that framework dynamics retain information even when the Li projection gives the strongest predictive model. The train/test design is essential. The frequency scan is exploratory within training after multiplicity correction; the official test curves are a directional replication rather than a second feature-selection exercise. Sensitivity to 0.5 and 2 THz bins, frequency warping, censoring policy, and imaginary-mode filtering is shown in Figures S22-S25. 
+
+3.5 Family Structure Attenuates Scalar Associations 
+
+The pooled descriptor effects are not equivalent to a universal within-family law. In the primary training cohort, the marginal correlation for Li weight below 5 THz is ρ = 0 .538, but it decreases to approximately 0.150 after family demeaning; the corresponding test interval crosses zero (Figure 4). The Li q05 association also weakens after family adjustment. This attenuation is expected because both conductivity and spectral shape are strongly organized by chemistry. A descriptor can therefore be useful for cross-material screening while carrying less information for substitutions within a narrowly defined family. Whole-spectrum HSIC confirms significant nonlinear dependence under both global and within-family permutations (Figure 4c). In the primary cohort, normalized HSIC is 0.194 for Li-Wasserstein and 0.144 for total-Wasserstein; their paired difference is 0.0501 with one-sided permutation p = 6 × 10 −4. The strict cohort gives a difference of 0.0395 ( p = 1 .2 × 10 −3). However, the exact cohort reverses the ordering: Li HSIC is 0.125 and total HSIC is 0.184. 14 0 5 10 15 20 25 30 35 40                       
+
+> Frequency (THz)
+> −1.00
+> −0.75
+> −0.50
+> −0.25
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> Spearman correlation
+> a
+> 0510 15 20 25 30 35
+> Frequency (THz)
+> −1.00
+> −0.75
+> −0.50
+> −0.25
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> Spearman correlation
+> b
+> 0510 15 20 25 30 35 40
+> Frequency (THz)
+> −1.00
+> −0.75
+> −0.50
+> −0.25
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> Spearman correlation
+> c
+> 0510 15 20 25 30 35
+> Frequency (THz)
+> −1.00
+> −0.75
+> −0.50
+> −0.25
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> Spearman correlation
+> d
+
+Figure 3: Frequency-resolved Spearman associations with experimental log conductivity. (a,b) Li-PDOSin the official training and test cohorts. (c,d) Total DOS in training and test. Shading denotes 95% intervals. Open circles in training indicate bins passing the 5000-permutation maximum-statistic correction. The test split was not used to select windows or tune models. The smaller exact set has a different family composition, so this reversal prevents a universal claim that Li projection always has greater dependence than total DOS. Residual HSIC provides a second nuance. In the strict and exact cohorts, Li-Wasserstein remains associated with out-of-fold static residuals under within-family permutations ( p =0.0052 and 0.0058), whereas the primary-cohort result is weaker ( p = 0 .069). Taken together, the evidence supports complementary information in the Li distribution but shows that the magnitude and even the Li-versus-total ordering depend on cohort composition. 15 −0.6 −0.4 −0.2 0.0 0.2 0.4 0.6 
+
+Spearman correlation 
+
+> total centroid THz
+> total q05 THz
+> total fraction below 5THz
+> total fraction below 2THz
+> Li centroid THz
+> Li q05 THz
+> Li fraction below 5THz
+> Li fraction below 2THz
+
+a      
+
+> Train
+> Test
+> −0.6 −0.4 −0.2 0.0 0.2 0.4 0.6
+
+Spearman correlation 
+
+> Li fraction below 5THz | Marginal | train
+> Li fraction below 5THz | Marginal | test
+> Li fraction below 5THz | Family demeaned | train
+> Li fraction below 5THz | Family demeaned | test
+> Li q05 THz | Marginal | train
+> Li q05 THz | Marginal | test
+> Li q05 THz | Family demeaned | train
+> Li q05 THz | Family demeaned | test
+
+b  
+
+> Static Li-PDOS Total DOS
+> 0.00
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> Normalized HSIC
+> p=0.0002
+> p=0.0002
+> p=0.0002
+> p=0.0002
+> p=0.0002
+> p=0.0004
+
+c     
+
+> global
+> within family
+> −0.06 −0.04 −0.02 0.00 0.02 0.04
+
+Null ΔHSIC (Li − total) 
+
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> 70
+> Density
+> Observed = 0.050
+> p = 0.0006
+
+dFigure 4: Scalar and whole-spectrum dependence. (a) Train/test replication of selected Li and total-DOS descriptors. (b) Marginal, family-demeaned, and static-residual descriptor associations. (c) Normalized HSIC for static, Li-Wasserstein, and total-Wasserstein represen-tations under global, within-family, and residual tests. (d) Paired Li-minus-total HSIC result for the primary cohort relative to its permutation null. Complete primary/strict/exact data and HSIC sensitivity are shown in Figures S26-S29. 
+
+3.6 Wasserstein Li-PDOSGives the Most Stable Held-Out Predic-tion 
+
+The official-test comparison in Figure 5 shows a clear separation among representations. In the primary cohort, the static RBF baseline gives mean absolute error (MAE) 2.250, rooot-mean squared error (RMSE) 2.883, R2 = 0 .181, and Spearman ρ = 0 .476. Total-DOS Wasserstein gives MAE 2.344 and R2 = 0 .012. The standalone Li-PDOS Wasserstein model improves to MAE 1.859, RMSE 2.376, R2 = 0 .444, and ρ = 0 .620. Static+Li fusion gives R2 = 0 .372 and 
+
+ρ = 0 .632 but does not improve MAE or R2 over Li alone. The principal empirical result is 16 therefore not synergy; it is that the distribution-aware mobile-ion representation contains information inadequately represented by the tested static and total-DOS baselines. The Li model is unusually stable to the audit definition. Its test R2 is 0.444 in the primary cohort, 0.462 in the strict cohort, and 0.451 in the exact cohort, with MAE near 1.85 in all three. By contrast, the static R2 declines from 0.181 to 0.116 and then −0.008. In the strict cohort, Li versus static improves MAE by −0.589 (95% CI −1.011 to −0.149), RMSE by −0.667, and R2 by 0.346. In the exact cohort, the differences are −0.905, −0.864, and 0.459, respectively. The corresponding total-DOS differences from static are not statistically resolved. An MAE near 1.86 log units is too large for precise material-level conductivity prediction and reflects experimental heterogeneity, imperfect structural correspondence, temperature and processing variation, censoring, and the limitations of a harmonic MLIP spectrum. The model is better interpreted as a comparative ranking and representation test that can prioritize candidates before more expensive MLIP molecular dynamics (MLIP-MD) or first-principles diffusion calculations. In that hierarchy, static descriptors are inexpensive but dynamically incomplete; harmonic Li-PDOS adds mobile-ion-resolved information at moderate cost; finite-temperature MLIP-MD or ab-initio MD (AIMD) is required to estimate diffusion and anharmonic transport more directly. 26,27,30,31,43,57,58 
+
+3.7 Implications for Solid-Electrolyte Screening 
+
+For an applied energy-materials workflow, the practical question is not whether a single descriptor is universally mechanistic, but whether it adds reliable information at a useful computational cost. The present results suggest three design principles. First, mobile-ion projections should be retained when phonons are used for screening; a total DOS can mask Li-specific changes even when it remains informative about framework softness. Second, the spectrum should be treated as an ordered distribution rather than reduced immediately to a band center. Scalar features reproduce, but the full Li-Wasserstein model is more stable 17 −0.2 0.0 0.2 0.4 0.6                              
+
+> Held-out R2
+> Static
+> Li-Wasserstein
+> Total-Wasserstein
+> Static + Li
+> Static + Li + total
+> a
+> −17.5 −15.0 −12.5 −10.0 −7.5 −5.0 −2.5
+> Measured log 10 σ
+> −18
+> −16
+> −14
+> −12
+> −10
+> −8
+> −6
+> −4
+> −2
+> Predicted log 10  σ
+> Static
+> R2=0.18
+> MAE=2.25
+> b
+> −17.5 −15.0 −12.5 −10.0 −7.5 −5.0 −2.5
+> Measured log 10 σ
+> −18
+> −16
+> −14
+> −12
+> −10
+> −8
+> −6
+> −4
+> −2
+> Predicted log 10  σ
+> Li-Wasserstein
+> R2=0.44
+> MAE=1.86
+> c
+> −17.5 −15.0 −12.5 −10.0 −7.5 −5.0 −2.5
+> Measured log 10 σ
+> −18
+> −16
+> −14
+> −12
+> −10
+> −8
+> −6
+> −4
+> −2
+> Predicted log 10  σ
+> Static + Li
+> R2=0.37
+> MAE=2.00
+> d
+> −0.6 −0.4 −0.2 0.0 0.2 0.4
+> Static + Li minus static
+> MAE
+> RMSE
+> R2
+> Spearman_rho
+> e
+> Static Li Static + Li
+> −0.6
+> −0.4
+> −0.2
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> Held-out  R2
+> f
+> Primary
+> Strict
+> Exact
+
+Figure 5: Held-out prediction and audit-cohort sensitivity. (a) Official-test MAE for static, Li-Wasserstein, total-Wasserstein, and static+Li models. (b–d) Observed versus predicted log conductivity for the primary test cohort using the static, Li-Wasserstein, and static+Li models. (e) Paired bootstrap differences relative to the static model. (f) R2 across primary, strict, and exact audit cohorts. Hyperparameters for strict and exact sensitivity models were fixed from primary-training selection. across audit cohorts. Third, structural provenance must accompany spectral prediction. Disorder integerization, vacancy preservation, exact-phase matching, and family composition materially affect inferential conclusions. The framework is most naturally used as an intermediate screen. A low-frequency Li redistribution or favorable Wasserstein similarity to known conductors can prioritize structures for temperature-dependent MLIP-MD, enhanced sampling, or AIMD. Conversely, a high model score should not override instability, unfavorable electrochemical compatibility, or a failed composition audit. The audit and reference comparisons also provide a template for deploying universal MLIPs in other energy-material problems: verify the input structure, compare species-resolved observables rather than only aggregate quantities, and carry model uncertainty into the claim. 18 4 Conclusions 
+
+An audit-filtered MatterSim–Phonopy analysis of the OBELiX experimental dataset shows that lithium-projected phonon distributions contain reproducible information about room-temperature ionic conductivity. Conductive materials exhibit increased normalized Li weight at low frequency and earlier cumulative spectral onset, with directional replication in the offi-cial test split. A Wasserstein kernel on the complete Li-PDOS substantially outperforms total DOS and a static composition–structure baseline and retains nearly unchanged performance across primary, strict, and exact composition cohorts. The boundaries of the result are equally important. Independent DFT references reveal systematic, chemistry-dependent MLIP softening that is larger for Li projections than for total DOS. Family demeaning attenuates scalar effects, and the Li-versus-total HSIC ordering reverses in the exact cohort. Harmonic projected spectra therefore provide a robust comparative descriptor, not proof that low-frequency phonons universally cause fast transport. Future work should connect the identified spectral regions to finite-temperature diffusion, mode-resolved hopping coordinates, and anharmonic Li–framework coupling using MLIP-MD and targeted first-principles validation. 
+
+# 5 Supporting Information 
+
+The Supporting Information is available free of charge and contains audit-cohort sensitivi-ties; frequency-bin-width, censoring, nonlinearity, family-transfer, scalar-versus-distribution, frequency-warp, imaginary-mode, fusion, kernel-weight, and residual analyses; all external reference overlays; convergence calculations; family-specific associations; censored-regression sensitivity; static-residual frequency associations; spectral quality control; and the full model comparison. Exact plotted-data CSV files accompany every figure in the public repository. 19 6 Data Availability Statement 
+
+The analysis code, manifests, audit workflow, and machine-readable result tables are avail-able at https://github.com/Gajendra9843/MLIP . The OBELiX source data are available through the repository reported by Therrien et al. 37 
+
+# 7 Author Contributions 
+
+G.B. performed the computational calculations and data analysis. R.P. conceived and supervised the study. Both authors interpreted the results and wrote the manuscript. 
+
+# 8 Competing Interests 
+
+The authors declare no competing financial interest. 
+
+# References 
+
+(1) Manthiram, A.; Yu, X.; Wang, S. Lithium Battery Chemistries Enabled by Solid-State Electrolytes. Nat. Rev. Mater. 2017 , 2, 16103. (2) Janek, J.; Zeier, W. G. A Solid Future for Battery Development. Nat. Energy 2016 , 1,16141. (3) Albertus, P.; Babinec, S.; Litzelman, S.; Newman, A. Status and Challenges in Enabling the Lithium Metal Electrode for High-Energy and Low-Cost Rechargeable Batteries. 
+
+Nat. Energy 2018 , 3, 16–21. (4) Randau, S.; Weber, D. A.; K¨ otz, O.; Koerver, R.; Braun, P.; Weber, A.; Ivers-Tiff´ ee, E.; Adermann, T.; Kulisch, J.; Zeier, W. G.; Richter, F. H.; Janek, J. Benchmarking the Performance of All-Solid-State Lithium Batteries. Nat. Energy 2020 , 5, 259–270. 20 (5) Bachman, J. C.; Muy, S.; Grimaud, A.; Chang, H.-H.; Pour, N.; Lux, S. F.; Paschos, O.; Maglia, F.; Lupart, S.; Lamp, P.; Giordano, L.; Shao-Horn, Y. Inorganic Solid-State Elec-trolytes for Lithium Batteries: Mechanisms and Properties Governing Ion Conduction. 
+
+Chem. Rev. 2016 , 116 , 140–162. (6) Famprikis, T.; Canepa, P.; Dawson, J. A.; Islam, M. S.; Masquelier, C. Fundamentals of Inorganic Solid-State Electrolytes for Batteries. Nat. Mater. 2019 , 18 , 1278–1291. (7) Kerman, K.; Luntz, A.; Viswanathan, V.; Chiang, Y.-M.; Chen, Z. Review—Practical Challenges Hindering the Development of Solid State Li Ion Batteries. J. Electrochem. Soc. 2017 , 164 , A1731–A1744. (8) Banerjee, A.; Wang, X.; Fang, C.; Wu, E. A.; Meng, Y. S. Interfaces and Interphases in All-Solid-State Batteries with Inorganic Solid Electrolytes. Chem. Rev. 2020 , 120 ,6878–6933. (9) Xiao, Y.; Wang, Y.; Bo, S.-H.; Kim, J. C.; Miara, L. J.; Ceder, G. Understanding Interface Stability in Solid-State Batteries. Nat. Rev. Mater. 2020 , 5, 105–126. (10) Zhao, Q.; Stalin, S.; Zhao, C.-Z.; Archer, L. A. Designing Solid-State Electrolytes for Safe, Energy-Dense Batteries. Nat. Rev. Mater. 2020 , 5, 229–252. (11) Porz, L.; Swamy, T.; Sheldon, B. W.; Rettenwander, D.; Fr¨ omling, T.; Thaman, H. L.; Berendts, S.; Uecker, R.; Carter, W. C.; Chiang, Y.-M. Mechanism of Lithium Metal Penetration through Inorganic Solid Electrolytes. Adv. Energy Mater. 2017 , 7, 1701003. (12) Han, F.; Westover, A. S.; Yue, J.; Fan, X.; Wang, F.; Chi, M.; Leonard, D. N.; Dudney, N. J.; Wang, H.; Wang, C. High Electronic Conductivity as the Origin of Lithium Dendrite Formation within Solid Electrolytes. Nat. Energy 2019 , 4, 187–196. (13) Wang, Y.; Richards, W. D.; Ong, S. P.; Miara, L. J.; Kim, J. C.; Mo, Y.; Ceder, G. 21 Design Principles for Solid-State Lithium Superionic Conductors. Nat. Mater. 2015 , 14 ,1026–1031. (14) He, X.; Zhu, Y.; Mo, Y. Origin of Fast Ion Diffusion in Super-Ionic Conductors. Nat. Commun. 2017 , 8, 15893. (15) Li, X.; Benedek, N. A. Enhancement of Ionic Transport in Complex Oxides through Soft Lattice Modes and Epitaxial Strain. Chem. Mater. 2015 , 27 , 2647–2652. (16) Muy, S.; Bachman, J. C.; Giordano, L.; Chang, H.-H.; Abernathy, D. L.; Bansal, D.; Delaire, O.; Hori, S.; Kanno, R.; Maglia, F.; Lupart, S.; Lamp, P.; Shao-Horn, Y. Tuning Mobility and Stability of Lithium Ion Conductors Based on Lattice Dynamics. Energy Environ. Sci. 2018 , 11 , 850–859. (17) Krauskopf, T.; Pompe, C.; Kraft, M. A.; Zeier, W. G. Influence of Lattice Dynamics on Na+ Transport in Na3PS4-xSex. Chem. Mater. 2017 , 29 , 8859–8869. (18) Krauskopf, T.; Muy, S.; Culver, S. P.; Ohno, S.; Delaire, O.; Shao-Horn, Y.; Zeier, W. G. Comparing the Descriptors for Investigating the Influence of Lattice Dynamics on Ionic Transport Using the Superionic Conductor Na3PS4-xSex. J. Am. Chem. Soc. 2018 ,
+
+140 , 14464–14473. (19) Muy, S.; Schlem, R.; Shao-Horn, Y.; Zeier, W. G. Phonon–Ion Interactions: Designing Ion Mobility Based on Lattice Dynamics. Adv. Energy Mater. 2021 , 11 , 2002787. (20) Gordiz, K.; Muy, S.; Zeier, W. G.; Shao-Horn, Y.; Henry, A. Enhancement of Ion Diffusion by Targeted Phonon Excitation. Cell Rep. Phys. Sci. 2021 , 2, 100431. (21) Xu, Z.; Chen, X.; Zhu, H.; Li, X. Anharmonic Cation–Anion Coupling Dynamics Assisted Lithium-Ion Diffusion in Sulfide Solid Electrolytes. Adv. Mater. 2022 , 34 , 2207411. (22) Song, T.; Lin, Y.; Wang, D.; Chen, Q.; Ling, C.; Shi, S. Renewing Fundamental 22 Understanding of Ionic Transport in Inorganic Crystalline Solid-State Electrolytes from the Perspective of Lattice Dynamics. Adv. Energy Mater. 2024 , 14 , 2302440. (23) Ouyang, R.; Yang, Y.; Guan, C.; Zhu, H. Phonon–Lithium Ion Interactions: A Case Study of LiM(SeO3)2 (M = Al, Ga, In, Sc, Y, and La). ACS Appl. Mater. Interfaces 
+
+2024 , 16 , 55240–55247. (24) Ding, J.; Gupta, M. K.; Rosenbach, C.; Lin, H.-M.; Osti, N. C.; Abernathy, D. L.; Zeier, W. G.; Delaire, O. Liquid-like Dynamics in a Solid-State Lithium Electrolyte. 
+
+Nat. Phys. 2025 , 21 , 118–125. (25) Pham, K. H.; Gordiz, K.; Spear, N. A.; Lin, A. K.; Michelsen, J. M.; Liu, H.; Vivona, D.; Blake, G. A.; Shao-Horn, Y.; Henry, A.; See, K. A.; Cushing, S. K. Correlated Terahertz Phonon–Ion Interactions Control Ion Conduction in a Solid Electrolyte. Mater. Horiz. 
+
+2026 , 13 , 3355–3375. (26) Muy, S.; Voss, J.; Schlem, R.; Koerver, R.; Sedlmaier, S. J.; Maglia, F.; Lamp, P.; Zeier, W. G.; Shao-Horn, Y. High-Throughput Screening of Solid-State Li-Ion Conductors Using Lattice-Dynamics Descriptors. iScience 2019 , 16 , 270–282. (27) Sendek, A. D.; Cubuk, E. D.; Antoniuk, E. R.; Cheon, G.; Cui, Y.; Reed, E. J. Machine Learning-Assisted Discovery of Solid Li-Ion Conducting Materials. Chem. Mater. 2019 ,
+
+31 , 342–352. (28) Lu, Z.; Adeli, P.; Yim, C.-H.; Mercier, P.; Abu-Lebdeh, Y.; Singh, C. V. Automat-ically Capturing Key Features for Predicting Superionic Conductivity of Solid-State Electrolytes Using a Neural Network. ACS Appl. Energy Mater. 2022 , 5, 8042–8048. (29) Jaafreh, R.; Pereznieto, S.; Jeong, S.; Widiantara, I. P.; Oh, J. M.; Kang, J.-H.; Mun, J.; Ko, Y. G.; Kim, J.-G.; Hamad, K. Phonon DOS-Based Machine Learning Model for Designing High-Performance Solid Electrolytes in Li-Ion Batteries. Int. J. Energy Res. 
+
+2024 , 2024 , 2138847. 23 (30) Kim, J.; Lee, D.; Lee, D.; Li, X.; Lee, Y.-L.; Kim, S. Machine Learning Prediction Models for Solid Electrolytes Based on Lattice Dynamics Properties. J. Phys. Chem. Lett. 2024 , 15 , 5914–5922. (31) Aghoghovbia, O.; Rurali, R.; Al-Fahdi, M.; Hu, M. Unlocking Lithium Superionic Conduction via Phonon Softness Descriptors: A High-Throughput Machine Learning Paradigm. Chem. Mater. 2026 , 38 , 1689–1705. (32) Sagotra, A. K.; Chu, D.; Cazorla, C. Influence of Lattice Dynamics on Lithium-Ion Conductivity: A First-Principles Study. Phys. Rev. Mater. 2019 , 3, 035405. (33) Greene, S. M.; Siegel, D. J. Assessing Correlations between Phonon Features and Cation Migration Barriers in Multivalent Solid Electrolytes. Chem. Mater. 2024 , 36 , 7476–7486. (34) Aitchison, J. The Statistical Analysis of Compositional Data. J. R. Stat. Soc. B 1982 ,
+
+44 , 139–160. (35) Kolouri, S.; Zou, Y.; Rohde, G. K. Sliced Wasserstein Kernels for Probability Distribu-tions. Proc. IEEE Conf. Comput. Vis. Pattern Recognit. 2016; pp 5258–5267. (36) Bachoc, F.; Gamboa, F.; Loubes, J.-M.; Venet, N. A Gaussian Process Regression Model for Distribution Inputs. IEEE Trans. Inf. Theory 2018 , 64 , 6620–6637. (37) Therrien, F.; Abou Haibeh, J.; Sharma, D.; Hendley, R.; Mungai, L. W.; Sun, S.; Tchagang, A.; Su, J.; Huberman, S.; Bengio, Y.; Guo, H.; Hern´ andez-Garc´ ıa, A.; Shin, H. OBELiX: A Curated Dataset of Crystal Structures and Experimentally Measured Ionic Conductivities for Lithium Solid-State Electrolytes. Digital Discovery 2026 , 5, 910–918. (38) Yang, H.; Hu, C.; Zhou, Y.; Liu, X.; Shi, Y.; Li, J.; Li, G.; Chen, Z.; Chen, S.; Zeni, C.; Horton, M.; Pinsler, R.; Fowler, A.; Z¨ ugner, D.; Xie, T.; Smith, J.; Sun, L.; Wang, Q.; Kong, L.; Liu, C.; Hao, H.; Lu, Z. MatterSim: A Deep Learning Atomistic Model Across Elements, Temperatures and Pressures. arXiv 2024 , 2405.04967. 24 (39) Togo, A. MDR Phonon Calculation Database. NIMS Materials Data Repository, 2025; Harmonic phonon calculation database generated using VASP and phonopy; accessed July 19, 2026. (40) Togo, A.; Chaput, L.; Tadano, T.; Tanaka, I. Implementation Strategies in Phonopy and Phono3py. Journal of Physics: Condensed Matter 2023 , 35 , 353001. (41) Loew, A.; Sun, D.; Wang, H.-C.; Botti, S.; Marques, M. A. L. Universal Machine Learning Interatomic Potentials Are Ready for Phonons. npj Comput. Mater. 2025 , 11 ,178. (42) Deng, B.; Zhong, P.; Jun, K.; Riebesell, J.; Han, K.; Bartel, C. J.; Ceder, G. Systematic Softening in Universal Machine Learning Interatomic Potentials. npj Comput. Mater. 
+
+2025 , 11 , 9. (43) Du, H.; Huang, X.; Hui, J.; Zhang, L.; Zhou, Y.; Wang, H. Assessment and Application of Universal Machine Learning Interatomic Potentials in Solid-State Electrolyte Research. 
+
+ACS Mater. Lett. 2025 , 7, 3403–3412. (44) Ong, S. P.; Richards, W. D.; Jain, A.; Hautier, G.; Kocher, M.; Cholia, S.; Gunter, D.; Chevrier, V. L.; Persson, K. A.; Ceder, G. Python Materials Genomics (pymatgen): A Robust, Open-Source Python Library for Materials Analysis. Comput. Mater. Sci. 
+
+2013 , 68 , 314–319. (45) Larsen, A. H.; Mortensen, J. J.; Blomqvist, J.; Castelli, I. E.; Christensen, R.; Dulak, M.; Friis, J.; Groves, M. N.; Hammer, B.; Hargus, C.; Hermes, E. D.; Jennings, P. C.; Jensen, P. B.; Kermode, J.; Kitchin, J. R.; Kolsbjerg, E. L.; Kubal, J.; Kaasbjerg, K.; Lysgaard, S.; Maronsson, J. B.; Maxson, T.; Olsen, T.; Pastewka, L.; Peterson, A.; Rostgaard, C.; Schiøtz, J.; Sch¨ utt, O.; Strange, M.; Thygesen, K. S.; Vegge, T.; Vilhelm-sen, L.; Walter, M.; Zeng, Z.; Jacobsen, K. W. The Atomic Simulation Environment—A Python Library for Working with Atoms. J. Phys.: Condens. Matter 2017 , 29 , 273002. 25 (46) Parlinski, K.; Li, Z. Q.; Kawazoe, Y. First-Principles Determination of the Soft Mode in Cubic ZrO2. Phys. Rev. Lett. 1997 , 78 , 4063–4066. (47) Togo, A. First-Principles Phonon Calculations with Phonopy and Phono3py. J. Phys. Soc. Jpn. 2023 , 92 , 012001. (48) Togo, A.; Chaput, L.; Tadano, T.; Tanaka, I. Implementation Strategies in Phonopy and Phono3py. J. Phys.: Condens. Matter 2023 , 35 , 353001. (49) Jain, A.; Ong, S. P.; Hautier, G.; Chen, W.; Richards, W. D.; Dacek, S.; Cholia, S.; Gunter, D.; Skinner, D.; Ceder, G.; Persson, K. A. Commentary: The Materials Project: A Materials Genome Approach to Accelerating Materials Innovation. APL Mater. 2013 ,
+
+1, 011002. (50) Efron, B. Bootstrap Methods: Another Look at the Jackknife. Ann. Stat. 1979 , 7, 1–26. (51) Benjamini, Y.; Hochberg, Y. Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing. J. R. Stat. Soc. B 1995 , 57 , 289–300. (52) Kraskov, A.; St¨ ogbauer, H.; Grassberger, P. Estimating Mutual Information. Phys. Rev. E 2004 , 69 , 066138. (53) Sz´ ekely, G. J.; Rizzo, M. L.; Bakirov, N. K. Measuring and Testing Dependence by Correlation of Distances. Ann. Stat. 2007 , 35 , 2769–2794. (54) Gretton, A.; Bousquet, O.; Smola, A. J.; Sch¨ olkopf, B. Algorithmic Learning Theory ;2005; Vol. 3734; pp 63–77. (55) Hoerl, A. E.; Kennard, R. W. Ridge Regression: Biased Estimation for Nonorthogonal Problems. Technometrics 1970 , 12 , 55–67. (56) Chen, T.; Guestrin, C. XGBoost: A Scalable Tree Boosting System. Proc. 22nd ACM SIGKDD Int. Conf. Knowl. Discovery Data Mining. 2016; pp 785–794. 26 (57) Sendek, A. D.; Yang, Q.; Cubuk, E. D.; Duerloo, K.-A. N.; Cui, Y.; Reed, E. J. Holistic Computational Structure Screening of More than 12,000 Candidates for Solid Lithium-Ion Conductor Materials. Energy Environ. Sci. 2017 , 10 , 306–320. (58) Jalem, R.; Kanamori, K.; Takeuchi, I.; Nakayama, M.; Yamasaki, H.; Saito, T. Bayesian-Driven First-Principles Calculations for Accelerating Exploration of Fast Ion Conductors for Rechargeable Battery Application. Sci. Rep. 2018 , 8, 5845. 27

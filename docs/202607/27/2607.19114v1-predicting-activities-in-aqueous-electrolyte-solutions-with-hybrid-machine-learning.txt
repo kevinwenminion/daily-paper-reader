@@ -1,0 +1,1022 @@
+Title: Predicting Activities in Aqueous Electrolyte Solutions with Hybrid Machine Learning
+
+URL Source: https://arxiv.org/pdf/2607.19114v1
+
+Published Time: Wed, 22 Jul 2026 01:20:28 GMT
+
+Number of Pages: 46
+
+Markdown Content:
+# Predicting Activities in Aqueous Electrolyte Solutions with Hybrid Machine Learning 
+
+## Zeno Romero, Maximilian Kohns, and Fabian Jirasek ∗
+
+Laboratory of Engineering Thermodynamics, RPTU Kaiserslautern, Erwin-Schr¨ odinger-Str. 44, 67663 Kaiserslautern, Germany 
+
+E-mail: fabian.jirasek@rptu.de 
+
+Abstract 
+
+Activities in aqueous electrolyte solutions, usually described by ionic activity and osmotic coefficients, are important properties for modeling many processes in industry and nature. Established activity models, such as those of Pitzer or Bromley, require fitting to experimental data for each electrolyte of interest and thus cannot predict properties for unstudied systems. While some predictive approaches exist, they are typically limited in scope and rely on additional ion-specific descriptors. In this work, we introduce a new hybrid model that combines the physics-based Bromley model with a matrix completion method (MCM) from machine learning. The MCM is employed to predict the electrolyte-specific parameters of the Bromley model, exploiting the fact that these parameters can be arranged in a matrix with cations and anions as rows and columns, respectively. Due to the lack of experimental data for many electrolytes, the initial parameter matrix is sparsely populated, making the prediction of the Bromley parameters for unstudied electrolytes a matrix completion problem. The hybrid model, Bromley-MCM, was trained end-to-end on experimental data for mean ionic activity coefficients and osmotic coefficients of aqueous solutions of 478 electrolytes at 298 K from the Dortmund Data Bank. As output, we obtain a completed matrix of 
+
+1arXiv:2607.19114v1 [cs.LG] 21 Jul 2026 Bromley parameters for 83 cations and 112 anions, enabling consistent prediction of concentration-dependent activities in aqueous solutions of 9,296 electrolytes at 298 K. This substantially extends the applicability of the Bromley model while maintaining high predictive accuracy, as demonstrated through evaluations on electrolytes excluded from model training. 
+
+# Introduction 
+
+Activities in electrolyte solutions play an important role in addressing many critical engineering challenges, e.g., electrochemical energy storage 1 and desalination applications. 2 Here, the term ”activities” is used collectively for different properties that essentially describe the chemical potentials of the ions, the electrolyte, and the solvent in electrolyte solutions. Most established experimental methods for determining such properties focus on solvent activity, often expressed as the osmotic coefficient. These approaches include the isopiestic method 3 and the measurement of the vapor pressure, 4 the freezing-point depression, 5 and the osmotic pressure. 6 Having conducted a measurement series with either of these methods, the activity of the electrolyte in solution, usually represented in terms of the mean ionic activity coefficient, can be inferred by evaluating the Gibbs-Duhem equation. A notable direct method for determining the mean ionic activity coefficient is the measurement of open-circuit voltages (formerly also called electromotive force measurements). 7 Many of the aforementioned methods suffer from slow equilibration and reliance on precise references, standards, and/or calibrations. 8 Moreover, these experiments are generally time-consuming and cost-intensive. Thus, it is unfeasible to determine the activity coefficients in all relevant systems experimentally, making predictive methods essential for engineering practice. Several physical models for activities in electrolyte solutions, such as the excess Gibbs energy ( GE) models of Pitzer 9 and Bromley, 10 have been proposed in the literature. These models can reliably generalize across concentration, but their adjustable parameters must be determined by fitting to experimental data for the specific electrolyte, solvent, and 2temperature of interest. As a consequence, these models cannot generalize over electrolytes, i.e., they cannot be applied to electrolytes for which no activity data are available. This limitation has partially been addressed with the development of LIQUAC and LIFAC, 11–13 
+
+which enable extrapolations to unstudied temperatures and (mixed) solvents, but still require electrolyte-specific cation-anion interaction parameters that have been fit to data for each electrolyte of interest. Only a few models that enable predictions for solutions of completely unstudied electrolytes have been proposed in the literature. Two examples are the ion-specific Bromley model (IBM), 10 which targets the prediction of electrolyte-specific parameters of the Bromley model based on ion-specific parameters, and the Simoes model, 14 which, similarly, aims at predicting the electrolyte-specific parameters of the Pitzer model based on ion-specific parameters. However, these approaches have limited predictive accuracy and, in the case of the Simoes model, 14 limited applicability, as the ionic radii required as descriptors of the model are not comprehensively available for every ion. In recent years, machine learning (ML) has emerged as a powerful alternative to and complement of established, physics-based thermodynamic modeling approaches. 15,16 While purely data-driven ML approaches often lack physical interpretability and robustness, hybrid models that combine established thermodynamic frameworks with data-driven ML models enable generalization across chemical spaces inaccessible to traditional models, effectively closing gaps in established physical models, while retaining thermodynamic consistency. 17–21 
+
+One interesting class of ML methods in thermodnyamics are matrix completion methods (MCMs), 22 and, by extension, tensor completion methods, 23 which have also been combined with physical models and knowledge to yield powerful hybrid approaches for predicting various thermodynamic properties, including activity coefficients, 24–29 Henry’s-law constants, 30,31 
+
+diffusion coefficients, 23,32,33 and densities of aqueous electrolyte solutions. 34 Furthermore, MCMs have been embedded in physical modeling frameworks, enabling prediction of model parameters and thereby significantly enhancing their applicability. 17,35,36,36–38 
+
+3In this work, we present a novel hybrid model for predicting activities in aqueous electrolyte solutions by combining the physics-based Bromley model 10 with an MCM. Within this new hybrid model, which we call Bromley-MCM, the MCM is trained to predict the electrolyte-specific adjustable parameters of the Bromley equation, BCA , by exploiting the fact that these Bromley parameters for a set of electrolytes can be conveniently arranged in the shape of a matrix, where the rows represent the different cations C, the columns represent the different anions A, and the entries of the matrix contain the numeric values of BCA . Since experimental data to which BCA can be directly fitted exist only for some electrolytes, i.e., only a small fraction of all possible cation-anion pairs CA , the prediction of the missing Bromley parameters becomes a matrix completion problem. To benchmark the developed Bromley-MCM, we use a consolidated database of mean ionic activity coefficients and osmotic coefficients in aqueous electrolyte solutions at 298 ± 1 K, obtained by careful evaluation of data from the Dortmund Data Bank (DDB). 39 We thereby systematically compare its results with the predictive approaches in the literature, namely, the IBM 10 and the model of Simoes, 14 each within its respective scope. 
+
+# Methodology 
+
+## Electrolyte Activities 
+
+In this work, we address the prediction of activities in aqueous solutions containing a single electrolyte. We thereby assume complete dissociation of the electrolytes in solution following, for an electrolyte CνC AνA that consists of cation C and anion A, the reaction 
+
+CνC AνA → νC CzC + νAAzA , (1) where νi is the stoichiometric coefficient and zi is the charge number of ion i. For brevity, we use CA to denote the electrolyte in the following, omitting the stoichiometric coefficients. To 4denote solution composition, we use the overall molality ˜m of the electrolyte, which is the number of moles of electrolyte per kilogram of pure water W as the solvent. For complete dissociation, the molality of an ion mi in the solutions is related to the overall molality ˜m via the mass balance 
+
+mi = νi ˜m. (2) We furthermore use the ionic strength I of the solution defined as 
+
+I = z2 
+
+> C
+
+mC + z2
+
+> A
+
+mA
+
+2m0
+
+, (3) where the division by m0 = 1 mol kg −1 is introduced to render the ionic strength dimensionless. As is common for electrolyte solutions, we consider the chemical potentials of the ions in solution normalized according to Henry’s law on the molality scale 
+
+μi(T, p, ˜m) = μref  
+
+> i
+
+(T, p, ˜m → 0) + RT ln mi
+
+m0
+
++ RT ln γ∗ 
+
+> i
+
+(T, p, ˜m), (4) where μref  
+
+> i
+
+(T, p, ˜m → 0) is the chemical potential of ion i in the reference state (infinite dilution of the ion), T is the thermodynamic temperature, p is the pressure, R is the universal gas constant, and γ∗ 
+
+> i
+
+is the activity coefficient of i on the molality scale. Combining these equations for both respective ions yields the overall chemical potential of the electrolyte CA ,which in case of complete dissociation can be written as ˜μCA (T, p, ˜m) = ˜ μref 
+
+> CA
+
+(T, p, ˜m → 0) + RT ln ννC 
+
+> C
+
+ννA
+
+> A
+
+ ˜mm0
+
+ν
+
++ νRT ln ˜ γ∗±(T, p, ˜m), (5) where ˜γ∗± = (( γ∗ 
+
+> C
+
+)νC (γ∗
+
+> A
+
+)νA ) 1 
+
+> ν
+
+(6) 5is the so-called mean ionic activity coefficient of the electrolyte and 
+
+ν = νC + νA. (7) For the chemical potential of the solvent water W, we use the normalization according to Raoult ˜μW (T, p, ˜m) = ˜ μpure liq  
+
+> W
+
+(T, p ) − νM W ˜mRT ϕ (T, p, ˜m), (8) where ˜μpure liq W (T, p ) is the chemical potential of pure water W, MW is the molar mass of water, and ϕ is the osmotic coefficient. Again, equation (8) holds for the case of complete dissociation of the electrolyte in the solvent. In the following, we use ˜γ∗± and ϕ as measures for the activity of the electrolyte and the solvent water in aqueous electrolyte solutions, respectively. 
+
+## Database 
+
+Raw activity data for ˜γ± and ϕ were taken from the DDB 2026 ”ELE” database (Vapor-Liquid Equilibria of Electrolyte Systems) 39 for binary systems containing exactly one electrolyte and the solvent water. We restricted the scope to these systems because the vast majority of available activity data for aqueous solutions is at 298 K, with very little data at other temperatures. Specifically, we found 92,254 data points for solutions of single electrolytes in water, whereas only 4,180 data points were available for the solvent methanol, and even fewer for other solvents. For the aqueous systems, 43,920 data points are reported at 298 ± 1 K, whereas substantially fewer data points are available at any other temperature. Further details on the data availability are reported in Figures S1 and S2 in the Supporting Information. Since the effect of pressure on liquid-phase properties is generally small, especially at low to moderate pressures, and data at elevated pressures are extremely scarce, the influence of pressure was neglected in this study. All data in this study were either taken at ambient pressure or at the solvent’s vapor pressure. 6The following data consolidation and filtering procedure was applied to the raw data from the DDB; further details are reported in the Supporting Information: 
+
+• Only aqueous systems, i.e., systems with water as the only solvent, were considered. 
+
+• Electrolytes that could not be split into 1 type of cation and 1 type of anion were excluded. One example of an excluded electrolyte is magnesium ammonium phosphate (MgNH 4PO 4), which has two types of cations. On the other hand, ionic coordination com-plexes, which do not further dissociate in solution, such as tris(ethylenediamine)cobalt(III) ([Co(en) 3]3+ ), are included and are treated as single ions. 
+
+• Only data reported at 298 ± 1 K were considered. 
+
+• Only data for which the electrolyte concentration is reported in terms of molality ˜m
+
+were used. We also checked the availability of data reported in other concentration measures, but did not find additional relevant systems. 
+
+• Data points at I > 6 were excluded (which is reported as the upper bound for the applicability of the Bromley model in the literature 10 ). 
+
+• The database was divided into one database for ˜γ± and one for ϕ, and each was checked for internal consistency. For this purpose, for a given electrolyte (e.g., NaCl), all available data sets (i.e., data reported by individual sources) in the database were compared. If two data points were reported at the same (to the second decimal) molality, the mean of these values was calculated. However, whenever one of these data points deviated by more than 5 % from this mean, the entire data set containing this data point was excluded. This procedure was done for ϕ and ˜ γ± individually. 
+
+• For each electrolyte, the Bromley parameter BCA was fitted individually to the consid-ered ϕ and ˜γ± data for this electrolyte using a least-squares procedure. If the relative mean residual of the fit exceeded 5 % for either ϕ or ˜γ±, the respective electrolyte was excluded from the dataset. This procedure was used since weak electrolytes, for 7which the Bromley model is not suited, were not excluded a priori based on their respective solubility products. Instead, only those electrolytes for which the Bromley model reproduced the available experimental data with sufficient accuracy (as specified above) were retained. 
+
+• Finally, for the retained electrolytes for which both ϕ and ˜γ± were available, the Bromley model was fit to ϕ − 1 and ln ˜ γ± simultaneously, and electrolytes with residuals greater than 5% were excluded. This procedure was used to numerically verify Gibbs-Duhem consistency of the data for these electrolytes (within the specified tolerance), since the Bromley model itself is Gibbs-Duhem consistent. We call the database containing all data retained after applying the above-described criteria the full database in the following, which can be represented as a matrix, where rows correspond to the different cations C and columns to the different anions A. This matrix is visualized in Figure 1 (left). The numbers of cations, anions, available electrolytes, and data points in our full database are listed in Table 1, column ”Full”. The names of all cations and anions are listed in Table S1 in the Supporting Information. The full database contains data for 83 unique cations and 112 unique anions, with experimental mean ionic activity coefficients ˜γ± and/or osmotic coefficients ϕ existing for 478 of those cation-anion pairs (5 .1 % of all possible pairs) with a total of 11,533 experimental data points for ˜γ± and 13,296 data points for ϕ.To evaluate the predictive accuracy of the hybrid model developed in this work, we use a leave-one-electrolyte-out strategy, in which the model is repeatedly trained on data from all electrolytes except one, whose data are used as test data and compared against the model predictions. This procedure requires data on at least two cation–anion pairs (i.e., different electrolytes) per ion, so we further restricted the full database to include only cations and anions with at least two experimentally available pairs for this analysis. The resulting reduced database is shown in Figure 1 (right) in matrix form. The number of cations, anions, and the number of available electrolytes and data points are listed in Table 1, column ”Reduced”. 8The names of the cations and anions included in the reduced dataset are listed in Table S2 in the Supporting Information.                     
+
+> Full database 110 20 30 40 50 60 70 80 90 100 110
+> anion A
+> 1
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> 70
+> 80
+> cation  CReduced database 110 20 30 40 50 60
+> anion A
+> 1
+> 10
+> 20
+> 30
+> 40
+> 50
+> cation  C
+
+Figure 1: Experimental data availability (blue cells) for ˜γ± and/or ϕ for cation-anion pairs at 
+
+T = 298 ± 1 K in aqueous systems in the full (left) and reduced (right) databases considered in the present work. For the numbers identifying the cations and anions, see Tables S1 and S2 in the Supporting Information, respectively. White cells indicate electrolytes for which no experimental data are available in the databases. To enable a fair comparison between our new model and the literature model from Simoes, 14 we had to define an additional restricted database containing only cation-anion pairs within the scope of the Simoes model. For this database, referred to as the Simoes database below, the same above-described consolidation and filtering procedure was applied, except that no data points were excluded because the Bromley model did not fit them well. The reason for not applying this criterion here is that we did not want to introduce a bias in favor of our hybrid model, which is based on the Bromley model architecture, by considering only data that the original Bromley model can well describe. Figure 2 visualizes the Simoes database as a matrix. The number of cations, anions, available electrolytes, and data points in these databases are listed in Table 1, column ”Simoes”, respectively. 91 10 20  
+
+> anion A
+> 1
+> 10
+> 20
+> 30
+> 40
+> cation  C
+
+Figure 2: Experimental data availability for ˜γ± and/or ϕ for cation-anion pairs at T = 298 ±1 K in aqueous systems in the Simoes database. For the numbers identifying the cations and anions, see Table S3 in the Supporting Information. White cells indicate electrolytes for which no experimental data are available. Table 1: Information on the availability of experimental ˜γ± and/or ϕ data in our full, reduced, and Simoes databases, cf. Figures 1 and 2. Full Reduced Simoes Cations 83 57 40 Anions 112 62 27 Electrolytes (%) 478 (5.1%) 401 (11.3 %) 256 (23.7 %) Data points 24856 23317 21663 When comparing Figures 1 and 2, as well as the numbers reported in Table 1, it becomes evident that the predictive scope of the Simoes model, 14 i.e., the number of cation-anion pairs that can be predicted with the model, covers only a small fraction of the full and reduced databases considered in this work. 10 Electrolyte Activity Models 
+
+Bromley Model 
+
+The Bromley model, which serves as the basis for the new hybrid model developed in this work, is a semi-empirical GE model for electrolyte solutions. It is built on a modified Debye-H¨ uckel limiting law, which is valid at high dilutions of the electrolyte, and adds an empirical extension to describe the deviations from that limiting law observed at higher ionic strengths 
+
+I. It uses a single electrolyte-specific parameter BCA , which must be fitted to experimental data for each electrolyte of interest, and then allows for generalization of ˜γ± and ϕ over I.The Bromley model is given by the following equations (9) to (13) 10 
+
+ln ˜ γ± = − ln(10) Aγ |zC zA|√I
+
+1 + √I + ln(10) (0 .06 + 0 .6BCA )|zC zA|I
+
+(1 + cI )2 + ln(10) BCA I (9) 
+
+ϕ = 1 − ln(10) σ Aγ |zC zA|√I
+
+3 + ln(10) ψ (0 .06 + 0 .6BCA )|zC zA|I
+
+2 + ln(10) 2 BCA I (10) 
+
+c = 1.5
+
+|zC zA| (11) 
+
+σ = 3
+
+I1.5
+
+
+
+1 + √I − 11 + √I − 2 ln(1 + √I)
+
+
+
+(12) 
+
+ψ = 2
+
+cI 
+
+ 1 + 2 cI 
+
+(1 + cI )2 − ln(1 + cI )
+
+cI 
+
+
+
+(13) In these equations, Aγ is the Debye-H¨ uckel constant, which for water at 298 K is Aγ =0.5098 (since the original Bromley equations use base 10 logarithms), and zC and zA are the charges of cation C and anion A, respectively. We assume complete dissociation in water for all electrolytes considered in this work, i.e., Bromley’s extension for associating ions is not considered. 10 
+
+Ion-Specific Bromley Model 
+
+We use the ion-specific Bromley model (IBM), 10 which is based on ion-specific instead of electrolyte-specific parameters, as a predictive benchmark in this work. The idea behind IBM 11 is to express the electrolyte-specific parameter BCA as a combination of two cation-specific parameters BC and δC and two anion-specific parameters BA and δA according to equation (14) 10 
+
+BCA = BC + BA + δC · δA (14) The ion-specific parameters Bi and δi for aqueous solutions at 298 K were originally determined and published by Bromley in 1973 using a least-squares fit to the previously available BCA .10 
+
+Since new activity data for aqueous electrolyte systems have been published since then and are now available for a much larger scope of ions, we have determined new ion-specific IBM parameters from our full database using the least-squares method minimize from the scipy.optimize package. Furthermore, we applied the same leave-one-electrolyte-out approach as for our newly developed model to the IBM to compare the predictive performance of both models in a fair way. Further details are given in the computational details section below. Additionally, we compared the fit accuracy (without holding out electrolytes) of the re-parametrized IBM to that of the original IBM, 10 as reported in Figure S4 in the Supporting Information, and found that the re-parametrization using new data from the DDB 2026 39 
+
+leads to higher accuracy on our dataset. 
+
+Simoes Model 
+
+We use the Simoes model, 14 which aims at predicting the parameters of the Pitzer GE model 9
+
+for electrolytes for which no suitable fitting data are available, using descriptors of the ions that make up an electrolyte, as an additional predictive benchmark in this work. The underlying Pitzer model 9 is, just like Bromley’s model, 10 a GE model that generalizes over ionic strength I, but uses more than one electrolyte-specific adjustable parameter. In its most commonly used form, which is also the basis for the Simoes model, 14 three parameters are used ( B0, B1, and Cϕ). With the Simoes model, 14 B0 and B1 can be predicted as functions of the radii ri and the charge numbers zi of the ions, while Cϕ is always set to 0. For more details on the Simoes and Pitzer models, we refer to the original publications. 9,14 In this 12 work, the Simoes model was implemented as described in the original publication, 14 without adjustments, using ionic radii from Marcus, 40 which are the same as those used by Simoes et al. 14 in the development of their model. 
+
+Hybrid Bromley-MCM 
+
+Figure 3 illustrates how the hybrid model introduced in this work, Bromley-MCM, was developed by embedding a matrix completion method (MCM) into the framework of the Bromley model. 
+
+Figure 3: Schematic representation of the hybrid Bromley-MCM for predicting ˜γ± and ϕ
+
+in aqueous electrolyte solutions developed in this work. The MCM is embedded in the Bromley model and trained to predict the electrolyte-specific Bromley parameter BCA for unstudied cation-anion pairs, while the Bromley model enables consistent generalization across composition. While the electrolyte-specific Bromley parameter BCA could directly be fitted only for a small fraction of all electrolytes, given the sparse experimental data for ˜γ± and ϕ, the MCM at the core of Bromley-MCM decomposes the matrix of BCA values, spanned by the considered cations and anions, into the product of two low-rank matrices θθθ and βββ containing 
+
+ion-specific features. Specifically, each Bromley parameter BCA is thereby modeled as 
+
+BCA = θθθC · βββA (15) where θθθC and βββA are the vectors containing the features of cation C and anion A,13 respectively. All feature vectors have length K, a hyperparameter of the method set to K = 3 based on preliminary experiments (cf. Figure S3 in the Supporting Information). Bromley-MCM was trained end-to-end on the ˜γ± and ϕ data from our dataset, thereby directly inferring the ion-specific features stored in θθθ and βββ. In theory, both ˜γ± and ϕ contain the same information concerning BCA ; we have nevertheless decided to train on both, since for many electrolytes, only one property is available in our database (cf. Figure S8 in the Supporting Information). Training was performed in a Bayesian framework, which treats all data and parameters as random variables following probability distributions. Similar Bayesian frameworks are described in detail in our previous work; 17,22–38 we therefore keep the description in the following brief and focused on the specifics relevant to this work. The goal of Bayesian inference is to find the so-called posterior distribution, i.e., the probability distribution of the model parameters ( θθθ and βββ here) based on the data ( ˜γ± and ϕ
+
+here). The posterior was calculated by defining a generative model for the data using two further probability distributions: the prior, which describes the probability of the parameters before training on the data, and the likelihood, which describes the conditional probability of the data given the parameters. In this work, Cauchy distributions centered around μ0 = 0 with scale σ0 = 0 .2 were chosen as prior for all features θθθ and βββ. As the likelihood, each observed value of ˜γ± or ϕ was modeled using a Cauchy distribution with scale parameter 
+
+λ = 0 .1, centered at the corresponding model prediction. These predictions were calculated from the Bromley equations (9) - (13), using BCA = θθθC · βββA.Based on the prior and likelihood, the posterior was calculated using Bayes’ law, yielding a probability distribution for each ion-specific feature informed by the training data. Using the mean of these distributions, the electrolyte-specific Bromley parameters Bpred  
+
+> CA
+
+were predicted for all electrolytes that can be built with the studied ions, following equation (15). Finally, the 
+
+Bpred  
+
+> CA
+
+were used for the prediction of ˜γpred  
+
+> ±
+
+and ϕpred using equations (9) - (13), and compared to the respective experimental data, if available. The prediction error of Bromley-MCM is 14 evaluated using leave-one-electrolyte-out analysis, as explained in the computational details section. We report complete sets of Bpred  
+
+> CA
+
+parameters, obtained by training on our full database in the Supporting Information. Although Bromley-MCM was trained on data for electrolytes that can be (approximately) assumed fully dissociated in solution at the studied conditions, predictions for weak electrolytes are also generated, since some combinations of ions making up two strong electrolytes in our database can form weak electrolytes. As one example, consider sodium acetate (NaAc) and hydrochloric acid (HCl), both strong electrolytes in our database (cf. Figure 1), but acetic acid (HAc) is a weak electrolyte. Predicted Bpred  
+
+> CA
+
+for such electrolytes should thus be used with care, since the Bromley model is not capable of correctly modeling their ˜γ± and ϕ behavior at higher I. Such weak electrolytes include many carboxylic acids, phosphoric acid, arsenic acid, transition-metal oxoacids, and non-quaternary amines. We have marked such electrolytes directly in the tabulated BCA in the Supporting Information. 
+
+## Computational Details and Evaluation 
+
+The hybrid Bromley-MCM was implemented in the probabilistic programming language Stan 41 
+
+using its Python package CmdStanPy . Bayesian inference was performed using automatic differentiation variational inference. 42,43 
+
+The predictive performance of Bromley-MCM and the IBM 10 was evaluated using a leave-one-electrolyte-out analysis, 44 whereby the models were trained on a subset of the experimental ˜γ± and ϕ data, including all available experimental data points except those of one ”test” electrolyte CA to be predicted. By this leave-one-out procedure, predictions for ˜γ± and ϕ were made for truly unseen electrolytes. To evaluate the prediction accuracy of the models, we computed the absolute prediction errors, which, for the predicted quantities 
+
+y ∈ { ϕ, ln ˜ γ±}, are defined as: AE i = |ypred  
+
+> i
+
+− yexp  
+
+> i
+
+| (16) 15 for each test data point i. These pointwise values were aggregated across all experimental data points for a specific electrolyte and are reported as box plots below. Since our final Bromley-MCM uses K = 3, i.e., three parameters per ion, and the IBM uses only two parameters per ion, we also report prediction errors for a Bromley-MCM version where we set K = 2 to enable a clean comparison of the two model architectures that does not depend on the number of trainable parameters. For the comparison of Bromley-MCM to the Simoes model, 14 the leave-one-electrolyte results were used for Bromley-MCM, guaranteeing true predictions for unseen electrolytes. By contrast, the Simoes model 14 was used in their latest published versions, including the reported parameters, so that the results for these benchmark models are, for some electrolytes, not true predictions but correlations. 
+
+# Results and Discussion 
+
+## Results of Bromley-MCM and Comparison to IBM 
+
+Figure 4 shows a box plot of the prediction errors of ln ˜ γ± and ϕ with Bromley-MCM and IBM, retrained on the same data, on our reduced database (cf. Figure 1). All results are for unseen electrolytes. The results show that the new Bromley-MCM substantially outperforms the retrained IBM for both predicted properties. 16 Bromley-MCM IBM Bromley-MCM IBM 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> AE
+
+ln ±
+
+> Mean
+> Median
+
+Figure 4: Box plot of the ln ˜ γ± and ϕ prediction errors of Bromley-MCM and IBM on the reduced database evaluated using leave-one-electrolyte-out analysis. Boxes represent interquartile range (IQR), and whiskers denote 1.5 IQR. For both models, we observe higher prediction errors for ln ˜ γ± than for ϕ. Given that the original Bromley model – the physical model underlying both approaches – is Gibbs-Duhem-consistent, this is surprising at first glance. This discrepancy may reflect lower quality in the reported ˜γ± data. In many cases, ˜γ± are derived from ϕ data through Gibbs-Duhem integration. This conversion is particularly sensitive in the low-concentration region, because the infinite-dilution limit provides the integration boundary and small errors in ϕ can propagate into ln ˜ γ±. Since highly precise measurements in this regime are difficult, some inconsistencies may have been introduced into the reported ˜γ± values from the original publications that were not detected by our Gibbs-Duhem verification during data consolidation. We additionally provide the fit residuals of Bromley-MCM and IBM (Figure S5) and the prediction errors for a Bromley-MCM with K = 2 (i.e., the same number of parameters as the IBM, Figure S6) in the Supporting Information, all of which show the same qualitative 17 results. 
+
+## Comparison of Bromley-MCM to the Simoes Model 
+
+Figure 5 shows the box plot of the prediction errors of ln ˜ γ± and ϕ for Bromley-MCM and Simoes on the Simoes horizon (cf. Figure 2). The results of Bromley-MCM are true predictions for unseen electrolytes. In contrast, the Simoes model was adopted directly from the literature, 14 so its results are partly correlations rather than true predictions. In Figure S7 in the Supporting Information, we report the prediction error of the Simoes model on the seen and unseen electrolytes separately and find similar results to those discussed below. Bromley-MCM Simoes Bromley-MCM Simoes 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> AE
+
+ln ±
+
+> Mean
+> Median
+
+Figure 5: Box plot of the ln ˜ γ± and ϕ prediction errors on the Simoes horizon for Bromley-MCM and the Simoes model. Bromley-MCM was evaluated by leave-one-electrolyte-out analysis, whereas the parameters of the Simoes model were adopted from the original literature. 14 Boxes represent IQR and whiskers denote 1.5 IQR. Figure 5 shows that Bromley-MCM substantially outperforms the Simoes model 14 both on the prediction of the logarithmic mean ionic activity coefficient and the osmotic coefficient. 18 The Simoes model shows large outliers and a very large interquartile range. Our Bromley-MCM not only predicts aqueous electrolyte activities more accurately than the established Simoes model, 14 but also covers a substantially broader chemical space, enabling predictions for more than 9,000 electrolytes. 
+
+## Predicted Electrolyte Activities as a Function of Ionic Strength 
+
+Figures 6 and 7 show a comparison between the predictions by the three models studied in this work (Bromley-MCM, IBM, and Simoes) for ln ˜ γ± and ϕ − 1 as a function of ionic strength I and the respective experimental data for several electrolytes as examples. Again, the results of Bromley-MCM and IBM are true predictions for unseen electrolytes, whereas the Simoes model has been fitted to data for most of the shown electrolytes. Wherever lines are missing in a plot panel, the Simoes model could not be applied to the electrolyte under consideration. 19 Calcium chloride (CaCl 2)0 1 2 3 4 5 6
+
+I / mol kg 1 
+
+> 1
+> 0
+> 1
+> 2
+> 3
+> 4
+> ln  ±
+
+Potassium tosylate (KTos) 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 
+
+I / mol kg 1
+
+> 1.2
+> 1.0
+> 0.8
+> 0.6
+> 0.4
+> 0.2
+> 0.0
+> ln  ±
+
+Lutetium ethyl sulfate (Lu(EtSO 4)3)0 1 2 3 4 5 6
+
+I / mol kg 1 
+
+> 1.0
+> 0.8
+> 0.6
+> 0.4
+> 0.2
+> 0.0
+> ln  ±
+
+Magnesium bromide (MgBr 2)0 1 2 3 4 5 6
+
+I / mol kg 1
+
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> ln  ±
+
+Sodium nitrate (NaNO 3)0 1 2 3 4 5 6
+
+I / mol kg 1 
+
+> 1.0
+> 0.5
+> 0.0
+> 0.5
+> ln  ±
+
+Ammonium chloride (NH 4Cl) 0 1 2 3 4 5 6
+
+I / mol kg 1
+
+> 0.6
+> 0.4
+> 0.2
+> 0.0
+> 0.2
+> 0.4
+> ln  ±
+
+Figure 6: Prediction of ln ˜ γ± for exemplary electrolytes in aqueous solutions at 298 K as a function of ionic strength. Lines: Predictions with different models. Circles: experimental data from DDB. 39 
+
+20 Hydrogen bromide (HBr) 0 1 2 3 4 5 6
+
+I / mol kg 1
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> 1.2
+> 1
+
+Tris(ethylenediamine)cobalt(III) perchlorate (Co(en) 3(ClO 4)3)0.0 0.5 1.0 1.5 2.0 2.5 3.0 
+
+I / mol kg 1
+
+> 0.6
+> 0.4
+> 0.2
+> 0.0
+> 1
+
+Potassium hydrogen phosphate (K 2HPO 4)0 1 2 3 4 5 6
+
+I / mol kg 1 
+
+> 1.5
+> 1.0
+> 0.5
+> 0.0
+> 1
+
+Sodium acetate (NaAc) 0 1 2 3 4 5 6
+
+I / mol kg 1
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> 1
+
+Copper nitrate (Cu(NO 3)2)0 1 2 3 4 5 6
+
+I / mol kg 1 
+
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 1
+
+Ammonium chloride (NH 4Cl) 0 1 2 3 4 5 6
+
+I / mol kg 1
+
+> 0.1
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 1
+
+Figure 7: Prediction of ϕ − 1 in exemplary aqueous electrolyte solutions at 298 K as a function of ionic strength. Lines: Predictions with different models. Circles: experimental data from DDB. 39 
+
+The agreement between the experimental data and the predictions with Bromley-MCM is 21 very good for most electrolytes. All curves show the correct qualitative dependence of ln ˜ γ±
+
+and ϕ − 1 on I, with the characteristic minimum at low ionic strength, which is achieved by building the hybrid model on the physics-based Bromley model. For many electrolytes, good agreement is also found for the other models. However, as already shown in Figures 4 and 5, Bromley-MCM outperforms all other approaches overall. While the Simoes model, 14 despite having been fit to data for all shown electrolytes except Potassium hydrogen phosphate (K 2HPO 4) and those where no Simoes curve (orange) is present, fails for certain electrolytes, Bromley-MCM also manages to correctly predict the activities of electrolytes that contain organic anions (e.g., Tos -, Ac -, SCN -), electrolyts containing ions with absolute charges greater than one (e.g., Ca 2+ , Mg 2+ , Lu 3+ , PO 43-), or electrolytes that contain ionic complexes (e.g., [Co(en) 3]3+ ). As can, e.g., be seen in Figure 7 middle left, the prediction of electrolytes containing ions with multiple protonated forms is somewhat worse than that of other electrolytes. While K3PO 4 would be expected to behave like a typical strong electrolyte, the resulting PO 43-, like other phosphates, undergoes stepwise protonation and deprotonation. Modeling the activities of such acids with high accuracy is challenging, and alternative models for these systems typically require substantially more adjustable parameters. 45,46 
+
+Despite some minor shortcomings, mainly due to the limitations of the underlying Bromley model, 10 the results clearly demonstrate that the matrix completion concept is well suited for the prediction of Bromley parameters BCA as the hybrid model resulting from embedding an MCM into the Bromley model substantially outperfoms the existing benchmarks in the prediction of ˜ γ± and ϕ in aqueous electrolyte-containing systems. 
+
+# Conclusions 
+
+In this work, we present a novel hybrid approach for predicting activities in aqueous electrolyte solutions at 298 K by embedding a matrix completion method (MCM) from machine learning 22 (ML) within the Bromley model to predict the Bromley parameter BCA , enabling the consistent modeling of activity coefficients ˜γ± and osmotic coefficients ϕ for unstudied electrolyte systems, thereby addressing the limitation of classical electrolyte models as the ones of Bromley 10 and Pitzer. 9
+
+The new hybrid model, Bromley-MCM, was trained end-to-end and evaluated on data for ˜γ± and ϕ from a consolidated database, based on raw data from the Dortmund Data Bank, 39 containing experimental data for aqueous solutions of 478 electrolytes, covering 83 unique cations and 112 unique anions. Bromley-MCM significantly outperforms other models reported in the literature that generalize to unstudied electrolytes, namely, the ion-specific Bromley model (IBM) 10 and the Simoes model, 14 in prediction accuracy, while also offering a substantially broader scope, covering more ions, than the Simoes model. While the extrapolation to unstudied electrolytes is enabled by the MCM, the physics-based Bromley model underlying the hybrid Bromley-MCM guarantees smooth and consistent generalization over ionic strength. With this work, we report a complete set of BCA values for 9,296 electrolytes, which can be used to describe activities in aqueous solution at 298 K. For 8,818 of these electrolytes, no data under these conditions were available in the literature. In future work, the hybrid approach introduced here can be extended to further solvents and the temperature-dependent prediction of activities in electrolyte solutions. 
+
+# Acknowledgement 
+
+We gratefully acknowledge financial support by DFG in the frame of the Research Training Group GRK 2908 ”Valuable Wastewater (WERA)” (grant number 503479768) and the Priority Program SPP 2363 ”Molecular Machine Learning” (grant number 497201843). Furthermore, FJ gratefully acknowledges financial support by DFG in the frame of the Emmy-Noether program (grant number 528649696). 23 Supporting Information Available 
+
+Supporting Information is available: 
+
+• Compound identifiers; hyperparameter optimization; further error analysis; and analysis of data availability. (PDF) 
+
+• Full Bromley parameter set ( BCA ) for 9296 electrolytes, from training on the full database. (XLSX) 
+
+# Declaration of generative AI and AI-assisted technologies in the manuscript preparation process 
+
+During the preparation of this work the authors used ChatGPT (OpenAI) in order to improve the language of the manuscript and to assist with code development and debugging. After using this tool/service, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article. 
+
+# References 
+
+(1) Heiß, J.; Kohns, M. Open circuit voltage of an all-vanadium redox flow battery as a function of the state of charge obtained from UV-Vis spectroscopy. Energy Advances 
+
+2024 , 3, 2597–2603. (2) Keller, A.; Burger, J.; Hasse, H.; Kohns, M. Application of the Pitzer model for describing the evaporation of seawater. Desalination 2021 , 503 , 114866. (3) Bousfield, W. R. Iso-piestic solutions. Transactions of the Faraday Society 1918 , 13 ,401. 24 (4) Robinson, R. A.; Sinclair, D. A. The Activity Coefficients of the Alkali Chlorides and of Lithium Iodide in Aqueous Solution from Vapor Pressure Measurements. Journal of the American Chemical Society 1934 , 56 , 1830–1835. (5) Young, T. F. The Complete Calculation of Activity Coefficients from Freezing Point Data. Chemical Reviews 1933 , 13 , 103–110. (6) Heintz, A. Thermodynamik der Mischungen ; Springer Berlin Heidelberg, 2017. (7) Argersinger, W. J. Activity Coefficients of Electrolytes in Mixed Aqueous Solution from Electromotive Force Data. The Journal of Physical Chemistry 1954 , 58 , 792–795. (8) Thomsen, K. Electrolyte Solutions: Thermodynamics, Crystallization, Separation meth-ods ; Technical University of Denmark, Department of Chemical and Biochemical Engi-neering , CERE – Center for Energy Ressources Engineering, 2009. (9) Pitzer, K. S.; Mayorga, G. Thermodynamics of electrolytes. II. Activity and osmotic coefficients for strong electrolytes with one or both ions univalent. The Journal of Physical Chemistry 1973 , 77 , 2300–2308. (10) Bromley, L. A. Thermodynamic properties of strong electrolytes in aqueous solutions. 
+
+AIChE Journal 1973 , 19 , 313–320. (11) Li, J.; Polka, H.-M.; Gmehling, J. A gE model for single and mixed solvent electrolyte systems. Fluid Phase Equilibria 1994 , 94 , 89–114. (12) Kiepe, J.; Noll, O.; Gmehling, J. Modified LIQUAC and Modified LIFACA Further Development of Electrolyte Models for the Reliable Prediction of Phase Equilibria with Strong Electrolytes. Industrial & Engineering Chemistry Research 2006 , 45 , 2361–2373. (13) Mohs, A.; Gmehling, J. A revised LIQUAC and LIFAC model (LIQUAC*/LIFAC*) for the prediction of properties of electrolyte containing solutions. Fluid Phase Equilibria 
+
+2013 , 337 , 311–322. 25 (14) Simoes, M. C.; Hughes, K. J.; Ingham, D. B.; Ma, L.; Pourkashanian, M. Estimation of the Pitzer Parameters for 1–1, 2–1, 3–1, 4–1, and 2–2 Single Electrolytes at 25 °C. 
+
+Journal of Chemical & Engineering Data 2016 , 61 , 2536–2554. (15) Jirasek, F.; Hasse, H. Perspective: Machine learning of thermophysical properties. Fluid Phase Equilibria 2021 , 549 , 113206. (16) Hoffmann, M.; Specht, T.; Hayer, N.; Hasse, H.; Jirasek, F. MLPROP – An Interactive Web Interface for Thermophysical Property Prediction with Machine Learning. Chemie Ingenieur Technik 2025 , 97 , 1052–1056. (17) Jirasek, F.; Hasse, H. Combining machine learning with physical knowledge in ther-modynamic modeling of fluid mixtures. Annual Review of Chemical and Biomolecular Engineering 2023 , 14 , 31–51. (18) Hoffmann, M.; Hasse, H.; Jirasek, F. GRAPPA—A hybrid graph neural network for predicting pure component vapor pressures. Chemical Engineering Journal Advances 
+
+2025 , 22 , 100750. (19) Specht, T.; Nagda, M.; Fellenz, S.; Mandt, S.; Hasse, H.; Jirasek, F. HANNA: hard-constraint neural network for consistent activity coefficient prediction. Chemical Science 
+
+2024 , 15 , 19777–19786. (20) Hoffmann, M.; Specht, T.; G¨ ottl, Q.; Burger, J.; Mandt, S.; Hasse, H.; Jirasek, F. Thermodynamically consistent machine learning model for excess Gibbs energy. Nature Communications 2026 , 17 .(21) Hasse, H.; Schmitt, S.; Jirasek, F. Artificial intelligence in thermodynamics: hybrid mod-eling of thermophysical properties of fluids. Current Opinion in Chemical Engineering 
+
+2026 , 51 , 101236. 26 (22) Jirasek, F.; Alves, R. A. S.; Damay, J.; Vandermeulen, R. A.; Bamler, R.; Bortz, M.; Mandt, S.; Kloft, M.; Hasse, H. Machine learning in thermodynamics: Prediction of activity coefficients by matrix completion. The Journal of Physical Chemistry Letters 
+
+2020 , 11 , 981–985. (23) Romero, Z.; M¨ unnemann, K.; Hasse, H.; Jirasek, F. Prediction of Diffusion Coefficients in Mixtures with Tensor Completion. 2026; https://arxiv.org/abs/2602.23142 .(24) Jirasek, F.; Bamler, R.; Mandt, S. Hybridizing physical and data-driven prediction meth-ods for physicochemical properties. Chemical Communications 2020 , 56 , 12407–12410. (25) Damay, J.; Jirasek, F.; Kloft, M.; Bortz, M.; Hasse, H. Predicting activity coefficients at infinite dilution for varying temperatures by matrix completion. Industrial and Engineering Chemistry Research 2021 , 60 , 14564–14578. (26) Gond, D.; Sohns, J.-T.; Leitte, H.; Hasse, H.; Jirasek, F. Hierarchical matrix completion for the prediction of properties of binary mixtures. Computers & Chemical Engineering 
+
+2025 , 109122. (27) Hayer, N.; Specht, T.; Arweiler, J.; Gond, D.; Hasse, H.; Jirasek, F. Prediction of activity coefficients by similarity-based imputation using quantum-chemical descriptors. 
+
+Physical Chemistry Chemical Physics 2025 , 27 , 4307–4315. (28) Zenn, J.; Gond, D.; Jirasek, F.; Bamler, R. Balancing molecular information and empirical data in the prediction of physico-chemical properties. Digital Discovery 2025 ,
+
+4, 683–693. (29) Damay, J.; Ryzhakov, G.; Jirasek, F.; Hasse, H.; Oseledets, I.; Bortz, M. Predicting temperature-dependent activity coefficients at infinite dilution using tensor completion. 
+
+Chemie Ingenieur Technik 2023 , 95 , 1061–1069. 27 (30) Hayer, N.; Jirasek, F.; Hasse, H. Prediction of Henry 's law constants by matrix comple-tion. AIChE Journal 2022 , 68 , e17753. (31) Hayer, N.; Hasse, H.; Jirasek, F. Prediction of temperature-dependent Henry’s law constants by matrix completion. The Journal of Physical Chemistry B 2024 , 129 ,409–416. (32) Großmann, O.; Bellaire, D.; Hayer, N.; Jirasek, F.; Hasse, H. Database for liquid phase diffusion coefficients at infinite dilution at 298 K and matrix completion methods for their prediction. Digital Discovery 2022 , 1, 886–897. (33) Romero, Z.; M¨ unnemann, K.; Hasse, H.; Jirasek, F. Improvement of Diffusion Coeffi-cient Prediction by Active Learning. The Journal of Physical Chemistry B 2025 , 129 ,9219–9228. (34) Kohns, M.; Zittlau, P.; Jirasek, F. Prediction of the density of aqueous electrolyte solutions with matrix completion methods. Fluid Phase Equilibria 2025 , 597 , 114454. (35) Jirasek, F.; Bamler, R.; Fellenz, S.; Bortz, M.; Kloft, M.; Mandt, S.; Hasse, H. Making thermodynamic models of mixtures predictive by machine learning: matrix completion of pair interactions. Chemical Science 2022 , 13 , 4854–4862. (36) Hayer, N.; Wendel, T.; Mandt, S.; Hasse, H.; Jirasek, F. Advancing thermodynamic group-contribution methods by machine learning: UNIFAC 2.0. Chemical Engineering Journal 2025 , 504 , 158667. (37) Hoffmann, M.; Hayer, N.; Kohns, M.; Jirasek, F.; Hasse, H. Prediction of pair interactions in mixtures by matrix completion. Physical Chemistry Chemical Physics 2024 , 26 ,19390–19397. (38) Jirasek, F.; Hayer, N.; Abbas, R.; Schmid, B.; Hasse, H. Prediction of parameters 28 of group contribution models of mixtures by matrix completion. Physical Chemistry Chemical Physics 2023 , 25 , 1054–1062. (39) Dortmund Data Bank. DDBST - Dortmund Data Bank Software And Separation Technology GmbH, Dortmund Data Bank, 2026. https://www.ddbst.com (accessed 2026-07-01). (40) Marcus, Y. A simple empirical model describing the thermodynamics of hydration of ions of widely varying charges, sizes, and shapes. Biophysical Chemistry 1994 , 51 ,111–127. (41) Stan Development Team, Stan Modeling Language Users Guide and Reference Manual, Version 2.35. https://mc-stan.org .(42) Kucukelbir, A.; Tran, D.; Ranganath, R.; Gelman, A.; Blei, D. M. Automatic dif-ferentiation variational inference. Journal of Machine Learning Research 2017 , 18 ,1–45. (43) Blei, D. M.; Kucukelbir, A.; McAuliffe, J. D. Variational inference: A review for statisticians. Journal of the American Statistical Association 2017 , 112 , 859–877. (44) Cawley, G. C.; Talbot, N. L. Efficient leave-one-out cross-validation of kernel fisher discriminant classifiers. Pattern Recognition 2003 , 36 , 2585–2592. (45) Clegg, S. L.; Rard, J. A.; Pitzer, K. S. Thermodynamic properties of 0–6 mol kg–1aqueous sulfuric acid from 273.15 to 328.15 K. J. Chem. Soc., Faraday Trans. 1994 , 90 ,1875–1894. (46) Pitzer, K. S.; Silvester, L. F. Thermodynamics of electrolytes. VI. Weak electrolytes including H3PO4. Journal of Solution Chemistry 1976 , 5, 269–278. 29 Supporting Information: Prediction of Activities in Aqueous Electrolyte Solutions with Hybrid Machine Learning 
+
+## Zeno Romero, Maximilian Kohns, and Fabian Jirasek ∗
+
+Laboratory of Engineering Thermodynamics, RPTU Kaiserslautern, Erwin-Schr¨ odinger-Str. 44, 67663 Kaiserslautern, Germany 
+
+E-mail: fabian.jirasek@rptu.de 
+
+# Ion Identifiers 
+
+Tables S1 to S3 list the identifiers for cations C and anions A, respectively, covered in Figures 1 to 2. Table S1: Identifiers for cations and anions in the full database (cf. Figure 1). Cation Nr. Cation Anion Nr. Anion 1 Tetraisobutylammonium 1 Metaborate 2 Triisobutylmethylphosphonium 2 2,2,2-Trichloroacetate 3 Tetra-sec -butylammonium 3 4,4’-Bibenzyldisulfonate 4 Trimethyloctylammonium 4 Acetate 5 N,N,N-Octylbutyldimethylammonium 5 2-Amino-3-methylbutanoate 6 n-Octylammonium 6 2-Amino-4-methylpentanoate 7 1-Octylpyridinium 7 2-Aminopropanoate 8 1-Octyl-3-methylimidazolium 8 Propanoate 9 1-Heptyl-3-methylimidazolium 9 Butanoate 10 Triethylhexylammonium 10 Pentanoate 11 1-Hexyl-3-methylimidazolium 11 Octanoate 12 Triethylpentylammonium 12 Decanoate 13 1-Pentyl-3-methylimidazolium 13 Ethyl malonate S1 Table S1 – continued from previous page Cation Nr. Cation Anion Nr. Anion 14 Butyltriethylammonium 14 Ethyl sulfate 15 Dibutyldiethylammonium 15 Ethanesulfonate 16 Tetrabutylammonium 16 Ethylbenzene sulfonate 17 Tributylmethylphosphonium 17 Methyl malonate 18 Tributylsulfonium 18 Methyl sulfate 19 1-Butyl-3-methylimidazolium 19 p-Anisole sulfonate 20 Tetrapropylammonium 20 Methanesulfonate 21 1-Propyl-3-methylimidazolium 21 Thymine 22 Tetraethylammonium 22 2,4,6-Trimethylbenzene sulfonate 23 Triethylammonium 23 2,5-Dimethylbenzenesulfonate 24 Diethylammonium 24 2,4-Dimethylbenzenesulfonate 25 1-Hexyl-3-methylimidazolium 25 4-Toluenesulfonate 26 Tetramethylguanidinium 26 3-Methylsalicylate 27 Tetramethylammonium 27 Cefazolin 28 2-Hydroxyethyl-trimethylammonium 28 Tetrachloroaurate 29 Trimethyl-(2-trimethylammonioethyl)ammonium 29 Tetrafluoroborate 30 Trimethylammonium 30 Hexafluorophosphate 31 Dimethylammonium 31 Hexafluoridosilicate 32 Timethylsulfonium 32 Thiocyanate 33 1-(2-Carboxyethyl)-3-methylimidazolium 33 Aspartate 34 1,3-Dimethylimidazolium 34 Arginine 35 Hexaaminecobalt(III) 35 2-Aminoacetate 36 Guanidinium 36 Lysine 37 Uranyl 37 Sulfamate 38 Tetraethanol ammonium 38 Glutamate 39 Silver(I) 39 Sulfanilate 40 Aluminium(III) 40 Adenosine triphosphate 41 Barium (II) 41 Adenine 42 Calcium(II) 42 Dihydrogen citrate 43 Cadmiun(II) 43 Fumarate 44 Cerium(III) 44 Maleate 45 Cobalt(II) 45 Oxalate 46 Tris(ethylenediamine)cobalt(III) 46 Trichloracetate 47 Chromium(III) 47 Trifluoroacetate 48 Cesium(I) 48 Tartrate 49 Copper(II) 49 Hydrogen malonate 50 Dysprosium(III) 50 Malonate 51 Erbium(III) 51 Hydrogen citrate 52 Europium(III) 52 Hydrogen succinate 53 Iron(II) 53 Succinate 54 Iron(III) 54 Hydrogen adipate 55 Gadolinium(III) 55 2-Hydroxyacetate 56 Proton 56 Carbonate S2 Table S1 – continued from previous page Cation Nr. Cation Anion Nr. Anion 57 Holmium(III) 57 Mellitate 58 Indium(III) 58 4-Hydroxybenzoate 59 Potassium(I) 59 Benzoate 60 Lanthanum(III) 60 Salicylate 61 Lithium(I) 61 Formate 62 Lutetium(III) 62 Nitrite 63 Magnesium(II) 63 Dihydrogen phosphate 64 Manganese(II) 64 Dihydrogen pyrophosphate 65 Ammonium 65 Hydrogen phosphate 66 Sodium(I) 66 Pyrophosphate 67 Neodymium(III) 67 Phosphate 68 Nickel(II) 68 Trifluoromethane sulfonate 69 Lead(II) 69 Ethane-1,2-disulfonate 70 Praseodymium(III) 70 Hydrogen sulfate 71 Tris(1,3-Diaminopropane)platinum(IV) 71 Peroxydisulfate 72 Tris(ethylenediamine)plantinum(IV) 72 Dithionate 73 Rubidium(I) 73 Sulfate 74 Scandium(III) 74 4-Hydroxybenzenesulfonate 75 Samarium(III) 75 m-Benzenedisulfonate 76 Strontium(II) 76 1,5-Naphthalenedisulfonate 77 Terbium(III) 77 Benzenesulfonate 78 Thorium(IV) 78 Thiosulfate 79 Thallium(I) 79 Sulfite 80 Thulium(III) 80 Benzenesulfinate 81 Yttrium(III) 81 Dihydrogen arsenate 82 Ytterbium(III) 82 Hydrogen arsenate 83 Zinc(II) 83 Arsenate 84 Dichromate 85 Chromate 86 Molybdate 87 Nitrate 88 4-Nitrophenolate 89 3-Nitrobenzenesulfonate 90 Perrhenate 91 Selenate 92 Pertechnetate 93 Tungstate 94 Xanthine 95 Hypoxanthine 96 Uracil 97 Dodecahydrododecaborate 98 Decahydrodecaborate 99 Bromide S3 Table S1 – continued from previous page Cation Nr. Cation Anion Nr. Anion 100 Hexacyanocobaltate(III) 101 Hexacyanoferrite(II) 102 Hexacyanoferrate(III) 103 Chloride 104 Hexachloroplatinate(IV) 105 Fluoride 106 Iodide 107 Bromate 108 Chlorate 109 Perchlorate 110 Iodate 111 Hydroxide 112 Tetraphenylborate S4 Table S2: Identifiers for cations and anions in the reduced database (cf. Figure 1). Cation Nr. Cation Anion Nr. Anion 1 1-Hexyl-3-methylimidazolium 1 4,4’-Bibenzyldisulfonate 2 Butyltriethylammonium 2 Acetate 3 Tetrabutylammonium 3 Propanoate 4 Tributylsulfonium 4 Butanoate 5 1-Butyl-3-methylimidazolium 5 Ethyl sulfate 6 Tetrapropylammonium 6 Ethanesulfonate 7 Tetraethylammonium 7 Ethylbenzene sulfonate 8 Diethylammonium 8 Methyl sulfate 9 1-Hexyl-3-methylimidazolium 9 p-Anisole sulfonate 10 Tetramethylguanidinium 10 Methanesulfonate 11 Tetramethylammonium 11 Thymine 12 2-Hydroxyethyl-trimethylammonium 12 2,4,6-Trimethylbenzene sulfonate 13 Trimethyl-(2-trimethylammonioethyl)ammonium 13 2,5-Dimethylbenzenesulfonate 14 Trimethylammonium 14 4-Toluenesulfonate 15 Dimethylammonium 15 Tetrafluoroborate 16 Timethylsulfonium 16 Thiocyanate 17 Guanidinium 17 Sulfamate 18 Uranyl 18 Glutamate 19 Silver(I) 19 Sulfanilate 20 Barium (II) 20 Adenosine triphosphate 21 Calcium(II) 21 Trichloracetate 22 Cadmiun(II) 22 Trifluoroacetate 23 Cerium(III) 23 Hydrogen malonate 24 Cobalt(II) 24 Hydrogen citrate 25 Tris(ethylenediamine)cobalt(III) 25 Hydrogen succinate 26 Chromium(III) 26 Succinate 27 Cesium(I) 27 Hydrogen adipate 28 Copper(II) 28 Carbonate 29 Dysprosium(III) 29 Nitrite 30 Erbium(III) 30 Dihydrogen phosphate 31 Europium(III) 31 Hydrogen phosphate 32 Iron(II) 32 Pyrophosphate 33 Gadolinium(III) 33 Phosphate 34 Proton 34 Ethane-1,2-disulfonate 35 Holmium(III) 35 Peroxydisulfate 36 Indium(III) 36 Sulfate 37 Potassium(I) 37 m-Benzenedisulfonate 38 Lanthanum(III) 38 1,5-Naphthalenedisulfonate 39 Lithium(I) 39 Benzenesulfonate 40 Lutetium(III) 40 Dihydrogen arsenate 41 Magnesium(II) 41 Hydrogen arsenate 42 Manganese(II) 42 Arsenate S5 Table S2 – continued from previous page Cation Nr. Cation Anion Nr. Anion 43 Ammonium 43 Dichromate 44 Sodium(I) 44 Chromate 45 Neodymium(III) 45 Nitrate 46 Nickel(II) 46 Perrhenate 47 Praseodymium(III) 47 Selenate 48 Rubidium(I) 48 Pertechnetate 49 Samarium(III) 49 Xanthine 50 Strontium(II) 50 Hypoxanthine 51 Terbium(III) 51 Uracil 52 Thorium(IV) 52 Bromide 53 Thallium(I) 53 Hexacyanocobaltate(III) 54 Thulium(III) 54 Hexacyanoferrate(III) 55 Yttrium(III) 55 Chloride 56 Ytterbium(III) 56 Fluoride 57 Zinc(II) 57 Iodide 58 Bromate 59 Chlorate 60 Perchlorate 61 Iodate 62 Hydroxide S6 Table S3: Identifiers for cations and anions in the Simoes database (cf. Figure 2). Cation Nr. Cation Anion Nr. Anion 1 Tetrabutylammonium 1 Acetate 2 Tetrapropylammonium 2 Thiocyanate 3 Tetraethylammonium 3 Carbonate 4 Tetramethylammonium 4 Formate 5 Uranyl 5 Nitrite 6 Silver(I) 6 Dihydrogen phosphate 7 Barium (II) 7 Hydrogen phosphate 8 Calcium(II) 8 Phosphate 9 Cadmiun(II) 9 Peroxydisulfate 10 Cobalt(II) 10 Sulfate 11 Chromium(III) 11 Arsenate 12 Cesium(I) 12 Dichromate 13 Copper(II) 13 Chromate 14 Dysprosium(III) 14 Nitrate 15 Erbium(III) 15 Perrhenate 16 Europium(III) 16 Selenate 17 Gadolinium(III) 17 Pertechnetate 18 Proton 18 Bromide 19 Holmium(III) 19 Hexacyanocobaltate(III) 20 Potassium(I) 20 Chloride 21 Lanthanum(III) 21 Fluoride 22 Lithium(I) 22 Iodide 23 Lutetium(III) 23 Bromate 24 Magnesium(II) 24 Chlorate 25 Manganese(II) 25 Perchlorate 26 Ammonium 26 Iodate 27 Sodium(I) 27 Hydroxide 28 Neodymium(III) 29 Nickel(II) 30 Praseodymium(III) 31 Rubidium(I) 32 Samarium(III) 33 Strontium(II) 34 Terbium(III) 35 Thorium(IV) 36 Thallium(I) 37 Thulium(III) 38 Yttrium(III) 39 Ytterbium(III) 40 Zinc(II) S7 Database Consolidation 
+
+Raw activity data for binary systems containing one electrolyte and one solvent were obtained from the ”ELE” (Vapor-Liquid Equilibria of Electrolyte Systems) database of the Dortmund Databank (DDB) 2026. 1 The DDB features electrolyte solution activity data for various solvents, as shown in Figure S1. As can be seen in Figure S1, the vast majority of the literature data is available for aqueous systems, i.e., systems with water as the solvent. A substantial amount of data is also available for the solvents methanol, ethanol, and ammonia. In contrast, the number of data points for all other solvents is at least two orders of magnitude smaller. Since water is the most common solvent based on the available data points and the Bromley parameters are solvent-specific, 2 we restricted the dataset for this study to aqueous systems. With this restriction in place, Figure S2 shows a histogram of the number of data points as a function of temperature. As shown in Figure S2, most data points are available at T = 298 ± 1 K. Bromley 2
+
+proposed a correlation for the temperature dependence of the BCA parameters using four temperature-independent adjustable parameters for each BCA , i.e., for each electrolyte. Since fitting these parameters accurately would, firstly, require a substantial amount of data for each electrolyte, and, secondly, substantially increase the complexity of the developed hybrid model, potentially reducing its ability to generalize to unstudied electrolytes, the present study was restricted to data at T = 298 ± 1 K, which is also the temperature for which the Bromley model was originally developed. Furthermore, the dataset was restricted to systems for which either mean ionic activity coefficients ¯ γ± and/or osmotic coefficients ϕ were available, as well as for which the data were reported using the molality ˜ m as the concentration measure. Data reported in terms of molarity were excluded, as conversion to molality requires knowledge of the solution density, which is generally unavailable. Likewise, vapor pressure data were not considered because vapor pressure measurements usually lack sufficient accuracy to calculate exact S8 0 5 10 15 20 
+
+Cyclohexane 
+
+Tetrachloromethane 
+
+Hexane 
+
+Methyl tert-butyl ether 
+
+Methyl butanoate 
+
+Methyl valerate 
+
+1-Decanol 
+
+Methyl propanoate 
+
+Propionic acid 
+
+2-Ethoxyethanol 
+
+Butyric acid 
+
+Benzyl alcohol 
+
+1-Octanol 
+
+1-Hexanol 
+
+1-Heptanol 
+
+N-Methylformamide 
+
+Benzene 
+
+Amyl acetate 
+
+Chloroform 
+
+Butyl acetate 
+
+Propyl acetate 
+
+1,4-Butanediol 
+
+N,N-Diethylamine 
+
+Formic acid 
+
+2-Methyl-1-propanol 
+
+Nitric acid 
+
+tert-Butanol 
+
+Ethyl acetate 
+
+1,3-Propanediol 
+
+1,4-Dioxane 
+
+Nitric acid 
+
+Diethylene glycol 
+
+Methylamine 
+
+2-Methylbutyl acetate 
+
+1,1-Dimethoxyethane 
+
+Dimethyl sulfoxide 
+
+Glycerol 
+
+1,2-Propanediol 
+
+Formamide 
+
+N,N-Dimethylformamide 
+
+Ethylene carbonate 
+
+1-Pentanol 
+
+2-Methyl-1-butanol 
+
+2-Butanol 
+
+Carbonic acid dimethyl ester 
+
+Propylene carbonate 
+
+Acetic acid 
+
+3-Methyl-1-butanol 
+
+1-Butanol 
+
+N,N-Dimethylacetamide 
+
+1-Propoxy-2-propanol 
+
+Deuterium oxide 
+
+1,2-Ethanediol 
+
+Acetonitrile 
+
+1-Propanol 
+
+N-Methylacetamide 
+
+Acetone 
+
+2-Propanol 
+
+Ammonia 
+
+Ethanol 
+
+Methanol 
+
+Water 
+
+> Solvent
+
+250 500 750 1000 25000 50000 75000 
+
+Number of data points Figure S1: Bar plot representing the number of experimental data points for activity data in binary electrolyte solutions (one electrolyte and one solvent) available in the DDB 1 for different solvents. S9 < 271 288 298 308 318 328 338 348 358 368 378 388 > 399  
+
+> T/ K
+> 0
+> 10000
+> 20000
+> 30000
+> 40000
+> Number of data points
+
+Figure S2: Histogram representing the number of experimental data points for activity data in aqueous solutions of single electrolytes available in the DDB 1 for different temperatures. activity data. In fact, restricting the dataset to molality-based data did not reduce the number of electrolytes it covered. Since the raw data points were directly adopted from the DDB, it is difficult to provide a reliable estimate of their uncertainty. Many literature sources do not report uncertainties for measured ϕ or ˜ γ±, and those that do typically state values in the range of 1–5%. Such estimates appear optimistic, as direct comparisons between different sources, where possible, often revealed deviations of up to 10%. 
+
+# Hyperparameter optimization 
+
+Figure S3 shows the prediction error for various combinations of the model hyperparameters 
+
+K, σ0, and λ evaluated by leave-one-electrolyte-out analysis in the form of mean absolute error (MAE) for ln ˜ γ± and ϕ.S10 0.02 0.05 0.10 0.15 0.20 
+
+0.02 
+
+0.05 
+
+0.10 
+
+0.15 
+
+0.20 
+
+> 0
+
+0.048 0.046 0.045 0.049 0.047 
+
+0.048 0.052 0.046 0.053 0.048 
+
+0.048 0.048 0.047 0.047 0.047 
+
+0.049 0.047 0.047 0.048 0.046 
+
+0.047 0.047 0.047 0.047 0.048 
+
+ln ± , K = 2 
+
+0.0460 
+
+0.0480 
+
+0.0500 
+
+0.0520 
+
+MAE 0.02 0.05 0.10 0.15 0.20 
+
+0.02 
+
+0.05 
+
+0.10 
+
+0.15 
+
+0.20 
+
+> 0
+
+0.069 0.068 0.066 0.071 0.065 
+
+0.071 0.077 0.068 0.074 0.065 
+
+0.073 0.070 0.068 0.066 0.066 
+
+0.073 0.068 0.070 0.068 0.065 
+
+0.071 0.072 0.069 0.068 0.067 
+
+, K = 2 
+
+0.0660 
+
+0.0680 
+
+0.0700 
+
+0.0720 
+
+0.0740 
+
+0.0760 
+
+MAE 0.02 0.05 0.10 0.15 0.20 
+
+0.02 
+
+0.05 
+
+0.10 
+
+0.15 
+
+0.20 
+
+> 0
+
+0.043 0.041 0.042 0.041 0.041 
+
+0.041 0.042 0.044 0.043 0.041 
+
+0.042 0.038 0.038 0.040 0.037 
+
+0.038 0.038 0.037 0.039 0.040 
+
+0.038 0.037 0.036 0.038 0.037 
+
+ln ± , K = 3 
+
+0.0360 
+
+0.0380 
+
+0.0400 
+
+0.0420 
+
+MAE 0.02 0.05 0.10 0.15 0.20 
+
+0.02 
+
+0.05 
+
+0.10 
+
+0.15 
+
+0.20 
+
+> 0
+
+0.064 0.060 0.061 0.059 0.057 
+
+0.061 0.062 0.060 0.058 0.057 
+
+0.063 0.055 0.055 0.055 0.052 
+
+0.058 0.057 0.054 0.054 0.054 
+
+0.058 0.056 0.052 0.053 0.052 
+
+, K = 3 
+
+0.0520 
+
+0.0540 
+
+0.0560 
+
+0.0580 
+
+0.0600 
+
+0.0620 
+
+MAE 0.02 0.05 0.10 0.15 0.20 
+
+0.02 
+
+0.05 
+
+0.10 
+
+0.15 
+
+0.20 
+
+> 0
+
+0.038 0.041 0.041 0.042 0.040 
+
+0.040 0.041 0.041 0.041 0.040 
+
+0.041 0.038 0.039 0.038 0.038 
+
+0.038 0.040 0.039 0.039 0.039 
+
+0.038 0.038 0.038 0.038 0.037 
+
+ln ± , K = 4 
+
+0.0370 
+
+0.0380 
+
+0.0390 
+
+0.0400 
+
+0.0410 
+
+0.0420 
+
+MAE 0.02 0.05 0.10 0.15 0.20 
+
+0.02 
+
+0.05 
+
+0.10 
+
+0.15 
+
+0.20 
+
+> 0
+
+0.057 0.059 0.059 0.061 0.056 
+
+0.059 0.058 0.059 0.058 0.055 
+
+0.059 0.053 0.055 0.055 0.054 
+
+0.057 0.056 0.055 0.054 0.054 
+
+0.056 0.055 0.054 0.052 0.051 
+
+, K = 4 
+
+0.0520 
+
+0.0540 
+
+0.0560 
+
+0.0580 
+
+0.0600 
+
+MAE Figure S3: Prediction MAE for ln ˜ γ± and ϕ for different values of the hyperparameters K,
+
+σ0, and λ calculated by leave-one-electrolyte-out analysis based on the reduced data set, cf. Figure 1 in the manuscript. S11 Figure S3 shows that setting K > 2 leads to substantially lower MAE than K = 2; however, there is only marginal change when increasing K beyond 3. For the K = 2 model that was used to compare our Bromley-MCM to the ion-specific Bromley model 2 (IBM), we chose to set σ0 = 0 .02 and λ = 0 .10 since those hyperparameters lead to the lowest prediction MAE at K = 2 for both ln ˜ γ± and ϕ. Meanwhile, for the K = 3 model, we chose to set σ0 = 0 .20 and λ = 0 .10 since those hyperparameters lead to the lowest prediction MAE at K = 3 for ln ˜ γ±. We consider the marginal improvement for ϕ prediction at K = 4 not sufficient to warrant further increasing the model complexity. 
+
+# Further Results 
+
+Comparison of original and refitted IBM Figure S4 shows the errors for ln ˜ γ± and ϕ
+
+of the original IBM 2 and the refitted IBM, updated with the data used in this work, on the original IBM horizon in the form of a box plot. S12 IBM refitted IBM IBM refitted IBM 
+
+> 0.0
+> 0.1
+> AE
+
+ln ±
+
+> Mean
+> Median
+
+Figure S4: Box plots of the ln ˜ γ± and ϕ fit errors of the original IBM 2 and the refitted IBM, fitted on the dataset used in this work. Boxes represent interquartile range (IQR), and whiskers denote 1.5 IQR. Figure S4 shows that updating the IBM with new experimental data substantially im-proves the fitting accuracy of the model. We thus consider only the refitted version in the following and the main section of this work, and refer to it simply as IBM. 
+
+Comparison of IBM and Bromley-MCM ( K = 3 ) Figure S5 shows the residuals of the fit of ln ˜ γ± and ϕ for IBM and Bromley-MCM on the reduced data set (Figure 1) in the form of a box plot. S13 Bromley-MCM IBM Bromley-MCM IBM 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> AE
+
+ln ±
+
+> Mean
+> Median
+
+Figure S5: Box plot of the ln ˜ γ± and ϕ fit errors on the reduced database of IBM and Bromley-MCM. Boxes represent interquartile range (IQR), and whiskers denote 1.5 IQR. 
+
+Comparison of IBM and Bromley-MCM ( K = 2 ) Figure S6 shows a box plot of the prediction errors of ln ˜ γ± and ϕ for IBM and Bromley-MCM using K = 2 on the reduced data set evaluated by leave-one-electrolyte-out analysis. S14 Bromley-MCM IBM Bromley-MCM IBM 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> AE
+
+ln ±
+
+> Mean
+> Median
+
+Figure S6: Box plot of the ln ˜ γ± and ϕ prediction errors on the reduced database for IBM and Bromley-MCM (with K = 2) evaluated using leave-one-electrolyte-out analysis. Boxes represent interquartile range (IQR), and whiskers denote 1.5 IQR. The Figures S5 - S6 show that our new Bromley-MCM outperforms the existing IBM model 2 in all metrics, confirming our conclusions from the main section. Figure S7 shows a box plot of the prediction errors of ln ˜ γ± and ϕ for Bromley-MCM and the Simoes model, thereby distinguishing between the electrolytes for which data were used during the training of the Simoes model (left) and electrolytes for which no data were used during the training of the Simoes model (right). The errors reported for Bromley-MCM are, in both cases, for truly unseen electrolytes, since this model was evaluated using leave-one-electrolyte-out analysis. S15 Seen electrolytes Bromley-MCM Simoes Bromley-MCM Simoes 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> AE
+
+ln ± 
+
+> Mean
+> Median
+
+Unseen electrolytes Bromley-MCM Simoes Bromley-MCM Simoes 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> 0.8
+> 0.9
+> AE
+
+ln ±
+
+> Mean
+> Median
+
+Figure S7: Box plot of the ln ˜ γ± and ϕ prediction errors on the Simoes horizon for Bromley-MCM and the Simoes model, thereby distinguishing between electrolytes seen by the Simoes model during the training (left) and unseen ones (right). Results of Bromley-MCM are always for unseen electrolytes. Boxes represent IQR, and whiskers denote 1.5 IQR. Bromley-MCM significantly outperforms the Simoes model in both cases, indicating that Bromley-MCM’s capability to extrapolate to unseen electrolytes is superior to that of the Simoes model. Furthermore, even for electrolytes observed during training of the Simoes model, Bromley-MCM yields, on average, lower errors than the fitted Simoes model. 
+
+# Data Availability of Osmotic and Activity Coefficients 
+
+Figure S8 shows the availability of experimental data for cation-anion pairs in the reduced database, thereby distinguishing between available data for ˜ γ± and for ϕ.S16 ˜γ±1 10 20 30 40 50 60          
+
+> anion A
+> 1
+> 10
+> 20
+> 30
+> 40
+> 50
+> cation  Cϕ110 20 30 40 50 60
+> anion A
+> 1
+> 10
+> 20
+> 30
+> 40
+> 50
+> cation  C
+
+Figure S8: Experimental data availability for ˜ γ± (left) and ϕ (right) for cation-anion pairs at T = 298 ± 1 K in aqueous systems in the reduced database used in the present work. For the numbers identifying the cations and anions, see Table S2. White cells indicate missing experimental data for specific electrolytes. Red rows and columns denote cations and anions, respectively, with missing ˜ γ± (left) or ϕ (right) data. Figure S8 shows that for many cations and anions no ˜ γ± data are available. Similarly, for three anions and one cation, no ϕ data are available. By using both ˜ γ± and ϕ data during development and training of the new model, its range of applicability could therefore be increased. 
+
+# References 
+
+(1) Dortmund Data Bank. DDBST - Dortmund Data Bank Software And Separation Tech-nology GmbH, Dortmund Data Bank, 2026. https://www.ddbst.com (accessed 2026-07-01). (2) Bromley, L. A. Thermodynamic properties of strong electrolytes in aqueous solutions. 
+
+AIChE Journal 1973 , 19 , 313–320. S17

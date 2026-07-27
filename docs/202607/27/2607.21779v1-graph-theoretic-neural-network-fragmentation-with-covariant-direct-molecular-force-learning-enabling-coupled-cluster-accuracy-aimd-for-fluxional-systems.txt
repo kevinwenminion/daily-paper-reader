@@ -1,0 +1,779 @@
+Title: Graph-Theoretic Neural Network Fragmentation with Covariant Direct Molecular Force Learning: Enabling Coupled-Cluster Accuracy AIMD for Fluxional Systems
+
+URL Source: https://arxiv.org/pdf/2607.21779v1
+
+Published Time: Mon, 27 Jul 2026 00:14:41 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+# Graph-Theoretic Neural Network Fragmentation with Covariant Direct Molecular Force Learning: Enabling Coupled-Cluster Accuracy AIMD for Fluxional Systems 
+
+Xiao Zhu, Srinivasan S. Iyengar, 1
+
+> 1
+
+Department of Chemistry, Department of Physics, and the Indiana University Quantum Science and Engineering Center (IU-QSEC), Indiana University, 800 E. Kirkwood Ave, Bloomington, IN-47405 
+
+(Dated: July 27, 2026) Accurate ab initio molecular dynamics (AIMD) simulations of complex, fluxional chemical sys-tems are severely limited by the high computational scaling of correlated electronic structure meth-ods. To overcome this bottleneck, we present a robust, graph-theoretic molecular fragmentation framework integrated with machine learning to directly model post-Hartree-Fock nuclear forces at coupled cluster accuracy. Bypassing the limitations of automatic differentiation on learned energy surfaces that may struggle with link-atom Jacobians, our approach directly predicts nuclear force vectors. By projecting these vectors onto fragment-fixed principal axes of inertia, we establish co-variant descriptors that naturally preserve rotational, translational, and permutational invariance. The methodology achieves exceptional high parameter efficiency through a vector-valued training protocol that reduces trainable parameters by over an order of magnitude, while an unsupervised mini-batch k-means space tessellation algorithm constructs highly representative training databases using only 10% to 20% of reference configurations. We rigorously validated this framework on the highly fluxional solvated Zundel cation ( H13 O+6 ). Our fully machine-learning-predicted AIMD tra-jectories successfully reproduced complex dynamical signatures and key structural characteristics, including radial distribution functions and the velocity autocorrelation power spectrum. Ultimately, this scalable, systematically improvable framework bridges the gap between high-level correlated wavefunction theories and long-timescale reactive sampling, laying the foundation for advanced, LLM-inspired transfer learning in modern chemical dynamics simulations. 
+
+I. INTRODUCTION 
+
+Ab initio molecular dynamics (AIMD) 1–5 plays an im-portant role in the study of reactive systems, 6–9 ensem-ble averages, 10,11 and vibrational properties beyond the harmonic approximation. 12–22 Despite its accuracy and generality, AIMD requires calculations of the electronic-structure to be performed at every time step, impos-ing a severe computational restriction that limits ac-cessible system sizes and simulation times. As a re-sult, it is no surprise that most AIMD based chemi-cal analysis studies performed to date are generally car-ried out using density functional theory. This limita-tion becomes particularly pronounced for molecular sys-tems with strong polarization and charge delocalization, for which accurate electronic-structure descriptions are especially challenging 23,24 . Although high-level corre-lated methods such as CCSD(T) can provide benchmark-quality energetics, their steep algebraic scaling, formally 
+
+O(N 7) with respect to the number of basis functions 
+
+N , makes on-the-fly AIMD calculations computationally prohibitive for large systems. 23–27 
+
+To accelerate AIMD simulations, machine learning (ML) techniques have been increasingly employed to re-duce the cost of electronic structure calculation for nu-clear force 28–33 . In many ML force field frameworks, the total potential energy is expressed as a sum of atomic energy contributions, each parametrized by functions of interatomic distance, angles, or more general local descriptors. These descriptors are designed to satisfy translational, rotational, and permutational symmetries, thereby encoding local atomic environments in a trans-ferable representation. Although some methods like High Dimensional Neural Network Potential 34 include force vector in the loss function to improve the quality and smoothness of the learned PES, force predictions are commonly obtained as the partial derivative of the learned potential energy with respect to nuclear coordi-nates, often using automatic differentiation. This con-struction enforces consistency between the learned en-ergy and force models. Despite these advances in machine learning tech-niques, major challenges remain. Primarily, the local energy terms used in atom-wise decompositions are usu-ally latent quantities and are typically learned from full-system reference energies and forces. Thus, even when the models describe atom-wise contributions, the train-ing data are often generated from expensive calculations on complete molecular configurations. This difficulty be-comes especially pronounced in PES construction and molecular dynamics applications: even when the rele-vant structural variation is localized to a small number of atoms or reaction coordinates, each reference data point may still require an electronic-structure calcula-tion on the full molecular system. Due to such rea-sons, the largest system studied to date using Coupled-Cluster data is H9O+4 35 (with absolute error of 0.09 kcal/mol). Furthermore, the resultant neural network arXiv:2607.21779v1 [physics.chem-ph] 23 Jul 2026 2model shows limited transferability and the mean abso-lute error for H13 O+6 , using this model is found to be 1.32 kcal/mol 31,34,36 . It is precisely this transferability problem that was addressed in Ref. 37 . In contrast to the above listed studies, the machine learning methods developed here for nuclear forces and in Ref. 37 for poten-tial energy surfaces, resulted in 0.36 kcal/mol accuracy for the Coupled Cluster level potential energy surface for the complex protonated 21-water cluster (H 43 O+21 )system. Indeed, in this paper we obtain nuclear forces for H13 O+6 with 10 micro-Hartree/Bohr accuracy with respect to CCSD calculations and show that AIMD cal-culations are possible, for medium sized water clusters with coupled cluster accuracy. To arrive at a solution to the challenges described above, we employ graph-theoretic fragmentation to re-duce molecular force modeling from a global high-dimensional learning problem to a collection of asyn-chronous and local lower-dimensional learning problems that are independent of each other and are potentially transferrable to other problems as shown for energies in Ref. 37 . Here, graphs are used in a fundamentally different way from graph neural networks (GNNs) 38 or MACE 30 . In GNN-based interatomic potentials, nodes typically represent atoms, and edges define local inter-action pathways through which atomic features are up-dated (as in Bayesian networks 39 ) by message passing. The resulting learned atomic representations are then used to predict atom-wise energy contributions. In contrast, our method represents local atomic groups as nodes and interactions between these groups as edges. For example, nodes may include groups of atoms that interact closely, such as functional groups in organic molecules 40 , amino acids in peptide fragments 41 , or water molecules in condensed phase problems 37,40,42,43 . Higher-order simplexes, such as tri-angles formed by three mutually connected nodes and tetrahedrons formed by four mutually connected nodes, are then used to encode higher order (many-body) inter-actions. The local properties associated with these graph objects, including energies and forces, can then be sys-tematically weighted and assembled to yield full-system potential energies and force vectors. Our graph-based reconstruction of molecular poten-tial energy also suggests a strong connection with large-language-model-type architectures. 44,45 In both cases, a complex high-dimensional object is represented through a collection of lower-dimensional units and the rela-tionships among them. In language models, tokens or words are embedded into an abstract linguistic vec-tor space, and contextual representations are built by combining information from other tokens or words. In the present molecular setting, fragments represented by nodes, edges, triangles, and higher-order graph el-ements play an analogous role. They encode subsys-tem information, the fragment energies, and the relation-ships among molecular subsystems. The full molecular PES is then reconstructed by combining these lower-dimensional subsystem contributions according to the graph topology and many-body interaction structure. Following this idea, lower-dimensional graph-based neu-ral networks have been shown to be transferrable from a 51-dimensional molecular system to a 186-dimensional protonated water cluster, enabling a full-dimensional neural-network PES for the protonated 21-water clus-ter at CCSD-level accuracy. 44 In this paper we under-take appropriate generalizations that will make full scale AIMD with machine learning and coupled cluster theory possible for large and complex systems. This paper is organized as follows. In section II, we summarize our previous work about applying graph the-ory to molecular fragmentation and in section III, we introduce our equivariant molecular geometry based de-scriptor and justify our approach of directly training and predicting force as vector target machine learning tasks. Section IV begins by detailing our AIMD data set and training model based on unsupervised learning mecha-nisms such as the k-means based space tessellation algo-rithm for fragment geometry sampling. Following this, the force prediction accuracy for each individual frag-ment types is evaluated and subsequently combined to assess full system force accuracy. Finally, we present fully (machine learning) predicted machine trajectories alongside their associated radial distribution functions and velocity autocorrelation functions to validate the structural and dynamical properties generated by the framework in Section V. Conclusions are given in Sec-tion V.  
+
+> II. GRAPH THEORETIC FRAGMENTATION BASED MACHINE LEARNING FOR POST-HARTREE-FOCK GRADIENTS
+
+We first summarize our graph-theoretic approach to machine learning potential energy surfaces before discussing forces. More details can be found in Refs. 37,40,43,46,47 .The graph theoretic fragmentation 40–44,46–58 approach involves defining a graph G based on the molecular geometry. Groups of atoms from within a molecu-lar system, based on distance, connectivity and chem-ical properties, are used to designate nodes within a graph. For example, nodes may include individual water molecules 37,43,48–50,52,54 , or hydrocarbon fragments as in Ref. 40 , or single amino acid monomers as in Ref. 41 . In all cases, the set of all nodes is labeled as V0. These nodes interact with each other where some of these in-teractions may arise due to chemical connectivity, and other interactions may be due to non-bonded interac-tions. In all cases, the defined set of nodes are connected to each other based on some predefined distance cutoff 3to form the set of edges, V1. Together, the sets of nodes and edges define the graph, G. However, our formal-ism goes beyond the definition of nodes and edges in the graph and here, higher order interactions within the sys-tem can be systematically captured and represented as higher rank simplexes 59–61 defined by the graph, such as triangles in set V2 for interactions three different node fragments, and tetrahedrons, in set V3, for interactions between a set four node fragments, and so on. By defin-ing a maximum rank cutoff R, we obtain a family of sets of fragments using the simplexes created from the graph, and given by 
+
+{Vr |r = 0 , · · · , R } ≡ { V0, V1, V2, · · · , Vr, · · · , VR} .
+
+(1) The components Vr can be used to systematically recon-struct the full system properties and is a key idea within our formalism. Thus, the molecular system is treated here as a simplicial complex 59,62 .Using this idea, the target post-Hartree-Fock elec-tronic structure potential energy, Etarget , at the full sys-tem nuclear geometry ¯x can be expressed as a low-level reference energy Eref (¯x), such as DFT, augmented by a correction term ∆ E(¯x): 
+
+Etarget (¯x) = ERef (¯x) + ∆ E(¯x), (2) where the correction term is assembled from the individ-ual fragment contributions obtained from the connectiv-ity of the graph, ∆E(¯x) = 
+
+> R
+
+X
+
+> r=0
+
+X 
+
+> αr∈Vr
+
+MR  
+
+> αr,r
+
+∆Eαr ,r (¯xαr ,r ), (3) where the terms ¯xαr ,r represent the geometry of the por-tion of the molecular system that belongs within the αr -th simplex-rank-r fragments, and the fragment-specific energy difference is defined as: ∆Eαr ,r (¯xαr ,r ) = Etarget αr ,r (¯xαr ,r ) − ERef. αr ,r (¯xαr ,r ). (4) Additionally, in Eq.3, 
+
+MR  
+
+> αr,r
+
+= X
+
+> m≥r
+
+(−1) m+r pr,m αr (5) is an over-counting correction from inclusion-exlusion principle, where pr,m αr accounts for the number of times the αth r rank-r fragment is included within all rank-m
+
+fragments for m ≥ r. The computational cost is signif-icantly reduced because the input ¯x on the left hand side, which represents the full dimensional molecular co-ordinates, is reduced to ¯xαr ,r which only contains the fragment coordinated space. The expression in Eq. (2) has been widely bench-marked over a series of publications. Specifically, we have shown that Eq. (2) may be used to construct on-the-fly AIMD trajectories 41,48–51 and potential en-ergy surface calculations 52,54,55,57 for gas-phase as well as condensed-phase systems 40,42 . Both extended La-grangian as well as Born-Oppenheimer based ab initio 
+
+molecular dynamics simulations can be performed at accuracy comparable to CCSD and MP2 levels of the-ory with DFT-computational cost. 41,48–50 Hence for the first time, in Refs. 49 and 50 we presented Car-Parrinello-style dynamics, but with CCSD accuracy. Similarly, we have shown how multiple graphical representations of molecular systems can be used simultaneously to con-struct accurate potential surfaces in agreement with the MP2 and CCSD levels of theory, again at DFT cost. 52–55,57 . In Ref. 51 , we have also shown that weak interactions (specifically hydrogen bonds) can be accu-rately captured and efficient approximations to large-basis AIMD trajectories, such as 6-311++G(2df,2pd), can be constructed through computational effort com-mensurate with much smaller basis set sizes, sets such as 6-31+G(d). Furthermore, we have also shown in Ref. 40and42 how condensed-phase simulations on inter-faces and liquids may be constructed with hybrid DFT accuracy at gradient-corrected DFT accuracy. We also provide novel approaches to construct reduced circuit depth quantum computing algorithms in Ref. 56and58 . Fi-nally, the approach has been demonstrated for hydrogen-bonded systems (such as water clusters and condensed phase systems) and also for covalently bonded biolog-ical systems and hydrocarbon where link-atoms 40,41,51 
+
+are included within Eq. (2). This work is reviewed in Refs. 46,47,and53 .The expression in Eq. (2) is closely related to the ONIOM formalism 46,63 where the energy at some lower level is augmented through a correction term. However, through Eq. (3), the approach here is also closely re-lated to many-body-expansions 41 , but here the many-body contributions are directly computed using the con-nectivity of the graph. In this sense, the definition of high-order simplexes in Eq. (1) turns out to be a key step, since simplexes are defined as rank-r objects within which all pairs of nodes are connected 59–61 . This defini-tion helps us to recover the many-body expansion from Eq. (3).  
+
+> A. Graph theory based machine learning protocols for potential energy surfaces with post-Hartree-Fock accuracy
+
+As system sizes grow, simplexes sizes also may also grow and then it becomes important to derive a general machine learning protocol to study such systems, and particularly those fragments that are larger in size. This is precisely what was done in Refs. 40,43,44 . To take ad-vantage of the locality of fragment coordinate spaces, 4we used a distributed set of independent neural net-works to approximate fragment energy corrections to ∆Eαr ,r (¯xαr ,r ) and combine the resultant predictions for every fragment to yield a full system target energy pre-diction. In this manner, Eq. (3) becomes similar to the so-called ∆ − M L protocol 64–68 , leading to ∆EM L (¯x) = 
+
+> R
+
+X
+
+> r=0
+
+X 
+
+> αr∈Vr
+
+MR  
+
+> αr,r
+
+∆EM L αr ,r (¯xαr,r). (6) and 
+
+Etarget M L (¯x) = ERef (¯x) + ∆ EM L (¯x), (7) As noted earlier, since ¯xαr,r depends only on the local-ized fragment coordinate space, we only need to provide fragment level energies and forces as part of the neural network training process, which leads to large reduction in training costs. In Ref. 37 , we have used Eq. (6) to provide a trans-fer learning strategy thought and isomorphism to the so-called “attention” mechanism 45,69 in large language models and this aspect is summarized in Appendix A. Additionally, in Ref. 40 we have employed a hybrid model where the smaller fragments are computed and the larger fragments are extrapolated. 
+
+B. Machine learning post-Hartree-Fock energy gradients 
+
+Given the energy expressions in Section II A, we may construct the graph-theoretic approximation for nuclear forces as the gradients derived from the partial derivative of each energy term in Eq. (2): 
+
+∂E target (¯x)
+
+∂¯x ≈ ∂E Ref (¯x)
+
+∂¯x + ∂∆E(¯x)
+
+∂(¯x) (8) where the exact gradient correction, ∆F E (¯x) = ∂E target (¯x)
+
+∂¯x − ∂E Ref (¯x)
+
+∂¯x (9) may be expressed using gradients of Eq. (3) as 
+
+∂∆E(¯x)
+
+∂(¯x) =
+
+> R
+
+X
+
+> r=0
+
+X 
+
+> αr∈Vr
+
+MR 
+
+> αr,r
+
+∂∆Eαr ,r (¯xαr ,r )
+
+∂(¯xαr ,r )
+
+∂(¯xαr ,r )
+
+∂(¯x) .
+
+(10) Note that when chemical bonds need to be cleaved to create fragments 40,41 , ¯xαr ,r may include link atoms 41,46,63,70 . In those cases, the link atom positions depend on the molecular connectivity and is always a linear transform of atomic positions in ¯x. Specifically, the link atom is some fraction of the distance between the substituted atom and the connected atom according to 49,70 
+
+¯rlink = ¯ rbond + g(¯ rsub –¯ rbond ) (11) where ¯ rbond represents the position of the bonded atom in the fragment and ¯ rsub represents the position of the substituted connecting atom in the environment. The factor g in Eq. (11) is a scalar quantity normally set as the ratio of a typical bond length between the bonded atom and the link Rbond,link , and a typical bond length between the bonded atom and the substituted atom 
+
+Rbond,sub 
+
+g = Rbond,link 
+
+Rbond,sub 
+
+. (12) In general, the term ∂(¯xαr ,r ) 
+
+> ∂(¯x)
+
+in Eq. (10) serves as the necessary Jacobian to transform the fragment gradient and arrive at the full system force 41,48,70 . These meth-ods have been successfully employed to construct on-the-fly AIMD trajectories 41,48–51 and potential energy surface 52,54,55,57 for gas-phase as well as condensed-phase systems 40,42 .As in the case of energy, for force prediction, we have 
+
+∂∆EM L (¯x)
+
+∂(¯x) ≈ ∆F M L (¯x)=
+
+> R
+
+X
+
+> r=0
+
+X 
+
+> αr∈Vr
+
+MR  
+
+> αr,r
+
+∆F M L αr ,r (¯xαr,r) ∂(¯xαr ,r )
+
+∂(¯x) .
+
+(13) However, when link atoms are involved, the Jacobian term, ∂(¯xαr ,r ) 
+
+> ∂(¯x)
+
+couples multiple fragments. For exam-ple, when two nodes are covalently connected, the bond bridging the two nodes may be cleaved and saturated with link atoms. See Eqs. (11) and (12). In such cases, the set ¯xαr ,r includes additional atoms that are not part of the set represented by ¯x. The gradients due to link atoms are then to be absorbed into the neighbor-ing fragments, including neighboring nodes, and super-seding edges, faces, and higher rank simplexes and this is the role of the Jacobian above. Computing gradients in such cases is confounded by the problem that the neighboring nodes, that were trained for energies through machine learning are now appended by additional contributions due to network connectivity and link atoms on neighboring fragments. This potentially takes these nodes away from their train-ing subspace, presenting the need for additional train-ing. We addressed a similar problem in Ref. 37 , however, in this case, fragmentation methods with broken bonds present additional challenges for pre-trained energy mod-els within automatic differentiation. Additionally, while energies are local in ¯x, gradients inherently require some 5information from the neighborhood of ¯x and hence ob-taining accurate gradients are inherently more challeng-ing. In this work we provide a balanced approach for train-ing energies and forces, and for their use in computing AIMD trajectories and for obtaining molecular poten-tial surface. While automatic differentiation has been employed to obtain gradients in previous studies 30 , in this paper, we define neural networks that directly pro-vide gradient that are then corrected using the Jacobian term as indicated by Eq. (13). Associated algorithms are discussed in the next section.  
+
+> III. FORCE VECTOR TRAINING AS FUNCTIONS OF FRAGMENT INTERATOMIC DISTANCES
+
+As noted above, in many machine learning approaches to molecular potential energy surfaces 28–33 , nuclear forces are obtained by differentiating a learned neural network energy model with respect to nuclear coordi-nates. Although the resulting force at a given configura-tion is evaluated locally, its accuracy depends on whether the learned energy model correctly captures the local curvature of the potential energy surface in the neigh-borhood of the configuration. Therefore, simultaneous prediction of accurate energies and forces places stronger constraints on the learned representation than fitting en-ergies alone, since the model must reproduce not only the scalar energy values but also their variations with respect to nuclear displacements. Consequently, more training data is generally needed if the goal is to have both energy and forces to be estimated accurately from the same set of neural networks. This challenge is amplified in molecular dynamics ap-plications. Because the predicted forces determine the subsequent trajectory, small force errors can accumulate over time and drive the system toward the boundary of the training distribution or into sparsely sampled re-gions of the potential energy surface. In practice, these configurations often require additional reference calcula-tions for model refinement. When forces are derived from energy models, accuracy of local derivatives in sparsely sampled regions are difficult to maintain. This adds ad-ditional constraint to the learning problem and transfer learning process beyond fitting energies and forces at iso-lated configurations. Here, we adopt a different strategy. We choose to utilize different neural networks for training energies, ∆EM L αr ,r (¯xαr,r) (Eq. (6)) and forces, ∆F M L αr ,r (¯xαr,r)
+
+(Eq. (13)). Force predictions are generated directly from the dictated force models rather than the partial derivative of the predicted energies. The approach needs far less data to train in high dimensional configuration space. In fact, as shown in this section and the follow-ing result section, accurate energy, nuclear force predic-tions and ML-based AIMD generated structural distri-bution functions and velocity correlation functions can be achieved using only 10%-20% of the available training data with an appropriate model architectural design. In this section, we start by discussing a interactomic-distance-based equivariant descriptor for direct force vec-tor training. Following this, we analyze the mathemati-cal distinction between training models for scalar target quantities, such as the potential energies, and vector-value target quantities, such as nuclear force vectors. We make the case that vector-value training strategies are beneficial here. Finally, a summary of the mathematical formulation is given at the end of this section.  
+
+> A. Symmetry preserving interatomic distance descriptors for fragment neural networks
+
+A consistent geometrical representation that respects the physical constraints and symmetry properties of molecular fragments is essential for accurately charac-terizing their local chemical environments and the as-sociated molecular properties. For example, the same molecular fragment may be present in different orienta-tions when the data is obtained from multiple snapshots (or even a single snapshot) in a dynamical system. Auniversal approach to orient these fragments is needed to construct a consistent learning framework. Here we in-troduce a systematic process to generate an interatomic distance based descriptor, as in Ref. 44 , where we pre-serve translational, rotational, and permutational invari-ance. This descriptor is used for training and prediction of both the fragment energies and force vectors. Predic-tion of vector-valued quantities, such as nuclear forces, requires fragment orientational information. This infor-mation is generated along with the invariant descriptors during the geometry preprocessing step, and also used to define rotation-covariant post-processing operators. Thus, the key steps involved are (a) rotating a fragment geometry to an internal reference frame defined by its mass moment of inertia axis, (b) deriving neural network predictions, and (c) rotating the predictions back to the original coordinate system. Since operations within (a) and (c) do not parametrize the learning model itself, we exclude these from the definition of descriptors and dis-cuss their construction and application separately below. For a given molecular system or fragment geometry, we record the rotation information and create the descriptor by the following steps: 1. We begin by computing the principal axes of iner-tia for each fragment. An illustration of this step for a fragment containing four water molecules is provided in Figure 1. 2. To obtain a consistent atomic ordering for the in-put coordinate vector ¯x, atoms are first sorted by 6   
+
+> (a)Largest moment of inertia axis (x axis)
+> (b)Second largest moment of inertia axis (y axis)
+> (c)Smallest moment of inertia axis (z axis)
+> FIG. 1. The three principle mass moment of inertia axis, namely x, y, z for a fragment.
+
+atomic number. Atoms of the same element are then ordered according to their respective projec-tions along a chosen principal axis of inertia. For potential energy, we use the axis with the smallest mass moment of inertia to maximize spatial ar-rangement in Ref. 37 , but for force, we use all three axes and generates three distinct atomic orderings for the same fragment. 3. For each atomic ordering, an interatomic distance matrix is computed and reshaped into a vector suitable as input to the force neural networks. This input vector is referred to the symbol ¯x in previ-ous sections. These three input vectors contain the same set of interatomic distances but differ in their ordering due to the choice of principal axis. 4. The three input vectors are used to construct in-dependent learning protocols for the three vector components of the force vector, one along each principal axis. Accordingly, three separate (vector) neural network models are trained, each taking one of the distance vectors as input and predicting the corresponding force vector component for all atoms in the fragment. This design of 3 length N vector target prediction will be justify in detail in Section III B. 5. Training data for the three neural networks are generated by projecting the original force vector, ∆Fαr ,r , defined in the reference frame of the full system, onto the three principal axes. Each pro-jected force vector component serves as the target output for the corresponding neural network, al-lowing the force components to be learned sepa-rately. 6. During inference, the predicted force components are transformed back into the original reference frame for the fragment by reversing the sequence of rotations used to define the principal-axis coor-dinate systems.  
+
+> B. Force representation structure: vector valued learning versus scalar valued learning protocols
+
+In a high dimensional potential energy configuration space, each Cartesian force element can be regarded as a distinct scalar function of the full geometry. Forces can be learned either as separated scalar targets or vector-value targets of various block sizes. Their practical dif-ferences arise from the model architecture, parameter sharing, optimization behavior, and computation effi-ciency. In this section, we first analyze the architec-tural differences between scalar and vector learning with the degree of parameter sharing and its effect on predic-tion accuracy. We then justify our choice to decompose the full 3 N dimensional force vector into three length 
+
+N vectors, each corresponding to force projections along a principal inertia axis. Each projected length N vec-tor (as obtained from the descriptors in Section III A) is treated as an independent vector output target. 
+
+Neural networks that depend on individual components of the force vector: The mathematical distinction between training individual force components and training the full force vector is reflected directly in the neural network architecture. Consider first a scalar-output network, corresponding to a single force compo-nent. Assuming m neurons in the final hidden layer and a linear activation at the output, the prediction can be written as 
+
+y =
+
+> m
+
+X
+
+> i=0
+
+wiAi(¯ x) (14) where Ai(¯ x) represents the activation of the i-th neuron in the last hidden layer for an input fragment geometry depicted as ¯ x, and wi is the corresponding weights con-necting to the output, as shown in Figure 2(a). Here, 
+
+y is one component of the ∆ F M L αr ,r (¯xαr,r) in Eq. (13). In practice, Ai(¯ x) represents the complete nonlinear fea-ture construction preceding the final hidden layer and 7       
+
+> (a)Scalar training architecture (b)Vector training architecture
+> FIG. 2. A demonstration of architecture of neural network associated with (a) Eq. (14), and (b) Eq. (17). For both cases the block ALis defined by Eq. (16).
+
+may therefore take a much more complex functional form than a simple activation function such as 
+
+Ai(¯ x) = σ
+
+
+
+W(L) 
+
+> i
+
+· AL(¯ x)
+
+
+
+, (15) where W(L) 
+
+> i
+
+represents the i-th row of the weight ma-trix W(L) in the L-th hidden layer with activation func-tion σ(·). The quantity 
+
+
+
+W(L) 
+
+> i
+
+· AL(¯ x)
+
+
+
+represents a dot product. The corresponding structure is displayed in Figure 2(a). Additionally, the vector, AL(¯x), on the right side of Eq. (15) is recursively defined as 
+
+AL(¯ x) = ¯ σ
+
+
+
+W(L−1) AL−1(¯ x)
+
+
+
+, (16) where  W(L−1) AL−1(¯ x) now represents a matrix-vector multiplication and ¯σ (·) is a vector valued activation function. The quantity W(L−1) represents a matrix with dimensions, number of neurons in hidden layer L − 1, times the number of neurons in hidden layer L. Finally, 
+
+A1(¯ x) ≡ ¯x. Thus, to summarize, each force component has a separate basis from {Ai(¯ x)} and is represented by Eq. (14). Additionally each basis Ai(¯ x) is obtained from the neural network represented by Eq. (15). 
+
+Vector valued neural networks for the force vector: For vector-valued learning, the network archi-tecture up to the final hidden layer remains unchanged, but the output layer now consists of n neurons, one for each force component. The prediction is therefore given by 
+
+yj =
+
+> m
+
+X
+
+> i=0
+
+wi,j · Ai(¯ x), j = 1 , . . . , n, . (17) where wi,j connects the i-th hidden neuron to the j-th force component. Figure 3(b) shows the architecture for Eq. (17). The key difference between Eqs. (14) and (17) is that vector training enforces a shared set of basis functions {Ai(¯ x)} across all the vector components, whereas scalar training allows each force component to learn its own independent basis. Note that the left side of         
+
+> FIG. 3. Number of weights (trainable parameters) for component-wise (blue) and vector-based (orange) force train-ing strategies. Both approaches reach approximately the same level of accuracy ( ≈0.1 milli-Hartree/Bohr) while the vector training strategies requires over one order of magni-tude fewer parameters.
+
+Eq. (14) is a specific component of the force vector, and hence each component has a different set of parameters: 
+
+{wi, A i}. This is not the case for Eq. (17). As a result, vector training is substantially more parameter-efficient: although the number of output weights increases linearly with the size of the vector, the dominant contribution to the total parameter count arises from the hidden-layer weights that define {Ai(¯ x)}, which are shared among all force components. Consequently, compared to scalar training, a similar level of accuracy can typically be achieved in vector training by modestly increasing the number of hidden neurons m, while still using a significantly smaller to-tal number of parameters. This parameter sharing also implicitly regularizes the model, encouraging correlated force components to be learned from common geometric features. This pattern is shown in Figure 3, where we use the same fragment geometries from a solvated Zun-del ( H13 O+6 ) to train force vector model under scalar and vector forms. The mean absolute error of forces and to-tal number of parameters is also listed. Clearly, as seen in Figure 3 for a 10 th of the cost, the vector valued train-ing recovers a similar error as the scalar valued training protocol. Finally, we note that we construct our vector training model using a sequence of serial neural networks. In gen-eral, the l-th neural network in this series is trained on the cumulative error from all previous neural networks, that is, min 
+
+{W(L)i} y −
+
+> L− 1
+
+X
+
+> i=0
+
+ypl
+
+
+
+¯x, 
+
+n
+
+W(L)o
+
+> l
+
+ 2
+
+. (18) where ypi is the prediction from the i-th neural network and  W(L) 
+
+> i
+
+are the weight matrices for the i-th neu-8ral network. In this work, we use l = 2 for each force vector component training. 
+
+C. Summary of energy and force neural network approximations 
+
+Based on the discussion above, we may combine Eqs. 6, 14 and 18 to write an overall potential energy predic-tion expression as a scalar learning formalism as ∆EM L αr ,r (¯xαr,r) = 
+
+> L
+
+X
+
+> l=0
+> m
+
+X
+
+> i=0
+
+wE,l,i αr ,r AE,l,i αr ,r (¯xαr,r). (19) where our scalar weights and associated basis functions are wE,l,i αr ,r ; AE,l,i αr ,r (¯xαr,r) . Therefore, ∆EM L (¯x) = 
+
+> R
+
+X
+
+> r=0
+
+X 
+
+> αr∈Vr
+
+MR 
+
+> αr,r
+> L
+
+X
+
+> l=0
+> m
+
+X
+
+> i=0
+
+wE,l,i αr ,r AE,l,i αr ,r (¯xαr ,r ).
+
+(20) The neural network weights wE,l,i αr ,r contains superscript 
+
+E which denotes that these parameters are for an energy model specifically trained for fragment αr at rank r. The superscript l denotes it is the l-th serial neural network in the array from Eq. (18) and i represents that the weight is associated with the i-th abstract basis function 
+
+AE,l,i αr ,r (¯xαr ,r ) from Eqs. (14) and (15). This function itself is directly differentiable with re-spect to input ¯x, but the accuracy of derivatives in general depends heavily on the neighboring data points along each dimension, and not on the data points them-selves. This is expected to substantially increase the training costs in higher dimensions. To overcome this computational bottleneck, we di-rectly construct neural networks for forces as discussed here. Hence, for the vector model ∆F M L j;αr ,r (¯xαr,r) = 
+
+> L
+
+X
+
+> l=0
+> m
+
+X
+
+> i=0
+
+wF,l,i,j αr ,r AF,l,i αr ,r (¯xαr ,r ) (21) and ∆F M L j (¯x) = 
+
+> R
+
+X
+
+> r=0
+
+X 
+
+> αr∈Vr
+
+MR 
+
+> αr,r
+> L
+
+X
+
+> l=0
+> m
+
+X
+
+> i=0
+
+wF,l,i,j αr ,r AF,l,i αr ,r (¯xαr ,r ) ∂(¯xαr ,r )
+
+∂(¯xj ) . (22) Here the neural network weights wF,l,i,j αr ,r and generalized activations, AF,l,i αr ,r (¯x) are from Eq. (17) but contain the superscript F . This denotes that these parameters are for the vector force model and different from the param-eters in Eq. (20), since these are specifically trained for fragment αr forces. The key idea here is of course the independent treat-ment of energy and forces (Eqs. (18) and (22)) which reduces the training needed for forces. As we will see, this results in 10% learning from AIMD data, with use of the tesselation algorithm as will be discussed in the re-sult section. For all calculations below, the vector model is used for forces and the scalar model for energies. Although atomic forces are naturally represented as vectors in 3 N -dimensional space, their statistical dis-tribution is generally anisotropic and depends strongly on the direction of molecular motion. For example, force components projected along stiff bond directions often exhibit substantially different magnitudes and vari-ances than those associated with softer modes, such as hydrogen-bond, bond-angle bending, or librational mo-tions. Consequently, treating all force components as elements of a single undifferentiated target vector mixes quantities with heterogeneous statistical scales, increas-ing the complexity of the learning problem. To ad-dress this issue, we exploit the principal-axis coordi-nate system introduced in Section III A to obtain frag-ment descriptors. Specifically, the atomic forces are pro-jected onto the three fragment-fixed principal axes (Sec-tion III A), and the resulting projections are organized into three separate length-N vectors, each containing the force components along one principal-axis direction, as described in Section III A. Each block therefore repre-sents force components associated with a single, physi-cally meaningful direction determined by the instanta-neous mass distribution. This directionally aware de-composition of forces enables the associated force neural networks to model the distinct statistical characteristics of force components along each principal axis indepen-dently. In effect, the transformation acts as a statisti-cal standardization of the force targets, improving both the conditioning of the learning problem and the inter-pretability of the resulting models. 
+
+IV. COMPUTATIONAL EXPERIMENTS THAT PROBE THE ACCURACY OF ML-GENERATED NUCLEAR GRADIENTS 
+
+The solvated Zundel cation plays a central role in understanding proton transfer in aqueous environments because it captures the essential structures that gov-ern proton migration in water clusters. In particu-lar, protonated water clusters dynamically inter-convert between configurations resembling the Zundel ( H5O+2 )and Eigen ( H9O+4 ) species, which represent the shared proton and symmetrically localized hydronium descrip-tion of the excess proton 71–75 . The interconversion be-tween these species provides fundamental insight into proton transport mechanisms across a broad range of biological, atmospheric, material and condensed phase systems 17,55,76–86 . Accurate description of these systems 9is challenging due to (a) critical quantum nuclear ef-fects arising from the shared proton dynamics, (b) cou-pling of donor acceptor vibrational modes with proton transfer modes across multiple dimensions aa manifested from the Grotthuss mechanism for proton transfer 87 and (c) the highly polarized electronic structure arising from the delocalized nature of the shared protons in the sys-tem. Computationally prohibitive post-Hartree Fock methods 23–27 are generally required to achieve bench-mark quality for energy and force calculation. However, given the demand for computing energies and forces at every nuclear dynamics step, AIMD is drastically lim-ited in its ability to lend support for the study of such complex problems. With the goal of generating ML-aided post-Hartree-Fock AIMD trajectories, here we ask if the nuclear gradi-ents obtained using the algorithms described above pro-vide accurate forces. We also evaluate the corresponding computational cost reduction. We begin by consider-ing an AIMD trajectory generated previously 37,43,50 as a baseline for comparing nuclear forces. This trajectory consists of 9326 frames of solvated Zundel geometries spanning a total of 1.86 pico-seconds. Each geometry is treated via graph-theoretic fragmentation using Eq. (2) with R = 1. The high level electronic structure theory is CCSD and the low level theory is B3LYP, both using the 6-31+g(d, p) basis set. However, it must be noted that this level of AIMD is not necessary as a starting point and simpler sampling strategies will suffice as we explain below. These aspects will be probed to a greater extent in future publications. In this specific trajectory, we treat each oxygen as the center of a node and group all hydrogens within 1.4˚ Aof that oxygen into the node. The edges in the graph are created dynamically by defining a minimum oxygen-oxygen distance for each oxygen ( Di). A maximum of three nodes within 1 .1 ∗ Di are connected to the i-th node. A range of structures is obtained in this manner to evaluate the accuracy of our the forces obtained using the protocols introduced above. To evaluate the structural diversity of molecular and fragment configurations obtained from this starting tra-jectory, we present a few critical distribution functions in Figure 4. Figure 4(a) shows the OO distribution which affects the water dimer fragments and involves primary and secondary solvation shell interactions. Figures 4(b) and 4(c) provide similar structural assessments for sec-ondary structures involving all water trimers. As shown in Figure 4(a), the wide range of oxygen-oxygen dis-tances accounts for both classical hydrogen-bonded wa-ter dimers and non-bonded spatial combinations of water molecules residing in the first and second solvation shells. For the trimer fragments, we show the largest oxygen-oxygen-oxygen angle within each distinct fragment in Figures 4(b) and 4(c). The neutral and protonated species exhibit remarkably different distributions be-   
+
+> (a)oxygen-oxygen distance distribution
+> (b)oxygen-oxygen-oxygen angle distribution in H6O3
+> (c)oxygen-oxygen-oxygen angle distribution in H7O+3
+> FIG. 4. Distribution functions that determine the range of structures used for constructing ML models.
+
+cause the excess proton remains consistently localized within the central Zundel-like configuration. As a result, the neutral fragments tend to be non-bonded trimers that exhibit smaller angles, whereas the protonated trimers tend to be hydrogen bonded changes and dis-play a propensity for larger angles. Additionally, the protonated trimers also show a significant population of non-bonded chains, as exhibited by the distribution at lower angles. Given the large diversity for structures with significant non-bonded interactions involved, these data sets present a critical challenge to ML, but as we will see, using pro-tocols established here we do construct suitable approxi-mations to the full system forces accurately and produce ML-based AIMD trajectories that agree well with regu-lar AIMD trajectories.  
+
+> A. Geometric tesselation of the dataset to obtain representative training geometries for suitable energy and force extrapolations
+
+Given the diverse nature of structures presented above, it is key that we develop a sampling strategy that appropriately covers all regions of the configura-tional space and lens naturally to ML training. The desirable features of such a sampling strategy are as fol-lows: (a) The sampling strategy must be general and work for arbitrary dimensional fragments. (b) It must have suitable controls for fine and coarse-graining of the fragment data space as needed based on the level of com-10 putational power. (c) It must be adaptive, that is the level of fine-graining can be changed as dictated by the needed accuracy. Based on these criteria, we employ a k-means 43,88 
+
+based clustering strategy to select representative geome-tries on the potential energy surface space of fragments for training our force neural networks. By selecting the cluster centroids from such a multi-dimensional tessel-lation algorithm 89–92 , we balance the geometric varia-tions across all degrees of freedom. This creates a shared and tunable training set that accommodates the distinct training requirement of all concatenated force elements simultaneously. The standard k-means algorithm 88 is a high-dimensional space tessellation algorithm. It divides the fragment data space into k mutually exclusive regions called clusters represented here as {Cj }, and is known to provide compact representations for large datasets 89 .Each cluster, Cj , in the multi-dimensional fragment po-tential energy space, is represented by its centroid ⟨¯xj⟩,with all data points being assigned to the closest cen-troid to define a specific cluster. In the k-means algo-rithm, centroid positions are iteratively updated as the arithmetic mean of all data points inside the cluster un-til these centroid positions converge. If we use 
+
+n
+
+¯xji
+
+o
+
+to represent the the set of structures inside the j-th cluster, 
+
+Cj , for a given fragment, the clustering algorithm finds a preset number of clusters ( k, below) and their centroid positions by minimizing the cost function min 
+
+> ⟨¯xi⟩
+> k
+
+X
+
+> j=1
+
+X 
+
+> ¯xji∈Cj
+
+|¯xji − ⟨ ¯xj⟩| 2. (23) For our purpose, as discussed in Section III A, the quan-tities ¯xji and ⟨¯xj ⟩ would represent symmetry preserving interatomic distance descriptors that are projected onto the moment of inertia axes of the fragments. However, it must be emphasized that here we use the mini-batch variation of the k-means algorithm 88,93 
+
+above, which is a variation of this standard k-means al-gorithm and uses a random subset of data (known as a batch) from the original dataset (the AIMD trajec-tory above) to update the centroid positions during each iteration. The batch feature significantly reduces the computational overhead in finding the centroids. The geometric properties of compact data representations produced by k-means 89 ensure that each centroid cor-responds to a localized and relatively uniform region of the configuration space, thus providing balanced cover-age of structural variations across all degrees of freedom. Once the centroids and the corresponding representa-tive data are identified, they are used to train fragment level network models to represented nuclear gradients as described above. Critically, the algorithm here also provides us with a fine-tuning knob, where the level of training needed can be changed based on the desired cov-erage of the potential energy space. This is a key feature and as we will find, this feature can be used to improve accuracy of the network models as needed.                             
+
+> B. Accuracy of fragment forces
+> Fragments Total (NConf ig )Training-data size Force error Eq.(24) in mEh/Bohr
+> H2O38910 3891 0.000
+> H3O+17046 1704 0.002
+> H4O262380 6238 0.008
+> H5O+277510 7751 0.012
+> H6O346940 4694 0.012
+> H7O+3139580 13958 0.017
+> H8O415750 1575 0.011
+> H9O+4124140 12414 0.020 TABLE I. The number of fragments generated from the refer-ence trajectory geometries for fully connected graph at rank
+> R= 3 and their corresponding force error. Also see Figures 5 and 6.
+
+In Ref. 43 , we used a fixed ratio of 10% of fragments obtained from k-means processing of the aforementioned reference AIMD trajectory to train energy models for the potential energy surfaces for fragments within the solvated Zundel cation. Although the trajectory is gen-erated from the dynamic edge cutoff at rank 1, we take all the geometries and apply fully connected graph repre-sentations to yield a fragment database for model train-ing. (As noted earlier the method of generating the initial AIMD data is independent of the training algo-rithm is constructed.) The number of fragments and the training-set sizes for each fragment type are shown in Table I. The 10% data was obtained using the k-means method described above. Here we prepare a set of pre-trained force models following the procedure in Section III, using 10% fragment geometries initially to evaluate the accuracy of force neural network models using de-scriptors introduced in Section III A. To probe this ac-curacy, for different types of fragments, we compute the average L2-norm of error vector per dimension for each fragment type and use these to obtain the cumulative error in forces for a given fragments as, 1
+
+NConf ig ∗ NDeg NConf ig 
+
+X
+
+> s
+
+∆F M L,s αr ,r − ∆F E,s αr ,r 2 (24) where ∆ F M L,s αr ,r is the ML prediction needed in Eq. (13), and ∆ F Eαr ,r is the corresponding exact value, each of these for a specific geometry s from the dataset. The quantity NConf ig is the number of fragments used to compute the force error, and NDeg is the number of de-grees of freedom in the specific fragment (which is three 11 
+
+> FIG. 5. Error as shown in Eq. (24). This indicates the net additional force per dimension due to ML error.
+
+times the number of atoms in each fragment). Thus, Eq. (24) represents the configurationally-averaged L2-norm of the force error vector per degree of freedom and is hence the additional force on the nuclear degrees of freedom as a result of the ML prediction, which in turn will affect the quality of molecular dynamics sim-ulations obtained from such ML force fields, and op-timization calculations. In Figure 5 and Table I we show the error as given by Eq. (24). As can be seen these errors are < 0.02-milli-Hartree/Bohr range and are well within the RMS cartesian force cut-off in op-timization calculations performed during standard elec-tronic structure calcualtions 94 . For reference, in stan-dard electronic structure packages, a geometry optimiza-tion calculation is declared as converged when the RMS forces are of the order of 100 th -milli-Hartree/Bohr (or 10-micro-Hartrees/Bohr) and the errors in Figure 5 are well within this range. This suggests that the fragment neural networks are accurate despite the wide variation in structures in our dataset. In Figure 6, we additionally provide the distribution of component-wise errors for each fragment type. Clearly the machine learning model for forces provides an overall good representation of forces for geometries that are con-nected and those that are weakly bound. A detailed il-lustration of model accuracy for bonded and non bonded species can be found in Appendix B. By comparing the error distribution between the protonated and neutral species at each rank, a clear pattern can be seen that protonated species are generally associated with higher error. This is because the protonated species has larger geometrical variations as shown by the wider distribu-tion of oxygen-oxygen-oxygen angles for H7O+3 in Figure 4(c).       
+
+> (a)H 4O2(b)H 5O+2
+> (c)H 6O3(d)H 7O+3
+> (e)H 8O4(f)H 9O+4
+> FIG. 6. Distribution of fragment force errors. Given the range of fragment structures available for each fragment as seen in Figure 4, the ML force models provide good estimates for the exact coupled cluster values..
+> C. Full system force accuracy from graph-based fragmentation without machine learning
+
+We establish a baseline for molecular fragmentation here before evaluating ML accuracy. We evaluate the accuracy of ∂∆E(¯x) 
+
+> ∂(¯x)
+
+, in Eq. (10) relative to the refer-ence full system force differences evaluated at the CCSD and B3LYP levels of theory for various values of R and fragmentation protocols. Figure 7 shows the force er-ror distribution for all components. The horizontal axis in Figure 7 represents the the forces obtained using the graph formalism in Eq. (10), whereas the vertical axis presents the exact value. In addition to standard fully connected graph, we also include a rank label ‘Dynamic edge cutoff’ which indicates a dynamic edge distance scheme introduced in Ref. 50 . As noted above, in this dynamic framework, each oxygen is treated as the cen-ter of a node with the node comprising the group of all hydrogen atoms that are within 1.4˚ A of that specific oxy-gen atom. We dynamically construct the graph’s edges 12      
+
+> (a)Dynamic edge cutoff (b) R= 1
+> (c) R= 2 (d) R= 3
+
+FIG. 7. Full system force component and graph force compo-nent comparison at different maximum rank cutoff for fully connected graphs. 
+
+using a localized threshold: for each oxygen atom i with a nearest-neighbor oxygen-oxygen distance Di, an edge is created with all neighboring oxygen atoms that are within 1 .1 × Di.
+
+Rank ( R) ∂∆E(¯x) 
+
+> ∂(¯x)
+
+error a ∆F M L error b
+
+10% c 20% c 40% c
+
+dynamic 0.056 0.057 0.056 0.056 1 0.055 0.060 - -2 0.041 0.096 - -3 0.016 0.132 0.059 0.032    
+
+> aForce error as per Eq. (24) due to graph representation as shown in Figure 7. Units: mEh/Bohr.
+> bForce error as per Eq. (24) due to machine learning approximations as shown in Figures 8 and 9. Units: mEh/Bohr.
+> cFraction of training data obtained using k-means.
+
+TABLE II. Errors in fragment forces as per 
+
+As the simplex rank cutoff increases, the force com-ponent distributions and MAE systematically converge. However, we also see in Figure 7(b), that for R = 1, the larger magnitude forces deviate from the exact value. This is not the case for the dynamically determined edges in Figure 7(a) and is likely due to the non-bonded edges included in Figure 7(b) as can be seen from Figure 4(a). However, as we increase the value of R to 2, these are corrected (Figure 7(c)) before eventually converging to the exact value in Figure 7(d) for R = 3. The baseline established here, allows us to better eval-uate the performance of the ML potentials in the next     
+
+> (a)Dynamic edge cutoff (10% training)
+> (b) R= 1 (10% training)
+> (c) R= 2 (10% training) (d) R= 3 (10% training)
+
+FIG. 8. Full system force component predicted at different maximum rank cutoff for 10% fragment training.       
+
+> (a)Model set 1 training with 10% fragments at R= 3
+> (b)Model set 2 training with 20% fragments at R= 3
+> (c)Model set 3 training with 40% fragments at R= 3
+
+FIG. 9. Increasing training set size systematically improve the accuracy on force components at large rank cutoff. 
+
+section. 13  
+
+> D. Full system force predictions from graph based fragment neural networks
+
+The error distributions for the full system forces cor-responding to the sets of neural network models tested in Section IV B, are shown in Figure 8. Unlike the con-verging trend in Figure 7, the predicted component er-ror distributions get broader for the higher rank calcu-lations of R > 1 when using 10% of the AIMD fragment datasets for training. (See Table I for training fractions.) This behavior stems from the fact that for a fully con-nected graph, the population of simplexes across differ-ent ranks follows the combinatorial relationship   6
+
+> r+1
+
+
+
+for rank r simplexes. In the reference trajectory, the number of fragments that contain an excess proton de-pends on the position of central transferring hydrogen, and the number of fragments generated from the refer-ence trajectory is shown Table I. As we can see from Table I, the number of protonated fragment species in the solvated zundel dominates for larger simplexes, re-sulting in the high overall population contributions from 
+
+H7O+3 and H9O+4 . Consequently, prediction errors ac-cumulate rapidly during the full-system reconstruction, eclipsing the physical accuracy gained by incorporating higher order terms. Additionally, as we see in Figure 8 the dynamic edge cut-off, where only hydrogen bonded rank 1 simplexes are included, shows a much more stable behavior in the accuracy of the predictions. Since the major portion of the error originates from the neural network models for larger simplexes, increas-ing the training ratio serves as an effective mitigation strategy. Towards this, we construct models using 20% and 40% of fragments for training and the correspond-ing error distributions are shown in Figures 9(b) and (c), respectively. These may be compared with Figure 9(a) where the 10% results of 8 (d) are reproduced. Clearly, expanding the training ratio systematically lowers the component MAE by narrowing the overall variance and tightening the error distributions. However, generating training configurations for large simplexes demands expensive, high level electronic struc-ture calculations, while also demanding more complex network architectures with extended training epochs. In the context of on-the-fly training and active learning applications, these computational bottlenecks severely affect the applicability of machine learning-accelerated molecular dynamics. The dynamic edge distance pro-vides an elegant compromise between accuracy and ef-ficiency. While prior publications like Ref 37,43 revealed that potential energy surfaces truncated at small static rank cutoffs suffer from systematic energy shifts, the force prediction results presented here do not suffer from these deficiencies. The dynamic rank 1 framework pro-vides a tight and rigorous alignment of error distribu-tions, delivering good accuracy without introducing sys-tematic biases toward either overestimation or underes-  
+
+> (a)oxygen-oxygen distance distribution
+> (b)oxygen-oxygen-oxygen angle distraibution
+> FIG. 10. Oxygen-oxygen distance and oxygen-oxygen-oxygen angle distribution comparison between the reference trajec-tory (top) and a fully predicted trajectory (bottom).
+> (a)Oxygen-hydrogen distance distribution
+> (b)Oxygen-hydrogen distance distribution ≥1.4˚ A
+> FIG. 11. Oxygen-hydrogen distance distribution comparison between the reference trajectory and a fully predicted trajec-tories from models trained with different training set size).
+
+timation. 14   
+
+> (a)Velocity correlation (b)OH stretch region
+> FIG. 12. Velocity correlation comparison between the refer-ence trajectory and a fully predicted trajectories from models trained with different training set size.
+> V. ACCURACY OF AIMD TRAJECTORIES FROM MACHINE-LEARNING BASED CCSD TRAJECTORIES
+
+To evaluate the practical performance of the dynamic distance edge cutoff with ML, we generated fully pre-dicted trajectories using the force models trained on the 10%, 20% and 40% fragments as introduced earlier in Figures 8 and 9. These trajectories was initialized with the same geometry and kinetic energy as a reference tra-jectory for CCSD obtained using forces in Eq. (10). The structural features obtained from dynamics are discussed in Section V A and the dynamical features in Section V B.  
+
+> A. Structural features
+
+The resulting oxygen-oxygen and oxygen-hydrogen structural distributions are provided in Figure 10 and 11. As shown in the figures, the peak positions align extremely well between the trajectories, demonstrating that the primary structures are accurately captured in the machine-learning-based dynamics trajectories. However the predicted trajectory using 10% fragments shows a tendency of shrinking the second peak at 2.7˚ Aand yields a broader distribution around 4˚ A as compared to the reference trajectory labeled as “All ES” at the bottom. This artificial broadening stems from the fact that the purely data driven force models lack explicit physical constrains. Consequently, as localized force er-
+
+> FIG. 13. Relative computational complexity for training sets, ML corrected trajectories, reference trajectory and CCSD trajectories.
+
+ror sequentially accumulates over time, the trajectory gradually shifts to sparsely sampled or previously unvis-ited regions of the potential energy surface, degrading the quality of trajectory over time. This problem is mit-igated when we increase the training set size. With 40% fragments trained, the predicted trajectory aligns bet-ter with the reference trajectory for both peak positions and shape. However, this also implies that an incre-mental transformation of the neural network models, as described in Ref. 37 may be necessary for forces and this will be considered in future publications.  
+
+> B. Dynamical features
+
+We also compute the Fourier transform of the velocity auto-correlation function as per 
+
+IV (ω) = lim  
+
+> T→∞
+
+Z t=Tt=0 
+
+dte −ıωt ⟨V(0) · V(t)⟩
+
+= lim  
+
+> T→∞
+> NAtoms
+
+X
+
+> i=1 3
+
+X
+
+> j=1
+
+Z t=Tt=0 
+
+dte −ıωt 
+
+Z t′=Tt′=0 
+
+dt ′Vi,j (t′) ∗ Vi,j (t′ + t)= lim  
+
+> T→∞
+> NAtoms
+
+X
+
+> i=1 3
+
+X
+
+> j=1
+
+Z t=Tt=0 
+
+dte −ıωt Vi,j (t)
+
+> 2
+
+, (25) where the term ⟨· · · ⟩ , in the first equation, indicates en-semble average and is equal to the t′-integral in the sec-ond equation under the ergodicity condition. We have used the convolution theorem 95 to reduce the second equation to the third equation. The quantity, IV (ω)provides the vibrational density of states and is shown in Figure 12. Clearly, the machine learning based AIMD trajecto-ries correctly obtain all features in the full trajectory. 15 The corresponding CPU time investment needed to gen-erate such trajectories are shown in Figure 13. Here we include training costs (left vertical bar) since these are integral to the learning model. However, the key idea is that the graph protocol allows one to treat the training problem as being independent of system size. In fact, the training effort is system size independent as seen in Ref. 37 and hence the relative scale ratios between the two vertical bars on the right can be much larger for larger systems. The ML calculations are and extremely small fraction of the cost while preserving accuracy. Clearly while some care is needed in generating accurate mod-els, the promise of generating AI-based MD trajectories is very much a reality.  
+
+> VI. CONCLUSION
+
+We have presented a robust, graph-theoretic molecular fragmentation framework integrated with machine learn-ing to directly model post-Hartree-Fock nuclear forces and enable highly accurate AIMD simulations at cou-pled cluster accuracy. By addressing the severe compu-tational scaling of correlated electronic structure meth-ods, this framework offers a highly scalable and general solution to the simulation of complex, fluxional chemical systems. The cornerstone methodology of this work is built upon several key pillars: (a) Direct Force Vector Learn-ing: Rather than relying on automatic differentiation of a learned energy surface, which struggles in sparsely sampled regions and is severely confounded by link-atom Jacobians, in fragmented models—our neural networks directly predict nuclear force vectors. (b) Covariant Principal-Axis Descriptors: By projecting atomic force vectors onto the fragment-fixed principal axes of iner-tia, we establish directionally aware, standardized target blocks that naturally preserve rotational, translational, and permutational invariance. (c) High Parameter Ef-ficiency: Our vector-valued training protocol shares ab-stract basis functions across force components, recover-ing the accuracy of scalar component-wise models while reducing the total trainable parameter count by over an order of magnitude. (d) Unsupervised Space Tessel-lation: Utilizing a mini-batch k-means clustering algo-rithm to partition the multidimensional geometry space of molecular fragments, we balance structural variations across all degrees of freedom to construct representative training databases with only 10% to 20% of the reference configurations. Validation and dynamical accuracy studies for the framework was carried out on the highly fluxional sol-vated Zundel cation ( H13 O+6 ), which presents a criti-cal test due to its strong polarization, charge delocal-ization, and complex proton transfer dynamics. Fur-thermore, this moiety is central to the study of pro-ton transfer in atmospheric, biological, materials and condensed phase systems. While static, fully connected graphs show error accumulation at higher simplex ranks under limited training ratios, our dynamic edge cutoff (rank-1) framework delivers a highly stable and compu-tationally elegant compromise. Fully machine-learning-predicted AIMD trajectories successfully reproduced key structural characteristics such as the radial distribution functions for O–O and O–H, and complex dynamical signatures, including the velocity autocorrelation power spectrum (vibrational density of states). Looking ahead, this approach effectively bridges the gap between high-level correlated wavefunction theo-ries and the long timescales required to sample reactive chemical systems. Because our graph-theoretic recon-struction shares a deep mathematical connection with attention-based Large Language Model (LLM) archi-tectures, the direct force modeling scheme is naturally poised to leverage advanced transfer-learning protocols. This will enable pre-trained localized fragment models to scale dynamically to larger, highly polarized, and reactive condensed-phase environments, laying down a highly efficient, general, and systematically improvable path for modern chemical dynamics simulations.  
+
+> VII. ACKNOWLEDGMENT
+
+This research was supported by the National Science Foundation grant CHE-2102610 (along with the associ-ated Creativity Extension) to SSI. The computational facilities at Indiana University are duly acknowledged and have been critical to this effort. The acknowledg-ment is due in part to the Lilly Endowment, Inc., for their support of the BigRed computing facility at Indi-ana University widely used in the effort represented in this publication. This work was also supported in part by Shared University Research grants from IBM, Inc., to Indiana University, which supports the Scholarly Data Archives. 
+
+> Appendix A: Connections between the graph-theoretic ML models and Large language models facilitated transfer learning in Ref 37
+
+In Ref. 37 , we discuss the mathematical connections between the graph theoretic formalism presented above and the concept of attention-based aggregation in large language model (LLM) architectures 45 . These mathe-matical connections provide a recipe for transfer-learning protocols 37 , and form the conceptual basis for the for-malism here for nuclear dynamics. In essence, in modern natural language processing (NLP) words and phrases are embedded as vectors that encapsulate relationships among neighboring linguistic components based on se-16 mantics. A similar abstraction arises in our graph-theoretic representation of molecular potential energy surfaces where fragment-fragment interactions are em-bedded in simplex energies. In both cases, the role of an individual component is determined by its envi-ronment: the context of neighboring words in language and the surrounding graph structure of molecular frag-ments here. For example, the graph-theoretic coefficients 
+
+MR  
+
+> αr,r
+
+in Eq. (3) determine the importance of each frag-ment and similarly, in linguistics, the so-called softmax 
+
+function variable defined as 
+
+
+
+sof tmax 
+
+ QK T
+
+√d
+
+ 
+
+> i,j
+
+=exp 
+
+n
+
+Qi · Kj /√d
+
+oP 
+
+> k
+
+exp 
+
+n
+
+Qi · Kk/√d
+
+o (A1) assigns importance to each key-value pair (vectors K
+
+above for key and V below for value ) based on its rel-evance to a query (vector Q above). These weights in NLP play a role analogous to the graph-theoretic coef-ficients in our graph-theoretic molecular fragmentation formalism and define the critical term “attention” as 
+
+Attention (Q, K, V ) = sof tmax 
+
+ QK T
+
+√d
+
+
+
+V (A2) which turns out to have analogous meaning as ∆ E(¯x) in Eq (3). Thus, Importance ≡
+
+
+
+sof tmax 
+
+ QK T
+
+√d
+
+ 
+
+> i,j
+
+↔ M R  
+
+> αr,r
+
+(A3) Likewise, the transformer value vectors correspond nat-urally to the fragment energy corrections, Intrinsic Value ≡ Vj,l ↔ ∆Eαr ,r (¯x) (A4) and finally Attention (Q,K,V) ↔ ∆E(¯x) (A5) Viewed in this way, both frameworks perform an importance-weighted aggregation of local information to construct a global description. In NLP, this aggrega-tion yields contextual meaning; in molecular systems, it yields the stability and energy of a molecular configura-tion. Despite these similarities, the primary challenge dif-fers between the two fields. In language models, atten-tion weights must be learned from large text corpora. In molecular systems, the graph weights are determined directly from geometry and topology, while the princi-pal challenge lies in obtaining accurate fragment energies from expensive electronic-structure calculations. Never-theless, both approaches rely on decomposing a complex global problem into interacting local components whose weighted combination determines the final result.          
+
+> (a)H 4O2all fragments (b)H 4O2with O-O distance ≤
+> 3.5˚ A
+> (c)H 4O2with O-O distance between 3.5 and 4.5˚ A
+> (d)H 4O2with O-O distance ≥
+> 4.5˚ A
+> FIG. 14. Distribution of fragment force errors for the given the range of oxygen-oxygen distance for H4O2.
+
+In Ref. 37 we exploited this connection to build a trans-fer learning protocol of molecular potential energy sur-faces. To achieve this, we show that a family of neural networks used to train the quantities, ∆EM L, 1  
+
+> αr,r
+
+(¯xαr,r)
+
+and obtain an accurate potential energy surface for one system, that is ∆EM L, 1  
+
+> αr,r
+
+(¯xαr,r) → Etarget 
+
+> system,1
+
+(¯x), can be refined in a well-defined and consistent numerical man-ner to yield an accurate potential for a much larger sys-tem, that is, ∆EM L, 1  
+
+> αr,r
+
+(¯xαr,r) refine 
+
+−−−→ ∆EM L, 2  
+
+> αr,r
+
+(¯xαr,r) (A6) and ∆EM L, 2  
+
+> αr,r
+
+(¯xαr,r) → Etarget 
+
+> system,2
+
+(¯x). This frame-work naturally enables transfer learning along selected subspaces of the full coordinate space, ( ¯x). In AIMD simulations, the decomposition of the molecular coordi-nates into fragment coordinates, ( ¯xαr ,r ), allows geomet-ric changes within different regions of the configurational space to be monitored separately. Since each fragment is represented by its own neural network, refinement of the potential energy surface can be focused on only those fragments that explore previously unseen regions of con-figuration space, as one moves from a smaller system to a larger system, and thereby avoid expensive retraining at the level of the full system. 17        
+
+> (a)H 5O+2all fragments (b)H 5O+2with O-O distance ≤
+> 3.5˚ A
+> (c)H 5O+2with O-O distance between 3.5 and 4.5˚ A
+> (d)H 5O+2with O-O distance ≥
+> 4.5˚ A
+
+FIG. 15. Distribution of fragment force errors for the given the range of oxygen-oxygen distance for H5O+2 .       
+
+> (a)H 6O3all fragments (b)H 6O3with O-O-O angles ≤
+> 90 ◦
+> (c)H 6O3with O-O-O angles between 90 and 145 ◦
+> (d)H 6O3with O-O-O angles ≥
+> 145 ◦
+
+FIG. 16. Distribution of fragment force errors for the given the range of oxygen-oxygen distance for H6O3.
+
+Appendix B: Force model accuracy for a variety of geometries 
+
+In this section, we provide more detailed discussion about the geometrical variance on fragments and their corresponding model accuracy as discussed in section        
+
+> (a)H 7O+3all fragments (b)H 7O+3with O-O-O angles
+> ≤90 ◦
+> (c)H 7O+3with O-O-O angles between 90 and 145 ◦
+> (d)H 7O+3with O-O-O angles
+> ≥145 ◦
+
+FIG. 17. Distribution of fragment force errors for the given the range of oxygen-oxygen distance for H7O+3 .
+
+IV B. Specifically, each type of fragments are divided into different groups based on the oxygen oxygen dis-tance and the oxygen-oxygen-oxygen angles as shown in Figure 4 in Section IV. For rank 1 simplexes H4O2 and 
+
+H5O+2 , we divide them into three categories in Figures 14 and 15 based on the oxygen oxygen distance. For rank 2 simplexes H6O3 and H7O+3 , we divide them into three categories in Figures 16 and 17 based on the oxy-gen oxygen oxygen angles. As we can see in Figures 14 and 15, even with only 10% training, the model achieve high accuracy for a wide range of geometries with oxygen oxygen distance ranging from 2˚ A to 7˚ A as shown in the oxygen oxygen distribu-tion plot in Figure 4. The non hydrogen bounded dimers has smaller force component range but still can be ac-curately predicted with the same neural network model. This guarantees the transferability of models across a variety of different geometries and potentially applicable to different molecular systems. 
+
+REFERENCES 
+
+[1] Wang, I. S. Y.; Karplus, M. Dynamics of Organic Reac-tions. J. Amer. Chem. Soc. 1973 , 95, 8160. [2] Leforestier, C. Classical Trajectories Using the Full Ab Initio Potential Energy Surface H −+CH 4 → CH 4+H −.J. Chem. Phys. 1978 , 68, 4406. [3] Car, R.; Parrinello, M. Unified Approach for Molecular Dynamics and Density-Functional Theory. Phys. Rev. Lett. 1985 , 55, 2471. 18 
+
+[4] Schlegel, H. B.; Millam, J. M.; Iyengar, S. S.; Voth, G. A.; Daniels, A. D.; Scuseria, G. E.; Frisch, M. J. Ab Initio Molecular Dynamics: Propagating the Density Matrix with Gaussian Orbitals. J. Chem. Phys. 2001 ,114, 9758. [5] Crespo-Otero, R.; Barbatti, M. Recent Advances and Perspectives on Nonadiabatic Mixed Quantum-Classical Dynamics. Chem. Rev. 2018 , 118, 7026. [6] Laio, A.; Parrinello, M. Escaping Free-Energy Minima. Proc. Natl. Acad. Sci. USA 2002 , 99, 12562. [7] Iannuzzi, M.; Laio, A.; Parrinello, M. Efficient Explo-ration of Reactive Potential Energy Surfaces Using Car-Parrinello Molecular Dynamics. Phys. Rev. Lett. 2003 ,90, 238302. [8] Phatak, P.; Sumner, I.; Iyengar, S. S. Gauging the Flexibility of the Active Site in Soybean Lipoxygenase-1 (SLO-1) Through an Atom-Centered Density Matrix Propagation (ADMP) Treatment That Facilitates the Sampling of Rare Events. J. Phys. Chem. B 2012 , 116, 10145. [9] Phatak, P.; Venderley, J.; Debrota, J.; Li, J.; Iyen-gar, S. S. Active Site Dynamical Effects That Fa-cilitate the Hydrogen Transfer Process in Soybean Lipoxygenase-1 (SLO-1): Isotope Effects. J. Phys. Chem. B 2015 , 119, 9532. [10] Gordon, R. G. Correlation Functions for Molecular Mo-tion. Adv. Mag. Resonance 1968 , 3, 1. [11] McQuarrie, D. A. Statistical Mechanics; University Sci-ence Books, Sausalito, CA, 2000. [12] Iyengar, S. S.; Petersen, M. K.; Day, T. J.; Burn-ham, C. J.; Teige, V. E.; Voth, G. A. The properties of ion-water clusters. I. The protonated 21-water cluster. J. Chem. Phys. 2005 , 123, 084309. [13] Iyengar, S. S. Dynamical effects on vibrational and elec-tronic spectra of hydroperoxyl radical water clusters. J. Chem. Phys. 2005 , 123, 084310. [14] Iyengar, S. S. Further analysis of the dynamically aver-aged vibrational spectrum for the “magic” protonated 21-water cluster. J. Chem. Phys. 2007 , 126, 216101. [15] Li, X.; Moore, D. T.; Iyengar, S. S. Insights from first principles molecular dynamics studies toward infrared multiple-photon and single-photon action spectroscopy: Case study of the proton-bound dimethyl ether dimer. J. Chem. Phys. 2008 , 128, 184308. [16] Li, X.; Oomens, J.; Eyler, J. R.; Moore, D. T.; Iyen-gar, S. S. Isotope dependent, temperature regulated, en-ergy repartitioning in a low-barrier, short-strong hydro-gen bonded cluster. J. Chem. Phys. 2010 , 132, 244301. [17] Dietrick, S. M.; Iyengar, S. S. Constructing Periodic Phase Space Orbits from Ab Initio Molecular Dynam-ics Trajectories to Analyze Vibrational Spectra: Case Study of the Zundel (H 5O+2 ) Cation. J. Chem. Theory and Comput. 2012 , 8, 4876. [18] Li, J.; Pacheco, A. B.; Raghavachari, K.; Iyengar, S. S. A Grotthuss-like proton shuttle in the anomalous C2H+3
+
+carbocation: energetic and vibrational properties for iso-topologues. Phys. Chem. Chem. Phys. 2016 , 18, 29395– 29411. [19] Sager, L. M.; Iyengar, S. S. Proton relays in anomalous carbocations dictate spectroscopy, stability, and mecha-nisms: case studies on C2H5+ and C3H3+. Phys. Chem. Chem. Phys. 2017 , 19, 27801–27816. [20] Li, X.; Teige, V. E.; Iyengar, S. S. Can the four-coordinated, penta-valent oxygen in hydroxide water clusters be detected through experimental vibrational spectroscopy? J. Phys. Chem. A 2007 , 111, 4815–4820. [21] Li, X.; Iyengar, S. S. Quantum Wavepacket Ab Ini-tio Molecular Dynamics for Extended Systems. J. Phys. Chem. A 2011 , 115, 6269. [22] Iyengar, S. S.; Day, T. J.; Voth, G. A. On the amphiphilic behavior of the hydrated proton: an ab initio molecu-lar dynamics study. International Journal of Mass Spec-trometry 2005 , 241, 197–204. [23] Peverati, R.; Truhlar, D. The Quest for a Universal Den-sity Functional: The Accuracy of Density Functionals Across a Broad Spectrum of Databases in Chemistry and Physics. Philos. Trans. Royal Soc. A 2014 , 372, 10120476. [24] Klimes, J.; Michaelides, A. Perspective: Advances and challenges in treating van der Waals dispersion forces in density functional theory. J. Chem. Phys. 2012 , 137, 120901. [25] Sadhukhan, S.; Munoz, D.; Adamo, C.; Scuseria, G. E. Predicting Proton Transfer Barriers with Density Func-tional Methods. Chem. Phys. Lett. 1999 , 306, 83. [26] Xie, Y.; Remington, R. B.; Schaefer, H. F., III The Pro-tonated Water Dimer: Extensive Theoretical Studies of H5O+2 . J. Chem. Phys. 1994 , 101, 4878. [27] Cohen, A. J.; Mori-S´ anchez, P.; Yang, W. Challenges for Density Functional Theory. Chem. Revs. 2012 , 112, 289. [28] Chmiela, S.; Tkatchenko, A.; Sauceda, H. E.; Poltavsky, I.; Schuett, K. T.; Mueller, K.-R. Machine learning of accurate energy-conserving molecular force fields. SCIENCE ADVANCES 2017 , 3. [29] Vandermause, J.; Torrisi, S. B.; Batzner, S.; Xie, Y.; Sun, L.; Kolpak, A. M.; Kozinsky, B. On-the-fly active learning of interpretable Bayesian force fields for atom-istic rare events. NPJ COMPUTATIONAL MATERI-ALS 2020 , 6. [30] Batatia, I.; Kovacs, D. P.; Simm, G. N. C.; Ort-ner, C.; Csanyi, G. MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields. ADVANCES IN NEURAL INFORMA-TION PROCESSING SYSTEMS 35, NEURIPS 2022. Koyejo, S., Mohamed, S., Agarwal, A., Belgrave, D., Cho, K., Oh, A., Eds.; Advances in Neural Information Processing Systems; 2022; 36th Conference on Neural Information Processing Systems (NeurIPS), ELECTR NETWORK, NOV 28-DEC 09, 2022. [31] Behler, J.; Parrinello, M. Generalized neural-network representation of high-dimensional potential-energy sur-faces. Phys. Rev. Lett. 2007 , 98. [32] Wang, H.; Zhang, L.; Han, J.; E, W. DeePMD-kit: Adeep learning package for many-body potential energy representation and molecular dynamics. COMPUTER PHYSICS COMMUNICATIONS 2018 , 228, 178–184. [33] Smith, J. S.; Isayev, O.; Roitberg, A. E. ANI-1: an ex-tensible neural network potential with DFT accuracy at force field computational cost. CHEMICAL SCIENCE 
+
+2017 , 8, 3192–3203. [34] Behler, J. Four Generations of High-Dimensional Neu-ral Network Potentials. Chem. Rev. 2021 , 121, 10037– 19 
+
+10072. [35] Schran, C.; Behler, J.; Marx, D. Automated Fitting of Neural Network Potentials at Coupled Cluster Accuracy: Protonated Water Clusters as Testing Ground. J. Chem. Theory Comput. 2020 , 16, 88–99. [36] Schran, C.; Brieuc, F.; Marx, D. Transferability of ma-chine learning potentials: Protonated water neural net-work potential applied to the protonated water hexamer. J. Chem. Phys. 2021 , 154. [37] Zhu, X.; Iyengar, S. S. Large Language Model-Type Ar-chitecture for High-Dimensional Molecular Potential En-ergy Surfaces. Phys. Rev. X 2026 , 16, 011012. [38] Gilmer, J.; Schoenholz, S. S.; Riley, P. F.; Vinyals, O.; Dahl, G. E. Neural Message Passing for Quantum Chem-istry. INTERNATIONAL CONFERENCE ON MA-CHINE LEARNING, VOL 70. Precup, D., Teh, Y., Eds.; Proceedings of Machine Learning Research; 2017; Vol. 70; 34th International Conference on Machine Learning, Sydney, AUSTRALIA, AUG 06-11, 2017. [39] Yedidia, J. S.; Freeman, W. T.; Weiss, Y. Understanding Belief Propagation and Its Generalizations. In Exploring Artificial Intelligence in the New Millennium; Morgan Kaufmann Publishers Inc.: San Francisco, CA, USA, 2003; p 239–269. [40] Ricard, T. C.; Zhu, X.; Iyengar, S. S. Capturing weak interactions in surface adsorbate systems at coupled clus-ter accuracy: a graph-theoretic molecular fragmentation approach improved through machine learning. J. Chem. Theory Comput. 2023 , 19, 8541. [41] Ricard, T. C.; Haycraft, C.; Iyengar, S. S. Adaptive, geometric networks for efficient coarse-grained ab initio 
+
+molecular dynamics with post-Hartree-Fock accuracy. J. Chem. Theory Comput. 2018 , 14, 2852. [42] Ricard, T. C.; Iyengar, S. S. An efficient and accurate ap-proach to estimate hybrid functional and large basis set contributions to condensed phase systems and molecule-surface interactions. J. Chem. Theory Comput. 2020 ,16, 4790. [43] Zhu, X.; Iyengar, S. S. Graph Theoretic Molecular Frag-mentation for Multidimensional Potential Energy Sur-faces Yield an Adaptive and General Transfer Machine Learning Protocol. J. Chem. Theory Comput. 2022 , 18, 5125–5144. [44] Zhu, X.; Iyengar, S. S. Large Language Model-Type Ar-chitecture for High-Dimensional Molecular Potential En-ergy Surfaces. Phys. Rev. X 2026 , 16, 011012. [45] Vaswani, A.; Shazeer, N.; Parmar, N.; Uszkoreit, J.; Jones, L.; Gomez, A. N.; Kaiser, L. u.; Polosukhin, I. Attention is All you Need. 31st Conference on Neu-ral Information Processing Systems (NIPS 2017), Long Beach, CA, USA. Guyon, I., Luxburg, U. V., Bengio, S., Wallach, H., Fergus, R., Vishwanathan, S., Garnett, R., Eds.; Curran Associates, Inc., 2017; Vol. 30. [46] Iyengar, S. S.; Ricard, T. C.; Zhu, X. A reformulation of all ONIOM-type molecular fragmentation approaches using graph theory-based projection operators: Applica-tions to dynamics, molecular potential surfaces, and ma-chine learning and quantum computing. J. Phys. Chem. A 2024 , 128, 466. [47] Iyengar, S. S.; Saha, D.; Dwivedi, A.; Lopez-Ruiz, M. A.; Kumar, A.; Zhang, J. H.; Ricard, T. C.; Richerme, P.; Sabry, A. Quantum Algorithms for the Study of Elec-tronic Structure and Molecular Dynamics: Novel Com-putational Protocols. In Comprehensive Computational Chemistry; Elsevier, 2023. [48] Li, J.; Iyengar, S. S. Ab initio Molecular Dynamics using Recursive, Spatially Separated, Overlapping Model Sub-systems Mixed Within an ONIOM Based Fragmentation Energy Extrapolation Technique. J. Chem. Theory Com-put. 2015 , 11, 3978–3991. [49] Li, J.; Haycraft, C.; Iyengar, S. S. Hybrid, Extended La-grangian – Born-Oppenheimer Ab Initio Molecular Dy-namics using Fragment-Based Electronic Structure. J. Chem. Theory Comput. 2016 , 12, 2493. [50] Haycraft, C.; Li, J.; Iyengar, S. S. Efficient, “On-the-fly” Born–Oppenheimer and Car–Parrinello–type Dynamics with coupled cluster accuracy through Fragment Based Electronic Structure. J. Chem. Theory Comput. 2017 ,13, 21887. [51] Ricard, T. C.; Iyengar, S. S. Efficiently capturing weak interactions in ab initio molecular dynamics through “on-the-fly” basis set extrapolation. J. Chem. Theory Comput. 2018 , 14, 5535. [52] Kumar, A.; Iyengar, S. S. Fragment-based electronic structure for potential energy surfaces using a super-position of fragmentation topologies. J. Chem. Theory Comput. 2019 , 15, 5769. [53] Ricard, T. C.; Kumar, A.; Iyengar, S. S. Embedded, graph-theoretically defined many-body approximations for wavefunction-in-DFT and DFT-in-DFT: Applica-tions to gas- and condensed-phase ab initio molecular dynamics, and potential surfaces for quantum nuclear effects. Int. J. Quantum Chem. 2020 , 120, e26244. [54] Kumar, A.; DeGregorio, N.; Iyengar, S. S. Graph-Theory-Based Molecular Fragmentation for Efficient and Accurate Potential Surface Calculations in Multiple Di-mensions. J. Chem. Theory Comput. 2021 , 17, 6671– 6690. [55] Zhang, J. H.; Ricard, T. C.; Haycraft, C.; Iyen-gar, S. S. Weighted-Graph-Theoretic Methods for Many-Body Corrections within ONIOM: Smooth AIMD and the Role of High-Order Many-Body Terms. J. Chem. Theory Comput. 2021 , 17, 2672–2690. [56] Zhang, J. H.; Iyengar, S. S. Graph-|Q⟩ ⟨ C|: A Graph-based Quantum-classical algorithm for efficient elec-tronic structure on hybrid quantum/classical hardware systems: Improved quantum circuit depth performance. J. Chem. Theory Comput. 2022 , 18, 2885. [57] Kumar, A.; DeGregorio, N.; Ricard, T.; Iyengar, S. S. Graph-Theoretic Molecular Fragmentation for Potential Surfaces Leads Naturally to a Tensor Network Form and Allows Accurate and Efficient Quantum Nuclear Dynam-ics. J. Chem. Theory Comput. 2022 , 18, 7243. [58] Iyengar, S. S.; Zhang, J. H.; Saha, D.; Ricard, T. C. Graph-|Q⟩ ⟨ C|: A Quantum Algorithm with Reduced Quantum Circuit Depth for Electronic Structure. J. Phys. Chem. A 2023 , 127, 9334. [59] Dey, T. K.; Shah, N. R. On the number of simplicial complexes in Rd. Comput. Geom. 1997 , 8, 267. [60] Adams, C. C.; Franzosa, R. D. Introduction to topology: pure and applied; 2008. [61] Berger, M.; Pansu, P.; Berry, J.-P.; Saint-Raymond, X. 20 
+
+Affine spaces. In Problems in Geometry; Springer, 1984; p 11. [62] Armstrong, M. A. Basic topology; Springer Science & Business Media, 2013. [63] Maseras, F.; Morokuma, K. IMOMM: A new integrated ab initio + molecular mechanics geometry optimization scheme of equilibrium structures and transition states. J. Comput. Chem. 1995 , 16, 1170. [64] Nandi, A.; Qu, C.; Houston, P. L.; Conte, R.; Bow-man, J. M. ∆-machine learning for potential energy sur-faces: A PIP approach to bring a DFT-based PES to CCSD(T) level of theory. J. Chem. Phys. 2021 , 154, 051102. [65] Ramakrishnan, R.; Dral, P. O.; Rupp, M.; von Lilien-feld, O. A. Big Data Meets Quantum Chemistry Approx-imations: The ∆-Machine Learning Approach. J. Chem. Theory Comput. 2015 , 11, 2087–2096. [66] Chen, J.; Xu, W.; Zhang, R. ∆-Machine learning-driven discovery of double hybrid organic–inorganic per-ovskites. J. Mater. Chem. A 2022 , 10, 1402–1413. [67] Unzueta, P. A.; Greenwell, C. S.; Beran, G. J. O. Predict-ing Density Functional Theory-Quality Nuclear Mag-netic Resonance Chemical Shifts via ∆-Machine Learn-ing. J. Chem. Theory Comput. 2021 , 17, 826–840. [68] Nandi, A.; Pandey, P.; Houston, P. L.; Qu, C.; Yu, Q.; Conte, R.; Tkatchenko, A.; Bowman, J. M. ∆-Machine Learning to Elevate DFT-Based Potentials and a Force Field to the CCSD(T) Level Illustrated for Ethanol. J. Chem. Theory Comput. 2024 , 20, 8807–8819. [69] Bahdanau, D.; Cho, K.; Bengio, Y. Neural Machine Translation by Jointly Learning to Align and Translate. 2016; https://arxiv.org/abs/1409.0473 .[70] Rega, N.; Iyengar, S. S.; Voth, G. A.; Schlegel, H. B.; Vreven, T.; Frisch, M. J. Hybrid Ab-Initio/Empirical Molecular Dynamics: Combining the ONIOM Scheme with the Atom-Centered Density Matrix Propagation (ADMP) Approach. J. Phys. Chem. B 2004 , 108, 4210. [71] Zundel, G. Hydration and Intermolecular Interaction: Infrared Investigations with Polyelectrolyte Membranes; Academic Press, 2012. [72] Tuckerman, M. E.; Ungar, P. J.; Vonrosenvinge, T.; Klein, M. L. Ab Initio Molecular Dynamics Simulations. J. Phys. Chem. 1996 , 100, 12878. [73] Tuckerman, M.; Laasonen, K.; Sprik, M.; Parrinello, M. J. Phys. Chem. 1995 , 99, 5749. [74] Schmitt, U. W.; Voth, G. A. The computer simulation of proton transport in water. J. Chem. Phys. 1999 , 111, 9361–9381. [75] Schmitt, U. W.; Voth, G. A. Multistate empirical va-lence bond model for proton transport in water. J. Phys. Chem. B 1998 , 102, 5547–5551. [76] Vendrell, O.; Gatti, F.; Meyer, H.-D. Dynamics and Infrared Spectroscopy of the Protonated Water Dimer. Ang. Chem. Intl. Ed. 2007 , 46, 6918. [77] Pomes, R.; Roux, B. Structure and Dynamics of a Proton Wire: A Theoretical Study of H+ Translocation Along the Single-File Water Chain in the Gramicidin a Chan-nel. Biophys J. 1996 , 71, 19. [78] McEwan, M. J.; Phillips, L. F. Chemistry of the Atmo-sphere; Eward Arnold: London, 1975. [79] Wayne, R. P. Chemistry of the Atmosphere; Clarendon Press: Oxford, 1994. [80] Pomes, R.; Roux, B. Theoretical study of H+ transloca-tion along a model proton wire. J. Phys. Chem. 1996 ,100, 2519–2527. [81] Decornez, H.; Drukker, K.; Hammes-Schiffer, S. Solva-tion and Hydrogen-Bonding Effects on Proton Wires. J. Phys. Chem. A 1999 , 103, 2891. [82] Brewer, M. L.; Schmitt, U. W.; Voth, G. A. The For-mation and Dynamics of Proton Wires in Channel En-vironments. Biophys J. 2001 , 80, 1691. [83] Teeter, M. Water structure of a hydrophobic protein at atomic resolution: Pentagon rings of water molecules in crystals of crambin. Proceedings of the National Academy of Sciences 1984 , 81, 6014–6018. [84] Neidle, S.; Berman, H. M.; Shieh, H. S. Highly Struc-tured Water Network in Crystals of a Deoxydinucleoside-Drug Complex. Nature 1980 , 288, 129. [85] Lipscomb, L. A.; Peek, M. E.; Zhou, F. X.; Bertrand, J. A.; VanDerveer, D.; Williams, L. D. Wa-ter ring structure at DNA interfaces: hydration and dy-namics of DNA-anthracycline complexes. Biochemistry 
+
+1994 , 33, 3649–3659. [86] Tu, C.; Rowlett, R. S.; Tripp, B. C.; Ferry, J. G.; Silver-man, D. N. Chemical rescue of proton transfer in catal-ysis by carbonic anhydrases in the β-and γ-class. Bio-chemistry 2002 , 41, 15429–15435. [87] Agmon, N. The Grotthuss Mechanism. Chem.Phys.Lett. 
+
+1995 , 244, 456. [88] Hartigan, J. A.; Wong, M. A. Algorithm AS 136: Ak-means clustering algorithm. J. R. Stat. Soc. series c (applied statistics) 1979 , 28, 100–108. [89] MacQueen, J. Some methods for classification and anal-ysis of multivariate observations. Proceedings of the fifth Berkeley symposium on mathematical statistics and probability. 1967; Vol. 1; pp 281–297. [90] Bowyer, A. Computing Dirichlet tessellations. Comput. J. 1981 , 24, 162–166. [91] Aurenhammer, F. Voronoi Diagrams — A survey of a fundamental geometric data structure. ACM Comput. Survey 1991 , 23, 345. [92] Project, T. C. CGAL User and Reference Manual, 4th ed.; CGAL Editorial Board, 2018. [93] Sculley, D. Web-scale k-means clustering. WWW ’10: Proceedings of the 19th international conference on World wide web. New York, NY, USA, Association for Computing Machinery: New York, NY, USA, 2010; pp 1177–1178. [94] Frisch, M. J.; Trucks, G. W.; Schlegel, H. B.; Scuse-ria, G. E.; Robb, M. A.; Cheeseman, J. R.; Scalmani, G.; Barone, V.; Petersson, G. A.; Nakatsuji, H.; Li, X.; Car-icato, M.; Marenich, A. V.; Bloino, J.; Janesko, B. G.; Gomperts, R.; Mennucci, B.; Hratchian, H. P.; Or-tiz, J. V.; Izmaylov, A. F.; Sonnenberg, J. L.; Williams-Young, D.; Ding, F.; Lipparini, F.; Egidi, F.; Go-ings, J.; Peng, B.; Petrone, A.; Henderson, T.; Ranas-inghe, D.; Zakrzewski, V. G.; Gao, J.; Rega, N.; Zheng, G.; Liang, W.; Hada, M.; Ehara, M.; Toy-ota, K.; Fukuda, R.; Hasegawa, J.; Ishida, M.; Naka-jima, T.; Honda, Y.; Kitao, O.; Nakai, H.; Vreven, T.; Throssell, K.; Montgomery, J. A., Jr.; Peralta, J. E.; Ogliaro, F.; Bearpark, M. J.; Heyd, J. J.; Broth-21 
+
+ers, E. N.; Kudin, K. N.; Staroverov, V. N.; Keith, T. A.; Kobayashi, R.; Normand, J.; Raghavachari, K.; Ren-dell, A. P.; Burant, J. C.; Iyengar, S. S.; Tomasi, J.; Cossi, M.; Millam, J. M.; Klene, M.; Adamo, C.; Cammi, R.; Ochterski, J. W.; Martin, R. L.; Mo-rokuma, K.; Farkas, O.; Foresman, J. B.; Fox, D. J. Gaussian˜16 Revision B.01. 2016; Gaussian Inc. Walling-ford CT. [95] Press, W. H.; Teukolsky, S. A.; Vetterling, W. T.; Flan-nery, B. P. Numerical Recipes in C; Cambridge Univer-sity Press, New York, 1992.

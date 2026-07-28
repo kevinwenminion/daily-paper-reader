@@ -1,0 +1,493 @@
+Title: Neural RHEED alignment with limited training data during CdTe MBE growth
+
+URL Source: https://arxiv.org/pdf/2607.24467v1
+
+Published Time: Tue, 28 Jul 2026 02:22:41 GMT
+
+Number of Pages: 18
+
+Markdown Content:
+## Neural RHEED alignment with limited training data during CdTe MBE growth 
+
+Bartłomiej Turowski, 1 Jakub J. Meixner, 1 Róża Dziewiątkowska, 1 Wojciech Zaleszczyk, 1, 2 Tomasz Wojciechowski, 1 Valentine V. Volobuev, 1, 3 Marcin M. Wysokiński, 1, ∗ and Tomasz Wojtowicz 1
+
+> 1
+
+International Research Centre MagTop, Institute of Physics, Polish Academy of Sciences, Aleja Lotników 32/46, PL-02668 Warsaw, Poland 
+
+> 2
+
+Institute of Physics, Polish Academy of Sciences, Aleja Lotników 32/46, PL-02668 Warsaw, Poland 
+
+> 3
+
+National Technical University "KhPI", Kyrpychova Str. 2, 61002 Kharkiv, Ukraine 
+
+(Dated: July 28, 2026) We introduce a data-efficient neural-vision assisted method to automate crystallographic align-ment during molecular beam epitaxy (MBE) growth. Trained on reflection high-energy electron diffraction (RHEED) patterns from only 15 CdTe structures, our model - enabled by physics-aware postprocessing - reliably infers crystallographic directions, replacing manual frame-by-frame inspec-tion. To this end, we design, test, and critically compare neural-network architectures based on 2D and 3D ResNet configurations, both with and without postprocessing that leverages the physical con-straints of RHEED image acquisition. Our work delivers (i) a fully trained neural system ready for closed-loop deployment in future CdTe growth experiments and (ii) a generalizable pipeline for new materials where access to diverse RHEED datasets is limited. More broadly, this study represents a step toward AI-driven MBE growth and demonstrates the potential of machine-learning-assisted automation in thin-film synthesis. 
+
+Abstract figure 
+
+I. INTRODUCTION 
+
+Molecular Beam Epitaxy (MBE) is a well-established technique for producing high-quality epitaxial thin films of semiconductors and related materials [1, 2]. A crit-ical early decision in any MBE process is the choice of substrate. Cadmium telluride (CdTe) buffer layers are widely used as epitaxial templates in both fundamental research [3] and industrial fabrication of HgCdTe infrared detector structures [4, 5], with ML methods recently en-tering also the detector-design stage [6]. The quality of the CdTe substrate directly determines the achievable structural and electronic properties of the target mate-rial. Although CdTe growth is considered mature, fur-ther optimization of growth parameters remains essential for improving reproducibility and device performance.  
+
+> ∗wysokinski@magtop.ifpan.edu.pl
+
+Traditionally, such optimization is performed man-ually by experienced MBE operators who supervise multiple growth cycles. This process is time- and resource-intensive, and its reproducibility is affected by gradual drifts in system conditions during normal oper-ation. Moreover, a single buffer-layer growth typically spans several hours, making continuous human supervi-sion impractical. These challenges motivate the develop-ment of automated monitoring tools that can support or partially replace manual oversight. Reflection high-energy electron diffraction (RHEED) is the main in-situ technique used to assess surface struc-ture and growth quality during MBE[7]. The shallow in-cidence angle (1-5 ◦) and high electron energy (10-30 keV) provide strong surface sensitivity, producing characteris-tic patterns whose shape, intensity, and symmetry en-code information about surface flatness, reconstruction, domain structure, and growth mode. The quantitative interpretation of RHEED patterns and intensity oscilla-tions is supported by dedicated simulation codes [8, 9]. During growth, the substrate is continuously rotated to ensure uniform deposition. Scientists are typically interested in only a few key azimuthal orientations - those aligned with crystallo-graphic directions - because these produce symmetric, easily interpretable patterns. For this reason, full rota-tions are often recorded as short videos for later manual inspection. However, locating the key crystallographic directions within these recordings is time-consuming and prone to human error, leading to non-negligible angular uncertainty. These limitations highlight both the ineffi-ciency of current practice and the opportunity for auto-mated analysis. Deep convolutional neural networks have become a standard tool for the automated analysis of scientific im-arXiv:2607.24467v1 [cond-mat.mtrl-sci] 27 Jul 2026 2ages, including diffraction-based materials characteriza-tion [10–12] and atomically resolved electron microscopy [13]. Recent years have seen growing interest in ap-plying machine learning (ML) and computer vision to RHEED analysis and to crystal growth in general [14], starting from early big-data statistical analyses of full RHEED video streams [15–17]. Existing approaches typ-ically fall into two categories. The first uses static images of known crystallographic directions to classify RHEED patterns [18–20], analyze as-grown structures [21], or per-form automated phase mapping [22] and quantitative image analysis [23]. The second focuses on videos ac-quired at fixed azimuthal orientations to identify initial growth modes[24, 25], detect growth-mode transitions [26], quantify growth kinetics from high-speed RHEED streams [27], or enable real-time feedback control [28]. However, these methods rely on manually pre-selected key directions, leaving most azimuthal information un-used. Approaches based on external triggering [18, 19] require per-growth calibration and remain susceptible to mechanical inaccuracies. Only a few works have explored rotating-substrate RHEED videos, and these have focused on rotation-error detection [29] or substrate de-oxidation monitoring [30], which lately was pushed further with real-time feedback control [31]. Very recently, neural reconstruction of az-imuthal RHEED profiles acquired during wafer rotation has also been demonstrated [32], aimed at visualizing the azimuthal information rather than at quantitatively ex-tracting the crystallographic directions. To date, there is a notable lack of methods capable of automatically iden-tifying crystallographic directions directly from rotating RHEED data, either during growth or in post-growth analysis [33]. Such automation would reduce dependence on expert supervision and facilitate more efficient use of RHEED data in both research and production en-vironments and would close the gap between substrate de-oxidation [30, 31] and automatic growth optimization that rely on static RHEED data of single crystallographic direction [21, 24, 26, 33]. In this work, we leverage 2D and 3D convolutional residual network (ResNet) neural networks to show that, even when trained on a limited number of data points coming from no more than 20 different structures, they can be practically useful for detecting crystallographic directions from RHEED images of CdTe grown by MBE. In particular, thanks to a proposed postprocessing step applied after neural network inference, we demonstrate that a simpler 2D ResNet trained on 15 structures can be as accurate as a complex 3D ResNet trained on all available structures (20) without this step. At the same time, the 2D approach outperforms the 3D model in training time efficiency by a factor of ∼20. From a more general perspective, by using the proposed pipeline, we demonstrate reliable automated identification of crys-tallographic directions from rotating-substrate RHEED videos, providing a practical step toward artificial intel-ligence (AI)-assisted and, eventually, autonomous MBE growth. The article is structured as follows: Section II ad-dresses the problem, followed by Sections III and IV, which detail data gathering, preprocessing steps, and the hardware used for neural network training and real-time inference. Sections V and VI outline the neural network methodology and present the results and discussion, re-spectively, while Section VII provides a final summary.  
+
+> II. FRAMING THE PROBLEM
+
+The goal of acquiring RHEED images during MBE growth is to continuously assess the quality of the film and, when necessary, adjust growth conditions or ter-minate the process to avoid wasting time and mate-rial. Crystallographic directions that align with crystal-lographic axes of the grown material provide the most informative geometry for evaluating growth quality, be-cause the resulting diffraction patterns are highly sym-metric and can be interpreted quickly by a trained ob-server. An ideal long-term solution would be a neural-assisted system capable of detecting growth anomalies in real time and autonomously tuning MBE parameters to optimize the final film quality or to halt the growth when recov-ery is not possible. First steps in this direction have al-ready been demonstrated for related thin-film techniques, including machine-learning-driven closed-loop optimiza-tion of epitaxial growth [34, 35] and autonomous syn-thesis workflows [36, 37]. To enable such a system, one must reliably collect RHEED images corresponding to the same crystallographic direction at different stages of the growth. This consistency is also essential for trace-ability and explainability, allowing a human expert to verify the neural system’s decisions. However, simply aligning the sample to a chosen crys-tallographic direction at the beginning of the growth is not sufficient. Over time, small mechanical drifts or changes in beam incidence can shift the relative orienta-tion between the electron beam and the sample surface. As a result, RHEED images taken at different times may no longer correspond to the same direction. Therefore, the challenge addressed in this work is to use a trained neural network to identify the crystallo-graphic direction within each set of RHEED images ac-quired during a full 360 ◦ rotation. This enables the images to be correctly grouped across different growth times, compared consistently, and prepared for subse-quent automated analysis. A further difficulty, closely related to the problem framed above, arises from the limited amount of RHEED data typically available in an MBE laboratory. While obtaining a RHEED dataset containing 10–20 structures of a selected material system is achievable, assembling a well curated library of hundreds of structures is a time-consuming and labor-intensive task beyond the capacity of a typical MBE laboratory. Extending such a library 3to cover multiple material systems makes this practically unfeasible. Although neural networks are known to per-form exceptionally well when supplied with large, diverse datasets, their performance falls rapidly when data is limited. In this work, we therefore show how to achieve reliable, real-time identification of crystallographic direc-tions in RHEED images while training on data from only about 15 structures - demonstrating that meaningful per-formance is achievable even with limited data available.  
+
+> III. DATA
+
+A critical component of this work is the acquisition of high-quality data. This naturally separates into two streams: collecting reliable RHEED images during the growth of high-quality CdTe samples, and preprocessing these images into a form best suited for neural-network ingestion. We begin by focusing on the former.  
+
+> A. Experimental data acquisition
+
+CdTe samples were grown using standard MBE proce-dures in an ultra-high-vacuum Veeco GENxplor[38] sys-tem chamber dedicated to II–VI semiconductors. Effu-sion cells were loaded with elemental Cd, Zn, and Te (7N purity), and CdTe buffers were deposited on epi-ready GaAs(001) wafers with a 2◦ off-cut toward the 
+
+⟨110 ⟩ direction after oxide removal by hydrogen-plasma treatment at 200 ◦C a separate chamber. A thin ZnTe nu-cleation layer (5–20 nm) was first deposited, followed by a ∼ 4 μm CdTe layer in the zinc-blende structure, with the substrate continuously rotated at ≥ 2 revolutions per minute (RPM) and slowed to 1 RPM during RHEED video acquisition. Throughout the several-hour growth, 2-minute RHEED videos were automatically recorded ev-ery hour using the Molly 2000 software [39] to trigger the RHEED shutter, while a custom screen-grab utility en-sured consistent capture of the same screen region with fixed camera geometry. Videos were saved using the avc1 
+
+codec at 18 frames per second (FPS), and experienced operators later identified the zero-angle ([011] direction), after which 1080 frames - corresponding to one full ro-tation - were extracted and labeled, yielding 0.33 ◦ angu-lar resolution. For training purposes, 151 single-rotation videos from growths of 20 CdTe buffers, 6–8 videos per structure, were used (cf. Table S1). Because the RHEED data were obtained via real-time screen grabbing, there is a mismatch between the 60 Hz monitor refresh rate and the ∼18 FPS camera stream: 
+
+60 /18 ≈ 3.33 , causing some (around 5 to 10%) frames to be duplicated or skipped. This can cause adjacent frames to appear identical despite having different crys-tallographic labels, slightly reducing the achievable ac-curacy of the neural-network model. Consequently, the ground-truth labels themselves carry an uncertainty of at least one frame ( 0.33 ◦), stemming from the manual identification of the zero-angle direction and from the duplicated or skipped frames. The inference errors re-ported below should be interpreted relative to this label noise floor. Additionally, there are systematic issues, shown in Fig-ure S1, arising from MBE system geometry and everyday use: 
+
+• the GENxplor system’s three-handle molyblock holder introduces a periodic obstruction every 120 ◦;
+
+• and a broad shadow near the RHEED beam edge originates from material flakes accumulating on the heater area. Most of these issues are mitigated during data prepa-ration and in our preprocessing pipeline, but they re-main an inherent limitation of the raw data. A list of all grown structures with the number of rotations and frames after data preparation is presented in Supporting Information[40] Table S1.  
+
+> B. RHEED images preprocessing
+
+Raw RHEED frames were acquired at a resolution of 
+
+1022 × 964 in RGB uint8 pixel format. The final dataset was prepared using pipeline described below and shown schematically on Figure 1. (i) The RGB image data from screen capture is deter-ministically converted to a single channel , a process that does not cause information loss as the aggregated saturation of green color components in our dataset is approximately 97% . Intensities were subsequently scaled to [0 , 1] . Decomposition of a single RHEED frame into three channels is shown in Figure S2. (iii)     
+
+> channels
+> z-score standarization
+> RGB G + ROI crop resize
+> channel
+> < 0.02
+> Final dataset
+> 20 structures exclude exclude
+> mean intensity
+> RMS contrast < 0.01 96 × 56 112 × 64 (i) + (ii) (v) (iv) Per image operations Dataset-level operations
+
+FIG. 1: Schematic overview of the dataset-preparation procedure, with items (i–v) corresponding to the steps detailed in Section III B. 4(ii) A fixed proportional crop was then applied in im-age coordinates - top 23% , left 13% , right 10% , bottom 
+
+30% - to remove peripheral artifacts while preserving the central diffraction content in the region of interest (ROI). (iii) The cropped images were resized to two target resolutions of { 96 × 56 , 112 × 64 } (width × height) with approximately the same scaling ratio for both dimen-sions. The resizing procedure was done using bicubic interpolation to float32 format [41]. (iv) After crop and resize, dataset-level standardiza-tion was performed on the grayscale channel: letting 
+
+x ∈ [0 , 1] denote a pixel intensity, the standardized value was z = ( x−μ)/σ , where μ and σ are the empirical mean and standard deviation estimated across all retained pix-els in the training split after preprocessing. (v) To suppress unusable frames prior to statistics, any frame with global mean intensity < 0.02 (under-exposed) or global standard deviation < 0.01 (insufficient RMS contrast) was excluded .(vi) In order to improve neural network (NN) robust-ness in real time inference use, the augmentation has been introduced on top of the final data set created by applying steps (i-v) but before the training (cf. Fig-ure 2). To emulate the operator-dependent variability in how the ROI is placed over the RHEED video stream, each training image was replaced on-the-fly by a ran-domly perturbed variant - re-sampled independently at every access, so that across epochs the network is exposed to a continually varying version of each frame rather than the original frames, without enlarging the dataset. The perturbations combined small affine transformations (ro-tation ±5◦, translation ±15% , scaling ±7% ) with bright-ness/contrast variation ( ±15% ) and additive Gaussian noise ( δ = 0.05), applied directly on the standardized (z-scored) images without re-clipping their intensity range. The full pipeline was applied consistently to all im-ages to ensure statistical comparability and reproducibil-ity across the dataset. 
+
+IV. HARDWARE 
+
+Data acquisition is done on the RHEED computer sup-plied by k-Space Associates, Inc. kSA 400 software was used to display the data, but the acquisition method is in-dependent of the software due to use of a custom screen-grab utility. The same computer was used to implement the inference in the real system. Training was done on a single GPU while NN inference tests were run on CPU (cf. Table I). 
+
+V. NEURAL NETWORK METHODOLOGY 
+
+In the present work, rather than designing a new neural-network architecture for automated RHEED pat-TABLE I: Hardware (including operating system, processing units and memory) used in data acquisition, NN training and inference tests. 
+
+Training Data acquisition and inference OS AlmaLinux 9.5 (Teal Serval) Windows 10 Pro CPU AMD Ryzen Threadripper PRO 5955WX Intel Core i5-6500 RAM 128 GB 8.00 GB GPU 2x NVIDIA RTX A6000 2x (48 GB) AMD FirePro W4100 2 GB 
+
+tern recognition, we adopt established convolutional models - specifically, variants of the ResNet family [42]. Using off-the-shelf architectures enables us to leverage models that have been extensively validated across di-verse image-classification tasks [43–48], allowing us to focus on the goal outlined in Section II. Conceptually, we compare two distinct approaches: 
+
+• The two-dimensional ResNet-based ap-proach , combined with extensive postprocessing, which enables accurate inference even with limited training data. In our work, this serves as the main architecture. 
+
+• The three-dimensional ResNet-based ap-proach , which is well suited to the task but com-putationally heavier and reliant on larger datasets. (vi)   
+
+> dataset image draw z-scored
+> On-the-fly augmentation Random affine
+> rotation ±5° • translation ±15% • scaling ±7%
+> perturbed variants per epoch
+> Brightness / contrast
+> ±15 %
+> Additive Gaussian noise
+> σ= 0.05 (of z-scored intensity)
+> ResNet training
+> Every access / epoch new random draw
+
+FIG. 2: Schematic flow illustrating the on-the-fly replacement of each drawn training image by its augmented counterpart (the dataset size remains unchanged). The augmentation pipeline includes several transformations, with translation being the key variable dominating the ROI-placement uncertainty. 5In our setting, this serves as the benchmark ar-chitecture.  
+
+> A. 2D ResNet approach
+
+The most natural approach for computer-vision-assisted recognition of two-dimensional images is to use a neural network that takes a 2D matrix of pixel intensities as input and returns a desired label as output - in our case, the angular deviation from a crys-tallographic direction. A well-established architecture that fits this paradigm is the two-dimensional convolu-tional ResNet. Below in steps we outline our approach, whose effectiveness heavily relies on post-processing of the network’s raw predictions: 1. Dataset construction 
+
+We construct a data set {Pk, α k}, where Pk denotes the k-th RHEED image and αk is the corresponding la-bel, defined as the sample’s rotation angle relative to a chosen crystallographic direction. Since RHEED pat-terns recorded at azimuths differing by 180 ◦ are very similar, all angle labels are folded modulo 180 ◦, i.e. 
+
+αk ∈ [0 ◦, 180 ◦), even though each recorded video cov-ers a full 360 ◦ rotation. Consequently, the inference of the trained network is also restricted to this range. We have collected a labeled data set coming from 20 different CdTe structures. To evaluate generalization across struc-tures, we repeatedly split the dataset by selecting p struc-tures for training and the remaining 20 −p for the holdout set - the method descriptively called repeated train-test split approach, following established practice for avoid-ing data leakage in small datasets [49]. We explore splits ranging from p = 7 to p = 17 . For simplicity, we shall use notation such as "12/8", meaning that 12 structures are used for training and 8 for holdout data sets. From each training set consisting of p structures we are ex-tracting 2 randomly selected structures as a validation data set, used exclusively for checkpoint selection, i.e. picking the epoch with the lowest validation mean ab-solute error (MAE). While increasing the validation set to three structures reduces sensitivity to single-structure outliers, it incurs a non-negligible loss in effective training data. We therefore retained a two-structure validation set across all splits to maximize training efficiency. To quantify performance on the holdout set (consist-ing of 20 − p structures), we define n as the total number of test samples. Each test sample corresponds to a sin-gle rotation of a given structure in the MBE chamber. The value of n is determined by the number of rota-tions per structure, multiplied by the number of holdout structures, and by the fact that each holdout rotation is resampled 10 times, i.e. 
+
+n = ( rotations per structure ) × (20 − p) × 10 .
+
+For overview see schema in Figure 3. To characterize the distribution of the results, we compute the mean infer-ence error alongside 95% bootstrap confidence intervals of the mean, estimated using the percentile method with 2000 resamples. The bootstrap procedure was applied to the mean errors of individual evaluation runs. Each run used an independent train/holdout split and a distinct random seed. This accounts for uncertainty stemming from data partitioning. Holdout set             
+
+> 20 −pstructures
+> Dev set
+> p−2 structures
+> Val set
+> 2 structures
+> Test set
+> ntests per p
+> Training dataset Holdout dataset
+> randomly sampled
+> inc luding number of
+> rotations per structure
+> Train set
+> pstructures
+> 20 structures 10 × random sampling for a given p
+
+FIG. 3: Visualization of the division of images from the initial 20 structures into development, validation, and holdout datasets. The parameter n denotes the total volume of the testing dataset and reflects the number of rotations per structure, the number of structures sampled for the holdout set, and the fact that this sampling is repeated 10 times. 2. Network training 
+
+The 2D ResNet NN is trained to minimize the devi-ation of N N (Pk) − αk over the entire dataset, where 
+
+N N (Pk) denotes the angle predicted by the network. Training is performed using the mean-squared-error (MSE) loss function. Treating the angle as a scalar re-gression target introduces an artificial discontinuity at the 0◦/180 ◦ boundary, which the MSE loss penalizes heavily. We deliberately retained this simple formula-tion: the resulting wrap-around errors manifest as iso-lated outliers, which are subsequently removed by the postprocessing step. We initialized the ResNet-50 backbone with weights pre-trained on ImageNet (pyTorch IMAGENET1K_V2 )rather than training from random initialization. Despite the substantial domain gap between natural images and RHEED patterns, the pre-trained features provided a markedly better starting point: across the train/holdout splits, validation error fell far more rapidly during the first epochs and converged to a lower held-out error than scratch-initialized models (mean test MAE 3.1 vs 7.7). We therefore adopted ImageNet initialization through-out, as it improved both convergence speed and final per-formance at no additional cost. This is consistent with reports that pre-trained networks substantially reduce the amount of labeled data required in scientific-imaging 6tasks [50], including RHEED-based growth analysis [51]. To ensure that our results are not biased by a partic-ular train/holdout split, we report outcomes across all possible structure-level partitions. Consequently, more results naturally arise from smaller values of p (see 
+
+Dataset Construction ). Rather than the canonical SGD-with-momentum recipe used to train ResNet on ImageNet [42], we adopted a standard AdamW setup [52] with a learning rate of 10 −3 (the AdamW default) and a weight decay of 
+
+10 −4, held fixed across all experiments. No system-atic hyperparameter search was performed. Our ef-fort was instead directed at the architectural and data-representation choices described above (input resolution, ImageNet initialization, augmentation, the number of validation structures, and the train/holdout ratio), which is where the observed performance gains originate. The results should therefore be read as the outcome of a sin-gle, untuned training configuration, and a dedicated hy-perparameter search would likely yield further improve-ments. Although the loss function was based on the MSE for each fold, the final model was selected as the checkpoint with the lowest validation MAE. MAE was chosen as the primary metric representing model performance because it directly corresponds to the intercept parameter - to be introduced in the next methodology step - which quanti-fies the inference error after postprocessing. 3. Physical constraint from acquisition 
+
+During data acquisition, the sample rotates at a con-stant angular velocity. Thus, if the first image P0 corre-sponds to an unknown angle α0, subsequent angles satisfy 
+
+αk = α0 + k∆α (1) where ∆α is derived from the rotation velocity. 4. Ideal NN predictions 
+
+In the ideal case where N N (Pk) − αk = 0 for all k the plot of N N (Pk) versus αk forms a straight line with slope +1 or -1, depending on the rotation direction (i.e. sign of ∆α). The only unknown parameter is α0 which can be extracted from the intercept of this line. The ideal relationship is therefore, 
+
+N N (Pk) = k∆α + α0 (2) 5. Realistic NN predictions 
+
+In practice, the network’s predictions deviate from the ideal linear trend, producing a noticeably noisier pat-tern, as illustrated in Figure 4 by the points scattered around the ideal relationship. For the example shown, the MAE corresponds to an average deviation of approxi-mately ±1.77 ◦, which is already below the error tolerance required for practical use. Individual predictions, how-ever, may exhibit substantially larger errors, as demon-strated by the clearly visible outliers. What is more, the inference of the 2D neural network does not provide any information on the direction of sample rotation. 0 45 90 135 180     
+
+> Target angle [°]
+> 0
+> 45
+> 90
+> 135
+> 180
+> Predicted angle [°]
+> N=852
+> MAE =1.77°
+> ideal line (y=x)
+
+FIG. 4: Visualization of αk vs. NN( Pk) in the realistic case for N=852 RHEED pictures of a single RHEED rotation (scattered points), compared with the ideal linear trend (blue line). Therefore there are two main challenges that the post-processing needs to address: 
+
+(i) determining the correct sign of the slope (i.e., the sign of ∆α), and 
+
+(ii) estimating the intercept α0 as accurately as possible. An additional issue worth mentioning is that prediction errors may be biased, leading to an asymmetric distribu-tion of residuals, N N (Pk) − k∆α (cf. Figure 4), around the desired value α0.6. Slope determination 
+
+Because the neural network is trained only on images corresponding to angles in the range 0 − 180 ◦, its pre-dictions are effectively restricted to this interval. Conse-quently, if the true physical angle αk = k∆α + α0 moves outside this range, the NN cannot continue the linear trend and instead produces values that “wrap around” to remain within 0 − 180 ◦. For example, if α0 = 100 ◦
+
+and k∆α = 80 ◦ the true angle reaches 180 ◦ and then NN will output values near 0◦. This produces a characteristic drop (or rise) in the predicted sequence. To address this, predictions are processed in time win-dows of angular width ∆αwin (default 180 ◦). For the first window, two hypotheses are tested: s = +1 and s = −1.For each, modular residuals 
+
+r(±) 
+
+> k
+
+= ( N N (Pk) ∓ (k∆α mod 180)) mod 180 (3) 7are computed, followed by their circular concentration 
+
+R = mean 
+
+
+
+exp 
+
+
+
+2πi · r(±) 
+
+> k
+
+/180 
+
+ 
+
+(4) The hypothesis with the higher concentration corre-sponds to the correct orientation; the selected sign is stored and applied to all subsequent windows. 7. Robust estimation of the intercept 
+
+Once the sign of the slope is fixed, we compute the mod-ular residuals 
+
+rk = ( N N (Pk) − s · (k∆α mod 180)) mod 180 (5) for every frame in the window. Since the network was trained on the range [0 ◦, 180 ◦), all subsequent processing is carried out in modular arithmetic with period 180 ◦.Before rejecting outliers, the residuals must be re-centered to remove the discontinuities introduced by modular wrap-around. We compute their circular mean (from the argument of the mean of the complex vectors 
+
+exp(2 πi ·rk/180) ) and shift the residuals so that this mean sits at the center of the interval, at 90 ◦. This prevents points that are close in the circular sense from being in-correctly treated as outliers. We then estimate the intercept iteratively on the re-centered residuals. At each step we estimate the mode of the residual distribution using kernel density estimation (KDE) and discard points that satisfy |rk − mode | > δ .Two iterations are used, with δ = 10 ◦ and δ = 5 ◦, respec-tively. After cleaning, the circular mean of the original (unshifted) retained residuals is taken as the intercept estimate ˆα(z)0 for the z-th window. The final estimate ˆα0 is the circular mean of the inter-cepts from all windows processed so far: 
+
+ˆα0 = 180 2π arg 1
+
+K
+
+> K
+
+X
+
+> z=1
+
+exp 
+
+ 2πi ˆα(z)0
+
+> 180
+
+!
+
+mod 180 ◦,
+
+where K is the number of windows in which enough ob-servations remained after outlier removal to estimate the crystallographic direction angle.  
+
+> B. 3D ResNet approach
+
+Although the methodology presented in the previous subsection is central to this work, for benchmarking pur-poses we also report results obtained using a 3D ResNet architecture. When there is a wealth of training data and strong computational resources are available, ResNet3D is, in principle, well suited to the problem at hand. In this approach, several consecutive RHEED images, separated by a fixed angular interval, are stacked into a three-dimensional tensor and fed into a 3D ResNet neu-ral network. This allows the model to infer the direction of rotation directly from the temporal structure present in the input sequence. A related use of deep learning on sequences of in-situ images has recently proven effective for real-time growth diagnostics in pulsed-laser deposi-tion [53]. Moreover, unlike the previous method - which requires a full rotation and the complete set of acquired images to perform effective inference - the 3D ResNet can already provide meaningful predictions from only the first few RHEED frames. Formally for this approach we create a new data set with {{ Pk, P k+ν , P k+2 ν , ..., P k+χν }, α k+m} where ν con-stitutes the angle shift between neighboring RHEED pic-tures in the data set (can be positive and negative), χ + 1 
+
+is the number of pictures in the single data set, and αk+m
+
+is the label of the frame chosen as the inference target, 
+
+m ∈ { 0, ν, ..., χν }. Both ν and χ can be considered hyper-parameters. Here however for benchmark purposes those parameters have been fixed to χ = 3 and ν = 0 .33 ◦,which means that we take 4 neighbouring frames, and we set m = χν , i.e. the last frame in the sequence serves as the inference target. For the 3D ResNet architecture, we explored a range of hyperparameters to identify configurations that provide stable training and good performance. Using the AdamW optimizer, we compared different values of the weight-decay coefficient and several learning-rate scheduling strategies, focusing on Cosine Annealing with Warm Restarts while varying both the restart period and its multiplicative expansion factor. We further examined the input resolution, the number of consecutive RHEED frames used as input (clip length) and their temporal stride, and whether augmentation was applied. Through-out, the network was trained by minimizing the MSE, and for each fold, the final model was selected as the checkpoint with the lowest validation MAE. The goal of trying ResNet3D is to train it to reach a performance comparable to that of the best 2D ResNet model equipped with the postprocessing pipeline. By directly contrasting the two approaches, we shall demon-strate that the 2D model with postprocessing achieves similar predictive performance while requiring substan-tially less training data and significantly lower compu-tational resources. This comparison highlights the effi-ciency gains introduced by the postprocessing step and shows that a well-designed 2D pipeline can match the performance of a considerably more expensive 3D archi-tecture.   
+
+> VI. RESULTS AND DISCUSSION A. ResNet2D
+
+The full training configuration is summarized in Ta-ble II. We trained the network to minimize the MSE with the AdamW optimizer under a cosine learning-rate sched-ule with a short linear warmup, using the on-the-fly aug-mentation introduced above (cf. Figure 2), re-sampled at every access. Every fold was trained for 150 epochs, 80 5 10 15 20     
+
+> MAE before postprocessing [°]
+> 0
+> 5
+> 1
+> 2
+> 3
+> 4
+> |intercept| [°]
+> 7/13 (n = 978)
+> 10/10 (n = 755)
+> 12/8 (n = 606)
+> 15/5 (n = 382)
+> 17/3 (n = 228)
+
+(a) 3 2 1 0 1 2 3  
+
+> Determined crystallographic direction angle [°]
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> Unnnormalized probability density
+> Within ±0.5°:
+> 15/5: 96%
+> 12/8: 86%
+> Within ±1.0°:
+> 15/5: 100%
+> 12/8: 100%
+> 15/5
+> 12/8
+> ±0.5° (target error level)
+> ±1.0° (error tolerance level)
+
+(c) 7/13 10/10 12/8 15/5 17/3 
+
+> Data split (train/test)
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> Inference error [°]
+> MAE before postprocessing (NN inference)
+> |intercept| after postprocessing
+
+(b) 3 2 1 0 1 2 3   
+
+> Determined crystallographic direction angle [°]
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> Unnnormalized probability density
+> Within ±0.5°:
+> 12/8 : 86%
+> 10/10: 77%
+> Within ±1.0°:
+> 12/8 : 100%
+> 10/10: 97%
+> 12/8
+> 10/10
+> ±0.5° (target error level)
+> ±1.0° (error tolerance level)
+
+(d) 
+
+FIG. 5: (a) Distribution of test–set rotations plotted in a two–dimensional space, where each point corresponds to a single rotation and is positioned according to its MAE before postprocessing (x–axis) and the intercept obtained after postprocessing (y–axis). The grey line denotes the x = y reference; points below this line indicate improvement due to postprocessing. (b) Mean target–estimation error - MAE before postprocessing and absolute value of intercept after postprocessing - across different data splits. Bars denote 95% bootstrap confidence intervals of the mean. Lines connecting points serve only as a guide for the eye. (c,d) Unnormalized probability density of the intercept estimates for all single–rotation test samples, shown for the postprocessed neural–network inference across selected data splits. (a–d) In all panels, the yellow and green dashed lines indicate error tolerance ( ±1.0◦) and target error ( ±0.5◦) levels for the intercept obtained after postprocessing. and we retained the checkpoint with the lowest validation MAE for evaluation. First, we evaluated two RHEED image resolutions and found that for 2D ResNet without postprocessing they yield equivalent holdout performance: mean MAE of 
+
+1.48 ◦ for 96 × 56 versus 1.44 ◦ for 112 × 64 . The 0.04 ◦
+
+difference between resolutions is negligible compared to the per-fold cross-validation variability ( ±0.5◦). Conse-quently, we selected the lower resolution ( 96 × 56 ) for training the 2D ResNet to improve computational effi-ciency. Further, to mitigate checkpoint sensitivity to fluctua-tions in the validation loss, we evaluated increasing the validation set size from 2 to 3 structures. While a larger validation set effectively prevents a single atypical struc-ture from skewing epoch selection, reducing the train-ing set size by 1/(p − 2) led to a noticeable performance degradation. Specifically, in our setting, this reduction resulted in an increase in mean holdout MAE of approx-imately 0.2◦ across all folds. Consequently, to maximize training capacity while preserving generalization perfor-mance, the validation size was fixed at 2 structures for all reported splits. In Figure 5 we holistically present the results for dif-ferent splits between the training and holdout datasets, collectively illustrating how well the 2D architecture is able to infer the rotation angle even when trained on a limited amount of data. For visualization, the target 9TABLE II: Training configuration for the 2D ResNet-50 angle regressor; the same settings were used for every fold. 
+
+Setting Value Backbone ResNet-50, ImageNet IMAGENET1K_V2 
+
+(all layers trained) Regression head single linear output unit (scalar) Input 56 × 96 grayscale, replicated to 3 channels, standardized Optimizer AdamW Learning rate 10 −3
+
+Weight decay 10 −4
+
+LR schedule cosine annealing, 5-epoch linear warmup, ηmin =10 −6
+
+Epochs 150 Batch size 2048 (train) / 512 (validation) Loss mean squared error Precision bfloat16 mixed precision Augmentation on-the-fly, re-sampled per access (cf. Figure 2) Model selection lowest validation-MAE checkpoint 
+
+variable - the initial sample orientation - was always set to 0◦. The dashed green and yellow lines, indicating the target error level ( ±0.5◦) and error tolerance level ( ±1◦), respectively, appear consistently across all four subpanels of Figure 5. The target error level reflects the accuracy with which an experienced grower can reliably judge the growth on a given crystallographic direction, and is close to the experimental frame-collection resolution ( 0.33 ◦). The error tolerance level marks the boundary at which the inferred direction is still practically useful: a small manual correction toward the proper direction may be needed, yet growth-related decisions can still be made. In Figure 5a) we compare the results of the bare 2D ResNet - summarized by MAE for each run and each train/holdout split ( p/ 20 − p) - with the results obtained after postprocessing, where the inferred crystallographic direction is estimated over the full parameter space (with target 0◦). For visual guidance, we include a grey line representing the relation intercept = MAE (note the dif-ferent scales on the horizontal and vertical axes). Points universally lying below this line indicate that postpro-cessing improves the inference quality. Although the largest improvement occurs for the 7/13 split (a reduc-tion from MAE ≃ 22 ◦ to intercept ≃ 3◦), the target error and error tolerance levels seem to be consistently reached only for the 15/5 and 17/3 splits. To highlight the boundary clearly, Figure 5b) shows the average performance across all runs for each split, both for the bare 2D network (measured by MAE) and for the postprocessed network (measured by the inter-cept). Because multiple samplings correspond nominally to the same split p/ 20 − p, we also plot bars representing 95% bootstrap confidence intervals to demonstrate the distribution of the error. It is evident that the bare net-work does not reach the error tolerance level for any split, whereas the postprocessed network remains consistently below the target error level already for the 10/10 split. To further characterize the distribution of scores pro-duced by the clearly superior postprocessed network, Fig-ure 5c–d show pairwise comparisons of the correspond-ing probability densities for the 15/5 vs. 12/8 splits and for the 12/8 vs. 10/10 splits. From these comparisons we conclude that, for the 15/5 split (i.e., using only 15 structures for training), the postprocessed neural net-work predicts the target variable within the error tol-erance level for essentially all cases, and in 96% of cases remains within the target error level - close to the ex-perimental frame-collection resolution. This allows us to conclude that the neural-powered solution presented here constitutes an effective and universally accurate tool for predicting crystallographic directions from RHEED im-ages. The trained ResNet2D models were additionally eval-uated on CPU on the same machine used for RHEED data acquisition (Table I). Inference ran comfortably at 10 FPS, enabling real-time estimation of the crystallo-graphic direction from incoming RHEED frames. Be-yond playback tests, the model was also run on the live RHEED feed of the system during growth; using its output to automatically stop the substrate rotation is planned for forthcoming experiments. This frame rate is sufficient for using the neural network as a control mechanism to stop the MBE substrate rotation during actual growth, serving as a preparatory step for sub-sequent experimental procedures. Example inference runs on recorded RHEED videos - including structures grown outside the training-data period - are provided as Supplementary Videos and described in the Supporting Information[40].  
+
+> B. ResNet3D
+
+For a clear comparison, the training of the 3D ResNet models is done on the same resolution of pictures as pre-pared for the 2D ResNet model. Training was performed using the MSE loss function and the AdamW optimizer with a weight-decay coefficient of 1 × 10 −5. The learning rate followed a Cosine Annealing with Warm Restarts schedule, with an initial period of T = 50 , a period-doubling factor of 2, an initial learning rate of 2 × 10 −3,and a minimum learning rate of 1×10 −7. The model was trained on sequences of four consecutive RHEED frames (0.33 ◦ spacing), using the same augmentation pipeline as in the 2D experiments, and the inference target was the last frame in each sequence. Training ran for 150 epochs and required approximately 11 hours on a single Nvidia A6000 GPU (48 GB), with 8 data-loading workers 10 and prefetching enabled. Final evaluation was conducted using MAE. 0 45 90 135 180     
+
+> Target angle [°]
+> 0
+> 45
+> 90
+> 135
+> 180
+> Predicted angle [°]
+> N=874
+> MAE =0.57°
+> ideal line (y=x)
+
+FIG. 6: Visualization of αk+3 vs. N N 3D ({Pk, ..., P k+3 })in the representative case for N=874 RHEED pictures of a single RHEED rotation (scattered points), compared with the ideal linear trend (blue dashed line). As we described in Section V, we test only one train/holdout data split for ResNet3D, i.e. 19/1, and a single 3D picture needed for the inference is composed of four consecutive frames from a single rotation. Again we follow the schema in Figure 3, i.e. we sample the holdout structure 10 times and perform training on the remaining 19 structures. In Figure 6 we show the inference of the bare ResNet3D. When compared to the analogous Fig-ure 4 for ResNet2D, it is clear that ResNet3D no longer suffers from outliers, and the MAE is already a reliable measure of inference quality at any angle. In Figure 7 we show the distribution of the unnormal-ized probability for two chosen initial picture resolutions used during training. For the resolution 96 ×56, the prob-ability mass is centered within the error tolerance region (though not within the target error region), and 15% of cases fall outside the error tolerance boundary. The performance can be slightly improved by increasing the resolution to 112 ×64, at the cost of approximately 25% longer training time. With this higher resolution, the mean MAE (computed over all rotations from the hold-out structure) shifts slightly closer to the target 0 ◦ angle, although it still does not reach the target error level. On the other hand, the error dispersion decreases, and now only 3% of cases fall beyond the target error region. For comparison, see the first column of Table III. Naturally, there is no obstacle to enriching the infer-ence of ResNet3D with the postprocessing defined for ResNet2D. The performance, measured by the value of 0.00 0.25 0.50 0.75 1.00 1.25 1.50 1.75 2.00       
+
+> Mean absolute error [°]
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> Unnnormalized probability density
+> Within 0.5°:
+> 96×56: 33%
+> 112×64: 37%
+> Within 1.0°:
+> 96×56: 85%
+> 112×64: 97%
+> 96×56
+> 112×64
+> 0.5° (desired accuracy)
+> 1.0° (acceptable accuracy)
+
+FIG. 7: Unnormalized probability density of the MAE for all single–rotation test samples, shown for the ResNet3D neural–network inference across two pictures resolution used in training. The yellow and green vertical dashed lines indicate error tolerance ( ±1.0◦)and target error ( ±0.5◦) levels of main crystallographic direction estimation. the intercept, is presented in the second column of Ta-ble III. It is evident that the performance is significantly improved: the mean across all rotations from the test structure remains within the target error boundary, and the error dispersion is minimal. Moreover, there is no significant difference between the two picture resolutions used during training. TABLE III: Comparison of the bare ResNet3D model (evaluated using MAE) and the ResNet3D model augmented with the postprocessing pipeline (evaluated using the intercept), across two input image resolutions. The target angle is 0◦. Training time includes only the model training; postprocessing is measured in seconds and its contribution to the total time is negligible. Note that errors in the table are provided with the standard deviation. 
+
+Resolution MAE Intercept time 
+
+96 × 56 0.771 ± 0.532 0.205 ± 0.071 11 h 2 m 
+
+112 × 64 0.684 ± 0.373 0.204 ± 0.048 14 h 9m 
+
+C. Comparison between ResNet2D and ResNet3D 
+
+In this subsection we compare the performance of our pipeline when powered by ResNet2D and ResNet3D. Ta-ble IV summarizes the key characteristics of both ap-proaches, including the computational cost (measured by training time), the amount of training data required (number of structures), and the inference quality (mea-11 sured either by MAE for the bare models or by the in-tercept when postprocessing is applied). The main conclusion is that, thanks to the dedi-cated postprocessing pipeline, the moderately trained ResNet2D achieves performance superior to the bare ResNet3D and comparable to the postprocessed ResNet3D, while requiring substantially less training data. This is particularly important in the context of RHEED images from MBE growth, where data availabil-ity is a critical bottleneck. Moreover, the training time for ResNet2D is significantly shorter, making it a more practical choice when computational resources or data volume are limited. We note that the two approaches differ in inference la-tency. The postprocessing pipeline requires predictions accumulated over a full angular window of ∆αwin = 180 ◦
+
+- about 30 s of acquisition at 1 RPM - before the first reli-able estimate of the intercept becomes available, whereas the bare ResNet3D provides meaningful predictions al-ready from the first χ + 1 frames. The comparison in Ta-ble IV should be read with this distinction in mind: the postprocessed ResNet2D is preferable whenever a frac-tion of a rotation of delay is acceptable, while ResNet3D minimizes the time to the first estimate at the cost of training time and data requirements. TABLE IV: Comparison of ResNet2D and ResNet3D across training time, amount of training data, and inference error for input resolution 96 ×56. MAE is reported for the bare ResNet3D, while intercept reflects performance after applying the postprocessing pipeline. The superscript * next to ResNet2D and ResNet3D denotes that postprocessing is used. Note that errors in the table are provided with the standard deviation.                
+
+> ResNet2D* ResNet3D ResNet3D* Train time 33 m 57 s 11 h 2 m 11 h 2 m # train structures 15 19 19 Estimate error (of target
+> 0◦) on test set 0.217 ±0.157 (intercept) 0.771 ±0.532 (MAE) 0.205 ±0.071 (intercept)
+> VII. SUMMARY
+
+In this work we developed a data-efficient neural-vision pipeline for automated crystallographic alignment during MBE growth, addressing the practical challenge of lim-ited availability of diverse RHEED datasets. By system-atically evaluating both 2D and 3D ResNet architectures, each with and without physics-aware postprocessing, we demonstrated that reliable inference of crystallographic directions can be achieved even when training data and computational resources are limited. As a benchmarking reference, we considered the bare ResNet3D model, which benefits from the temporal in-formation contained in short RHEED sequences. It pro-duces stable predictions without outliers and yields MAE values that remain meaningful across the full rotation range. However, this stability comes at the cost of long training times and a gap between the raw MAE and the target error boundary with the available data. In-creasing the input resolution improves performance only marginally and does not eliminate the need for further refinement. In contrast, and constituting the main result of this work, we show that the ResNet2D architecture, when combined with the dedicated postprocessing pipeline, achieves performance superior to the bare ResNet3D and comparable to the postprocessed ResNet3D, while re-quiring substantially fewer training structures and more than an order of magnitude shorter training time. The postprocessing step proves essential: it consistently re-duces prediction error across all train/holdout splits, enabling the 2D model to reach the desired perfor-mance even when trained on as few as 10–15 structures. Probability-density analyses confirm that for the 15/5 split, the postprocessed network predicts the crystallo-graphic direction within the error tolerance region for essentially all cases and within the target error boundary for 96% of cases - approaching the experimental resolu-tion of RHEED frame acquisition. Beyond performance, the 2D model also satisfies prac-tical constraints. When deployed on the machine used for RHEED acquisition, inference runs at 10 FPS on a CPU-only setup, enabling real-time estimation of crys-tallographic orientation and providing a viable control mechanism for stopping substrate rotation during MBE growth. Overall, this study demonstrates that carefully de-signed physics-aware postprocessing can compensate for limited training data and allow lightweight architectures to match the performance of more complex models. The resulting system is fully trained and ready for deployment in future CdTe growth experiments, and the methodology is designed to transfer to other materials systems where RHEED data are limited. More broadly, our work high-lights the potential of machine-learning-assisted automa-tion in thin-film synthesis and represents a step toward AI-driven MBE growth. 
+
+> ACKNOWLEDGMENTS
+
+This research was supported by the “MagTop” project (FENG.02.01-IP.05-0028/23) carried out within the “In-ternational Research Agendas” programme of the Foun-dation for Polish Science co-financed by the European Union under the European Funds for Smart Economy 2021-2027 (FENG). Publication subsidized from the state budget within the framework of the programme of the Minister of Science (Polska) called Polish Metrology II project no. PM-II/SP/0012/2024/02, amount of subsidy 944,900.00 PLN, total value of the project 944,900.00 PLN. 12 
+
+DATA AVAILABILITY 
+
+The RHEED dataset used in this work is openly avail-able in the Zenodo repository at https://doi.org/10. 5281/zenodo.21534842 .
+
+[1] V. V. Volobuev, P. S. Mandal, M. Galicka, O. Caha, J. Sánchez-Barriga, D. Di Sante, A. Varykhalov, A. Khiar, S. Picozzi, G. Bauer, P. Kacman, R. Buczko, O. Rader, and G. Springholz, Advanced Materials 29 ,1604185 (2017). [2] A. Kazakov, V. V. Volobuev, C.-W. Cho, B. A. Piot, Z. Adamus, T. Wojciechowski, T. Wojtowicz, G. Springholz, and T. Dietl, Phys. Rev. B 111 , 245419 (2025). [3] J. Polaczyński, G. Krizman, A. Kazakov, B. Tur-owski, J. B. Ortiz, R. Rudniewski, T. Wojciechowski, P. Dłużewski, M. Aleszkiewicz, W. Zaleszczyk, B. Kurowska, Z. Muhammad, M. Rosmus, N. Ol-szowska, L.-A. de Vaulchier, Y. Guldner, T. Wojtowicz, and V. V. Volobuev, Materials Today 75 , 135 (2024). [4] M. Carmody, A. Yulius, D. Edwall, D. Lee, E. Pi-quette, R. Jacobs, D. Benson, A. Stoltz, J. Markunas, A. Almeida, and J. Arias, Journal of Electronic Materi-als 41 , 2719 (2012). [5] W. W. Pan, R. J. Gu, Z. K. Zhang, W. Lei, G. A. Umana-Membreno, D. J. Smith, J. Antoszewski, and L. Faraone, Journal of Electronic Materials 51 , 4869 (2022). [6] S. Bansal, A. Jain, S. Kumar, A. Kumar, P. R. Kumar, K. Prakash, M. S. Soliman, M. S. Islam, and M. T. Islam, Scientific Reports 14 , 28230 (2024). [7] C. Shen, W. Zhan, M. Li, Z. Sun, J. Tang, Z. Wu, C. Xu, B. Xu, C. Zhao, and Z. Wang, Journal of Semiconductors 
+
+45 , 031301 (2024). [8] A. Daniluk, B. Daniluk, and G. M. Wójcik, Computer Physics Communications 308 , 109467 (2025). [9] B. Daniluk, A. Daniluk, and G. M. Wójcik, Computer Physics Communications 325 , 110186 (2026). [10] K. Kaufmann, C. Zhu, A. S. Rosengarten, D. Maryanovsky, T. J. Harrington, E. Marin, and K. S. Vecchio, Science 367 , 564 (2020). [11] G. Xiong, C. Wang, Y. Yan, L. Zhang, and Y. Su, Com-putational Materials Science 233 , 112718 (2024). [12] P. M. Vecsei, K. Choo, J. Chang, and T. Neupert, Phys-ical Review B 99 , 245120 (2019). [13] M. Ziatdinov, O. Dyck, A. Maksov, X. Li, X. Sang, K. Xiao, R. R. Unocic, R. Vasudevan, S. Jesse, and S. V. Kalinin, ACS Nano 11 , 12742 (2017). [14] M. Petkovic, L. Vieira, and N. Dropka, Progress in Crys-tal Growth and Characterization of Materials 71 , 100689 (2025). [15] R. K. Vasudevan, A. Tselev, A. P. Baddorf, and S. V. Kalinin, ACS Nano 8, 10899 (2014). [16] S. R. Provence, S. Thapa, R. Paudel, T. K. Truttmann, A. Prakash, B. Jalan, and R. B. Comes, Physical Review Materials 4, 083807 (2020). [17] P. T. Gemperline, R. Paudel, R. K. Vasudevan, and R. B. Comes, Journal of Vacuum Science & Technology A 43 ,032701 (2025). [18] J. Kwoen and Y. Arakawa, Crystal Growth & Design 20 ,5289 (2020). [19] J. Kwoen and Y. Arakawa, Journal of Crystal Growth 
+
+593 , 126780 (2022). [20] N. Muetzel, V. Luu, S. Bey, M. Abdul Karim, K. Yoshimura, X. Liu, M. Gebran, and B. A. Assaf, AIP Advances 16 , 035317 (2026). [21] J. R. Chin, I. A. Moses, M. Wang, M. B. Frye, M. Yu, N. Nayir, M. Hilse, A. C. van Duin, S. Law, W. Reinhart, and L. M. Garten, Materials Today Advances 28 , 100640 (2025). [22] H. Liang, V. Stanev, A. G. Kusne, Y. Tsukahara, K. Ito, R. Takahashi, M. Lippmaa, and I. Takeuchi, Physical Re-view Materials 6, 063805 (2022). [23] A. Yoshinari, Y. Ando, T. Matsumura, M. Kotsugi, S. Hasegawa, R. Hobara, and N. Nagamura, Science and Technology of Advanced Materials: Methods 6, 2666924 (2026). [24] M. Chong, T. G. Rhee, Y. G. Khim, M.-H. Jung, Y.-M. Kim, H. Y. Jeong, H.-S. Kim, Y. J. Chang, and H. J. Kim, Applied Surface Science 669 , 160547 (2024). [25] H. J. Kim, M. Chong, T. G. Rhee, Y. G. Khim, M.-H. Jung, Y.-M. Kim, H. Y. Jeong, B. K. Choi, and Y. J. Chang, Nano Convergence 10 , 10 (2023). [26] T. C. Kaspar, S. Akers, H. W. Sprueill, A. H. Ter-Petrosyan, J. A. Bilbrey, D. Hopkins, A. Harilal, J. Chris-tudasjustus, P. Gemperline, and R. B. Comes, Journal of Vacuum Science & Technology A 43 , 032702 (2025). [27] Y. Guo, P. Meisenheimer, S. Qin, X. Zhang, J. Goddy, R. Ramesh, L. W. Martin, and J. Agar, ACS Applied Materials & Interfaces 17 , 24485 (2025). [28] C. Shen, W. Zhan, K. Xin, M. Li, Z. Sun, H. Cong, C. Xu, J. Tang, Z. Wu, B. Xu, Z. Wei, C. Xue, C. Zhao, and Z. Wang, Nature Communications 15 , 2724 (2024). [29] S. Anjum, H.-Y. Lee, and H.-K. Noh, Crystal Growth & Design 23 , 4138 (2023). [30] A. Khaireh-Walieh, A. Arnoult, S. Plissard, and P. R. Wiecha, Crystal Growth & Design 23 , 892 (2023). [31] C. Shen, W. Zhan, J. Tang, Z. Wu, B. Xu, C. Zhao, and Z. Wang, ACS Applied Materials & Interfaces 16 , 18213 (2024), pMID: 38554077. [32] A. Khaireh-Walieh, A. Arnoult, S. Plissard, and P. R. Wiecha, Crystal Growth & Design 25 , 7438 (2025). [33] M. Yu, I. A. Moses, W. F. Reinhart, and S. Law, ACS Applied Materials & Interfaces 17 , 34707 (2025), pMID: 40434265. [34] I. Ohkubo, Z. Hou, J. Lee, T. Aizawa, M. Lippmaa, T. Chikyow, K. Tsuda, and T. Mori, Materials Today Physics 16 , 100296 (2021). [35] Y. K. Wakabayashi, T. Otsuka, Y. Krockenberger, H. Sawada, Y. Taniyasu, and H. Yamamoto, APL Ma-terials 7, 101114 (2019). [36] S. B. Harris, A. Biswas, S. J. Yun, K. M. Roccapri-ore, C. M. Rouleau, A. A. Puretzky, R. K. Vasudevan, 13 
+
+D. B. Geohegan, and K. Xiao, Small Methods 8, 2301763 (2024). [37] Y. B. Zheng, C. Blake, L. Mravac, F. Zhang, Y. Chen, and S. Yang, npj Computational Materials 11 , 327 (2025). [38] Veeco GENxplor R&D MBE System, https://www. veeco.com/products/genxplor-rd-mbe-system/ .[39] Veeco - Molly 2000, https://www.veeco.com/products/ growth-control-scheduling-software-for-mbe-systems/ .[40] B. Turowski, J. J. Meixner, R. Dziewiątkowska, W. Za-leszczyk, T. Wojciechowski, V. V. Volobuev, M. M. Wysokiński, and T. Wojtowicz, Supporting information. [41] R. Keys, IEEE Transactions on Acoustics, Speech, and Signal Processing 29 , 1153 (1981). [42] K. He, X. Zhang, S. Ren, and J. Sun, Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , 770 (2016). [43] S. Xie, R. Girshick, P. Dollár, Z. Tu, and K. He, Pro-ceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , 5987 (2017). [44] Z. Liu, H. Mao, C.-Y. Wu, C. Feichtenhofer, T. Darrell, and S. Xie, Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , 11976 (2022). [45] M. Tan and Q. V. Le, Proceedings of the 38th Interna-tional Conference on Machine Learning (ICML) , 10096 (2021). [46] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, and N. Houlsby, Inter-national Conference on Learning Representations (ICLR) (2021). [47] Z. Liu, Y. Lin, Y. Cao, H. Hu, Y. Wei, Z. Zhang, S. Lin, and B. Guo, Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV) , 10012 (2021). [48] H. Touvron, M. Cord, A. Sablayrolles, G. Synnaeve, and H. Jégou, Proceedings of the 38th International Confer-ence on Machine Learning (ICML) , 10347 (2021). [49] A. Y.-T. Wang, R. J. Murdock, S. K. Kauwe, A. O. Oliynyk, A. Gurlo, J. Brgoch, K. A. Persson, and T. D. Sparks, Chemistry of Materials 32 , 4954 (2020). [50] J. Stuckner, B. Harder, and T. M. Smith, npj Computa-tional Materials 8, 200 (2022). [51] C. C. Price, Y. Li, G. Zhou, R. Younas, S. S. Zeng, T. H. Scanlon, J. M. Munro, and C. L. Hinkle, Nano Letters 
+
+24 , 14862 (2024). [52] I. Loshchilov and F. Hutter, Decoupled weight decay reg-ularization (2019), arXiv:1711.05101 [cs.LG]. [53] S. B. Harris, C. M. Rouleau, K. Xiao, and R. K. Vasude-van, npj Computational Materials 10 , 105 (2024). Supporting Information Neural RHEED alignment with limited training data during CdTe MBE growth 
+
+## Bartłomiej Turowski 1, Jakub J. Meixner 1, Róża Dziewiątkowska 1, Wojciech Zaleszczyk 1,2 ,Tomasz Wojciechowski 1, Valentine V. Volobuev 1, 3 , Marcin M. Wysokiński 1, and Tomasz Wojtowicz 11International Research Centre MagTop, Institute of Physics, Polish Academy of Sciences„ Aleja Lotników 32/46, PL-02668 Warsaw, Poland 
+
+> 2
+
+## Institute of Physics, Polish Academy of Sciences„ Aleja Lotników 32/46, PL-02668 Warsaw, Poland 
+
+> 3
+
+## National Technical University "KhPI", Kyrpychova Str. 2, 61002 Kharkiv, Ukraine *Email: wysokinski@magtop.ifpan.edu.pl 
+
+# Keywords 
+
+> Molecular Beam Epitaxy, RHEED, Computer Vision, Machine Learning, Real-Time Feedback, CdTe sub-strate 1
+
+# Systematic features 
+
+In order to reduce risk of the neural network (NN) short-cutting the reflection high-energy electron diffraction (RHEED) pattern learning by correlating periodically occurring systematic features, shown in Figure S1, frames with these features were removed in first step of data processing, before automated preprocessing pipeline. Angle 90° 
+
+## Angle 125° Angle 315° Sample #1 Sample #2 Sample #3 
+
+# (a) (b) (c) (d) (e) (f) (g) (h) (i) 
+
+Figure S1: Set of three frames for three samples showing systematic features causing frames to be rejected (○) before images processing pipeline described in section III B . (a) - (c) frames for angle 90 ◦. (d) - (f ) 
+
+frames for angle 125 ◦. (g) - (i) frames for angle 315 ◦. (a), (b), (h) Three–handle molyblock holder shadow marked in dashed orange area. (d), (f ) shadow of material flakes accumulating on the heater area marked in dashed green area. (c), (e), (g), (i) frames that have no systematic issues and can be used in preprocessing pipeline ( ○). 2Dataset 
+
+List of all structures in the dataset with the number of rotations per structure and the number of frames used in NN training. Table S1: RHEED single-rotation dataset: number of single rotation frame sets per structure with number of total frames per structure in the dataset and growth temperature Ts. Structures were grown in October 2024 – January 2025 time frame. Structure code Rotations Images Ts (℃) Material/Substrate V100224A 8 7 055 405 CdTe/GaAs V100324A 8 7 102 412 CdTe/GaAs V100424A 8 7 049 413 CdTe/GaAs V100924A 8 7 154 405 CdTe/GaAs V101024A 8 7 202 412 CdTe/GaAs V101124A 7 6 234 420 CdTe/GaAs V112624A 7 6 241 415 CdTe:In/GaAs V112724A 6 5 239 420 CdTe/GaAs V112824A 7 6 064 420 CdTe/GaAs V120324A 8 7 058 410 CdTe/GaAs V120424A 7 6 074 410 CdTe/GaAs V120524A 7 5 970 410 CdTe:In/GaAs V121724A 7 6 213 380 CdTe/GaAs V011425A 8 7 231 410 CdTe/GaAs V011525A 7 6 325 410 CdTe/GaAs V011625A 8 7 286 410/350 † CdTe:In/GaAs V012225B 8 7 280 398 CdTe/GaAs V012325A 8 6 864 410 CdTe/GaAs V012325B 8 6 708 400 CdTe/GaAs V012925A 8 7 141 400 CdTe/GaAs 
+
+Total 151 133 490 – 20 structures  
+
+> †Two-step growth: substrate held at the two listed temperatures in sequence.
+
+3G channel data extraction 
+
+97% of signal is present in the G channel of the recorded RHEED videos, as illustrated in Figure S2. Because of that fact, only the G channel is extracted for use in model training. channel B
+
+> channel
+
+G
+
+> channel
+
+G channel B
+
+> channel
+
+R
+
+> channels
+
+RGB 
+
+> channel
+
+R
+
+> gamma adjustment
+
+(a) (b) (c) (d) (g) (f) (e) 
+
+Figure S2: Green (G) channel extraction from raw three-channel data (RGB). (a) raw RHEED frame in RGB. (b)-(d) R, G, B extracted frames. (e)-(g) frames corresponding to (b) - (d) with gamma adjustment to make the R and B channels signal more visible. 
+
+# RHEED videos inference 
+
+The proposed solution can be used both in real time during the molecular beam epitaxy (MBE) growth pro-cess and post factum, on recorded RHEED videos. Movies V112122A-inference_2RPM.mp4 and V042426A-inference_1RPM.mp4 (where RPM stands for Rotations Per Minute) illustrate the former case: the RHEED videos were played back with the VLC media player, and the trained ResNet2D model was used for inference. Real angle is shown in bottom-left corner of the video. The 0◦ angle direction was determined by experienced RHEED operator and corresponds to 0◦ angle direction in training data set. A transparent frame-capturing overlay with an aspect ratio of 24:14 (width:height) was placed over the RHEED video. This aspect ratio matches that of the model input resolution of 96 × 56 , so the captured region of interest (ROI) is resized to the model input without geometric distortion. From each captured frame the green channel is extracted, scaled to the [0 , 1] range, resized with antialiased bicubic interpolation, and standardized using the global mean and standard deviation of the training set. The resulting single-channel image is then replicated across the R, G, and B channels and passed to the trained model to ensure architecture compatibility. The NN was trained on the [0 ◦, 180 ◦) range, with angles folded modulo 180 ◦. As a consequence of this implementation decision, the raw inference output is capped at 180 ◦ and displayed as the "Raw angle" read-out. The "Kinematic" field shows the angle calculated from the intercept obtained with the postprocessing procedure described in Section V. A. 
+
+For completeness, we note that these videos were recorded two years before (V112122A, 21 Novem-ber 2022) and more than a year after (V042426A, 24 April 2026) the videos used for model training (October 2024 – January 2025). Both videos used for inference verification were recorded at 2 RPM. For inference recording (V042426A-inference_1RPM.mp4 and V112122A-inference_2RPM.mp4), the original V042426A video was played back at half speed, emulating the 1 RPM rotation used during the growth procedure. The original video was recorded with the data-acquisition pipeline developed after the Dataset had been collected; the original 4V112122A video was recorded earlier, hence its lower average frame rate of 12.5 FPS (vs 18 FPS of the videos in Dataset ). In both cases the intercept - equal to minus the angular distance remaining to the 0◦
+
+direction at the moment the inference is started - is recovered well within the error tolerance: 
+
+• V042426A-inference_1RPM.mp4 - inference started at Real angle 314 ◦, expected intercept −(360 ◦ −
+
+314 ◦) = −46 ◦, calculated intercept −46 .62 ◦;
+
+• V112122A-inference_2RPM.mp4 - inference started at Real angle 340 ◦, expected intercept −(360 ◦ −
+
+340 ◦) = −20 ◦, calculated intercept −20 .02 ◦.Black padding was added to both videos so that the RHEED patterns appear at the same scale, making their comparison more convenient; the padding lies outside the captured ROI and does not enter the inference. Both inference videos were recorded at 2RPM but for inference the V042426A-inference_1RPM.mp4 is played at half speed. This video was recorded following data gathering pipeline developed after gathering the Dataset . V112122A-inference_2RPM.mp4 was recorded earlier, so average frames per second (FPS) is lower: 12.5. Nevertheless, in both cases the intercept is calculated extremely well: 
+
+• V042426A-inference_1RPM.mp4 - start button is pressed at Real angle 314 deg, intercept is calulated as −46 .62 deg. (360 - 314 = 46) 
+
+• V112122A-inference_2RPM.mp4 - start button is pressed at Real angle 340 deg, intercept is calulated as −20 .02 deg. (360 - 340 = 40) Black padding is added for videos to ensure that RHEED pattern is of the same scale on both of them to make the patterns comparisons more convenient. 
+
+# ROI placement robustness 
+
+On-the-fly augmentation was introduced during training to emulate the operator-dependent variability in how the ROI is placed over the RHEED video stream, making the raw NN inference more robust to ROI placement. Video V042426A-ROI_robustness_NO_postprocessing.mp4 illustrates this robustness on the eight main crystallographic directions (i.e., directions aligned with the crystallographic axes of the grown material) of a CdTe (100) buffer. In contrast to the inference videos described above, each of the eight segments shows a single static RHEED frame, over which only the capturing ROI is moved. The angle readout displayed for every ROI position is the raw NN inference of the currently captured region, with no postprocessing involved. The true azimuth of each static frame - the inference target - is displayed as the “Real angle” value and serves as the reference for the inferred angle. Since the underlying frame does not change, any variation of the inferred angle directly reflects the sensitivity of the raw inference to ROI placement. As noted above, the NN was trained on the [0 ◦, 180 ◦) range with angles folded modulo 180 ◦, so the raw inference output is capped at 180 ◦. As a consequence, for directions near 0◦ the raw readout may appear just below 180 ◦ (cf. segment (a)), since 0◦ and 180 ◦ are equivalent modulo 180 ◦. Video (e) shows the Real angle readout of 186 ◦ because the three-handle molyblock holder (shadow visible in the top-left corner of the ROI) was obstructing the pattern at 180 ◦.5

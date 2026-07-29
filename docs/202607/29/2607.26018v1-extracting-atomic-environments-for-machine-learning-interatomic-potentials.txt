@@ -1,0 +1,321 @@
+Title: Extracting Atomic Environments for Machine Learning Interatomic Potentials
+
+URL Source: https://arxiv.org/pdf/2607.26018v1
+
+Published Time: Wed, 29 Jul 2026 01:22:50 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+Extracting Atomic Environments for Machine Learning Interatomic Potentials 
+
+Jared C. Stimac, 1, a) Fei Zhou, 1 Kyle Bushick, 1 Bo Lei, 1 Sebastien Hamel, 1 Amit Samanta, 1 and Vincenzo Lordi 1
+
+Lawrence Livermore National Laboratory Livermore, California 94550, USA 
+
+In order to appropriately capture large-scale material features and emergent phenom-ena via atomistic simulations, such as Molecular Dynamics (MD), the system scale can range up to hundreds of millions of atoms. However, the force-field models that drive those simulations are generally trained with Density Functional Theory (DFT) reference data, limited to relatively small configurations on the order of 100s or 1000s of atoms. To compute DFT forces on atoms in regions of interest, for example for active-learning or on-the-fly training of interatomic potentials, one needs to extract a small set of atoms from the larger simulation box, and typical work with periodic boundary conditions for DFT; however, methods to select the shape and size of this extracted set of atoms, as well as to generate a potentially necessary passivating en-velope, have not been systematically analyzed. In this work, we present a benchmark of various techniques to extract atomic environments from large, bulk configurations and embed them into smaller configurations suitable for DFT calculations with pe-riodic boundary conditions. We test with a diverse set of material systems, which includes amorphous SiO 2, Ta with screw dislocations, and molten C. We demon-strated a notably simple procedure, a method we refer to as deletions , yields superior performance over an array of alternative extraction methods. 
+
+> a) stimac1@llnl.gov
+
+1arXiv:2607.26018v1 [cond-mat.mtrl-sci] 28 Jul 2026 I. INTRODUCTION 
+
+Developing machine-learned interatomic potentials (MLIPs) poses several challenges, with a prominent one being training data curation. Ideally, a training dataset is composed of atomic structures that aptly spans the space of configurations that will be sampled dur-ing production simulations. This prevents extrapolation and nonphysical results. However, assembling a dataset approaching this ideal is nontrivial, and developing strategies to aid this process constitutes a major area of contemporary research in atomistic modeling. These strategies generally involve sampling training structures from simulations carried out at rel-evant conditions; however, additional difficulty arises due to the scaling of calculations used to provide the ground-truth labels (i.e., energies and forces) of the training structures; that is, conventional electronic structure methods, the most prominent being Density Functional Theory (DFT), are generally limited to O(10 3) atoms—even with state-of-the-art resources. This can be a problem if critical atomic structures only emerge during large-scale simulations with orders of magnitude more atoms than what can be reasonably handled with DFT. One potential solution for the scaling limitation is to extract clusters of atoms within regions of interest from the structures too large for DFT, and reconstruct them within smaller configurations that are DFT tenable. This strategy relies on sufficient locality of the atomic interactions, the same principle by which interatomic potentials are able to decompose the quantum-mechanical energy into atomic contributions. This is achieved by constructing atomic energy functions over each atom’s local environment and is imperative for scalability. Locality is attributed to both charge screening and nearsightedness. The latter was rigorously formalized in seminal work by Kohn and Prodan 1–3 , but put simply: the electronic charge density at a point is unaffected by perturbations done far enough away— and in the absence of long-range electrostatics. Of course, how far away the perturbation must be and how fast its effect decays spatially depends on both the material system as well as the nature of the perturbation. While sufficient locality in a material system is a general requirement for successful atomic environment extraction, there are many choices that need to be made regarding the imple-mentation. For bulk materials, an added difficulty comes with dealing with periodic bound-ary conditions (PBC). How best to embed or reconstruct an extracted atomic environment in a smaller simulation cell, while accounting for PBCs, is a nontrivial open problem. A2few methods have been reported for extracting atomic environments in the context of aiding MLIP data curation. Hodapp and Shapeev presented a sophisticated symmetrization proce-dure, which enabled training a tungsten MLIP with highly accurate dislocations properties 4.However, this approach has limited generalizability due to the procedure requiring defined ideal lattice sites, precluding its use for amorphous and other less-ordered materials and systems. Zheng et al., extracted spherical clusters surrounding atoms of interest and em-bedded those clusters into vacuum, which they used to train a platinum MLIP 5. Erhard et al. formulated an environment extraction approach referred to as amorphous matrix em-bedding (AME) to aid the construction of a Si-O MLIP. In the AME method, new periodic boundaries centered on an atom of interest are imposed and atoms up to a predefined radius are held fixed; the configuration is then annealed and quenched to remove spurious environ-ments at the periodic boundaries, requiring potentially time-consuming MD simulations for every extracted environment 6. Goff et al. recently introduced the Generalized Representative Structure (GRS) method, 7 in which a large target configuration is represented by smaller configurations generated by converging a distribution of Atomic Cluster Expansion 8 (ACE) descriptors to that of the target’s. This last approach is remarkably general, applicable to both crystalline and amorphous systems. While many previously reported approaches are promising, they are relatively new, and there has been limited work assessing their performance or providing comparative bench-marks, particularly assessing both their accuracy and computational cost. Moreover, there are no established strategies for their assessment or comparison. Assessing the quality of an extraction method based on the total energies is problematic; it is of course an extensive property and any decompositions into local or atomic contributions is not uniquely defined. By contrast, the atomic forces provide a more direct observation of the local interactions, and, ideally, they should be the same in the extracted clusters as in the larger configuration. In this work, we benchmark six atom-centered extraction approaches for bulk materials, half of which are completely novel, including a generative diffusion artificial intelligence (AI) based procedure, and also compare to the previously reported AME method (referred in this work as anneal , to be consistent with our nomenclature scheme). We extract environments from relatively large configurations ( > 1, 000 atoms), but which are still amenable to DFT validation, albeit demanding computationally. Thus, we are able to directly compare the DFT-calculated forces before and after extraction as an objective metric. The goal then is 3to perfectly reproduce the DFT-computed atomic forces of the extracted atoms within the smaller cells into which they are embedded. To curb confusion, we note that references in this work to “accuracies” or “errors” of atomic forces refers to that defined goal. In addition to evaluating the atomic forces, we also examine pertinent structural aspects and per-atom-averaged energies of the configurations made using the various extractions methods. We selected three material systems for this benchmark – amorphous SiO 2, body-centered cubic Ta with screw dislocations, and molten C – selected to cover a broad range of composition and configuration space of materials. 
+
+II. METHODS A. Extraction methods 
+
+Six methods for extracting atom-centered environments are tested in this work, some of which are intermediate steps of others. In discussing these methods, atoms at the center of the environments selected for extraction are referred to simply as “central atoms” (red colored atoms in Fig. 1). The central atom and those surrounding it, within a predefined fixed sphere, are referred to as the “fixed core.” All extraction methods are applied to the same set of fixed cores, 25 per source configuration. Additionally, all approaches embed the cores into smaller cubic cells, which we refer to as “destination cells”. For a given material system, all destination cells have equal side lengths ( Lcell ), and all fixed cores have the same radii ( rcore ); this was done to enable fair comparisons across extraction methods. Aschematic overview of the extraction methods is shown in Fig. 1, with the parameters for these methods included in Table I. Detailed descriptions of the methods follows. 
+
+Spherical extract : In this method, a fixed core, obtained from a source configuration, is placed into the center of an otherwise-empty destination cell. The fixed-core cluster is therefore surrounded by a vacuum layer. Given the selected destination cell sizes and fixed core radii, the minimum distance between the edge of a fixed core and the edge of a core in a neighboring periodic image is 4 .4 ˚ A for SiO 2, 2 ˚ A for Ta, and 2 ˚ A for C. 
+
+Generative : This method first applies the spherical extract approach, then new atoms are then added into the vacuum region by a generative diffusion model. The new atoms placed into the vacuum region form a coherent structure across periodic boundaries. When 4following this procedure for SiO 2 and C, the generative model would sometimes add new atoms into the fixed core region, in which case those atoms were deleted to maintain the constant fixed core. This was not an issue for the Ta extracted configurations. Additional details regarding the diffusion model are included in Sec. II B. 
+
+Cubic extract : In this approach, the fixed core and all of the atoms beyond the fixed core but within the cubic volume of the destination cell are extracted from the source configura-tion intact. All atoms in the extracted image have equivalent relative positions with respect to the central atom as they did in the source configuration. This procedure is equivalent to imposing new, arbitrary periodic boundaries around a selected atom, which implies that no effort is made to enforce reasonable interactions across the periodic boundaries ( e.g., close contacts may occur and are not eliminated). 
+
+Deletions : This approach starts from configurations generated through the Cubic ex-tract method, but then refines the structure by identifying atoms colliding across periodic boundaries by checking the absolute value of the forces on atoms outside the fixed core, to be above some threshold Ftol , using a low-computational-cost interatomic potential (IAP) model, preselected for each material. The atom with the largest absolute force is removed and the atomic forces are then re-evaluated. The process of removing the high-force atoms is continued until the maximum force is less than a predefined tolerance (max {Fi} < F tol ). Values of Ftol were chosen to be close to, but greater than, the maximum DFT force in the respective source configurations. 
+
+Deletions + relax : This method starts with a configuration constructed by the deletions 
+
+method. Atoms outside the core are then relaxed via energy minimization with an IAP. (We chose the BFGS 9 minimization algorithm, as implemented in the ASE code 10 .) Amaximum-force stopping criterion of 0 .15 eV /˚A was used throughout this work. To prevent atoms from entering the fixed core during the energy minimization, a repulsive wall potential was added to the forces from the IAP. Details of the repulsive wall are included in Sec. I of the Supporting Information (SI). 
+
+Anneal : This method closely follows the AME method outlined in Ref. 6. First, new periodic boundaries are imposed on a selected central atom, similarly to cubic extract , except a small margin ( δmargin = 0 .5 ˚ A) is enforced between the region of extracted atoms and the boundary of the destination cell. This margin helps mitigate collisions across periodic boundaries. In the case of SiO 2, we remove as few atoms as needed from the region outside 5of the fixed core in order to achieve the desired stoichiometry, just as was done in Ref. 6. Next, atoms outside the fixed core are annealed using an IAP at 4000 K for 10 or 50 ps, depending on the material, as specified in Table I. For SiO 2 and Ta, structures were then quenched to 300 K with quench rate of 3 .7 × 10 12 K/s. For C, the structures were not quenched, to produce configurations more consistent with the source configuration, which were sampled from a high-temperature MD trajectory. source 
+
+# extract cube cubic extract 
+
+# delete colliding atoms 
+
+# deletions deletions + relax 
+
+# relax atoms outside core extract cube w/margin anneal (+quench) 
+
+# anneal generative spherical extract 
+
+# add atoms sphere extract w/generative diffusion model 
+
+FIG. 1. Flow diagram illustrating the six methods for atom-centered environment extractions considered in this work. The method labels, shown with blue, italic text, are adopted throughout. The fixed atom-centered environment is marked by a central red atom surrounded by a gray area with a red dashed boundary. Blue atoms have equivalent relative positions to the central atom of the extracted cell as in the initial, source configuration. Magenta atoms also have equivalent relative position, but are colliding with one another across the periodic boundaries of the cubic extract cells. Atoms colored green are either moved from their relative positions or added via a generative diffusion model. In the first step of the anneal method, the dotted, blue square denotes the inner edge of a margin in which source atoms were not added to discourage collisions across the periodic boundaries. 
+
+6TABLE I. Parameters of the extraction methods that varied across materials systems, which were not specified elsewhere. This includes the side lengths of the cubic destination cells that the extracted environments are placed into ( Lcell ); radii used to define the fixed core regions ( rcore ); tolerance for absolute value of forces used for the deletions method; time the structure was annealed during the anneal method ( tanneal ). SiO 2 Ta C              
+
+> Lcell [˚ A] 14.4 14.0 14.0
+> rcore [˚ A] 5.0 6.0 6.0
+> Ftol [eV /˚A] 7.5 10 25
+> tanneal [ps] 50 50 10
+
+B. Generative diffusion model 
+
+Generative AI has recently emerged as a powerful paradigm for atomic structure gener-ation in computational materials science 5,11,12 , offering a way to sample high-dimensional configuration spaces that are difficult to explore with traditional simulation methods. Diffu-sion models 13–15 , in particular, provide a principled framework for learning the underlying probability distribution of atomic arrangements and generating new structures through iter-ative denoising guided by a learned score field. We adopted the method developed by Kwon et al. 12 , which demonstrated accurate and scalable generation of relatively large supercells. Following this framework, we trained a diffusion-based score model on a curated dataset of atomic structures spanning the relevant structural motifs. The diffusion models for SiO 2
+
+and C were trained using the entire training sets that were used to make the IAPs in Refs. 6 and 16, respectively. For the Ta model, six frames were sampled from the compression simulation used to generate the source configurations; they were sampled uniformly between the initially unstrained starting configuration to a true strain of −1.0%. For inference, we adopted an outpainting protocol: beginning from a fixed core cluster of atoms, we randomly initialized the positions of atoms to be generated in the surrounding region and evolved them through the reverse-diffusion process using the trained score model. This guided denoising gradually reconstructs physically plausible atomic configurations con-sistent with the learned structural distribution, enabling controlled expansion of the initial cluster into a full periodic structure. For each given core structure, we varied the number 7of atoms to generate and picked the top ten most “reasonable” structures by comparing the sampled and ground truth radial distribution functions. 
+
+C. Source configurations 
+
+Three different configurations, one per material, were constructed as sources from which to extract atomic environments (Fig. 2). As these are all bulk structures, they were gener-ated with simulations using full PBCs. The first configuration is amorphous SiO 2 with 1536 atoms at a density of 2 .2 g /cm 3, sampled from a MD simulation with fixed particle num-ber, volume, and temperature (NVT) at 300 K (Langevin thermostat). The second source configuration comprises body-centered cubic (BCC) Ta, with 1200 atoms and a quadrupole of screw dislocations, generated using Atomsk 17 . The dislocation lines are all parallel with the [¯ 111] direction, which is aligned with the z axis. The signs of the Burgers vectors are alternating so that the dislocations do not break the periodicity of the lattice along the x and 
+
+y axes. The configuration was taken from a frame of a constant strain rate ( −2 × 10 8 s−1)compression MD simulation using a Langevin thermostat with the temperature set to 300 K. The compression was applied along the y axis, while the x and z axes were expanded to maintain a constant volume throughout the simulation. The source configuration was sampled at a point in the simulation with a true strain of 0 .6%, just prior to stress-induced annihilation of the dislocations. The Ta atoms selected as ‘central atoms’ for the envi-ronment extraction tests, meaning those at the center of the small destination cells, were sampled across the source configuration to capture a range of local environments, including both perfect crystal and dislocation core regions (see Supporting Information Sec. IV). The last source configuration is molten C with 2048 atoms at 2 .43 g /cm 3, which was sampled from an NVT simulation at 5000 K. 
+
+D. Interatomic potentials (IAPs) 
+
+An IAP was required for each material system in order to construct the source config-urations and for various steps in some of the extraction methods. The IAPs were taken from previously reported studies and selected based on the targeted conditions of the source configurations. For SiO 2, an atomic cluster expansion (ACE) 8 MLIP model was used that 8amorphous SiO2 a) Ta with screw dislocations  
+
+> [112] [110] [111] xzy
+
+liquid C 1,200 atoms 2,048 atoms 1,536 atoms 
+
+b) c) FIG. 2. Source configurations for (a) SiO 2, (b) Ta, and (c) C. 
+
+was reported in the same publication that introduced the AME method 6; this was done to reduce systematic differences between AME as done in that work and the anneal method here. For Ta, we used an embedded atom method (EAM) potential reported by Li et al. 18 
+
+For molten C, a Chebyshev Interaction Model for Efficient Simulation (ChIMES) MLIP reported by Lindsey et al. 16 was used. 
+
+E. DFT calculations 
+
+All DFT calculations were performed using the Simulation Package for Ab-initio Real-space Calculations (SPARC) software 19 and the Perdew-Burke-Ernzerohov (PBE) 20 general-ized gradient approximation (GGA) exchange-correlation functional. Finite-difference mesh sizes of 0 .08, 0 .15, and 0 .10 ˚ A were used for SiO 2, Ta, and C, respectively. All calculations of the source configurations used a Γ-point only k-point mesh, while those of the destination cells used 2 × 2 × 2, for all materials. Convergence testing for the finite-difference and k-point meshes is included in Appendix A. Fermi-Dirac smearing was used with the effective electronic temperatures set equal to the corresponding ionic temperatures of the simulations from which the configurations were sampled: 9 .5 × 10 −4, 9 .5 × 10 −4, and 1 .583 × 10 −2 Ha, for SiO 2, Ta, and C, respectively. The D3 dispersion correction by Grimme 21 was used for all calculations with C. 9III. RESULTS A. Accuracy of forces for the central atoms 
+
+We first consider the ability of the extraction methods to reproduce the atomic forces for only the atom at the center of each extracted cell. In an extracted cell, the central atom retains the largest local environments equivalent to that in the source configuration, so it should give the best performance in terms of reproducing the atomic forces. Figure 3 presents the accuracy of the atomic forces evaluated exclusively for the single atoms at the center of the extracted environments. Of the six extraction methods tested here, the deletions 
+
+method produced the lowest average root-mean-squared error (RMSE) at 0 .08 eV /˚A, while the anneal method resulted in the highest at 0 .23 eV /˚A. Moreover, for any of the three materials, deletions was either the best or tied for best for both RMSE and maximum absolute error (max error). The cubic extract method gave the closest next-best performance to deletions , with equivalent RMSE for the SiO 2 and C forces. Considering just the RMSEs and max errors alone is insufficient to determine whether these trends would generalize to larger sample populations. To assess whether differences in the error distributions are statistically significant, or simply reflect limited sample sizes, we performed paired Student t-tests on the squared-residual errors for all pairs of the extraction methods. The test considers the value of p, the probability that the two distributions would occur assuming a Null hypothesis that the values were sampled from equivalent distributions, and we use the standard criteria for rejecting the Null hypothesis: p ≤ 0.05. The full analysis is in Appendix B, but we note the most relevant p-values here. First, based on this analysis, we find that the difference in performance between the deletions and cubic extract is not statistically significant; for example, we find p = 0 .80 for the SiO 2 force errors. In contrast, the differences between error distributions of deletions and those of all other methods are statistically significant, with a few exceptions. Specifically, for the Ta environments, the error distributions from generative and deletions + relax are not significantly different from that of deletions with p = 0 .08 and p = 0 .16, respectively. Figures 3(b)–(d) show the forces from the deletions method versus those from the source, delineated by material. The relative accuracy has a notably strong dependence on the material system. In particular, C shows by far the best relative error. This can potentially be 10 attributed to the high temperature liquid phase’s inherent lack of strong directional bonding, which would make the material less affected by perturbing ionic positions or making arbitrary slices, compared to Ta and SiO 2. We also used a high effective electronic temperature for the C DFT, which is justified by the ionic temperature (5 , 000 K) of the MD simulation from which the source configurations were sampled, but which also contributes to the strong local character for that system. 22 a) 
+
+b) c) d) SiO 2 Ta C
+
+[eV/Å]  
+
+> FIG. 3. Results for the atoms at the center of the extracted environments. (a) Maximum absolute error and root-mean-squared error (RMSE) of the atomic forces for each material and extraction method. Parity plots of forces for atoms from the source configuration versus those in the deletions -extracted configurations for (b) SiO 2, (c) Ta, and (d) C.
+
+11 SiO2 a) b) c) Ta CFIG. 4. Accuracy of forces for non-central atoms within rc of the extracted cells for (a) SiO 2, (b) Ta, and (c) C. Atoms are binned based on their distance from the central atom, r, and the total count, max error, and root-mean-squared error for all of the atomic forces in each bin are reported. The vertical black dashed lines denotes the radius of the first bin at which the RMSE for deletions 
+
+exceeds twice the RMSE of the central atoms. 
+
+12 B. Accuracy of forces for atoms within the fixed cores 
+
+So far we have only examined the accuracy of the central atom forces, however there is considerable interest in utilizing more of the DFT-computed forces than just those of the central atom, e.g. , when using an extracted environment to augment the training of a MLIP. For example, if there is a close cluster of atoms in a source configuration for which the forces are needed, ideally, one would only need to extract and perform DFT once, rather than extracting and running DFT on slightly different destination cells individually, improving throughput and data density for active learning. As one considers atoms farther from the center of a destination cell, the sizes of their local environments that are unchanged from what they experienced in the source configuration gets smaller as they near the newly imposed periodic boundaries. This means that atoms too far from the center will have local environments, and therefore forces, poorly reflecting what would be found in the source. Therefore, we next analyze the accuracy of forces for all other atoms in the fixed core, and how the errors increase as a function of distance from the center. Figure 4 shows these results for each extraction method and material. By and large, the same trends found for the central atoms extend to the other atoms in the fixed core; namely, that deletions and cubic extract generally show lower force error at a given distance from the cell centers. This is most notable for SiO 2 and C, for which 
+
+deletions and cubic extract demonstrated remarkably gradual error increases away from the center compared to the other methods, resulting in notable gaps between the RMSEs for these methods compared to all other methods, when looking at atoms further away from the fixed cores ( >
+
+∼ 3.25 ˚ A). However, those extraction methods were less obviously advantageous for Ta at larger distances, while still remaining among the highest performing methods and superior at close distances ( <
+
+∼ 4.5 ˚ A). In particular, for Ta, for the first and second nearest neighbor (NN) shells ( ∼ 2.7 − 3.7 ˚ A), deletions + relax and generative show comparable RMSEs and max errors to deletions and cubic extract ; for the third NN shell of Ta ( ∼ 4.1 − 5.1 ˚ A), there are larger fluctuations of the force errors as a function of distance from the central atom, which makes ranking methods less clear (although deletions generally has lowest RMSE), however the point is mostly moot since the magnitudes of the errors are quite large already (RMSEs approaching ∼ 0.5 eV /˚A or higher by 4.5 ˚ A). 13 C. Structural analysis 
+
+To assess the structural effects that result from the different extraction methods, we ex-amine the radial distribution functions (RDFs). In Fig. 5, we report the RDFs averaged over all configurations for a given extraction method, as well as the RDFs for the source configurations as references. For all methods, except spherical extract , the RDFs are calcu-lated using only the atoms outside the fixed cores as reference atoms to focus the analysis on regions contributed by the extraction methods. Because spherical extract contains no atoms outside the fixed cores, all atoms within the cores are used as references atoms instead. Inspecting the RDFs for SiO 2, we find that all of the extraction methods give qualitative agreement with the source configuration, except for that of generative , which has noticeably broadened peaks. We reason this due to our choice to use the entire MLIP training set from Ref. 6 to train the underlying diffusion model for that extraction approach. Unlike the diffusion models for Ta and C, the SiO 2 model was trained on data containing several other phases and densities beyond what composed its respective source configuration. While the diffusion model was inherently more general in this case, this seems to decreased the generated atoms’ similarity to the source. Put differently, the more targeted training data used for Ta and C allowed the generative approach to add atoms to be better aligned with the source configuration, but at the cost of covering narrower regions of configuration space than in the SiO 2 case. Both targeted and broader training sets are reasonable scenarios to consider here, since different MLIPs span different extents of phase space, as reflected in the underlying IAPs used in this work. Additionally, although difficult to see in Fig. 5 (see SI section VI for zoomed-in figures), the cubic extract RDF contains an extraneous peak near r = 0, as the procedure does not prevent atoms from colliding across the periodic boundaries. Another feature we notice, is the scale of the RDF from spherical extract is increased due to the lower density from the large vacuum region around the cell perimeters; this effect occurs in the other materials as well. For Ta, we likewise find the extraction methods yield reasonable agreement on the RDFs with the source, with a few exceptions. Just as was found with SiO 2, cubic extract gives extraneous peaks near r = 0; however, with Ta they are much more prominent due to the smaller quantity of atoms per configuration. Moreover, the RDF for deletions also shows 14 small peaks close to r = 0, meaning the procedure did not fully remove all atomic collisions in that case. For anneal , the first and second NN peaks are broadened compared to those in the source configuration; to a lesser degree, this broadening also occurs with generative .Examining the configurations produced by the anneal method, we find that the quench, the last step of that extraction method’s procedure, left small pores of a few atomic radii; an example of one of these configurations is included in Fig. 6. With anneal , we followed Ref. 6, approach of starting with a small empty margin around the extraction cells to prevent issues with close atomic collisions. This led to the average density of the anneal configurations to be 33% lower than the source configuration, which likely promoted the pore formation (all densities are reported in Supporting Information Sec. III). Modifying the quench rate and margin width to mitigate this effect is likely feasible; however, doing so is probably of limited value given that the simple procedures deletions and cubic extract yielded better force accuracy than alternative methods, including generative and deletions + relax , which appear to avoid anomalous boundary interactions. For the C RDFs, we again observe general qualitative agreement between all extraction methods and source except for the first NN peak from the deletions + relax method is tightened compared to that of source. Also, as found with SiO 2, the cubic extract method leads to small features corresponding to collisions across boundaries (see SI sec. VI). In Fig. 7 we report the stoichiometry of the extracted configurations for the only multi-element system considered here, SiO 2. The stoichiometry was perfectly preserved for the 
+
+anneal because it was enforced following the procedure outline in Ref. 6. The other methods produced structures with fairly minor average perturbations in the stoichiometry, but with some giving more substantial variance. In particular, the standard deviation of the spherical extract configurations is ∼ 0.4 and the coefficient of variation is ∼ 15%. 
+
+D. Energetics 
+
+The DFT total energies of the extracted cells do not make for a rigorous benchmark, as comparing them directly to the total energies of the source configuration is flawed; however, considering the per-atom-averaged energies is of interest as potentially anomalous interac-tions induced by an extraction method would result in perturbations of this quantity. Fig. 8 shows effects on the energies per atom for all of the extraction methods in reference to 15 SiO2 a) b) Ta c) Cgenerative deletions deletions + relax anneal cubic extract spherical extract source FIG. 5. Radial distribution functions, g(r), for all extraction methods and the source configurations for (a) SiO 2, (b) Ta, and (c) C. For all extraction methods except spherical extract , only atoms outside the fixed cores were used as reference atoms. Each extraction method’s subfigure reports the mean-absolute error (MAE) between its g(r) and that of the source configurations. 
+
+FIG. 6. Example Ta structure from the anneal extraction method. 
+
+their sources. The generative and anneal methods give energies with the most consistent agreement with that of the source configuration. Of course, the prevalence of close contacts across PBCs found in the cubic extract con-figurations led to larger per-atom energies than other extraction methods. This was most substantial in the case of Ta (Fig. 8b), for which we find the energy per atom to be hundreds 16 xFIG. 7. Stoichiometric ratio x, of the SiO x extracted configurations. The red horizontal line denotes the stoichiometry of the source configuration. The bar heights are the sample averages while the error bars depict a 95% confidence interval. 
+
+of electron volts greater than in the source. Including such large magnitude energies in the training data of an MLIP is probably not preferable as it could degrade the accuracy of the more physically pertinent regions of configuration space. As noted when discussing the RDFs, the deletions method did not completely remove all atomic close contacts. This also resulted in energies of the Ta configurations using deletions to be moderately large ( ∼ 8eV/atom) compared to the source configuration. If this did pose an issue when fitting en-ergies, one could make adjustments in how atoms are deleted to amend this. Alternatively, training predominantly on forces is another viable approach, along with use of tailored well-behaved structures to train energies. 
+
+IV. CONCLUSION 
+
+The primary finding in this work is that extraction methods that preserved the central atoms’ exact local environments to further radii, close to the boundaries of the cells for which they were embedded into, resulted in more accurate atomic forces compared to methods that sought to produce more coherent atomic arrangements across the periodic boundaries. Vari-ous extraction methods produced configurations remarkably consistent structurally with the sources, as illustrated by the RDFs, stoichiometry and per-atom average energies; however, this did not ensure better results on our target of reproducing the forces within the fixed environments. In particular, cubic extract and deletions performed the best despite inducing structural inconsistencies at the boundaries. 17 a) b) c) E source E -FIG. 8. Difference between the average energy per atom of the extracted configurations and the source configurations. Error bars reflect 95% confidence intervals. Inset of (b) is a zoomed in plot of the Ta results with a smaller limit on the y axis. 
+
+Although the forces given by the cubic extract method were competitive with deletions ,the excessively large energies undermines its favorability. For this reason, we assert that the 
+
+deletions approach is, unexpectedly, the optimal extraction method out of those considered— at least for the materials systems examined in this work, although they represent a reason-ably broad range of bulk materials (covalent to metallic bonding with different coordination). Moreover, the deletions method is serendipitously a simple approach to implement and run. Unlike other more sophisticated (and computationally costly) approaches we explored, dele-tions did not require constructing additional AI models or running timely MD simulations; the basis of the approach was merely to extract all atoms within a cubic volume, apply PBCs, and delete atoms to remove collisions across the boundaries of the cells. In fact, al-though we used pretrained MLIPs to identify atomic collisions, one could likely just choose a pair-wise interatomic distance as a tolerance for classifying collisions. While we do not include here property prediction benchmarks based on fitting MLIPs to the data generated by the extraction methods, atomic forces are a fundamentally more direct and informative metric of extraction performance than properties predicted by MLIPs trained on data from the different extraction procedures. Such comparisons would introduce additional confounding factors, such as functional dependence of the potential and weighting of the training data, along with the size of the initial training set compared to additional 18 and diversity of the extracted environments. Nonetheless, a more detailed examination of the effects of fitting total energies from the extracted configuration is a potential area of future work. Overall, this work suggests a promising path toward improving the construction of MLIP training sets, and therefore, the ability to model large-scale, emergent phenomena in mate-rials. 
+
+AUTHOR DECLARATIONS 
+
+The authors have no conflicts to disclose. 
+
+ACKNOWLEDGMENTS 
+
+This work was performed under the auspices of the U.S. Department of Energy by Lawrence Livermore National Laboratory under Contract DE-AC52-07NA27344, funded by the Laboratory Directed Research and Development Program at LLNL under project tracking code 23-SI-006. 
+
+SUPPLEMENTARY INFORMATION 
+
+The Supporting Information for this work contains additional details of the repulsive wall used by some of the extraction methods; computational cost of the extraction methods; and magnified view of the SiO2 and C RDFs. 
+
+AUTHOR CONTRIBUTIONS JS, FZ : Methodology, Formal analysis, Software, Writing - original draft. KB : Method-ology, Interpretation, Writing - review & editing. BL : Software, Formal analysis. SH, AS :Interpretation, Writing - review & editing. VL : Funding Acquisition, Project Administra-tion, Supervision, Writing - review & editing. 19 DATA AVAILABILITY 
+
+The data that supports the findings of this work are included throughout the manuscript and the Supporting Information. Any additional information can be made available upon reasonable request from the corresponding author. 
+
+REFERENCES 
+
+> 1
+
+W. Kohn, “Density functional and density matrix method scaling linearly with the number of atoms,” Physical Review Letters 76 , 3168 (1996). 
+
+> 2
+
+E. Prodan and W. Kohn, “Nearsightedness of electronic matter,” Proceedings of the Na-tional Academy of Sciences 102 , 11635–11638 (2005). 
+
+> 3
+
+E. Prodan, “Nearsightedness of electronic matter in one dimension,” Physical Review B—Condensed Matter and Materials Physics 73 , 085108 (2006). 
+
+> 4
+
+M. Hodapp and A. Shapeev, “In operando active learning of interatomic interaction during large-scale simulations,” Machine Learning: Science and Technology 1, 045005 (2020). 
+
+> 5
+
+S. Zheng, J. He, C. Liu, Y. Shi, Z. Lu, W. Feng, F. Ju, J. Wang, J. Zhu, Y. Min, H. Zhang, S. Tang, H. Hao, P. Jin, C. Chen, F. No´ e, H. Liu, and T.-Y. Liu, “Predicting equilibrium distributions for molecular systems with deep learning,” Nature Machine Intelligence 6,558–567 (2024). 
+
+> 6
+
+L. C. Erhard, J. Rohrer, K. Albe, and V. L. Deringer, “Modelling atomic and nanoscale structure in the silicon–oxygen system through active machine learning,” Nature Commu-nications 15 , 1927 (2024). 
+
+> 7
+
+J. M. Goff, C. Mullen, S. Yang, O. N. Starovoytov, and M. A. Wood, “Generalized representative structures for atomistic systems,” Journal of Physics: Condensed Matter 
+
+37 , 075901 (2024). 
+
+> 8
+
+R. Drautz, “Atomic cluster expansion for accurate and transferable interatomic poten-tials,” Physical Review B 99 , 014104 (2019). 
+
+> 9
+
+C. G. Broyden, “The convergence of a class of double-rank minimization algorithms: 2. the new algorithm,” IMA journal of applied mathematics 6, 222–231 (1970). 
+
+> 10
+
+A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Du lak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. 20 Jensen, J. Kermode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Sch¨ utt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, “The atomic simulation environment—a python library for working with atoms,” Journal of Physics: Condensed Matter 29 , 273002 (2017). 
+
+> 11
+
+T. Xie, X. Fu, O.-E. Ganea, R. Barzilay, and T. Jaakkola, “Crystal diffusion variational autoencoder for periodic material generation,” arXiv preprint arXiv:2110.06197 (2021). 
+
+> 12
+
+H. Kwon, T. Hsu, W. Sun, W. Jeong, F. Aydin, J. Chapman, X. Chen, V. Lordi, M. R. Carbone, D. Lu, F. Zhou, and T. Anh Pham, “Spectroscopy-guided discovery of three-dimensional structures of disordered materials with diffusion models,” Machine Learning: Science and Technology 5, 045037 (2024), 2312.05472. 
+
+> 13
+
+J. Sohl-Dickstein, E. Weiss, N. Maheswaranathan, and S. Ganguli, “Deep unsupervised learning using nonequilibrium thermodynamics,” in International Conference on Machine Learning (PMLR, 2015) pp. 2256–2265. 
+
+> 14
+
+J. Ho, A. Jain, and P. Abbeel, “Denoising diffusion probabilistic models,” Advances in Neural Information Processing Systems 33 , 6840–6851 (2020). 
+
+> 15
+
+Y. Song, J. Sohl-Dickstein, D. P. Kingma, A. Kumar, S. Ermon, and B. Poole, “Score-based generative modeling through stochastic differential equations,” arXiv preprint arXiv:2011.13456 (2020). 
+
+> 16
+
+R. K. Lindsey, L. E. Fried, and N. Goldman, “Chimes: A force matched potential with explicit three-body interactions for molten carbon,” Journal of chemical theory and com-putation 13 , 6222–6229 (2017). 
+
+> 17
+
+P. Hirel, “Atomsk: A tool for manipulating and converting atomic data files,” Computer Physics Communications 197 , 212–219 (2015). 
+
+> 18
+
+Y. Li, D. J. Siegel, J. B. Adams, and X.-Y. Liu, “Embedded-atom-method tantalum potential developed by the force-matching method,” Physical Review B 67 , 125101 (2003). 
+
+> 19
+
+B. Zhang, X. Jing, Q. Xu, S. Kumar, A. Sharma, L. Erlandson, S. J. Sahoo, E. Chow, A. J. Medford, J. E. Pask, et al. , “Sparc v2. 0.0: Spin-orbit coupling, dispersion interactions, and advanced exchange–correlation functionals,” Software Impacts 20 , 100649 (2024). 
+
+> 20
+
+J. P. Perdew, A. Ruzsinszky, G. I. Csonka, O. A. Vydrov, G. E. Scuseria, L. A. Constantin, X. Zhou, and K. Burke, “Restoring the density-gradient expansion for exchange in solids and surfaces,” Physical review letters 100 , 136406 (2008). 21 21 S. Grimme, J. Antony, S. Ehrlich, and H. Krieg, “A consistent and accurate ab initio parametrization of density functional dispersion correction (DFT − D) for the 94 elements H − Pu,” The Journal of chemical physics 132 (2010). 
+
+> 22
+
+P. Suryanarayana, “On nearsightedness in metallic systems for o (n) density functional theory calculations: A case study on aluminum,” Chemical Physics Letters 679 , 146–151 (2017). 22 Appendix A: Convergence Testing of DFT Calculations 
+
+Convergence testing for SiO 2 was done with a 3-formula quartz configuration obtained from the training set of Ref. 6; the lattice vectors of the configuration were lengths 4.77, 4.72, 5.29; the SPARC default gaussian smearing with width 0 .001 Ha was used. 
+
+test index, i k-mesh h [˚ A] max |Fi − F(i−1) | [eV/˚ A] 0 12 × 12 × 12 0.1 -1 12 × 12 × 12 0.09 0.019 2 12 × 12 × 12 0.08 0.002 TABLE A1. Convergence tests of the real-space mesh size h for SiO 2.test index, i k-mesh h [˚ A] max |Fi − F(i−1) | [eV/˚ A] 0 4 × 4 × 4 0.08 -1 6 × 6 × 6 0.08 0.0012 2 8 × 8 × 8 0.08 0.0007 TABLE A2. Convergence tests of the k-mesh size h for SiO 2.
+
+For Ta, we tested the DFT parameters using a 2 atom cubic cell with box lengths 3.3 ˚ A, Fermi-Dirac smearing at 300K. The ions were randomly (uniform distribution with magni-tude 0.01 ˚ A) perturbed from the energy minimum positions. 
+
+test index, i k-mesh h [˚ A] max |Fi − F(i−1) | [eV/˚ A] 0 10 × 10 × 10 0.20 -1 10 × 10 × 10 0.15 0.005 2 10 × 10 × 10 0.1 0.005 TABLE A3. Convergence tests of the real-space mesh size h for Ta. 
+
+For C, convergence testing done using a configuration generated with the deletions ex-traction method; the extracted cell was cubic with a side length of 7 ˚ A, containing 43 atoms. Again, default Gaussian smearing (width 0 .001 Ha) was used. 23 test index, i k-mesh h [˚ A] max |Fi − F(i−1) | [eV/˚ A] 0 6 × 6 × 6 0.15 -1 8 × 8 × 8 0.15 0.008 2 10 × 10 × 10 0.15 0.001 TABLE A4. Convergence tests of the k-points mesh size h for Ta. test index, i k-mesh h [˚ A] max |Fi − F(i−1) | [eV/˚ A] 0 4 × 4 × 4 0.15 -1 4 × 4 × 4 0.1 0.060 2 4 × 4 × 4 0.08 0.009 TABLE A5. Convergence tests of the real-space mesh size h for C. test index, i k-mesh h [˚ A] max |Fi − F(i−1) | [eV/˚ A] 0 2 × 2 × 2 0.1 -1 4 × 4 × 4 0.1 0.205 2 6 × 6 × 6 0.1 0.0150 TABLE A6. Convergence tests of the k-points mesh size h for C. 
+
+Appendix B: DFT vs IAP agreement c) b) 
+
+# Ta CSiO RMSE = 0.175 eV/Å 2a) RMSE = 0.141 eV/Å RMSE = 1.17 eV/Å 
+
+FIG. B1. Agreement between forces for all atoms within the extended configurations given by DFT and the IAPs used for constructing extended configurations and in some of extraction methods. 
+
+24 Appendix C: Statistical significance SiO2 a) b) c) Ta C
+
+FIG. C1. Paired Student t-test between sets of squared-residual errors, exclusively of the forces on the atoms at the center of the extracted cells 
+
+25 Supporting Information for Extracting Atomic Environments for Machine Learning Interatomic Potentials 
+
+Jared C. Stimac, 1, a) Fei Zhou, 1 Kyle Bushick, 1 Bo Lei, 1 Sebastien Hamel, 1 Amit Samanta, 1 and Vincenzo Lordi 1
+
+Lawrence Livermore National Laboratory Livermore, California 94550, USA 
+
+> a) stimac1@llnl.gov
+
+1I. REPULSIVE WALL POTENTIAL 
+
+The deletions + relax and the anneal extraction methods required a repulsive wall po-tential in order to deter new atoms from entering the spherical, fixed-core region. It was only applied to atoms that did not start in the fixed-core. The functional form chosen for this is: 
+
+ei =
+
+
+
+ϵ
+
+dw
+
+> i
+
+σ
+
+2
+
+if dw 
+
+> i
+
+> 0,
+
+0 if dw 
+
+> i
+
+≤ 0(1) where ei is the energy of atom i; dw 
+
+> i
+
+is the i-th atom’s displacement from the closest point on the wall boundary, with the convention that positions inside the sphere are positive and outside are negative; σ is a distance scale, set to 0.5 ˚ A; ϵ is a energy parameter, fixed to 1 eV. The boundary of the wall was placed at the boundary of the fixed core for each extracted environment. 
+
+II. COMPUTATIONAL COST 
+
+In Fig. S1, the average number of self-consistent field (SCF) steps needed to achieve convergence is reported for each extraction method and material. Because the computational resources varied between DFT calculations, we use this quantity as a fair basis for comparing computational cost. That said, this only considers if the expense of the DFT single point calculation as a function of the configurations constructed by the extraction methods, and not any computational effort in constructing the configurations. For a given material system, the differences in number of SCF steps between the six methods are mostly insignificant. Two exceptions to this being, first, that spherical extract required ∼ 30% more steps on average than the other methods in the case of C and Ta, and, second, Anneal had far fewer steps than other methods for SiO 2.2a) b) c) 
+
+> generative deletions anneal deletions + relax cubic extract spherical extract
+
+FIG. S1: Average number of Self-consistent field (SCF) steps for each extraction method and material. Error bars reflect 95% confidence intervals. 3III. ATOMS SELECTED FOR EXTRACTION FOR TA 
+
+FIG. S2: Ta source configuration with DXA-evaluated dislocation lines displayed. Red atoms are the 25 selected central atoms for extraction. 4IV. DENSITIES 
+
+TABLE SI: Average densities in g/cm 3 for all configurations for each extraction method as well as that of the source configuration. 
+
+SiO 2 Ta Cgenerative 1.86 16.30 2.32 deletions 2.08 15.28 2.43 deletions + relax 2.08 15.28 2.43 anneal 1.74 11.22 2.01 cubic extract 2.22 18.98 2.51 spherical extract 0.40 6.42 0.83 source (ref.) 2.20 16.74 2.53 
+
+5V. ZOOMED-IN VIEW OF SiO 2 AND C RDFS a) b) 
+
+FIG. S3: RDFs produced by the cubic extract method for (a) SiO 2 and (b) C. The magnified view is used to highlight peaks from collisions occurring across the periodic boundaries, which were difficult to see in the full RDFs in the main body of the manuscript. 6

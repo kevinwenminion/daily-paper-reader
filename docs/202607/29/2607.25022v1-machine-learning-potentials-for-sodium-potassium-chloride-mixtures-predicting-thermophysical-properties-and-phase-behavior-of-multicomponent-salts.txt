@@ -1,0 +1,466 @@
+Title: Machine-Learning Potentials for sodium-potassium chloride mixtures: Predicting thermophysical properties and phase behavior of multicomponent salts
+
+URL Source: https://arxiv.org/pdf/2607.25022v1
+
+Published Time: Wed, 29 Jul 2026 00:12:41 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# Machine-Learning Potentials for sodium-potassium chloride mixtures: Predicting thermophysical properties and phase behavior of multicomponent salts 
+
+Karim Zongo 1,∗, Hao Sun 1, Zijian Meng 1, Christopher Maxwell 2, Edmanuel Torres 2, and Laurent Karim Béland 1,∗
+
+> 1
+
+Department of Mechanical and Materials Engineering, Queen’s University, Kingston, ON, Canada 
+
+> 2
+
+Canadian Nuclear Laboratories, Chalk River Laboratories, Chalk River, Ontario K0J1J0, Canada Correspondence: Karim Zongo (zongo.karim@queensu.ca) or Laurent Karim Béland (laurent.beland@queensu.ca) 
+
+Abstract Predicting the properties of multicomponent molten salts using density functional theory (DFT) remains challenging because the spatial and temporal scales required to evaluate transport properties and phase behavior are computationally prohibitive. In this work, we develop a moment tensor potential trained using a a DFT dataset of NaCl, KCl, NaCl–KCl mixtures, and the NaK alloy, enabling large-scale molecu-lar dynamics simulations across wide ranges of temperatures and compositions. We systematically evaluate the effect of D3 dispersion corrections and apply the resulting potential to predict liquid densities, diffusion coefficients, radial distribution functions, heat capacities, thermal conductivities, and the NaCl–KCl phase diagram. The model successfully reproduces many temperature- and composition-dependent trends. How-ever, systematic deviations in several absolute properties persist, highlighting the importance of experimental validation and calibration. These findings support a hybrid modeling framework in which first-principles-informed machine-learning potentials provide transferable predictive capability and mechanistic insight, while experimental data incorporated during model development or subsequent engineering assessments is necessary to improve quantitative accuracy. I. INTRODUCTION 
+
+Molten salts are promising candidates for high-temperature energy applications because they combine excellent thermal stability with favorable thermophysi-cal and transport properties 1–3 . They are widely used, or actively considered, as heat-transfer fluids, coolants, and thermal energy storage media in systems such as concentrated solar power plants and actively considered advanced nuclear reactors 4,5 . In practical applications, these salts are typically deployed as multicomponent mix-tures. Therefore, their melting characteristics, density, transport properties, and local structure vary sensitively with composition and temperature. As a result, predic-tive models must not only capture the properties of pure salts, but also the complex trends that arises across a broad composition space. Developing such models from first principles remains a significant challenge due to the high computational overhead, particularly when accu-rate absolute property values are required for engineering design 6.Among the molten chloride systems, NaCl–KCl serves as a model case for investigating composition-dependent thermophysical properties and solid–liquid phase equilib-ria 7,8 . It is chemically simple enough for a systematic first-principles-based modeling, yet sufficiently complex to assess whether an interatomic potential can describe changes in structure, transport, and phase stability across composition. Interactions among Na +, K +, and Cl − ions can produce nontrivial composition-dependent behavior, including shifts in density, diffusivity, and melting behav-ior 9. Because phase boundaries constrain the range of accessible operating conditions, the ability to reproduce the NaCl–KCl phase diagram provides a stringent test of whether a model can capture the thermodynamic trends needed for more complex molten-salt formulations. A wide range of experimental and theoretical studies has been devoted to molten salt systems 6,10–17 . Experi-mental techniques such as calorimetry, X-ray diffraction, neutron diffraction, and electrochemical measurements provide essential information on structure, thermodynam-ics, phase stability, and transport properties 18–20 . Such measurements are important because they provide the ab-solute property values needed to validate and calibrate pre-dictive models. However, experimental characterization of molten salts remains difficult because experiments must be carried out at high temperature and highly corrosive envi-ronments, often under demanding safety constraints 21,22 .These issues become more severe in multicomponent sys-tems, where the number of possible compositions grows rapidly and subsequently the exhaustive experimental characterization becomes impractical 6.Atomistic modeling offers a complementary route for studying molten salts under controlled conditions. Mole-cular dynamics (MD) simulations can resolve structural organization, thermodynamic fluctuations, and transport processes that are difficult to isolate experimentally. DFT provides a description of electronic structure, bonding, and charge redistribution, and is therefore widely used to generate reference data for large-scale simulations 23–25 .However, direct DFT simulations are limited to relatively small systems and short times, making it difficult to ac-arXiv:2607.25022v1 [cond-mat.mtrl-sci] 27 Jul 2026 2cess long-range correlations, slow transport processes, and phase behavior under realistic thermodynamic conditions. Moreover, DFT predictions can carry systematic errors as-sociated with the chosen exchange–correlation functional, dispersion treatment, and finite simulation cell, so agree-ment with DFT does not necessarily guarantee agreement with experiment. To overcome these limitations, various classical inter-atomic potentials have been developed, including rigid-ion 26 and polarizable-ion models 27 as well as variable-charge force fields such as ReaxFF 28 and COMB 29 . While these approaches enable larger-scale simulations, they rely on predefined functional forms and system-specific para-meterizations. Consequently, their transferability across compositions and thermodynamic conditions is often lim-ited, as they often cannot be systematically improved. Extending these models to new chemical systems typically requires extensive reparameterization, which may com-promise both transferability and predictive accuracy 30–33 .The broad compositional and thermodynamic land-scape of molten salt systems therefore requires modeling approaches which are systematically improvable, trans-ferable, and computationally tractable. Machine-learning interatomic potentials (MLIPs) 34 are emerging as such approach because they can extend first-principles accu-racy to the length and time scales required for liquid structure, transport, and phase-equilibrium simulations. Previous neural-network interatomic potentials (NNIPs) have been successfully applied to molten NaCl, yielding predictions of thermophysical properties such as density, heat capacity, diffusion coefficients, thermal conductivity, and melting point in good agreement with experiment 6.NNIP-based free-energy calculations have also been used to compute chemical potentials and melting points in LiCl 35 , while Deep Potential Molecular Dynamics has been applied to several molten chloride systems 36–44 and multicomponent fluoride molten salts 45 . In particular, studies of MgCl 2–NaCl and MgCl 2–KCl eutectic melts show that structural, thermodynamic, and kinetic prop-erties can be captured with MLIP-based simulations 36 .Moment Tensor Potentials (MTPs) 46 provide an alterna-tive MLIP framework and have been successfully applied to molten NaCl to predict solubility limits, redox poten-tials, and transport properties while retaining favorable computational efficiency 47 .Despite these advances, two critical issues remain in achieving predictive simulations of multicomponent molten salts. First, most MLIPs have been developed and validated for single-component systems, such as NaCl 6,47,48 and LiCl 35 , or for specific mixtures such as MgCl 2–NaCl, MgCl 2–KCl 36 , LiF–NaF–ZrF 445 , and ZnCl 2–NaCl–KCl 44 . The ability of a single potential to describe NaCl, KCl, NaCl–KCl mixtures, and the related NaK alloy across multiple compositions and phases re-mains less established. Second, even when an MLIP accu-rately reproduces the first-principles training data, quan-titative agreement with experiment may still be limited due systematic errors in the reference data. Dispersion interactions are a clear example. For instance, neglecting van der Waals interactions can produce unphysical vol-ume expansion in molten salts 49 , but adding an empirical D3 correction is not necessarily a uniform improvement across systems or compositions 50,51 . Its effect on den-sity, structure, and transport may depend on the specific chemistry and thermodynamic state. It is therefore useful to treat dispersion-corrected and uncorrected simulations as related modeling variants, rather than assuming that one is universally more accurate. In this work, we present a MTP for molten NaCl, KCl, NaCl–KCl mixtures, and the related NaK alloy, trained on DFT data using a small-cell active-learning strategy 47,52–54 . We evaluate both the uncorrected MTP and a dispersion-corrected MTP-D3 variant in order to assess the role of long-range dispersion interactions on the predicted properties across different chemistries and compositions. The models are used to evaluate densi-ties, diffusion coefficients, local structural properties, and the NaCl–KCl phase diagram over broad temperature and composition ranges, including compositions not ex-plicitly included in the training dataset. By comparing these predictions with available experimental data, we assess the extent to which the MTP framework to capture both temperature- and composition-dependent trends and quantitatively reproduces absolute property values. This distinction is particularly important for engineering ap-plications, since first-principles-based MLIPs can provide transferable information across composition space, but systematic offsets may require experimental calibration, either during potential training or during downstream property assessment.   
+
+> II. COMPUTATIONAL METHODS A. Machine-learning interatomic potential
+
+We employ the MTP formalism 46,55 , which is one of many existing MLIP frameworks for materials modeling 34 .MTPs represent the local atomic environment through systematically constructed tensor descriptors, providing a compact many-body expansion that preserves transla-tional, rotational, and permutational invariance. This framework offers an attractive balance between computa-tional efficiency and predictive accuracy 56 .In the MTP formalism, the total energy is expressed as a sum of atomic contributions, 
+
+ETotal =
+
+> N
+
+X
+
+> i=1
+
+Ei =
+
+> N
+
+X
+
+> i=1
+
+Vlocal (ri), (1) where ri = ( rij )ni 
+
+> j=1
+
+denotes the local environment of atom 
+
+i, and rij = xj − xi is the position vector of neighboring atom j relative to atom i. The local energy Vlocal is eval-uated using atoms within a cutoff radius Rc, set to 7.5 Å in this work, and expanded in terms of basis functions 3
+
+Bβ :
+
+Vlocal = X
+
+> β
+
+cβ Bβ . (2) The basis functions Bβ are constructed by contracting moment tensor descriptors that encode the radial and angular distributions of neighboring atoms: 
+
+Mμ,ν (ri) = X
+
+> j
+
+fμ(|rij |, τ i, τ j ) rij ⊗ · · · ⊗ rij 
+
+| {z } 
+
+> νtimes
+
+, (3) where τi and τj denote the chemical species of atoms i
+
+and j, respectively. The radial functions fμ are expanded in radial basis functions Q(α) as 
+
+fμ(|rij |, τ i, τ j ) = X
+
+> α
+
+c(α) 
+
+> μ,τ i,τ j
+
+Q(α)(|rij |). (4) The functions Q(α)(r) are defined on the interval r ∈
+
+[Rmin , R c] and are constructed to ensure C1 continuity at the cutoff. The model parameters, Θ = {cβ , c (α) 
+
+> μ,τ i,τ j
+
+},are obtained by fitting to reference energies, forces, and stresses. The complexity of the MTP is controlled by the maxi-mum level of the retained basis functions. Each moment 
+
+Mμ,ν is assigned a level, levM μ,ν = 2 + 4 μ + ν, (5) and the level of a basis function Bβ formed by contractions of multiple moments is levB β = X
+
+> i
+
+(2 + 4 μi + νi) . (6) Only basis functions satisfying levB β ≤ lev max (7) are retained. The value of lev max therefore defines the model complexity. In this work, we use a level-22 MTP. Unless otherwise specified, this MTP refers to the local machine-learning potential trained on DFT reference data; dispersion-corrected simulations are treated separately as an MTP-D3 variant.  
+
+> B. Ab initio calculations
+
+The reference dataset for training and validating the inter-atomic potentials was generated from DFT calculations carried out with the Quantum ESPRESSO package 57,58 .Ultrasoft pseudopotentials 59 were employed with the gen-eralized gradient approximation 60 , using the Perdew– Burke–Ernzerhof functional 61 to describe the exchange– correlation energy. Unless otherwise specified, dispersion corrections were not included in the DFT reference cal-culations; their effect is assessed separately in molecular dynamics simulations. The kinetic energy cutoff for the plane-wave basis was set to 900 eV, based on conver-gence tests for total energies, forces, and stress tensors across representative configurations. Because the data-base includes configurations with different numbers of atoms, cell volumes, densities, and thermodynamic states, Monkhorst–Pack k-point meshes 62 were chosen accord-ing to cell size to maintain consistent reciprocal-space sampling. These DFT calculations define the reference potential-energy surface learned by the MTP, and any systematic errors associated with the chosen functional or missing long-range interactions may therefore be inherited by the trained model.  
+
+> C. Molecular Dynamics Simulations and Active-Learning-Based Small-Cell Training
+
+All MD simulations were performed using the LAMMPS package 63 with a time step of 1 fs. Depending on the prop-erty being evaluated, simulations were carried out in the NVE, NVT, NPT, or NPH ensemble. Temperature and pressure were controlled using the Nosé–Hoover thermo-stat 64 and the Parrinello–Rahman barostat 65 , respectively, with damping parameters of 100 fs and 1000 fs. Unless otherwise stated, simulations used the DFT-trained MTP described above; simulations including the D3 dispersion correction are indicated as MTP-D3. Additional simula-tion details for each property calculation are provided in the main text and Supporting Information. We applied active learning to construct the training dataset efficiently 66 . Within the MTP framework 66,67 ,configurations generated during MD are evaluated on-the-fly using an extrapolation grade, γ, which measures how far a configuration lies outside the domain spanned by the current training set. Configurations with 2 < γ < 10 were selected for DFT calculations and added to the database, whereas simulations were terminated when γ > 10 as the potential was considered unreliable in such case. The training dataset was then updated, the potential retrained, and the active dataset reconstructed in an iterative loop. This procedure enables efficient exploration of relevant configurational space while limiting the number of refer-ence DFT calculations. A full theoretical description of the active-learning scheme is provided elsewhere 66–68 .Although active learning reduces the cost of exploring configurational space, the efficiency of MLIP develop-ment also depends strongly on the size and diversity of the reference database. Training data generated from DFT is expensive, particularly for molten salts where rele-vant configurations span multiple compositions, densities, temperatures, and phases. Expanding the dataset can im-prove robustness and transferability, but also increases the cost of data generation, training, and validation. To ad-dress this challenge, we use a small-cell training strategy, in which the potential is trained on configurations con-taining relatively few atoms 52–54,69 . Small-cell datasets can be generated using static structure-search approaches, such as AIRSS 69 , USPEX 70–72 , and RANDSPG 73 , or dy-namically through active-learning MD simulations 47,52–54 .Here, we combine small-cell training with active learning 4to construct a transferable MTP for NaCl, KCl, NaCl– KCl mixtures, and NaK, with the training dataset biased toward molten-state configurations. The initial database was constructed from primitive cells of Na, K, NaCl, and KCl obtained from crystallo-graphic repositories ? ? , with additional configurations generated by applying volumetric strains. A preliminary MTP was trained on this dataset together with reference data from Ref. 47 . The database was then expanded using active learning with selection and termination thresholds of γselect = 2 and γbreak = 10 , respectively. Active learn-ing was performed sequentially for systems containing 
+
+N = 2 to N = 36 atoms ( N = 2 , 4, 8, 12 , 16 , 24 , 34 , 36 ). At each system size, parallel MD simulations were carried out over temperatures spanning solid and liquid regimes. Configurations identified as extrapolative were filtered for redundancy, recomputed using DFT, added to the training set, and used to retrain the MTP. This procedure was repeated until no configurations exceeded γselect .The dataset was subsequently extended to binary sys-tems. For NaK, small cells with multiple compositions, including the eutectic composition of 78% K and 22% Na, were sampled using active-learning MD in the liquid phase. A similar procedure was used for NaCl–KCl mix-tures, including equimolar compositions. In total 3721 configurations were generated. After curation, 1277 config-urations were retained for training and 200 for validation across Na, K, NaCl, KCl, NaK, and NaCl–KCl systems. A level-22 MTP with 935 parameters was used for the final model. The curated database is strongly biased toward liquid-phase configurations ( ∼98%), consistent with the focus of this work on molten-state properties, while still retaining representative solid-state configurations needed for phase-equilibrium calculations. Additional details are provided in the Supporting Information.  
+
+> D. Dispersion correction D3
+
+The DFT reference data used to train the MTP was generated without dispersion corrections. Therefore, we considered an additional MTP-D3 variant in which a D3 dispersion correction 74–76 is added during molecular dy-namics simulations. This correction was introduced to assess the sensitivity of predicted properties to long-range interactions that are not explicitly included in the DFT reference data or in the MTP. As reported in Ref. 49 , ne-glecting van der Waals interactions can lead to unphysical volume expansion in molten salts, although the effect of an empirical dispersion correction need not be uniformly beneficial across different compositions or properties. A convergence test was performed for molten NaCl and KCl at 1150 K to determine the parameters for the D3 cor-rection. Zero-damping and Becke–Johnson (BJ) damping schemes were tested, and NPT simulations were carried out while monitoring density and total energy. The MTP cutoff radius was 7.5 Å, while the D3 cutoff was varied from 5 to 25 Å. Both energy and density were converged for D3 cutoffs above 20 Å. Thus, we employ a 20 Å cutoff with the BJ damping when the MTP-D3 variant is used.   
+
+> Fig. 1 Atomic structures of (a) molten NaCl at 1150 K, (b) molten KCl at 1100 K, (c) molten equimolar NaCl–KCl at 1150 K, and (d) liquid metallic NaK at 300 K. Each system contains 96 atoms and is modeled using a cubic simulation cell.
+> E. Simulation of melting point and phase diagram
+
+As a stringent test of composition-dependent phase be-havior, the NaCl–KCl phase diagram was simulated over the composition range of 10–90 mol% NaCl, with pure NaCl and pure KCl serving as the compositional end-points. All simulations were performed at zero pressure to estimate solid–liquid equilibrium temperatures. The moving-interface method 77 was employed for both the pure salts and intermediate compositions. Simulations were carried out in the NPT ensemble using systems con-taining a solid–liquid interface (Fig. 2) at a series of tem-peratures near the expected transition region. Production simulations were performed for 1 ns, and five independent configurations were generated for each composition. For intermediate compositions, independent configurations were constructed by randomly substituting Na ions with K ions using different random seeds, thereby sampling multiple cation arrangements at fixed composition. For the pure end members, the solid–liquid interface migrated toward either the solid or liquid phase depend-ing on whether the simulation temperature was below or above the melting temperature. The total energy was monitored as a function of time, and the rate of energy change was obtained from a linear fit. The melting tem-perature was identified as the temperature at which the energy-change rate approached zero, corresponding to a stationary interface and thermodynamic coexistence between the solid and liquid phases. For intermediate NaCl–KCl compositions, the same moving-interface procedure was used to estimate the solid– liquid transition interval. Simulations were conducted at multiple temperatures, and the evolution of both the in-5terface and total energy was monitored throughout each trajectory. Rather than assigning a single sharp melting temperature, the coexistence region was bracketed by identifying the highest temperature at which the system remained solid and the lowest temperature at which the system became fully liquid within the simulation time. The difference between these bounds defines the estimated coexistence width for each composition. This procedure provides a composition-dependent phase-boundary esti-mate that can be compared with experiment to evaluate both trend fidelity and systematic offsets in the predicted phase diagram.  
+
+> F. Free energy calculation
+
+The miscibility gap provides a thermodynamic test of composition-dependent mixing energetics and phase sta-bility in multicomponent systems. Here, we use thermody-namic integration (TI) 78 to compute Gibbs free energies of mixing for solid NaCl–KCl mixtures and to estimate the corresponding miscibility gap. This analysis is used not only to compare with available phase-boundary infor-mation, but also to assess whether the MTP captures the thermodynamic trends associated with mixing, as distinct from possible systematic offsets in absolute free energies. Models of NaCl–KCl mixtures with varying composi-tions were generated using a two-step procedure. First, the endpoint compounds, NaCl and KCl, were relaxed using the MTP to determine their equilibrium lattice parameters. For a mixture with NaCl mole fraction x,the initial lattice parameter was estimated using Vegard’s law 79 ,
+
+a(x) = x a NaCl + (1 − x) aKCl , (8) where aNaCl and aKCl are the relaxed lattice parameters of the pure compounds. A supercell was then constructed using the interpolated lattice parameter, and a fraction 
+
+1−x of the Na sites was randomly substituted by K atoms to obtain the desired NaCl–KCl composition. For each composition, molecular dynamics simulations were performed from 300 to 950 K in increments of 50 K. Each simulation consisted of energy minimization, grad-ual heating in the NVT ensemble, and equilibration under pressure-controlled dynamics for 100 ps. Production runs were then performed for 200 ps, during which thermody-namic and structural quantities, including total energy, density, lattice parameters, and species-resolved mean-square displacements (MSDs), were collected. The MSDs were used to determine effective harmonic spring con-stants for the subsequent TI calculations, and statistical uncertainties were estimated using block averaging. Thermodynamic integration was performed at 15 tem-peratures between 300 and 1000 K using the Frenkel–Ladd method 78 with the precomputed temperature-dependent harmonic spring constants. Initial configurations were taken from equilibrated MSD production trajectories. The TI simulations used a timestep of 1 fs, with equilibration and integration periods of 5000 steps each. Forward and backward switching trajectories were performed at each temperature, and the derivative of the energy with re-spect to the coupling parameter was recorded along the integration path. Absolute free energies were obtained by combining the TI contribution with the Einstein-crystal reference free energy, including the center-of-mass correc-tion. The resulting free energies were used to evaluate the Gibbs free energy of mixing as a function of composi-tion and temperature. This provides a thermodynamic measure of the stability of homogeneous NaCl–KCl solid solutions relative to phase-separated reference states. In particular, the curvature and temperature dependence of the free-energy curves were used to assess the tendency toward mixing or demixing. For a binary system with composition x, the Gibbs free energy of mixing relative to the unmixed end-member reference state is 
+
+∆Gmix (x, T ) = Ghom (x, T ) − [xG A(T ) + (1 − x)GB (T )] 
+
+− T ∆Smix ,
+
+(9) where Ghom (x, T ) is the Gibbs free energy of the homo-geneous mixture, GA(T ) and GB (T ) are the Gibbs free energies of the pure end members at the same temperature and pressure, and ∆Smix is the configurational entropy of mixing. Assuming ideal configurational entropy, 
+
+∆Smix = −R [x ln x + (1 − x) ln(1 − x)] , (10) where R is the gas constant. For the NaCl–KCl system, with x denoting the mole fraction of NaCl, this gives 
+
+∆Gmix (x, T ) = GNaCl -KCl (x, T )
+
+− [xG NaCl (T ) + (1 − x)GKCl (T )] + RT [x ln x + (1 − x) ln(1 − x)] .
+
+(11) Because the logarithmic term is negative for 0 < x < 1,this ideal entropic contribution stabilizes the homoge-neous mixture, whereas the energetic contribution from the computed free energies may favor demixing. The com-petition between these terms determines whether mixing is thermodynamically favorable at a given composition and temperature. To estimate the temperature at which a homogeneous mixture becomes stable relative to the unmixed end-member reference state, ∆Gmix (x, T ) was evaluated at fixed composition as a function of temperature. For the 
+
+x = 0 .10 composition, the condition ∆Gmix = 0 was reached within the simulated temperature range, and the corresponding transition temperature was obtained by linear interpolation. For the remaining compositions, 
+
+∆Gmix did not reach zero over the simulated temperature range. In these cases, the transition temperature was estimated by fitting the approximately linear region of the ∆Gmix (T ) curve and extrapolating to ∆Gmix = 0 .The fitting interval was selected separately for each com-position based on the temperature range over which the 6   
+
+> Fig. 2 Illustration of the solid–liquid coexistence model used to determine melting temperatures and phase boundaries in the NaCl–KCl system. Each simulation cell contains 5760 atoms and is constructed in a tetragonal box elongated along the z-direction to accommodate the solid–liquid interface. The configuration shown corresponds to a NaCl–KCl mixture con-taining 50 mol% NaCl and is representative of the simulation setup used to estimate solidus and liquidus temperatures across the composition range.
+
+data showed approximately linear behavior. These ex-trapolated temperatures should therefore be interpreted as estimates of the mixing stability boundary within the assumptions of the ideal configurational entropy model and the chosen end-member reference state.  
+
+> G. Comparison of computational cost and performance: MTP vs MTP–D3
+
+The computational performance of the baseline MTP and the MTP-D3 variant was evaluated to quantify the overhead associated with adding long-range dispersion corrections in large-scale molten-salt simulations. Re-ported timings correspond to full molecular dynamics production runs, including force evaluation, neighbor-list construction, and MPI communication overhead, thereby providing an application-level measure of computational cost. All benchmarks were performed on systems contain-ing 16,000 atoms using 64 MPI processes. Performance is reported as wall-clock time per MD step, and multiple independent runs with different initial velocity seeds were used to reduce statistical fluctuations. The MTP-D3 sim-ulations employed BJ damping and a converged 20 Å D3 cutoff. Production runs consisted of 300,000 MD steps and are summarized in Fig. 3. The baseline MTP exhibits a computational cost of 
+
+∼ 10 −7 core h atom −1 MD step −1, consistent with previ-ous work 47 and approximately one order of magnitude lower than reported neural-network interatomic potentials for molten salts 6. Adding the D3 correction increases the cost by ∼25% for molten NaCl and by ∼20% for equimo-lar NaCl–KCl under the benchmark conditions considered here. Thus, the long-range dispersion correction intro-duces a modest computational overhead while preserving the favorable efficiency of the MTP framework. This benchmark quantifies the cost of the MTP-D3 variant, but does not imply that the dispersion-corrected model is uniformly more accurate across compositions or prop-erties.    
+
+> Fig. 3 Computational performance comparison for molten NaCl and equimolar NaCl–KCl systems. The reported cost corresponds to the wall-clock time per MD step and is normal-ized with respect to MTP-only simulations performed under identical thermodynamic and parallelization conditions. Mea-surements were carried out on CPU using simulation cells containing 16,000 atoms.
+> III. Results and discussion A. Bulk properties
+
+The MTP predicts bulk moduli of 30.7 and 16.6 GPa for NaCl and KCl, respectively, compared with experimental values of approximately 24 and 17 GPa 80 . The predicted bulk modulus of KCl is therefore in good agreement with experiment, whereas that of NaCl is noticeably overes-timated. This discrepancy illustrates that, even when a MLIP accurately reproduces its first-principles refer-ence data, absolute properties may still inherit systematic errors from the underlying DFT description. Fig. 4 presents the lattice parameters of NaCl, KCl, and NaCl–KCl mixtures as a function of composition, compar-ing predictions from the baseline MTP and the MTP-D3 variant with experimental data 80,81 . The baseline MTP gives better agreement with experiment than MTP-D3 across the compositions considered. Thus, for these crys-talline lattice parameters, adding the D3 correction does not improve the prediction and instead introduces an addi-tional systematic contraction. This behavior emphasizes that the effect of dispersion corrections is property- and composition-dependent, rather than uniformly beneficial.  
+
+> B. MTP predictions on the liquid-phase atomic structures
+
+To assess liquid-phase thermophysical properties, the den-sities of molten NaCl, KCl, equimolar NaCl–KCl, and the liquid NaK alloy were calculated over a range of temperatures and compared with available experimental data, as shown in Fig. 5. Three sets of results are pre-sented: predictions from the baseline MTP, predictions 70 10 20 30 40 50 60 70 80 90 100 
+
+> NaCl, mol (%)
+> 5.6
+> 5.7
+> 5.8
+> 5.9
+> 6.0
+> 6.1
+> 6.2
+> 6.3
+> 6.4
+> Lattice constant ( Å)
+> Expt MTP MTP-D3
+
+Fig. 4 Lattice parameters of NaCl–KCl mixtures as a func-tion of NaCl composition, predicted using the baseline MTP and the MTP-D3 variant and compared with experimental data. The lattice parameters at the end-member compositions were obtained by energy minimization, whereas those at inter-mediate compositions were determined by relaxation to zero pressure at 0 K. 
+
+from the MTP-D3 variant, and experimental reference val-ues 10,82,83 . Because densities were evaluated over broad temperature ranges, we compare the maximum deviation from experiment for each system. The effect of the D3 correction is strongly system de-pendent. For molten KCl, the maximum deviation from experiment decreases from 15.74% with the baseline MTP to 2.35% with MTP-D3, indicating a substantial improve-ment. For equimolar NaCl–KCl, however, the maximum deviation changes only slightly, from 9.90% to 9.47%. For liquid NaK, the deviation decreases from 8.79% to 6.25%. In contrast, molten NaCl shows the opposite behavior: the maximum deviation increases from 1.45% with the baseline MTP to 16.78% with MTP-D3. Thus, adding D3 does not provide a uniform improvement in density predic-tions. Instead, it introduces composition-dependent shifts in the absolute density, while the temperature-dependent trends remain broadly consistent. This behavior supports treating MTP and MTP-D3 as related modeling variants rather than assuming that the dispersion-corrected model is universally more accurate. To further characterize the liquid structure, partial RDFs were computed for molten NaCl, KCl, and equimo-lar NaCl–KCl. Four datasets were compared: DFT, DFT-D3, MTP, and MTP-D3, as shown in Fig. 6. For all three systems, the MTP and MTP-D3 RDFs closely reproduce the corresponding DFT-based liquid structures, indicating that the local ordering learned by the MTP is consistent with the first-principles reference data. Only minor differences are observed among the four datasets. This limited sensitivity should be interpreted in light of the simulation protocol: the RDF calculations were performed at fixed simulation cell densities corre-1050 1200 1350 1500             
+
+> 1.35
+> 1.40
+> 1.45
+> 1.50
+> 1.55
+> 1.60
+> 1.65
+> 1.70 NaCl Expt MTP MTP-D3
+> 1050 1200 1350 1500
+> 1.10
+> 1.15
+> 1.20
+> 1.25
+> 1.30
+> 1.35
+> 1.40
+> 1.45
+> 1.50
+> KCl
+> 1000 1125 1250 1375 1500
+> 1.15
+> 1.20
+> 1.25
+> 1.30
+> 1.35
+> 1.40
+> 1.45
+> 1.50
+> 1.55
+> 1.60
+> 1.65
+> NaCl-KCl
+> 400 600 800 1000 1200
+> Temperature (K)
+> 0.60
+> 0.65
+> 0.70
+> 0.75
+> 0.80
+> 0.85
+> 0.90
+> NaK Density (g/cm³)
+
+Fig. 5 Temperature-dependent densities of molten NaCl, KCl, equimolar NaCl–KCl, and liquid NaK, predicted using the baseline MTP and the MTP-D3 variant and compared with experimental measurements. Error bars are negligible on the scale of the plot. Densities were obtained from simulations containing 1728 atoms, initialized in cubic simulation cells. 8sponding to experimental values. Fixing the volume con-strains the average bonding environment and suppresses the density changes observed in NPT simulations. The RDF results therefore show that both MTP variants re-produce local liquid structure at fixed density, while the density calculations in Fig. 5 demonstrate that absolute volume predictions remain sensitive to the treatment of dispersion.  
+
+> C. Thermophysical and transport properties
+
+Thermophysical and transport properties are central to the engineering use of molten salts. Here, we evaluate thermal conductivity, constant-pressure heat capacity, and self-diffusion coefficients using the MTP-D3 variant. This choice provides a consistent basis for the property calculations reported in this section, but should not be interpreted as implying that the D3-corrected model is uniformly more accurate for all properties or compositions, as discussed above for the density and lattice-parameter predictions. Self-diffusion coefficients were computed from simula-tions in the canonical ensemble. The MSD was evalu-ated as a function of time, and diffusion coefficients were obtained from the slope of the linear diffusive regime using the Einstein relation. The isobaric heat capacity was computed from enthalpy fluctuations in the NPT ensemble, with uncertainties estimated by block aver-aging over multiple independent trajectories. Thermal conductivity was calculated after NPT equilibration using the Müller–Plathe reverse non-equilibrium molecular dy-namics method, in which a heat flux is imposed through periodic velocity exchanges and the resulting tempera-ture gradient is measured. Detailed simulation protocols and analysis procedures are provided in the Supporting Information. Fig. 7 presents the predicted thermal conductivity of molten NaCl, KCl, and the equimolar NaCl–KCl mixture, together with available experimental data 84–86 . The MTP-D3 predictions are broadly consistent with the experimen-tal ranges for all three systems, although the scatter in the experimental data and the statistical uncertainties in the simulations limit the precision of this comparison. These results indicate that the model captures the approx-imate magnitude and temperature dependence of thermal conductivity for the systems considered. Using the same MTP-D3 variant, we also evaluated the constant-pressure heat capacity of molten NaCl, KCl, equimolar NaCl–KCl, and the liquid NaK alloy. The results are shown in Fig. 8 and compared with avail-able experimental measurements 87,88 . The predicted heat capacities are in reasonable agreement with experiment across the investigated temperature range, suggesting that the model captures the main thermal response of the liquid systems. Finally, self-diffusion coefficients were computed for molten NaCl, KCl, and equimolar NaCl–KCl. As shown in Fig. 9, the predicted diffusion coefficients increase mo-notonically with temperature for Na +, K +, and Cl −,consistent with experimental trends 10 . However, the ab-solute values are systematically underestimated across the systems considered. This discrepancy appears to be systematic rather than system-specific, and may reflect limitations inherited from the underlying DFT reference data, the dispersion treatment, or the simulated liquid structure and density. The diffusion results therefore re-inforce the broader conclusion that the MTP framework can capture useful temperature-dependent trends, while absolute transport coefficients may require experimental anchoring or calibration for engineering use.  
+
+> D. Melting points and phase diagram
+
+The predicted melting temperatures of the end-member salts obtained using the MTP-D3 variant are 1027 .4 ±
+
+4.2 K for KCl and 1156 .9 ± 4.0 K for NaCl. These values can be compared with experimental melting temperatures of 1043 K and 1073 K, corresponding to deviations of 1.5% and 7.8%, respectively. The KCl melting point is therefore reproduced closely, whereas the NaCl melting point exhibits a noticeable upward shift. This differ-ence is consistent with the broader observation that first-principles-derived potentials can capture temperature-and composition-dependent trends while retaining system-atic offsets in absolute thermodynamic quantities. Such offsets may arise from the underlying DFT reference data, finite-size effects, the treatment of dispersion interactions, or the details of the solid–liquid coexistence procedure. The predicted enthalpies of fusion, ∆Hm, evaluated at the corresponding melting temperatures are 24 .30 ±
+
+0.03 kJ mol −1 for NaCl and 27 .02 ±0.03 kJ mol −1 for KCl. These values compare with experimental measurements of 
+
+28 .16 ± 0.14 kJ mol −1 for NaCl and 26 .53 ± 0.27 kJ mol −1
+
+for KCl. The KCl enthalpy of fusion is in close agreement with experiment, while the NaCl value is underestimated. Thus, as for the melting temperatures, the end-member thermodynamic properties show good qualitative consis-tency with experiment but also reveal system-dependent quantitative deviations. The calculated solidus and liquidus boundaries for NaCl– KCl compositions between 10 and 90 mol% NaCl are presented in Fig. 10, together with the estimated misci-bility limits and experimental phase-diagram data. The MTP-D3 variant reproduces the main topology of the NaCl–KCl phase diagram, including the relative positions of the solidus and liquidus boundaries and the composi-tion dependence of the miscibility gap. Quantitatively, the liquidus deviations range from 2.82% to 5.04%, with the largest discrepancy at 90 mol% NaCl. The solidus deviations range from 1.71% to 9.36%, again with the largest discrepancy at 90 mol% NaCl. The mean devia-tions are 2.82% for the liquidus and 5.02% for the solidus. The larger errors near the NaCl-rich end are consistent with the upward shift observed for the pure NaCl melting point. The predicted miscibility limits also follow the over-all experimental composition dependence, although the quantitative agreement is less uniform. Deviations range 90               
+
+> 1
+> 2
+> 3
+> 4
+> NaCl: Na-Cl DFT DFT-D3 MTP MTP-D3
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl: Na-Na
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl: Cl-Cl
+> 0
+> 1
+> 2
+> 3
+> KCl: K-Cl
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> KCl: Cl-Cl
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> KCl: K-K
+> 0
+> 1
+> 2
+> 3
+> 4
+> NaCl-KCl: Na-Cl
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl-KCl: Na-Na
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl-KCl: Na-K
+> 0246810
+> 0
+> 1
+> 2
+> 3
+> NaCl-KCl: K-Cl
+> 0246810
+> r ( Å)
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl-KCl: Cl-Cl
+> 0246810
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl-KCl: K-K g(r)
+
+Fig. 6 Partial radial distribution functions of molten NaCl, KCl, and equimolar NaCl–KCl from 96-atom simulations. MTP and MTP-D3 predictions are benchmarked against DFT and DFT-D3 calculations. Simulation cell densities were fixed to experimental values at 1150 K for NaCl and 1100 K for KCl and NaCl–KCl, with simulations carried out at the corresponding temperatures. 
+
+from 0.20% to 16.49%, with the largest discrepancy near 30 mol% NaCl and a mean deviation of 7.11%. These results indicate that the model captures the broad temper-ature and composition trends associated with solid-phase mixing and demixing, but that the absolute phase bound-aries retain non-negligible systematic errors. Taken together, the phase-diagram calculations show that a single transferable MTP can reproduce the princi-pal trends in NaCl–KCl phase behavior, including melting boundaries and the solid-phase miscibility gap. However, 10 1200 1300 1400 1500        
+
+> 0.25
+> 0.50
+> 0.75
+> NaCl Expt MTP-D3
+> 1200 1300 1400 1500
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> Thermal conductivity (Wm −1 K−1 )
+> KCl
+> 1000 1100 1200 1300 1400
+> Temperature (K)
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> NaCl-KCl
+
+Fig. 7 Thermal conductivity of molten NaCl, KCl, and equimo-lar NaCl–KCl predicted using the MTP-D3 variant and com-pared with experimental measurements. Error bars denote statistical uncertainties from the simulations. 
+
+the comparison with experiment also highlights the limits of a purely first-principles-trained model for quantita-tive phase-boundary prediction. For engineering use, the most robust role of such a model may therefore be to interpolate trends across composition and temperature, while experimental data provide anchors for correcting systematic offsets in absolute transition temperatures and thermodynamic properties. 
+
+E. Effect of the D3 dispersion correction 
+
+To account for long-range dispersion effects in molecular dynamics simulations, we considered an MTP–D3 vari-ant in which Grimme’s D3 correction 74 was added to the DFT-trained MTP. The underlying DFT reference 1200 1300 1400 1500            
+
+> 60
+> 62
+> 64
+> 66
+> 68
+> 70
+> 72
+> NaCl Expt MTP-D3
+> 1100 1200 1300 1400 1500
+> 60
+> 64
+> 68
+> 72
+> 76
+> 80
+> 84
+> 88
+> KCl
+> 1000 1100 1200 1300 1400
+> 66
+> 69
+> 72
+> 75
+> 78
+> NaCl-KCl
+> 300 600 900 1200
+> Temperature (K)
+> 28
+> 30
+> 32
+> 34
+> 36
+> NaK Cp (J/mol·K)
+
+Fig. 8 Constant-pressure heat capacity of molten NaCl, KCl, equimolar NaCl–KCl, and liquid NaK as a function of temper-ature. MTP-D3 predictions with statistical uncertainties are compared with available experimental data. 11 1200 1300 1400 1500            
+
+> 4
+> 6
+> 8
+> 10
+> 12 NaCl Expt Na Expt Cl MTP-D3 Na MTP-D3 Cl MTP-D3 Na MTP-D3 Cl
+> 1000 1100 1200 1300 1400
+> 4
+> 6
+> 8
+> 10
+> KCl Expt K Expt Cl MTP-D3 K MTP-D3 Cl MTP-D3 K MTP-D3 Cl
+> 1000 1100 1200 1300 1400 1500
+> Temperature (K)
+> 2
+> 4
+> 6
+> 8
+> NaCl-KCl MTP-D3 Na MTP-D3 Cl MTP-D3 K MTP-D3 Na MTP-D3 Cl MTP-D3 K Diffusion coefficient (10 −5  cm 2/s)
+
+Fig. 9 Temperature-dependent self-diffusion coefficients of Na +, K +, and Cl − in molten NaCl, KCl, and equimolar NaCl– KCl. MTP-D3 predictions, including statistical uncertainties, are compared with available experimental data. 
+
+data were generated without dispersion corrections. A single numerically converged D3 parameter set was used throughout, consisting of a 20 Å cutoff with BJ damping. Results obtained with this dispersion-corrected variant are denoted as MTP–D3. The influence of D3 was evaluated across structural, thermophysical, transport, and phase-equilibrium proper-ties. As shown in Figs. 4–9, its effect is strongly system and property dependent. For crystalline lattice parame-ters obtained from static or near-static relaxation, the baseline MTP gives better agreement with experiment than MTP–D3 for NaCl, KCl, and several NaCl–KCl mix-ture compositions. For liquid densities, the effect of D3 is mixed: it substantially improves agreement for KCl, mod-0 20 40 60 80 100 
+
+> NaCl, mol (%)
+> 0
+> 200
+> 400
+> 600
+> 800
+> 1000
+> 1200
+> Temperature (K)
+> Exp liquidus Exp solidus Exp misc MTP-D3 liquidus MTP-D3 solidus MTP-D3 misc
+
+Fig. 10 Temperature–composition phase diagram of NaCl– KCl mixtures, including predicted solidus and liquidus bound-aries and the estimated miscibility gap. MTP-D3 predictions are compared with experimental data for NaCl compositions from 10 to 90 mol%, with pure NaCl and KCl shown as refer-ence endpoints. 
+
+estly improves NaK, has only a small effect for equimolar NaCl–KCl, and worsens agreement for NaCl. The ra-dial distribution functions show little sensitivity to the D3 correction, which is consistent with the fixed-density protocol used for those calculations and indicates that the local liquid structure is reproduced similarly by both variants under the same volume constraint. For transport and phase-equilibrium properties, only MTP–D3 results are reported. Therefore, the direct effect of D3 on these observables cannot be isolated from the present data. Overall, these comparisons show that D3 does not pro-vide a uniformly transferable improvement across compo-sitions or observables. The baseline MTP performs better for some properties and systems, whereas MTP–D3 im-proves agreement in others, particularly for KCl-rich or mixed liquid-density predictions. This variability indi-cates that the effect of empirical dispersion corrections depends on composition, thermodynamic state, and the property being evaluated. In the present system, the in-clusion of D3 dispersion should be regarded as a physically motivated modeling variant, rather than as a correction that uniformly improves agreement with experiment. More broadly, the results suggest that an MTP trained exclusively on DFT-PBE reference data can capture useful relative trends in molten alkali chloride systems, includ-ing temperature and composition dependencies in several thermophysical and phase-equilibrium properties. How-ever, systematic offsets remain in some absolute quantities. These offsets are evident, for example, in the predicted melting temperatures, where deviations can approach 
+
+∼100 K depending on composition. Such discrepancies are important for engineering applications, even when the qualitative phase behavior and property trends are repro-duced. MTP predictions based solely on DFT-PBE data 12 should therefore be interpreted with care when absolute thermodynamic values are required. These findings support a multi-scaling modeling strat-egy in which DFT-informed MLIPs can efficiently capture temperature- and composition-dependent behavior while maintaining physical consistency, thereby providing valu-able predictive capability in areas of composition space that remain experimentally unexplored or sparsely char-acterized. However, achieving quantitative agreement with experiment may require calibration against selected experimental reference data. Such calibration can be in-troduced either during potential development through the inclusion of experimental targets or in downstream engineering workflows through property-level correction and validation. Integration of MTP-generated data into CALPHAD assessments, computational fluid dynamics (CFD) models, and materials-property databases should therefore account explicitly for possible systematic off-sets to maintain quantitative accuracy, thermodynamic consistency, and predictive reliability. 
+
+> Conclusion
+
+In this work, we developed a transferable MLIP based on the MTP framework for molten NaCl, KCl, NaCl–KCl mixtures, and the NaK system. The model was trained on DFT-PBE reference data generated using a small-cell active-learning strategy spanning a broad range of temper-atures, compositions, and local atomic environments. We also considered an MTP–D3 variant, in which Grimme’s D3 dispersion correction was added during molecular dy-namics simulations using a consistent parameterization. The results demonstrate that the treatment of disper-sion interactions can significantly influence the predicted thermophysical properties; however, their inclusion does not consistently improve predictive accuracy across all properties and thermodynamic conditions. For some sys-tems and properties, particularly KCl-rich and mixed liq-uid compositions, the D3 correction improves agreement with experiment. For others, including NaCl lattice para-meters and molten NaCl density, the uncorrected MTP yields more accurate predictions. The effect of D3 is there-fore system-, composition-, and property-dependent, and should be regarded as a physically motivated modeling variant rather than a correction that uniformly improve the results. Across the systems studied, the MTP framework cap-tures many of the key temperature- and composition-dependent trends in density, heat capacity, radial distri-bution functions, diffusion coefficients, thermal conduc-tivity, and phase behavior. However, systematic devia-tions remain in several absolute properties. In partic-ular, predicted melting temperatures can exhibit shifts approaching 100 K relative to experiment, depending on composition. These deviations are not simply uniform off-sets, but composition-dependent biases that likely reflect limitations inherited from the underlying DFT reference data, the treatment of dispersion, finite-size effects, and the sensitivity of phase-boundary calculations. Our results show that DFT-informed MTPs are pow-erful tools for exploring relative trends in molten-salt thermophysical and transport behavior, especially in com-position and temperature regimes where experimental data are sparse. However, they should not be treated as fully quantitative predictors of absolute thermody-namic reference points without validation or calibration. For engineering applications, selected experimental an-chors may be needed either during potential development, through augmented training objectives, or downstream, through integration with thermodynamic frameworks such as CALPHAD-type assessments. Future work should therefore focus on systematically assessing the influence of exchange–correlation functional, dispersion treatment, training-set construction, and hy-brid first-principles/experimental calibration strategies. Extending this approach to more complex multicompo-nent molten-salt systems will be essential for building reliable predictive workflows. Overall, this study demon-strates that DFT-informed MTPs provide an efficient framework for capturing composition- and temperature-dependent behavior in molten salts, while also clarifying the need for experimental anchoring when quantitative absolute accuracy is required. 
+
+> Acknowledgements
+
+We thank the Digital Research Alliance of Canada (DRAC) for generous allocation of compute resources. Financial support was provided by the Natural Sciences and Engineering Research Council of Canada (NSERC), Mitacs, and the University Network for Excellence in Nu-clear Engineering (UNENE). This work was partly funded by Atomic Energy of Canada Limited, Canada, under the auspices of the Federal Nuclear Science and Technology Program. 
+
+> Declaration of generative AI and AI-assisted technologies in the writing process
+
+Generative AI (ChatGPT 5) was used to assist with English-language editing, formatting, grammar checking, and refinement of the original manuscript drafts. All algorithms and data-processing methods were conceived and developed by the authors. ChatGPT was used only to assist with the implementation, optimization, and re-finement of the corresponding Python code to improve coding efficiency and streamline the workflow. The au-thors confirm that all data, results, figures, analyses, and scientific interpretations were conceived, produced, and verified by the authors and were not generated by AI. 
+
+> Data availability
+
+All Python scripts developed for this work, to-gether with the datasets and machine-learning in-teratomic potentials used in this study, are pub-licly available at: https://github.com/kzongogith/ 13 
+
+NaCl-KCl-Phase-Diagram-MTP-D3 
+
+Author contributions 
+
+L.K.B. initiated and coordinated the research project and provided the necessary computing resources. K.Z. performed all DFT calculations, trained the MTP, con-ducted molecular dynamics simulations, and carried out the analyses presented in this work. All authors—K.Z., H.S., E.T., C.M., and L.K.B.—contributed to writing the manuscript. 
+
+Competing interests 
+
+The authors declare no conflict of interest. 
+
+[1] Robin Roper, Megan Harkema, Piyush Sabharwall, Catherine Riddle, Brandon Chisholm, Brandon Day, and Paul Marotta. Molten salt for advanced energy applica-tions: A review. Annals of Nuclear Energy , 169:108924, 2022. [2] David F Williams and KT Clarno. Evaluation of salt coolants for reactor applications. Nuclear technology ,163(3):330–343, 2008. [3] Stephen Scott Parker, A Long, C Lhermitte, S Vogel, M Monreal, and JM Jackson. Thermophysical properties of liquid chlorides from 600 to 1600 k: Melt point, enthalpy of fusion, and volumetric expansion. Journal of Molecular Liquids , 346:118147, 2022. [4] Edouard González-Roubaud, David Pérez-Osorio, and Cristina Prieto. Review of commercial thermal energy storage in concentrated solar power plants: Steam vs. molten salts. Renewable and sustainable energy reviews ,80:133–148, 2017. [5] SJ Zinkle and NM Ghoniem. Operating temperature windows for fusion reactor structural materials. Fusion Engineering and design , 51:55–71, 2000. [6] Qing-Jie Li, Emine Küçükbenli, Stephen Lam, Boris Khaykovich, Efthimios Kaxiras, and Ju Li. Development of robust neural-network interatomic potential for molten salt. Cell Reports Physical Science , 2(3), 2021. [7] DS Coleman and PDA Lacy. The phase equilibrium dia-gram for the kcl-nacl system. Materials Research Bulletin ,2(10):935–938, 1967. [8] Dmitry Sergeev, D Kobertz, and M Müller. Thermo-dynamics of the nacl–kcl system. Thermochimica acta ,606:25–33, 2015. [9] Thomas Bauer, Christian Odenthal, and Alexander Bonk. Molten salt storage for power generation. Chemie Inge-nieur Technik , 93(4):534–546, 2021. [10] George J Janz, Carolyn B Allen, NP Bansal, RM Murphy, and R Tomkins. Physical properties data compilations relevant to energy storage. ii. molten salts: data on sin-gle and multi-component salt systems. Technical report, Rensselaer Polytechnic Inst., Troy, NY (USA). Cogswell Lab., 1979. [11] Stanley Cantor. Physical properties of molten-salt reactor fuel, coolant, and flush salts. Technical report, Oak Ridge National Lab., Tenn., 1968. [12] Xiang Li, Shuang Wu, Yang Wang, and Leidong Xie. Experimental investigation and thermodynamic modeling of an innovative molten salt for thermal energy storage (tes). Applied energy , 212:516–526, 2018. [13] Fan Yuan, Ming-Jia Li, Zhao Ma, Bo Jin, and Zhanbin Liu. Experimental study on thermal performance of high-temperature molten salt cascaded latent heat thermal energy storage system. International Journal of Heat and Mass Transfer , 118:997–1011, 2018. [14] Anita Zeidler, Philip S Salmon, Takeshi Usuki, Shinji Kohara, Henry E Fischer, and Mark Wilson. Structure of molten nacl and the decay of the pair-correlations. The Journal of Chemical Physics , 157(9), 2022. [15] Jing Ding, Fengchun Gong, Senfeng Yang, Weilong Wang, Shule Liu, and Jianfeng Lu. Microstructure and thermal properties of nacl–zncl2 molten salt by molecular dynam-ics simulation and experiment. Solar Energy Materials and Solar Cells , 250:112108, 2023. [16] Amelia Bengtson, Hyo On Nam, Saumitra Saha, Ridwan Sakidja, and Dane Morgan. First-principles molecular dynamics modeling of the licl–kcl molten salt system. 
+
+Computational materials science , 83:362–370, 2014. [17] Sandrine Hazebroucq, Gérard S Picard, Carlo Adamo, Thomas Heine, Sibylle Gemming, and Gotthard Seifert. Density-functional-based molecular-dynamics simulations of molten salts. The Journal of chemical physics , 123(13), 2005. [18] Andrea Di Cicco, Marco Minicucci, and Adriano Filipponi. New advances in the study of local structure of molten binary salts. Physical review letters , 78(3):460, 1997. [19] Carlos E Bamberger. Experimental techniques in molten fluoride chemistry. In Advances in Molten Salt Chemistry: Volume 3 , pages 177–248. Springer, 1975. [20] Roy E Thoma. Phase diagrams of binary and ternary fluoride systems. In Advances in Molten Salt Chemistry: Volume 3 , pages 275–455. Springer, 1975. [21] David F Williams. Assessment of candidate molten salt coolants for the advanced high temperature reactor (ahtr). 2006. [22] K Sridharan and TR Allen. Corrosion in molten salts. In 
+
+Molten salts chemistry , pages 241–267. Elsevier, 2013. [23] Pierre Hohenberg and Walter Kohn. Inhomogeneous elec-tron gas. Physical review , 136(3B):B864, 1964. [24] Benjamin A Frandsen, Stella D Nickerson, Austin D Clark, Andrew Solano, Raju Baral, Johnny Williams, Jörg Neue-feind, and Matthew Memmott. The structure of molten flinak. Journal of Nuclear Materials , 537:152219, 2020. [25] Kai Duemmler, Michael Woods, Toni Karlsson, Ruchi Gakhar, and Benjamin Beeler. First-principles-derived transport properties of molten chloride salts. Journal of Nuclear Materials , 585:154601, 2023. [26] MJL Sangster and M Dixon. Interionic potentials in alkali halides and their use in simulations of the molten salts. 
+
+Advances in Physics , 25(3):247–342, 1976. [27] M Wilson and PA Madden. Polarization effects in ionic systems from first principles. Journal of Physics: Con-densed Matter , 5(17):2687–2706, 1993. [28] Kimberly Chenoweth, Adri CT Van Duin, and William A Goddard. Reaxff reactive force field for molecular dynam-14 
+
+ics simulations of hydrocarbon oxidation. The Journal of Physical Chemistry A , 112(5):1040–1053, 2008. [29] Tao Liang, Tzu-Ray Shan, Yu-Ting Cheng, Bryce D Devine, Mark Noordhoek, Yangzhong Li, Zhize Lu, Si-mon R Phillpot, and Susan B Sinnott. Classical atomistic simulations of surfaces and heterogeneous interfaces with the charge-optimized many body (comb) potentials. Mate-rials Science and Engineering: R: Reports , 74(9):255–279, 2013. [30] Haimeng Wang, Ryan S DeFever, Yong Zhang, Fei Wu, Santanu Roy, Vyacheslav S Bryantsev, Claudio J Mar-gulis, and Edward J Maginn. Comparison of fixed charge and polarizable models for predicting the structural, ther-modynamic, and transport properties of molten alkali chlorides. The Journal of chemical physics , 153(21), 2020. [31] Adri CT Van Duin, Vyacheslav S Bryantsev, Mamadou S Diallo, William A Goddard, Obaidur Rahaman, Dou-glas J Doren, David Raymand, and Kersti Hermansson. Development and validation of a reaxff reactive force field for cu cation/water interactions and copper metal/metal oxide/metal hydroxide condensed phases. The Journal of Physical Chemistry A , 114(35):9507–9514, 2010. [32] Sam Cheung, Wei-Qiao Deng, Adri CT Van Duin, and William A Goddard. Reaxffmgh reactive force field for magnesium hydride systems. The Journal of Physical Chemistry A , 109(5):851–859, 2005. [33] Lianchi Liu, Yi Liu, Sergey V Zybin, Huai Sun, and William A Goddard III. Reaxff-lg: Correction of the reaxff reactive force field for london dispersion, with applications to the equations of state for energetic materials. The Journal of Physical Chemistry A , 115(40):11016–11022, 2011. [34] Guanjie Wang, Changrui Wang, Xuanguang Zhang, Ze-feng Li, Jian Zhou, and Zhimei Sun. Machine learning interatomic potential: Bridge the gap between small-scale models and realistic device-scale simulations. Iscience ,27(5), 2024. [35] Luke D Gibson, Rajni Chahal, and Vyacheslav S Bryant-sev. Computing chemical potentials with machine-learning-accelerated simulations to accurately predict ther-modynamic properties of molten salts. Chemical Science ,16(7):3078–3091, 2025. [36] Tingrui Xu, Xuejiao Li, Yang Wang, and Zhongfeng Tang. Development of deep potentials of molten mgcl2–nacl and mgcl2–kcl salts driven by machine learning. ACS Applied Materials & Interfaces , 15(11):14184–14195, 2023. [37] Wenshuo Liang, Guimin Lu, and Jianguo Yu. Theoretical prediction on the local structure and transport properties of molten alkali chlorides by deep potentials. Journal of Materials Science & Technology , 75:78–85, 2021. [38] Wenshuo Liang, Guimin Lu, and Jianguo Yu. Molecular dynamics simulations of molten magnesium chloride using machine-learning-based deep potential. Advanced Theory and Simulations , 3(12):2000180, 2020. [39] Di Guo, Jia Zhao, Wenshuo Liang, and Guimin Lu. Mol-ecular dynamics simulation of molten strontium chloride based on deep potential. Journal of Molecular Liquids ,348:118380, 2022. [40] Gechuanqi Pan, Pin Chen, Hui Yan, and Yutong Lu. A dft accurate machine learning description of molten zncl2 and its mixtures: 1. potential development and properties prediction of molten zncl2. Computational Materials Science , 185:109955, 2020. [41] Wenshuo Liang, Guimin Lu, and Jianguo Yu. Machine learning accelerates molten salt simulations: Thermal conductivity of mgcl2-nacl eutectic. Advanced Theory and Simulations , 5(8):2200206, 2022. [42] Wenshuo Liang, Guimin Lu, and Jianguo Yu. Machine-learning-driven simulations on microstructure and ther-mophysical properties of mgcl2–kcl eutectic. ACS applied materials & interfaces , 13(3):4034–4042, 2021. [43] Jia Zhao, Wenshuo Liang, and Guimin Lu. Theoretical prediction on the redox potentials of rare-earth ions by deep potentials. Ionics , 27(5):2079–2088, 2021. [44] Gechuanqi Pan, Jing Ding, Yunfei Du, Duu-Jong Lee, and Yutong Lu. A dft accurate machine learning description of molten zncl2 and its mixtures: 2. potential development and properties prediction of zncl2-nacl-kcl ternary salt for csp. Computational Materials Science , 187:110055, 2021. [45] Rajni Chahal, Santanu Roy, Martin Brehm, Shubhojit Banerjee, Vyacheslav Bryantsev, and Stephen T Lam. Transferable deep learning potential reveals intermediate-range ordering effects in lif–naf–zrf4 molten salt. Jacs Au ,2(12):2693–2702, 2022. [46] Alexander V Shapeev. Moment tensor potentials: Aclass of systematically improvable interatomic potentials. 
+
+Multiscale Modeling & Simulation , 14(3):1153–1173, 2016. [47] Hao Sun, Christopher Maxwell, Edmanuel Torres, and Laurent Karim Béland. Interatomic potential for sodium and chlorine in both neutral and ionic states. Physical Review B , 109(17):174113, 2024. [48] Samuel Tovey, Anand Narayanan Krishnamoorthy, Ganesh Sivaraman, Jicheng Guo, Chris Benmore, Andreas Heuer, and Christian Holm. Dft accurate interatomic potential for molten nacl from machine learning. The Journal of Physical Chemistry C , 124(47):25760–25768, 2020. [49] Maoyuan Liu, Patrick Masset, and Angus Gray-Weale. Solubility of sodium in sodium chloride: a density func-tional theory molecular dynamics study. Journal of The Electrochemical Society , 161(8):E3042–E3048, 2014. [50] Thomas Weymuth, Erik PA Couzijn, Peter Chen, and Markus Reiher. New benchmark set of transition-metal coordination reactions for the assessment of density func-tionals. Journal of chemical theory and computation ,10(8):3092–3103, 2014. [51] Vojtech Kostal, Philip E Mason, Hector Martinez-Seara, and Pavel Jungwirth. Common cations are not polarizable: Effects of dispersion correction on hydration structures from ab initio molecular dynamics. The Journal of Phys-ical Chemistry Letters , 14(19):4403–4408, 2023. [52] Jason A Meziere, Yu Luo, Yi Xia, Laurent Karim Bé-land, Mark R Daymond, and Gus LW Hart. Accelerating training of mlips through small-cell training. Journal of Materials Research , 38(24):5095–5105, 2023. [53] Yu Luo, Jason A Meziere, German D Samolyuk, Gus LW Hart, Mark R Daymond, and Laurent Karim Béland. A set of moment tensor potentials for zirconium with increasing complexity. Journal of Chemical Theory and Computation , 19(19):6848–6856, 2023. [54] Zijian Meng, Hao Sun, Edmanuel Torres, Christopher Maxwell, Ryan Eric Grant, and Laurent Karim Béland. Small-cell-based fast active learning of machine learning interatomic potentials. Computational Materials Science ,256:113919, 2025. [55] Ivan S Novikov, Konstantin Gubaev, Evgeny VPodryabinkin, and Alexander V Shapeev. The mlip 15 
+
+package: moment tensor potentials with mpi and ac-tive learning. Machine Learning: Science and Technology ,2(2):025002, 2021. [56] Y. Zuo and et al. Performance and cost assessment of machine learning interatomic potentials. The Journal of Physical Chemistry A , 124:731–745, 2020. [57] Paolo Giannozzi, Stefano Baroni, Nicola Bonini, Matteo Calandra, Roberto Car, Carlo Cavazzoni, Davide Ceresoli, Guido L Chiarotti, Matteo Cococcioni, Ismaila Dabo, et al. Quantum espresso: a modular and open-source software project for quantum simulations of materials. Journal of physics: Condensed matter , 21(39):395502, 2009. [58] Paolo Giannozzi, Oliviero Andreussi, Thomas Brumme, Oana Bunau, M Buongiorno Nardelli, Matteo Calandra, Roberto Car, Carlo Cavazzoni, Davide Ceresoli, Matteo Cococcioni, et al. Advanced capabilities for materials modelling with quantum espresso. Journal of physics: Condensed matter , 29(46):465901, 2017. [59] Georg Kresse and Daniel Joubert. From ultra-soft pseudopotentials to the projector augmented-wave method. Physical review b , 59(3):1758, 1999. [60] John P Perdew, Kieron Burke, and Matthias Ernzerhof. Generalized gradient approximation made simple. Physi-cal review letters , 77(18):3865, 1996. [61] Matthias Ernzerhof and Gustavo E Scuseria. Assess-ment of the perdew–burke–ernzerhof exchange-correlation functional. The Journal of chemical physics , 110(11):5029– 5036, 1999. [62] Hendrik J Monkhorst and James D Pack. Special points for brillouin-zone integrations. Physical review B, 13(12):5188, 1976. [63] Aidan P Thompson, H Metin Aktulga, Richard Berger, Dan S Bolintineanu, W Michael Brown, Paul S Crozier, Pieter J In’t Veld, Axel Kohlmeyer, Stan G Moore, Trung Dac Nguyen, et al. Lammps-a flexible simula-tion tool for particle-based materials modeling at the atomic, meso, and continuum scales. Computer physics communications , 271:108171, 2022. [64] DJ Evans and BL Holian. The nose-hoover thermostat. 
+
+Journal of Chemical Physics , 83(8):4069–4074, 1985. [65] Michele Parrinello and Aneesur Rahman. Polymorphic transitions in single crystals: A new molecular dynamics method. Journal of Applied physics , 52(12):7182–7190, 1981. [66] Evgeny V Podryabinkin and Alexander V Shapeev. Active learning of linearly parametrized interatomic potentials. 
+
+Computational Materials Science , 140:171–180, 2017. [67] Evgeny Podryabinkin, Kamil Garifullin, Alexander Shapeev, and Ivan Novikov. Mlip-3: Active learning on atomic environments with moment tensor potentials. 
+
+The Journal of Chemical Physics , 159(8), 2023. [68] Evgeny V Podryabinkin, Evgeny V Tikhonov, Alexan-der V Shapeev, and Artem R Oganov. Accelerating crystal structure prediction by machine-learning inter-atomic potentials with active learning. Physical Review B, 99(6):064114, 2019. [69] Chris J Pickard. Ephemeral data derived potentials for random structure search. Physical Review B,106(1):014102, 2022. [70] Artem R Oganov and Colin W Glass. Crystal structure prediction using ab initio evolutionary techniques: Princi-ples and applications. The Journal of chemical physics ,124(24), 2006. [71] Artem R Oganov, Andriy O Lyakhov, and Mario Valle. How evolutionary crystal structure prediction works—and why. Accounts of chemical research , 44(3):227–237, 2011. [72] Andriy O Lyakhov, Artem R Oganov, Harold T Stokes, and Qiang Zhu. New developments in evolutionary struc-ture prediction algorithm uspex. Computer Physics Com-munications , 184(4):1172–1182, 2013. [73] Patrick Avery and Eva Zurek. Randspg: an open-source program for generating atomistic crystal structures with specific spacegroups. Computer Physics Communications ,213:208–216, 2017. [74] Stefan Grimme, Jens Antony, Stephan Ehrlich, and Helge Krieg. A consistent and accurate ab initio parametriza-tion of density functional dispersion correction (dft-d) for the 94 elements h-pu. The Journal of chemical physics ,132(15), 2010. [75] Stefan Grimme, Stephan Ehrlich, and Lars Goerigk. Effect of the damping function in dispersion corrected density functional theory. Journal of computational chemistry ,32(7):1456–1465, 2011. [76] Minaam Qamar, Matous Mrovec, Yury Lysogorskiy, An-ton Bochkarev, and Ralf Drautz. Atomic cluster expansion for quantum-accurate large-scale simulations of carbon. 
+
+Journal of chemical theory and computation , 19(15):5151– 5167, 2023. [77] Yong Zhang and Edward J Maginn. A comparison of methods for melting point calculation using molecular dynamics simulations. The Journal of chemical physics ,136(14), 2012. [78] Rodrigo Freitas, Mark Asta, and Maurice De Koning. Nonequilibrium free-energy calculation of solids using lammps. Computational Materials Science , 112:333–341, 2016. [79] Alan R Denton and Neil W Ashcroft. Vegard’s law. Phys-ical review A , 43(6):3161, 1991. [80] Sverre Froyen and Marvin L Cohen. Structural properties of nacl and kcl under pressure. Journal of Physics C: Solid State Physics , 19(15):2623–2632, 1986. [81] WT Barrett and WE Wallace. Studies of nacl-kcl solid solutions. i. heats of formation, lattice spacings, densities, schottky defects and mutual solubilities1, 2. Journal of the American Chemical Society , 76(2):366–369, 1954. [82] AD Kirshenbaum, JA Cahill, PJ McGonigal, and AV Grosse. The density of liquid nacl and kcl and an estimate of their critical constants together with those of the other alkali halides. Journal of Inorganic and Nuclear chemistry , 24(10):1287–1296, 1962. [83] Alexandr Gerasimovich Mozgovoi, Vladimir Vladimirovich Roshchupkin, Sergei Niko-laevich Skovorod’ko, Mikhail Alexandrovich Pokrasin, and Aleksei Ivanovich Chernov. The density of liq-uid sodium–potassium eutectic. High temperature ,41(3):340–345, 2003. [84] Y Nagasaka, N Nakazawa, and A Nagashima. Experi-mental determination of the thermal diffusivity of molten alkali halides by the forced rayleigh scattering method. i. molten licl, nacl, kcl, rbcl, and cscl. International journal of thermophysics , 13(4):555–574, 1992. [85] Jason Lonergan, Vitaliy Goncharov, Michaella Swinhart, Kyle Makovsky, Mark Rollog, Bruce McNamara, Richard Clark, Derek Cutforth, Christopher Armstrong, Xiaofeng Guo, et al. Thermodynamic investigation of the nacl-kcl salt system from 25 to 950 ° c. Journal of Molecular Liquids , 391:122591, 2023. 16 
+
+[86] Keiichi Takase, Yukiyo Matsumoto, Keisuke Sato, and Norikazu Ohtori. Thermal conductivity in molten alkali halides: composition dependence in mixtures of (na–k) cl. 
+
+Molecular Simulation , 38(5):432–436, 2012. [87] Malcolm W Chase et al. Nist-janaf thermochemical tables. 
+
+Journal of physical and chemical reference data , 28:1951, 1998. [88] Nikolay E Dubinin. Heat capacities and thermal co-efficients of sodium’s and eutectic sodium–potassium’s coolants for nuclear reactors. Applied Sciences ,15(13):7566, 2025.

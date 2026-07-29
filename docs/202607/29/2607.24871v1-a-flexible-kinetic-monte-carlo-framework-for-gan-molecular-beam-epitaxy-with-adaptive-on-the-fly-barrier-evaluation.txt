@@ -1,0 +1,300 @@
+Title: A flexible kinetic Monte Carlo framework for GaN molecular beam epitaxy with adaptive on-the-fly barrier evaluation
+
+URL Source: https://arxiv.org/pdf/2607.24871v1
+
+Published Time: Wed, 29 Jul 2026 00:08:41 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 
+
+# A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 
+
+Sajid Ali*, 1 Norbert Krause, 2 and Carla Verdi 1
+
+> 1)
+
+School of Mathematics and Physics, The University of Queensland, Brisbane 4072 Queensland, Australia a) 2) Silanna Semiconductor Pty Ltd, Pinkenba 4008 Queensland, Australia 
+
+(*Corresponding author: sajid.ali@uq.edu.au) 
+
+We present a lattice-based kinetic Monte Carlo (KMC) framework for simulating GaN(0001) growth by molecular beam epitaxy. The framework captures the key microscopic processes governing epitaxial growth, including temperature-dependent surface diffusion, flux-driven deposition, Ehrlich–Schwoebel (ES) step-edge barriers, Ostwald ripening, and species-specific desorption, within a scalable architecture that enables systematic exploration of experimentally relevant growth conditions. In addition to predefined activation-energy catalogs, the framework supports adaptive on-the-fly barrier evaluation using machine-learned interatomic potentials. When previously unencountered local atomic configurations arise, activation barriers are computed via nudged elastic band, potential energy scans, or Brønsted– Evans–Polanyi methods, and cached for reuse. Predefined-barrier simulations reproduce compact triangular island formation, and further capture Ostwald ripening during growth interruptions and ES barrier-induced multilayer nucle-ation. At elevated temperatures, desorption drives an island “walking” regime, in which N–Ga exchange generates weakly bound Ga adatoms (AdGa) at trailing edges; preferential desorption of AdGa leads to asymmetric edge retreat and net island translation. Our KMC framework provides a flexible platform for predictive simulations of GaN epitaxy at the atomic scale and, more broadly, non-equilibrium growth of compound semiconductors. 
+
+1. INTRODUCTION 
+
+Surface morphology during compound semiconductor epi-taxy is governed by the interplay between multi-species diffu-sion, attachment asymmetries, and temperature-dependent ki-netics. In GaN molecular beam epitaxy (MBE), island forma-tion, step-flow evolution, coarsening, and desorption-driven mass loss all arise from processes that operate far from equi-librium and span disparate length and time scales. Atom-istically informed kinetic modeling is therefore essential for mechanistic insight into these phenomena. This is particularly important for GaN and AlGaN-based heterostructures used in deep-UV optoelectronics 1, where surface kinetics during MBE directly control interface abruptness and defect incor-poration in short-period superlattices 2, ultimately governing optical efficiency and emission wavelength 3.Kinetic Monte Carlo (KMC) methods are widely used to simulate epitaxial growth, describing surface evolution as a sequence of stochastic, thermally activated events whose rates are determined by activation barriers 4–6 . In com-pound systems such as GaN, however, growth morphology depends sensitively on several processes. These include coordination-dependent diffusion pathways, asymmetries in interlayer mass transport, and interactions between multiple atomic species. A key example is the Ehrlich–Schwoebel (ES) barrier, which hinders downward step crossing and thereby induces asymmetric interlayer mass transport, destabilizing step-flow growth and promoting mound formation 7. At ele-vated temperatures, desorption competes with the incoming flux, modifying both the effective growth rate and surface stoichiometry 8,9 . Over longer timescales, mass transport from 
+
+> a) Electronic mail: sajid.ali@uq.edu.au
+
+smaller to larger islands leads to surface coarsening through Ostwald ripening 10 . Although these effects have been stud-ied individually, a unified computational framework capable of treating them simultaneously is still lacking. Traditional lattice KMC approaches rely on predefined cat-alogs of activation barriers derived from density functional theory (DFT) calculations or empirical parameterizations 11,12 .While computationally efficient, such static catalogs restrict diffusion to predefined coordination classes and cannot sys-tematically account for the diversity of local environments that arise during realistic growth, particularly at step edges and evolving island boundaries. On-the-fly (OTF) evalua-tion of activation barriers, where transition energies are com-puted dynamically from the instantaneous local atomic envi-ronment, offers a route to overcome these limitations 13 .Several related approaches have been developed in the con-text of compound semiconductors. Thomas et al. 14 pre-sented a comprehensive DFT+KMC multiscale model cou-pling NEB-derived barriers with a gas-phase transport model to describe Ge and oxygen incorporation on GaN. Fer-reyra and Quiroga 15 developed the “Assistant KMC” frame-work, a parametric KMC tool for Ge/Ga/N co-deposition on GaN(0001) that employs configuration-dependent Arrhe-nius rates. Thomas et al. 16 subsequently introduced a min-imum direct two-body barrier approach spanning both sur-face and bulk processes. The present work is complemen-tary to these impurity-focused studies, as it targets native-species (Ga and N) surface morphological evolution and ex-tends barrier evaluation on the fly to novel coordination en-vironments encountered at step edges 13 . The self-learning KMC method proposed by Trushin et al. 17 pioneered on-the-fly barrier caching for metallic surfaces, combining binary-encoded local-environment fingerprints with explicit saddle-point searches to build a self-updating barrier database. Build-ing on this concept, our framework extends the paradigm arXiv:2607.24871v1 [cond-mat.mtrl-sci] 27 Jul 2026 A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 2to a three-species compound semiconductor using a species-resolved coordination fingerprint and accelerated OTF barrier evaluation based on machine-learned interatomic potentials. In this work, we develop a lattice KMC framework for GaN(0001) growth that integrates terrace diffusion, ES bar-riers, species-dependent desorption, and long-time coars-ening within a single simulation environment. Using a coordination-based predefined barrier catalog, we first sim-ulate temperature-driven morphology evolution, ES-barrier-induced multilayer growth, desorption-driven edge rough-ening, and Ostwald ripening, providing a consistent com-putational setting for systematic comparison of these com-peting mechanisms. Beyond these predefined barriers, our framework incorporates adaptive OTF barrier evaluation using machine-learned interatomic potentials (MLIPs). When pre-viously unseen local coordination environments are encoun-tered, the corresponding activation barriers are computed us-ing a hierarchy of methods, ranging from frozen-geometry po-tential energy scans and Brønsted–Evans–Polanyi estimates 18 
+
+to full nudged elastic band calculations 19 , and cached for reuse. The coexistence of predefined and OTF modes within a single codebase enables direct comparison between fixed and environment-aware kinetics. The resulting MPI-parallel implementation 20,21 provides a flexible and extensible plat-form for modeling GaN epitaxy, from atomistic processes to mesoscale morphology evolution.  
+
+> 2. COMPUTATIONAL METHODOLOGY AND WORKFLOW
+
+The KMC framework developed here follows the underly-ing lattice-based KMC algorithm as implemented by Chugh et al. 11 , while incorporating an extension for flexible activation barrier evaluation. Specifically, the present implementation operates in two modes within a single codebase: (i) prede-fined activation barriers drawn from a tabulated catalog, and (ii) adaptive on-the-fly (OTF) barrier evaluation. This allows systematic studies with fixed barrier sets, as well as simu-lations in which barriers are computed dynamically as new configurations are encountered. In predefined-barrier mode, sketched in Fig. 1(a), activation energies are obtained from DFT calculations, drawn from the catalog reported in Ref. 11 .This mode is used here to investigate ES barrier effects, des-orption, temperature-dependent morphology evolution, and Ostwald ripening within a consistent, static framework. All simulations target homoepitaxial GaN(0001) growth on a flat substrate; the substrate–adlayer interaction is thus fully en-coded in the DFT-derived barrier catalog. A vicinal or stepped substrate can be initialized by modifying the starting lattice occupancy, after which the existing step-edge kinetics apply without code modification. In OTF mode, activation barriers are evaluated dynamically whenever a previously unseen local configuration is encoun-tered, as shown in the flowchart in Fig. 1(b). At each KMC step, a list of possible events is generated from the current lattice configuration and each event is characterized using a discrete local atomic fingerprint. The fingerprint encodes the species and occupancies within a finite neighborhood centered on the diffusing atom, defined by two neighbor shells. The first shell (nn1) consists of the three tetrahedral bonding sites in the adjacent atomic layer, i.e., the nearest neighbors in the GaN wurtzite structure (as depicted in Fig. 7). The second shell (nn2) comprises the six same-sublattice lateral neighbors at the in-plane nearest-neighbor distance a ≈ 3.19 Å, captur-ing the local step-edge and island geometry. The fingerprint is species-dependent: for Ga hops, it records the number of N atoms and Ga adatoms (AdGa) in the bonding layer below (nn1) and the number of Ga atoms (nn2); for N hops, it records the number of Ga atoms in the bonding layer above (nn1) and lateral same-sublattice N neighbors (nn2). Events sharing the same discrete fingerprint are treated as equivalent and reuse the same activation barrier. For each event, the fingerprint is used to query a multi-tier cache consisting of an in-memory dictionary and a persis-tent SQLite database. In predefined-barrier mode [Fig. 1(a)], the database simply acts as a lookup table. In OTF mode [Fig. 1(b)], if a matching entry is found, the activation energy is retrieved directly; otherwise, an on-the-fly barrier evalu-ation procedure is triggered. To compute new barriers, the initial and final atomic configurations are constructed and re-laxed to ensure convergence to physically meaningful local minima. Configurations that yield unstable or unphysical ge-ometries are discarded without assigning a rate. For new con-figurations, activation barriers can be evaluated using one of several methods: a nudged elastic band (NEB) calculation, in which intermediate images are relaxed while constrained to follow the reaction path; a frozen-geometry potential energy scan (PES) along the hop path; or a Brønsted–Evans–Polanyi (BEP) estimate, in which the activation barrier is expressed as 
+
+Ea = E0 + α∆E. Here, ∆E is the reaction energy defined as the difference between the relaxed initial and final states, and 
+
+E0 and α are the reference barrier and transfer coefficient, re-spectively, which can be treated as linear fitting parameters. In our calculations, we set E0 to the barrier value obtained from DFT for a representative near-symmetric event within the same nn1 class, and α = 0.5, corresponding to an approx-imately symmetric transition state. The newly computed bar-rier is then stored in the database and reused for all subsequent occurrences of the same fingerprint (equivalent events), en-suring computational efficiency over long simulations. Multi-ple MLIPs can be selected to perform these calculations, in-cluding pretrained universal models such as CHGNet 22 , used in this work, MACE 23 , M3GNet 24 , and PFP 25 , as well as custom-trained potentials (e.g., NequIP 26 , ACE 27 , SNAP 28 ). To ensure scalability, the code employs domain decompo-sition with MPI parallelization and halo synchronization 20,21 .The root MPI rank performs barrier evaluations when re-quired, while worker ranks advance the KMC simulation us-ing cached activation energies. This separation maintains effi-ciency during high event-rate simulations and enables system sizes relevant to experimentally realistic GaN growth. A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 3   
+
+> FIG. 1. Schematic comparison of kinetic Monte Carlo (KMC) workflows. (a) Conventional lattice KMC using predefined or tabulated activation barriers, where event rates are retrieved directly from a static database. (b) On-the-fly (OTF) KMC framework employed in this work, in which activation barriers are evaluated dynamically when a previously unseen local configuration is encountered. If the local fingerprint is not found in the stored cache, barriers are computed through either nudged elastic band (NEB), potential energy scan (PES), or Brønsted– Evans–Polanyi (BEP) estimates, after which the result is stored for subsequent reuse.
+> 3. RESULTS AND DISCUSSION
+
+We employ our lattice-based KMC implementation to in-vestigate the growth kinetics and resulting surface morpholo-gies of GaN(0001) during the early stages of thin-film depo-sition. Simulations are performed on a 128 × 128 lattice with periodic boundary conditions in the lateral directions, allow-ing the development of extended surface features while min-imizing finite-size effects. Unless otherwise stated, a total of 0 .6 ML is deposited at a flux of 0 .2 ML s −1 (one mono-layer (ML) corresponds to half of a completed GaN bilayer). Growth conditions are parameterized by the flux ratio, defined as the Ga flux divided by the total incoming flux; values ex-ceeding 0.5 correspond to Ga-rich environments. We focus on a slightly Ga-rich regime with a flux ratio of 0.535, represen-tative of experimentally accessible growth conditions. All re-ported results have been obtained by averaging over up to 10 independent simulation trajectories. The principal morpho-logical features are consistent across the different runs, with only minor run-to-run variations, and the conclusions are un-affected by stochastic differences between trajectories. This section is organized as follows. We first analyze growth kinetics using predefined (tabulated) activation barri-ers and discuss the main morphological phenomena, namely, triangular island formation, Ostwald ripening, ES barrier ef-fects, and desorption-driven island dynamics. We then present results obtained with OTF barrier evaluation, and assess the impact of dynamically computed barriers on surface morphol-ogy.    
+
+> FIG. 2. Final snapshot of the GaN(0001) surface morphology from KMC simulations during submonolayer growth on a 128 ×128 sub-strate at 700 K, with deposition flux 0 .2 ML s −1and flux ratio 0.535 (Ga-rich). Compact, triangular-shaped islands with a common crys-tallographic orientation are evident.
+
+A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 4  
+
+> 3.1. KMC Calculations Using Predefined Barriers
+> 3.1.1. Emergence of Triangular-Shaped Islands
+
+Figure 2 shows the surface morphology at 0 .6 ML cov-erage and a substrate temperature of 700 K, obtained using predefined activation barriers. As deposition proceeds, iso-lated adatoms nucleate into islands that grow with increasing coverage, with the resulting surface characterized by compact, triangular-shaped islands with a uniform crystallographic ori-entation. Similar island shapes have been reported in atom-istic simulations of GaN growth 11,12 and are consistent with scanning tunneling microscopy observations of GaN(0001) surfaces grown under Ga-rich conditions 29 , validating the present KMC framework. Diffusion energy anisotropy is en-coded in the DFT-derived barrier catalog, which reflects the threefold symmetry of the GaN(0001) wurtzite surface; the triangular island morphology with uniform crystallographic orientation arise from anisotropic step-edge attachment and detachment kinetics, consistent with the lattice geometry.  
+
+> 3.1.2. Ostwald Ripening
+
+When deposition is interrupted, island populations continue to evolve through thermally activated surface diffusion, lead-ing to Ostwald ripening, in which mass is transferred from smaller, high-curvature islands to larger, energetically favored ones, reducing the total surface free energy. This process modifies the island size distribution and surface roughness and is particularly relevant to GaN MBE growth. In prac-tical growth conditions, deposition commonly proceeds via shuttered flux sequences rather than continuous flux 2. Dur-ing flux-off intervals, adatom diffusion and inter-island mass transport persist, enabling surface reorganization in the ab-sence of additional material supply. Accurately modeling such conditions therefore requires a framework capable of capturing both deposition-driven kinetics and post-deposition relaxation within a unified description. To investigate these effects, we perform KMC simulations to a coverage of 0.6 ML at 750 K, after which the external flux is terminated. The system is then allowed to evolve for 5 s of simulated post-deposition time without further adatom injec-tion. During this relaxation stage, no new material is supplied to the surface, and evolution is governed entirely by thermally activated diffusion, detachment, and reattachment processes. As shown in Fig. 3, a pronounced reduction in island den-sity occurs during the post-deposition evolution. Several smaller islands present at the end of active growth [Fig. 3(a)] progressively shrink and ultimately disappear, while larger is-lands grow through the incorporation of diffusing adatoms re-leased from dissolving clusters. For clarity, the islands that vanish during relaxation are encircled in black in Fig. 3(a) and are absent after the 5 s post-deposition interval in Fig. 3(b). This behavior is characteristic of Ostwald ripening, resulting in a coarsened surface morphology and an increased average island size. Repeating the simulation at 950 K reveals how higher  
+
+> FIG. 3. GaN(0001) surface morphology at the end of deposition and after 5 s of post-deposition evolution at two temperatures. (a) End of active deposition at 750 K; compact triangular islands are vis-ible. (c) End of active deposition at 950 K; fewer, larger islands reflecting enhanced diffusivity. (b) After 5 s of post-deposition evo-lution at 750 K: small islands [encircled in (a)] have dissolved in favor of larger ones, illustrating Ostwald ripening. (d) After 5 s of post-deposition evolution at 950 K: the island encircled in (c) has dissolved into adjacent larger islands.
+
+growth temperatures promote coarser, more well-defined is-land morphologies. As shown in Fig. 3(c), the surface at the end of deposition features fewer and larger islands com-pared to the 750 K case [Fig. 3(a)], consistent with the longer adatom diffusion length at elevated temperature. Figures 3(c) and (d) illustrate how a smaller island (encircled in black) dis-solves in favor of the surrounding larger islands during the 5 s post-deposition evolution.  
+
+> 3.1.3. Effect of Ehrlich-Schwoebel Barriers on Growth Morphology
+
+The activation of the ES barrier introduces an asymmetry in interlayer mass transport by inhibiting the downward dif-fusion of adatoms across step edges. This kinetic constraint generates an effective uphill mass current, promoting the ac-cumulation of material on upper terraces. Such step-edge bar-riers are known to play a critical role in the morphological evolution of GaN(0001) surfaces, as discussed in Ref. 7.In the present simulations, we employ ES barrier energies of EGa ES = 0.15 eV, EAdGa ES = 0.15 eV, and ENES = 0.25 eV to account for species-dependent interlayer diffusion asymme-try. These values represent conservative lower bounds relative to the previously reported values in the literature 7,30,31 , and are chosen to illustrate the strong morphological sensitivity A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 5       
+
+> FIG. 4. Surface morphologies obtained with the ES barrier activated. (a) T=750 K, showing multiple compact islands and kinetically rough growth. (b) T=1000 K, showing coarsening into a single irregular multilayer island.
+
+to even modest interlayer diffusion asymmetry. The resulting surface morphologies at two representative temperatures are shown in Fig. 4. At T = 750 K, surface diffusion is active but remains sig-nificantly constrained by the ES barrier. The limited adatom diffusion length leads to frequent secondary nucleation events before existing islands can fully coalesce. As shown in Fig. 4(a), the surface exhibits a high density of relatively com-pact islands distributed across the substrate. The inhibited step-edge crossing promotes local material accumulation and early-stage multilayer and AdGa layer formation, producing kinetically rough growth characterized by lateral island pro-liferation and incomplete coalescence. At higher temperatures ( T = 1000 K), diffusion becomes more effective, allowing adatoms to sample a larger surface area before incorporation. This suppresses secondary nucle-ation and promotes coarsening through preferential growth of larger islands. As observed in Fig. 4(b), the morphology evolves toward a lower island density, dominated by a sin-gle large, irregularly shaped cluster. The reduced number of nuclei and the accumulation of material within the dominant island reflect diffusion-driven coarsening, while the ES barrier continues to bias attachment toward ascending steps, facilitat-ing multilayer buildup within the growing structure.  
+
+> 3.1.4. Desorption Effects
+
+Desorption competes with deposition and diffusion during GaN(0001) MBE growth, influencing both the net growth rate and island morphology. Species-specific desorption activa-tion barriers are implemented with coordination dependence: Ga adatoms ( EGa des = 2.0 eV base, +0.5 eV per N neighbor, 
+
++0.2 eV per AdGa), N atoms ( ENdes = 2.5 eV base, +0.6 eV per Ga), and AdGa ( EAdGa des = 1.5 eV base, +0.4 eV per Ga), establishing the stability hierarchy N > Ga > AdGa. 8,9 Along-side these single-atom channels, a molecular N 2 desorption pathway is activated whenever two adjacent surface N atoms are both free of Ga coverage above them. The paired-N 2 bar-rier (1.5 eV) lies 1.0 eV below the isolated-N barrier, mim-icking the experimentally observed dominance of associative desorption, whereby nitrogen leaves the surface primarily in molecular form 32 .The simulated cumulative desorption counts (Fig. 5 inset) show that AdGa desorbs the most, with approximately five times as many events at 950 K as at 850 K. Ga evaporation remains negligible at both temperatures. All nitrogen loss oc-curs via the N 2 channel. At 850 K it is moderate, but is sub-stantially larger at 950 K, where the total N removed repre-sents a significant fraction of the deposited flux and constitutes a stoichiometric drain large enough to measurably suppress net surface coverage. The combined desorption rate increases more than eightfold between the two temperatures. This in-crease exceeds what AdGa removal alone would produce and signals the growing role of the N 2 channel. The actual temperature dependence of the AdGa desorption rate is significantly below a naive Arrhenius estimate based on the energy barrier, because the number of events per cycle is governed by coupled processes: N–Ga exchange controls how AdGa is generated at step edges, while competing re-incorporation via terrace diffusion continuously depletes the elevated Ga pool. 12 AdGa itself arises either by direct Ga-on-Ga deposition or, more importantly, by N–Ga exchange, in which a diffusing N displaces a surface Ga upward by one bilayer. Exchange-generated AdGa sits at the step edge with no overlying Ga coverage, giving it the minimum desorption barrier and directly coupling N surface diffusion to Ga mass loss. The N 2 desorption rate behaves differently from AdGa: it does not exhibit a simple Arrhenius dependence on tempera-ture but is intrinsically coverage-dependent, because N 2 for-mation requires two adjacent unbound N adatoms—an event whose probability grows with the instantaneous surface den-sity of free N. At 850 K this process proceeds at a quasi-steady pace and contributes only a modest net coverage deficit. At 950 K the picture is qualitatively different: the rate is slow in the early growth stage but accelerates sharply in later cy-cles, once islands are large enough that freshly deposited N frequently lands near pre-existing unbound N on adjacent ter-races. This feedback, where more free N finds more free N, amplifies the loss rate as the simulation progresses and produces a substantial difference between deposited and on-surface coverage that is essentially absent at 850 K. The result is a growth nonlinearity that cannot be captured by a simple Arrhenius model, as the effective N-loss rate is shaped by the evolving surface morphology. The surface morphology at 850 K, shown in Fig. 6(a), con-sists of several compact-to-irregular islands distributed across the substrate. Edge roughening is the main signature of des-orption at this temperature: AdGa atoms at kink and corner sites have the lowest desorption barrier and are preferentially removed before they can stabilize protruding step segments, leading to ragged island outlines and suppressing the well-defined faceted triangles seen in desorption-free runs. At 950 K [Fig. 6(b)], the morphology is substantially coarser: fewer, more irregularly shaped islands survive, with pronounced directional asymmetry in their outlines. This is the island walking regime. N–Ga exchange at a trailing step A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 6edge elevates Ga to an AdGa position; the elevated Ga des-orbs before it can diffuse back to a step, so the edge retreats by one site. Similarly, Ga adatoms reaching the geometrically stable leading vertex attach irreversibly. The asymmetry be-tween irreversible growth at one edge and desorption-driven recession at the other displaces the island center of mass. The accelerating loss of N 2 from the surrounding terraces further disrupts the local stoichiometry of N needed to pin advanc-ing Ga, strengthening the walking tendency rather than stabi-lizing compact shapes. The step-edge attachment asymmetry underlying this walking tendency has been directly confirmed by STM in GaN(0001) MBE: Xie et al. 29 demonstrate that type-A step edges (two dangling bonds per edge atom) accom-modate adatoms more readily than type-B edges (one dan-gling bond). This produces anisotropic step-edge morpholo-gies and triangular islands, confirming that crystallographi-cally distinct step orientations interact differently with arriv-ing adatoms. Such step-edge asymmetry provides the direc-tional kinetic bias underlying island displacement. In Fig. 5 we quantitatively track the island drift, making this contrast explicit. At 850 K, the islands accumulate a mean drift of about 10 lattice units from their nucleation sites, with a relatively wide spread across the island population. At 950 K the mean reaches approximately 25 lattice units, but the island-to-island variance is nearly as large as the mean itself. This heterogeneity arises because the walking rate de-pends sensitively on the local balance of N 2 desorption and N–Ga exchange, both of which fluctuate with the spatial dis-tribution of unincorporated N across the terrace. Islands nu-cleating in locally N-depleted regions walk faster, while those surrounded by freshly arriving N walk slowly or barely move. Temperature sets the scale of the rates, but local stochastic chemistry ultimately determines which islands walk and by how much.  
+
+> 3.2. KMC Calculations with On-the-Fly Barrier Evaluation
+
+The predefined barrier catalog used in the previous sec-tions, shown in Fig. 8, parameterizes each diffusion event based solely on first-nearest-neighbor (nn1) coordination. For Ga diffusion, Ga kN denotes a hop in which k nitrogen atoms occupy the three tetrahedral bonding sites in the layer im-mediately below the diffusing Ga adatom—its true nearest-neighbors, forming short Ga–N bonds ( ≈ 1.95 Å). The case Ga ad (k=0) corresponds to an isolated adatom above the bare Ga surface. Mixed-species variants, Ga kN,mAdGa , additionally include m adatoms (AdGa) occupying these nn1 bonding sites. For N diffusion, N kGa counts the k Ga atoms at the three tetra-hedral bonding sites in the layer immediately above the dif-fusing N, distinguishing rotation and hop channels at k=1. For AdGa diffusion, AdGa kGa counts k Ga atoms in the next-bilayer positions immediately above the AdGa atom, repre-senting coverage from the film growing on top. In all three cases, the counted atoms are the true nearest-neighbor bond partners in the GaN wurtzite structure; lateral same-sublattice Ga atoms at the nn2 distance ( ≈ 3.19 Å) are not bonded to the diffusing species and are therefore excluded from the nn1                        
+
+> FIG. 5. Mean island drift from nucleation site versus deposition cy-cle at 850 K (blue) and 950 K (orange). Islands are tracked from the snapshot at which the cluster first exceeds 15 atoms. Shaded bands show ±1σacross all tracked islands and individual island trajecto-ries appear as faint lines. The inset reports cumulative desorption totals over the full simulation (2450 cycles): at 850 K, AdGa =165, Ga =0, N 2=27 molecules, total rate =0.13 cycle −1; at 950 K, AdGa =878, Ga =2, N 2=348 molecules, total rate =1.08 cycle −1.The mean drifts at the end of each run are approximately 10 and 25 lattice units, respectively. The wide 950 K band reflects the stochastic sensitivity of desorption-driven island walking to local N 2
+> desorption heterogeneity across the surface.
+> FIG. 6. GaN(0001) surface morphology after 2450 deposition cycles with all desorption channels active. (a) At 850 K, multiple islands of comparable size are present with roughened step edges, a signature of selective AdGa removal at kink and corner sites. N 2desorption is moderate and does not significantly alter island density. (b) At 950 K, a smaller number of coarser, asymmetrically shaped islands remain, reflecting the onset of desorption-driven island walking and the strongly accelerating N 2loss from surrounding terraces in the late growth stage.
+
+descriptor. This yields tabulated barriers that fully determine diffusion kinetics on flat terraces. However, all events shar-ing the same nn1 class are assigned an identical barrier irre-spective of the lateral (same-sublattice) environment, meaning that terrace, step-edge, and kink geometries are treated equiv-alently. To resolve this limitation, we introduce an on-the-fly KMC capability that extends the local descriptor to include the second-nearest-neighbor (nn2) coordination shell, i.e., the six A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 7    
+
+> FIG. 7. Schematic top view of the GaN(0001) wurtzite surface show-ing the nn1 and nn2 neighbor shells around a diffusing Ga adatom (Ga*, yellow). The nn1 shell (blue dotted circle) comprises 3 N atoms at the layer below ( Z−1). The nn2 shell (red dashed circle) comprises 6 same-sublattice Ga atoms at distance a(≈3.19 Å) in the same layer. The predefined catalog parameterizes barriers by nn1 only; OTF-KMC extends the descriptor to nn2, enabling distinct lat-eral environments to be resolved.
+
+same-sublattice Ga sites at distance a forming a hexagonal ring around the diffusing atom (Fig. 7). When the simulation encounters an nn1 ×nn2 combination that is absent from the predefined catalog, the activation barrier is computed dynami-cally as described below. Extending the descriptor from nn1 to nn1 ×nn2 expands the theoretical configuration space from 20 to 140 fingerprints without ES barriers, or from 29 to 497 with ES barriers active. Hence, an exhaustive pre-computation of all possible nn1 ×nn2 barriers via nudged-elastic-band calcu-lations would require up to 140 (without ES barriers) or 497 (with ES barriers) separate calculations per growth condition, most of which would never be encountered in a given simu-lation trajectory (see Section S2 of the Supporting Informa-tion for more detail). The OTF-KMC approach resolves this by computing barriers on demand when novel configurations arise and caching them for reuse, making environment-aware simulations feasible. Although the OTF framework is capable of computing activation barriers using full NEB calculations, in the present work we employ a Brønsted–Evansf–Polanyi (BEP) evaluation strategy in conjunction with a machine-learned interatomic potential, CHGNet 22 . This choice bal-ances computational efficiency and physical consistency: the BEP relation described above retains the DFT-calibrated refer-ences barriers E0 from the predefined catalog while introduc-ing corrections associated with the changes (i.e. ∆E) intro-duced by extended local environments (nn2 configurations), without requiring explicit saddle-point optimization. A BEP sensitivity analysis varying α from 0.25 to 0.75 shows that the three asymmetric OTF-discovered step-edge configurations (Ga 2N , Ga 2AdGa , Ga 2N ,1AdGa ) exhibit total bar-rier variations of 0.086–0.14 eV across this interval (see Ta-ble S1 in the Supporting Information). Here we adopt the symmetric value α = 0.5 as the standard reference for a near-symmetric transition state, consistent with the hop geometry of the GaN(0001) surface. We denote these OTF-discovered environments as novel configurations . Their naming follows the predefined conven-tion, with the number of lateral Ga atoms in the nn2 shell in-cluded as an additional label. For example, Ga 2N (nn2 Ga = j)denotes a Ga hop with 2 N atoms below (identical nn1 co-ordination to the predefined Ga 2N entry), but with j lateral same-sublattice Ga atoms in the nn2 shell. Because this shell captures the local step-edge geometry, each value of j cor-responds to a distinct bonding environment, from an isolated terrace ( j=0, the predefined case) to a fully coordinated kink ( j=6). As a concrete example, the predefined Ga 2N barrier is 1.45 eV for a flat terrace, whereas the novel Ga 2N (nn2 Ga =2) configuration, representing a step-edge site with two lateral Ga neighbors, yields 1 .59 eV. This 0 .14 eV increase reflects the additional stabilization associated with the lateral Ga–Ga bonding, which makes detachment less favorable. This cor-rection is absent in the nn1-only catalog, which would assign the same 1 .45 eV barrier to both environments. After removing symmetry-equivalent structures, the OTF-KMC simulation without ES barriers discovers 26 unique novel configurations across 7 event types, while the simu-lation including ES barriers yields 58 configurations across 14 types—a ∼2.2× increase consistent with the greater di-versity of step-edge geometries generated by kinetic rough-ening. Figure 8 compares the 21 predefined barriers with the corresponding novel OTF configurations overlaid. For most events, the novel barriers cluster within ±0.01 eV of their predefined counterparts, confirming the accuracy of the nn1 catalog on flat terraces. Significant deviations occur for Ga 2N (+0.14 eV), Ga 2N ,1AdGa (+0.11 eV), and Ga 2AdGa 
+
+(−0.09 eV), identifying the specific nn1 classes where lat-eral coordination produces a physically distinct barrier. In the presence of ES barriers, additional event classes are activated, including AdGa 2Ga and AdGa 3Ga , as well as mixed-species Ga environments (Ga 1N ,1AdGa , Ga 3AdGa ) that are not encoun-tered without ES barriers. This reflects the Ga-rich step-edge decoration that emerges when downward transport is inhib-ited. The morphological impact of OTF barriers is assessed by comparing the final growth surfaces with the predefined-barrier results of Figs. 2 and 4. Figure 9 shows the OTF-KMC morphologies at 0 .6 ML coverage. Without ES barri-ers [Fig. 9(a)], the OTF result preserves the same first-layer growth mode as the predefined-barrier result (Fig. 2): both show compact Ga–N islands with scattered N adatoms, con-firming that the OTF method correctly reproduces the terrace diffusion and island-attachment kinetics of the tabulated cata-log. The key morphological difference is that the OTF run pro-duces marginally fewer but larger islands, with more regular and elongated perimeters. This is physically consistent with the 0 .14 eV step-edge barrier increase computed for Ga 2N A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 8
+
+FIG. 8. Complete predefined barrier catalog (21 events, light-blue bars) taken from the DFT-based tabulation of Chugh et al. 11 , grouped by diffusing species. Scatter points show novel configurations whose barriers were evaluated on-the-fly using the BEP relation 22 : blue circles correspond to simulations without ES barriers, red squares to simulations with ES barriers included. The scatter points represent novel configurations (nn2 Ga >0); their coincidence with predefined barriers for most event types is a physical consequence of near-zero BEP reaction energies ( ∆E ≈ 0) for symmetric hop geometries, which maps the novel barrier back to E0 regardless of nn2 coordination. Numbers above each bar indicate the count of novel configurations discovered (no ES / with ES). Significant deviations at Ga 2N (+0.14 eV), Ga 2N ,1AdGa 
+
+(+0.11 eV), and Ga 2AdGa (−0.09 eV) identify asymmetric step-edge environments where nonzero ∆E produces a measurably distinct barrier. 
+
+FIG. 9. OTF-KMC surface morphologies of GaN(0001) at 0 .6 ML. (a) Without ES barriers (700 K): compact first-layer Ga–N islands (yellow: 1st-layer Ga, red: N adatoms), preserving the same growth mode as the predefined-barrier result (Fig. 2), but with fewer and noticeably larger islands with more regular, elongated perimeters. This behavior can be attributed to the 0 .14 eV increase in the step-edge barrier for Ga 2N novel configurations, which kinetically traps step-edge atoms and suppresses island-shape relaxation. (b) With ES barriers (750 K): kinetic roughening, second-layer nucleation (blue: 2nd-layer N, dark: 2nd-layer Ga), and pronounced AdGa accumula-tion (green) at step edges and terrace boundaries. These features are consistent with Fig. 4(a), but with larger AdGa patches reflecting the additional AdGa-decorated edge environments resolved by OTF. 
+
+novel configurations: the larger barrier stabilizes Ga atoms at step edges, suppressing the detachment–reattachment dynam-ics that normally drive island rounding and coarsening. Step-edge atoms are kinetically trapped, inhibiting shape relaxation and yielding larger, more elongated island morphologies rela-tive to those obtained with the predefined flat-terrace value of 1.45 eV. With ES barriers activated [Fig. 9(b)], the OTF simu-lation reproduces the kinetic-roughening regime of Fig. 4(a): both show multilayer islands with pronounced second-layer nucleation and Ga-rich step-edge decoration. A quantitative difference is the more extended AdGa accumulations [high-lighted in green in Fig. 9(b)] in the OTF case, particularly visible as dense patches at step edges and terrace boundaries. These arise from the additional AdGa-decorated edge envi-ronments resolved by OTF (e.g., Ga 1N ,1AdGa , Ga 2AdGa ), which carry modified barriers relative to the predefined values and thus affect the local balance of AdGa attachment and detach-ment at step edges. Overall, the close agreement between pre-defined and OTF morphologies in both regimes supports the consistency of the OTF barrier evaluation, while the remain-ing quantitative differences at step edges reflect the physically meaningful corrections introduced by the novel configurations discovered. 
+
+CONCLUSIONS 
+
+We have developed a lattice-based KMC framework for modeling GaN(0001) growth under molecular beam epitaxy conditions. The framework operates in two modes: (i) a predefined activation barrier mode based on coordination-classified event catalogs and (ii) an OTF mode in which acti-vation barriers are evaluated dynamically according to the in-stantaneous local atomic environment, enabling both compu-tational efficiency and adaptive treatment of complex, evolv-ing surface configurations. Using predefined barriers, the simulations reproduce key morphological trends observed in GaN growth 11 , includ-ing compact triangular island formation under diffusion-dominated conditions, Ostwald ripening during growth inter-A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 9ruptions, and Ehrlich-Schwoebel barrier-induced multilayer nucleation. Incorporating desorption reveals the sensitivity of the morphology to coordination-dependent removal kinetics, leading to edge roughening at moderate temperatures and di-rected island translation at elevated temperatures via the N–Ga exchange mechanism. The ability to resolve post-deposition evolution is particu-larly relevant for modeling realistic MBE shutter sequences, where alternating flux-on and flux-off intervals strongly influ-ence nanoscale morphology 2. By explicitly simulating growth interruptions and subsequent ripening, the present framework connects atomistic kinetics with the pulsed and modulated growth protocols employed experimentally. While predefined barrier catalogs offer transparency and computational efficiency, their reliance on fixed coordination classes limits the range of accessible environments. In partic-ular, they cannot distinguish between terrace, step-edge, and kink geometries that share the same nn1 coordination. The OTF implementation addresses this limitation by dynamically evaluating activation barriers as new configurations arise, ex-tending the model to complex surface evolution near step edges, island boundaries, and multilayer structures. The framework developed here brings together coordination-dependent kinetics, step-edge effects, des-orption, Ostwald ripening, and adaptive barrier evaluation within a lattice KMC scheme, linking atomistic energetics to mesoscale morphology in non-equilibrium GaN growth, and is readily extendable to other compound semiconduc-tor systems. The framework is well-positioned to guide experimental optimization of growth windows, including temperature, III/V flux ratio, and epitaxial beam control, for controlling the transition between island, step-flow, and roughening growth modes relevant to AlGaN-based superlattice LED structures. The adaptive OTF capability also enables exploration of growth conditions for which pre-defined catalogs are insufficient, with predicted morphologies directly testable by in situ STM or post-growth AFM. 
+
+ACKNOWLEDGMENTS 
+
+S.A. and C.V. acknowledge financial support from the Aus-tralian Research Council Centre of Excellence in Quantum Biotechnology (QUBIC) under grant number CE230100021, as well as support from the Australian Research Council un-der grant number DE220101147. Computational resources were provided by the National Computational Infrastructure and the Pawsey Supercomputing Research Centre through the National Computational Merit Allocation Scheme. 
+
+DATA AVAILABILITY STATEMENT 
+
+The datasets generated and analyzed during the current study, together with the KMC code developed for this work, are available from the corresponding author upon reasonable request. The codebase will be made publicly available as open-source software following the publication of this study. 
+
+4. REFERENCES 
+
+> 1
+
+T. D. Moustakas and R. Paiella, Rep. Progr. Phys. 80 , 106501 (2017). 
+
+> 2
+
+J. Nicholls, L. Anderson, W. Lee, J. J. S. Ahn, A. Baskaran, H. Bang, M. Belloeil, Y. Cai, J. Campbell, J. Chai, et al. , Appl. Phys. Lett. 123 
+
+(2023). 
+
+> 3
+
+F. Piva, C. De Santi, M. Deki, M. Kushimoto, H. Amano, H. Tomozawa, N. Shibata, G. Meneghesso, E. Zanoni, and M. Meneghini, Photonics Res. 
+
+8, 1786 (2020). 
+
+> 4
+
+A. F. Voter, Radiation Effects in Solids , 1 (2007). 
+
+> 5
+
+K. A. Fichthorn and W. H. Weinberg, J. Chem. Phys. 95 , 1090 (1991). 
+
+> 6
+
+J. Evans, P. Thiel, and M. C. Bartelt, Surf. Sci. Rep. 61 , 1 (2006). 
+
+> 7
+
+N. A. Kaufmann, L. Lahourcade, B. Hourahine, D. Martin, and N. Grand-jean, J. Cryst. Growth 433 , 36 (2016). 
+
+> 8
+
+G. Bruno, M. Losurdo, T.-H. Kim, and A. Brown, Phys. Rev. B 82 , 075326 (2010). 
+
+> 9
+
+L. Lymperakis, K. Lymperakis, and E. Iliopoulos, J. Appl. Phys. 136 
+
+(2024). 
+
+> 10
+
+P. W. Voorhees, J. Stat. Phys. 38 , 231 (1985). 
+
+> 11
+
+M. Chugh and M. Ranganathan, Appl. Surf. Sci. 422 , 1120 (2017). 
+
+> 12
+
+Razia and M. Ranganathan, Phys. Chem. Chem. Phys. 27 , 5317 (2025). 
+
+> 13
+
+T. Yokaichiya, T. Ikeda, K. Muraoka, and A. Nakayama, J. Chem. Phys. 
+
+160 (2024). 
+
+> 14
+
+G. Thomas, R. A. Ferreyra, and M. A. Quiroga, Appl. Surf. Sci. 670 ,160558 (2024). 
+
+> 15
+
+R. A. Ferreyra and M. A. Quiroga, Appl. Surf. Sci. 546 , 149132 (2021). 
+
+> 16
+
+G. Thomas, R. A. Ferreyra, and M. A. Quiroga, Appl. Surf. Sci. 730 ,166361 (2025). 
+
+> 17
+
+O. Trushin, A. Karim, A. Kara, and T. S. Rahman, Phys. Rev. B 72 , 115401 (2005). 
+
+> 18
+
+R. A. Van Santen, M. Neurock, and S. G. Shetty, Chem. Rev. 110 , 2005 (2009). 
+
+> 19
+
+G. Henkelman and H. Jónsson, J. Chem. Phys. 113 , 9978 (2000). 
+
+> 20
+
+B. D. Lubachevsky, Complex Syst. 1, 1099 (1988). 
+
+> 21
+
+Y. Shim and J. G. Amar, Phys. Rev. B 71 , 125432 (2005). 
+
+> 22
+
+B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, Nat. Mach. Intell. 5, 1031 (2023). 
+
+> 23
+
+I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Csányi, Advances in neural information processing systems 35 , 11423 (2022). 
+
+> 24
+
+C. Chen and S. P. Ong, Nat. Computat. Sci. 2, 718 (2022). 
+
+> 25
+
+S. Takamoto, C. Shinagawa, D. Motoki, K. Nakago, W. Li, I. Kurata, T. Watanabe, Y. Yayama, H. Iriguchi, Y. Asano, et al. , Nat. Commun. 13 ,2991 (2022). 
+
+> 26
+
+S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, Nat. Commun. 13 , 2453 (2022). 
+
+> 27
+
+R. Drautz, Phys. Rev. B 99 , 014104 (2019). 
+
+> 28
+
+A. P. Thompson, L. P. Swiler, C. R. Trott, S. M. Foiles, and G. J. Tucker, J. Comput. Phys. 285 , 316 (2015). 
+
+> 29
+
+M. Xie, S. Seutter, W. Zhu, L. Zheng, H. Wu, and S. Tong, Phys. Rev. Lett. 
+
+82 , 2749 (1999). 
+
+> 30
+
+T. Zywietz, J. Neugebauer, and M. Scheffler, Appl. Phys. Lett. 73 , 487 (1998). 
+
+> 31
+
+H. Turski, F. Krzy˙ zewski, A. Feduniewicz- ˙ Zmuda, P. Wolny, M. Siekacz, G. Muziol, C. Cheze, K. Nowakowski-Szukudlarek, H. G. Xing, D. Jena, 
+
+et al. , Appl. Surf. Sci. 484 , 771 (2019). 
+
+> 32
+
+S. Y. Karpov, R. Talalaev, Y. N. Makarov, N. Grandjean, J. Massies, and B. Damilano, Surf. Sci. 450 , 191 (2000). A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 10 
+
+> SUPPORTING INFORMATION S1. BEP Transfer-Coefficient Sensitivity Analysis
+
+In the BEP relation Ea = E0 + α ∆E, E0 is taken from the DFT/NEB predefined catalog and ∆E is the reaction energy defined as the difference between the relaxed initial and fi-nal states obtained using CHGNet. Table S1 reports EBEP (α)
+
+for the three OTF-discovered configurations with non-zero re-action energy (Ga 2N , Ga 2AdGa , and Ga 2N ,1AdGa ) evaluated at 
+
+α = 0.25, 0.50, and 0.75. These asymmetric step-edge con-figurations are sensitive to the choice of transfer coefficient: the predicted barriers exhibit total variations of 0.08–0.14 eV as α is varied. We adopt the symmetric value α = 0.5, the standard Marcus-like choice for a near-symmetric transition state, consistent with the hop geometry of the GaN(0001) sur-face and appropriate in the absence of explicit transition-state asymmetry information.                                                 
+
+> TABLE S1. BEP transfer-coefficient sensitivity for the three OTF-discovered configurations with non-zero reaction energy. E0:DFT/NEB reference barrier; ∆E:CHGNet reaction energy;
+> EBEP (α): predicted barrier; ∆: total spread across α∈[0.25 ,0.75 ].Event E0∆Eα=0.25 α=0.50 α=0.75 ∆
+> (eV) (eV) (eV) (eV) (eV) (eV) Ga 2N1.450 +0.280 1.520 1.590 1.660 0.140 Ga 2AdGa 0.600 −0.172 0.557 0.514 0.471 0.086 Ga 2N,1AdGa 1.550 +0.213 1.603 1.657 1.710 0.107
+> S2. Configuration-Space Analysis of the KMC Fingerprint
+
+Each kinetic Monte Carlo (KMC) diffusion event is charac-terised by a count-based local-environment fingerprint record-ing the number of each atomic species within crystallographic shells centred on the diffusing atom. Three shells are defined by the GaN wurtzite (0001) geometry: the nn1 tetrahedral bond shell (3 sites in the adjacent layer at r1 ≈ 1.95 Å), the 
+
+nn2 same-sublattice lateral first ring (6 sites at a ≈ 3.19 Å), and the nn3 lateral second ring (6 sites at √3 a ≈ 5.52 Å). The species considered are Ga (gallium), N (nitrogen), and AdGa (adsorbed Ga adatom). The number of distinct count-based fingerprints for a shell of L sites with ns distinguishable occupancy types (including the vacant state) follows from the stars-and-bars identity: 
+
+Ω(L, ns) = 
+
+L + ns − 1
+
+ns − 1
+
+
+
+. (S1) For each species: the Ga nn1 shell (L=3, occupants 
+
+{∅, N, AdGa }, ns=3) gives Ω= 52
+
+=10; N and AdGa nn1 
+
+shells ( L=3, ns=2) give Ω=4 each. Lateral nn2 /nn3 shells with binary occupancy give Ω=7 per shell; with ternary occu-pancy {∅, Ga , AdGa } when Ehrlich-Schwoebel (ES) barriers are active, Ω=28. For N diffusion, environments with total nn1 coordination 
+
+ktot ∈ { 1, 2} (where ktot ∈ { 0, 1, 2, 3} counts the number of oc-cupied sites in the diffusing N atom’s 3-site nn1 shell) support both translational hop and in-plane rotation events (distinct barriers). ktot ∈ { 0, 3} support hops only, yielding 6 distinct N event subtypes without ES barrier, or 15 with ES barrier (as AdGa may also occupy the 3 nn1 Ga sites, expanding the environment set from 4 to 10). The resulting totals are given in Tables S2 and S3. The 20 fingerprints at the nn1 level without ES barrier map to the 21 barriers in the predefined catalog employed in this work: the N 1Ga fingerprint supports two distinct event types (rota-tion and translational hop) with different activation energies (0.79 eV and 1.22 eV respectively), yielding 21 total barriers from 20 fingerprints. Extending the descriptor to nn2 raises the theoretical maximum to 140 without ES barrier and 497 with the barrier, factors of 7 × and 24 ×, respectively, over the predefined catalog. These values represent theoretical upper bounds. At a cov-erage of 0.6 ML (monolayer) and the simulated temperatures (850–950 K), the mean lateral site occupancy ¯ ρ ≈ 0.3–0 .4yields an average ⟨ j⟩ ≈ 1.8–2 .4 for the nn2 count, strongly suppressing high-coordination configurations ( j ≥ 4). The OTF-KMC simulations in the main text (using the nn1 ×nn2 
+
+descriptor) encountered 26 novel fingerprints out of a maxi-mum of 140 without ES barrier (19%) and 58 out of 497 with this barrier (12%). Crucially, the specific fingerprints encoun-tered cannot be determined a priori , as they depend on the stochastic growth trajectory. Exhaustive pre-computation of all possible nn1 ×nn2 bar-riers via NEB would require up to ∼ 500 calculations for a given local-environment definition, most of which would not be sampled in a typical KMC trajectory. While such a one-off pre-computation may be feasible for a fixed descriptor at this level of complexity, it becomes increasingly inefficient and difficult to generalise as the configuration space is ex-tended. In particular, inclusion of additional coordination shells or surface topology (e.g., step edges, kinks, or rough morphologies) leads to a combinatorial increase in the num-ber of distinct local environments, rendering exhaustive pre-computation impractical. In contrast, OTF evaluation com-putes barriers on demand and caches them for reuse, providing a scalable and flexible approach for environment-aware GaN growth simulations.                                                 
+
+> TABLE S2. Maximum distinct event fingerprints without ES barriers (Ga, N, AdGa events; all lateral shells binary). N counts include hop and rotation subtypes. The 20 nn1 fingerprints correspond to the 21-barrier predefined catalog. Species nn1 only nn1 ×nn2 nn1 ×nn2 ×nn3
+> Ga 10 10 ×7=70 10 ×7×7=490 N66×7=42 6×7×7=294 AdGa 44×7=28 4×7×7=196 Total 20 140 980
+
+A Flexible Kinetic Monte Carlo Framework for GaN Molecular Beam Epitaxy with Adaptive On-the-Fly Barrier Evaluation 11 
+
+TABLE S3. Maximum distinct event fingerprints with ES barriers ac-tive. Ga and AdGa lateral shells expand to ternary occupancy ( Ω=28 per shell); N event subtypes increase from 6 to 15. Species nn1 only nn1 ×nn2 nn1 ×nn2 ×nn3 
+
+Ga 10 10 × 28 = 280 10 × 28 × 28 = 7,840 N 15 15 × 7 = 105 15 × 7 × 7 = 735 AdGa 4 4 × 28 = 112 4 × 28 × 28 = 3,136 Total 29 497 11,711

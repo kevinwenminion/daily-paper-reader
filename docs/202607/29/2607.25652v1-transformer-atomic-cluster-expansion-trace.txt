@@ -1,0 +1,1590 @@
+Title: Transformer Atomic Cluster Expansion: TRACE
+
+URL Source: https://arxiv.org/pdf/2607.25652v1
+
+Published Time: Wed, 29 Jul 2026 00:55:49 GMT
+
+Number of Pages: 43
+
+Markdown Content:
+## Transformer Atomic Cluster Expansion: TRACE 
+
+Paramvir Ahlawat ∗
+
+## Abstract 
+
+Designing machine-learning interatomic potentials involves achieving the precise representation of complex many-body interactions alongside the efficiency required for scalable molecular dy-namics. We introduce Transformer Atomic Cluster Expansion (TRACE), an energy-conserving architecture that combines atomic cluster expansion density correlations with local multihead cross-attention. The correlations form an O(3)-equivariant state for each center, which queries tensorial neighbor features that remain fixed functions of species and geometry. No learned state is passed between atoms. On a laptop MacBook-M1, we train and test TRACE for polymorphic cesium lead iodide, liquid water, and intramolecular methyl migration against experiments. For cesium lead iodide, TRACE reproduces the r 2SCAN+rVV10 ordering of four polymorphs and gives a classical edge-sharing hexagonal non-perovskite( δ) to corner-sharing cubic perovskite( α) Gibbs-free-energy crossing ≃580K near the experimental observations of ≃600K. By employing enhanced sampling to cross high energy barriers, the same TRACE potential successfully captures the δ-to-α perovskite transformation without any reinforcement learning. A water potential trained on a reduced set of CCSD(T) configurations places the first oxygen–oxygen maximum at 2.85 ˚ A, compared to the experimental value of 2.80 ˚ A. For the gas-phase methyl migration in 2,2-dimethylisoindene, um-brella sampling yields an activation free energy of 27 .92 ± 0.03 kcal mol −1, in close agreement with the experimental measurement of 29 .2 ± 1.1 kcal mol −1. Across these diverse benchmarks, a single unified architecture successfully captures multi-species crystallization, liquid structures, phase diagrams, and chemical reactivity.  
+
+> ∗
+
+paramvir.chem@gmail.com 
+
+1arXiv:2607.25652v1 [cond-mat.mtrl-sci] 28 Jul 2026 I. INTRODUCTION 
+
+Molecular dynamics is inherently linear in time. Because atoms vibrate so rapidly, ad-vancing a trajectory requires constant step-by-step force calculations at extremely small time increments. Although quantum mechanics provides the most accurate picture of chemical bonding, applying it at every single step demands massive computational power. Conse-quently, highly accurate simulations remain restricted to small systems and short time scales. Empirical force fields reach larger scales by imposing a chosen functional form. Machine-learning interatomic potentials (MLIPs) instead learn the Born–Oppenheimer potential-energy surface from electronic-structure data and evaluate it at a much lower cost [1–4]. A useful MLIP should represent both the geometry and the symmetries of an atomic environment. The energy is unchanged by translation, rotation, inversion, or permutation of equivalent atoms, whereas internal vector and tensor features must transform with the corresponding coordinates. The energy must also vary smoothly [5] because forces, stress, phonons, elastic response, and molecular dynamics depend on its derivatives. These require-ments are commonly combined with a local decomposition 
+
+E(R, h) = 
+
+> N
+
+X
+
+> i=1
+
+Ei(Xi), (1) where R = {(ri, Z i)}Ni=1 is the atomic configuration, h is the periodic cell when present, and Xi contains the neighbors of atom i within a finite cutoff. For a bounded neighbor count, Eq. (1) has linear cost in the number of atoms. The primary remaining challenge is to maximize the expressivity of each local energy Ei while maintaining computational efficiency. The atomic cluster expansion (ACE) provides a rigorous foundation for describing local many-body geometry. By expanding the neighbor density into radial functions and spherical harmonics, ACE systematically couples angular momenta to construct scalar and tensor cor-relations [6]. Equivariant neural networks also rely on the representation theory, and learning nonlinear maps between irreducible tensor channels [7]. The integration of these features into graph machine learning architectures marked a major leap in performance; notably, NequIP introduced equivariant message passing for interatomic potentials and demonstrated excep-tional data efficiency [8]. Concurrently, architectures like M3GNet [9] showed the power of scaling, combining graph propagation and explicit three-body terms with broad training 2on the Materials Project [10]. Recently, the boundary between polynomial expansions and graph networks has blurred. MACE bridged this gap by combining ACE-inspired symmet-ric contractions with higher-order equivariant messages [11]. Graph ACE formalized the relationship between cluster correlations and semilocal graphs [12]. Finally, as these archi-tectures mature, the focus has shifted toward robust physical execution, where models like eSEN utilize energy-derived forces, smooth cutoff envelopes, and continuous equivariant pro-cessing to demonstrate that static error metrics alone cannot guarantee molecular-dynamics stability or accurately capture physical observables [14]. Attention mechanisms offer a powerful alternative to capture complex dependencies within the data. Originally introduced as a learned alignment strategy for sequence mod-els [15], this approach was subsequently formalized by the Transformer architecture, which integrated multi-head attention and feed-forward layers into stacked repeating blocks [16]. Set Transformer subsequently formulated multihead attention as a permutation-invariant operation on unordered sets, including attention pooling from a small set of learned queries [17]. For atomistic systems, attention must also preserve permutation symme-try and three-dimensional transformation laws. DPA-1 uses gated attention in a local invariant potential [18]. The SE(3)-Transformer combines invariant attention weights with equivariant value messages [19], while TorchMD-NET couples distance-dependent attention to scalar and vector atomic features [20]. Equiformer embeds attention in an equivariant graph network with high-degree tensor features [21]. SO3krates couples invariant atomic features to sparse spherical-harmonic variables while updating both representations across neighboring atoms [22]. Attention and spatial propagation are separate choices. The Point Edge Transformer applies attention to edge tokens and restores rotational symmetry by a separate symmetrization step [23]. EScAIP uses optimized self-attention over scalar neigh-bor representations [24]. For pushing the boundaries of computational efficiency, these recent models along with Orb-v3 [25] have demonstrated that non-equivariant architectures can still accurately capture complex and higher-order physical properties. On the other hand, allegro follows a strictly local route in which equivariant ordered-pair features are refined without atom-centered message passing, and it has enabled large molecular-dynamics sim-ulations [26]. These models show that message passing, attention, the explicit many-body structure, and communication between atomic states can be varied independently. TRACE adopts a fixed-environment factorization. ACE density correlations first summa-3rize one cutoff environment as an equivariant center state. This state supplies the query in local cross-attention. The keys and equivariant values are built from the original directed-edge features and do not receive updated states from neighboring atoms. Additional at-tention blocks can therefore refine the nonlinear response within one environment without enlarging the spatial support of its atomic energy. ACE-correlated center queries fixed ten-sorial edge features through cutoff-preserving attention, and one invariant energy generates both forces and stress. We test this construction on three different chemical systems: poly-morph stability and collective transformation in cesium lead iodide (CsPbI 3), partial pair structure in liquid water, and the activation free energy of an intramolecular reaction. To-gether they test structural relaxation, variable-cell dynamics, finite-temperature sampling, and bond rearrangement.  
+
+> II. METHODS
+
+Figure 1 follows the implemented TRACE architecture. For each receiver i, an image-resolved neighbor list defines vectors from i to the selected periodic image of each sender atom j. The sender species and these distances and directions form O(3) edge tensors, whose receiver-wise sum and recursive Clebsch–Gordan products initialize the center state. In the single block used in every reported calculation, even scalar center channels provide the queries, scalar edge channels provide the keys, and the complete edge tensors provide the values. Only the center state is updated; the edge tensors remain functions of the input species and geometry. An invariant atomic readout and a composition-dependent reference give the total energy, from which forces and stress are obtained by differentiation.  
+
+> A. Local energy decomposition and symmetry requirements
+
+TRACE writes the potential energy as a sum of atomic contributions and a composition-dependent reference, 
+
+E(R, h) = 
+
+> N
+
+X
+
+> i=1
+
+Ei + Eref ({Zi}). (2) Here Zi is the species of atom i, and Ei depends only on its finite local environment. The reference may be a fitted sum of per-species energies or a constant mean energy per atom. 4(a) Periodic environment 
+
+rc
+
+rij 
+
+rij = rj − ri + Sij h
+
+(i) = {( j, Sij ) : ‖ rij ‖ < rc}
+
+(b) ACE environment encoder     
+
+> aij = TP dens
+> [ej,Yℓm (̂rij ); R(dij )]
+
+Ai = ∑
+
+> j
+
+aij C[1]        
+
+> i=Ai
+> C[q+ 1]
+> i= TP q+ 1 (C[q]
+> i,Ai)
+
+h(0)  
+
+> i
+
+= Center( ei) + ∑
+
+> q
+
+Linear q(C[q] 
+
+> i
+
+)
+
+> permutation-invariant aggregation; O(3)-equivariant center state
+
+(c) One fixed-environment transformer block 
+
+h(0)                                 
+
+> i
+> fixed edge memory { aij ,dij }j∈(i)
+> kijp =WKpLN( aij ,ℓ= 0 )
+> vijp =WVpaij ;bp(dij ), fc(dij )
+> sijp =qip ⋅kijp /√dk+bp(dij ) − γpdij
+> αijp = CutoffSoftmax j∪ {∅} (sijp )
+> Δhi=WOP−1 ∑
+> j,p
+> αijp vijp
+> qip =WQpLN( h(0)
+> i,ℓ= 0 )
+> K,V,b,fc̃
+
+hi      
+
+> [̃hi,ℓ= 0 , ‖ ̃hi,ℓ> 0 ‖2]
+> scalar FFN ( ℓ= 0 only)
+> + residual
+
+h(1)    
+
+> i
+> Ei= MLP E
+> (h(1)
+> i,ℓ= 0 )
+
+E = ∑
+
+> i
+
+Ei
+
++Eref    
+
+> F= − ∇ rE
+> σ=V−1 ∂εE
+
+All reported models use one block: only h i is updated; a ij remains fixed by species and geometry. 
+
+> I
+> Pb
+> Cs
+> Pb
+> I
+> Cs
+
+iFIG. 1. TRACE architecture: (a) For receiver i, the vector rij = rj − ri + Sij h points to a periodic image of sender j inside the cutoff. (b) The sender species, radial basis, and spherical harmonics form a directed O(3) edge tensor aij . Summation over incoming edges gives the neighbor density Ai; learned Clebsch–Gordan products of that density generate the ACE correlations and initial center state. (c) One multihead cross-attention block constructs queries from even scalar center channels, keys from scalar edge channels, and values from the complete edge tensors. The cutoff-weighted softmax contains a null channel. An equivariant attention residual is followed by a feed-forward residual that updates only scalar channels and is conditioned on squared norms of the nonscalar tensors. The edge memory is unchanged. A scalar atomic readout and Eref give the total energy; its derivatives give forces and stress. 
+
+It is independent of coordinates and homogeneous strain and therefore contributes neither forces nor stress. The total energy is invariant under translation, rotation, inversion, and permutation of atoms of the same species. Internal features need not be invariant; they may transform 5equivariantly. A feature with angular degree ℓ and parity p = ±1 obeys 
+
+x(ℓ,p ) 7 → D(ℓ,p )(g)x(ℓ,p ), g ∈ O(3) , (3) where D(ℓ,p )(g) is an irreducible representation of O(3). For a proper rotation, it is the degree-ℓ Wigner representation; inversion adds the parity factor p. The energy readout uses only invariant scalars and invariant contractions. Its coordinate derivative therefore transforms as a vector under rotations and reflections. TRACE uses e3nn tensor products for this algebra [7]. An O(3)-invariant scalar assigns the same energy to isolated enantiomers related by reflection, as required for a parity-conserving potential without a chiral external field. Parity-breaking physics would require additional inputs and a different symmetry assumption. To limit cost, TRACE retains only natural-parity irreducible representations, ( ℓ, p ) = (ℓ, (−1) ℓ) for 0 ≤ ℓ ≤ ℓmax , and projects Clebsch–Gordan products back into this set. It therefore omits unnatural-parity intermediates such as even vectors and odd scalars. This is a compact truncation of the O(3) tensor space, not a complete set of all O(3)-allowed tensor features.  
+
+> B. Periodic local environments
+
+A periodic neighbor list must identify both an atom and its cell image. Each directed edge j → i therefore carries an integer shift Sij ∈ Z3. With row-vector coordinates and cell matrix h, TRACE uses the displacement 
+
+rij = rj − ri + Sij h, (4) 
+
+dij = ∥rij ∥2, brij = rij /d ij . (5) The corresponding neighbor set is 
+
+N (i) = {(j, Sij ) : dij < r c}. (6) Every sum written as P  
+
+> j∈N (i)
+
+runs over these image-resolved edges. If several images of one atom lie within the cutoff, each is included separately. The same directed-edge conven-tion and shifted displacements are used for training, inference, and LAMMPS deployment, including all spherical harmonics, radial functions, force derivatives, and strain derivatives. 6C. Smooth radial basis and cutoff regularity 
+
+An edge must disappear smoothly when it reaches the cutoff; otherwise, neighbor-list changes introduce discontinuities in forces or higher derivatives. TRACE uses the compact quintic envelope 
+
+fc(d) = 
+
+
+
+1 − 10 x3 + 15 x4 − 6x5, 0 ≤ x < 1,
+
+0, x ≥ 1,x = d/r c. (7) It satisfies 
+
+fc(rc) = f ′
+
+> c
+
+(rc) = f ′′  
+
+> c
+
+(rc) = 0 . (8) Thus the value and its first two radial derivatives vanish at the boundary. Edge contributions remain continuous through second derivatives as neighbors enter or leave the list. TRACE expands distances in the cutoff-weighted basis 
+
+Bn(d) = fc(d)
+
+r 2
+
+rc
+
+sin( ωnd/r c)
+
+d , n = 1 , . . . , N r, (9) where ωn = nπ initially and may optionally be optimized. The implementation uses the analytic limit at d → 0. It also provides the Gaussian basis 
+
+BG 
+
+> n
+
+(d) = fc(d) exp 
+
+"
+
+−12
+
+d − μn
+
+sn
+
+2#
+
+, (10) with fixed or trainable centers μn and widths sn. All calculations reported here use fixed-frequency Bessel functions. We do not evaluate the Gaussian or trainable-frequency options. 
+
+D. Chemical-angular ACE density 
+
+Each directed edge is represented by chemical, radial, and angular information. A learned embedding maps species Zi to even scalar channels, ei = Emb( Zi). Real spherical harmonics 
+
+Yℓm (brij ), in component normalization, describe the edge direction and transform with degree 
+
+ℓ and parity ( −1) ℓ. A bias-free radial network maps B(dij ) = ( B1, . . . , B Nr ) to the weights of an equivariant tensor product, 
+
+aij = TP dens 
+
+ ej , {Yℓm (brij )}ℓmax  
+
+> ℓ=0
+
+; MLP r[B(dij )]  . (11) 7Here TP dens constructs the edge channels; the semicolon separates its tensor inputs from its distance-dependent weights. In components, 
+
+a(ℓ, (−1) ℓ) 
+
+> ij,cm
+
+= Yℓm (brij ) X
+
+> q
+
+R(ℓ) 
+
+> cq
+
+[B(dij )] ej,q . (12) The learned radial function R(ℓ) 
+
+> cq
+
+resolves distance, while ej,q carries the identity of neighbor 
+
+j. Because the radial input includes the cutoff and the radial network has no bias, aij 
+
+vanishes at rc. TRACE couples two equivariant features with the Clebsch–Gordan product [x ⊗CG y](ℓ,p ) 
+
+> cm
+
+= X
+
+> ℓ1,p 1,c 1,m 1
+> ℓ2,p 2,c 2,m 2
+
+W ℓ1ℓ2ℓc1c2c Cℓm ℓ1m1,ℓ 2m2 x(ℓ1,p 1) 
+
+> c1m1
+
+y(ℓ2,p 2) 
+
+> c2m2
+
+, p = p1p2. (13) The Clebsch–Gordan coefficients Cℓm ℓ1m1,ℓ 2m2 are fixed by symmetry, while W mixes learned channels. Allowed couplings obey |ℓ1 − ℓ2| ≤ ℓ ≤ ℓ1 + ℓ2 and p = p1p2.The local neighbor density at center i is the permutation-invariant sum 
+
+Ai = X 
+
+> j∈N (i)
+
+aij . (14) Because the radial input is proportional to fc and the smooth bias-free radial network maps zero to zero, aij = O(fc) as dij → r− 
+
+> c
+
+. For the quintic cutoff, fc = O[( rc − dij )3]; every edge contribution and its first two radial derivatives therefore vanish at the cutoff. 
+
+E. Learned ACE correlations 
+
+Equation (14) contains one factor of the neighbor density. Repeated tensor products of this density generate many-body correlations. TRACE constructs them recursively, 
+
+C[1]  
+
+> i
+
+= Ai, (15) 
+
+C[q+1]  
+
+> i
+
+= TP q+1 
+
+
+
+C[q] 
+
+> i
+
+, Ai
+
+
+
+, 1 ≤ q < q max . (16) where q is the polynomial degree in the density. The implementation names qmax + 1 
+
+correlation_order . Counting the center, degree q has nominal maximum body order q +1. Because products of a summed density include repeated neighbor indices, each C[q] 
+
+> i
+
+also con-tains lower-body terms and is not a pure ( q + 1)-body contribution. TRACE therefore uses a learned, compressed, truncated ACE density-correlation basis. It does not enumerate a 8complete linear ACE or symmetry-adapted U -matrix basis. Increasing ℓmax , the radial reso-lution, the channel counts, or qmax increases model capacity, but the finite learned projections do not form a nested complete sequence and do not guarantee monotonic convergence to the complete ACE limit. Permutation symmetry follows because all correlations are formed from the neighbor sum Ai. The initial center state is 
+
+h(0)  
+
+> i
+
+= Center( ei) + 
+
+> qmax
+
+X
+
+> q=1
+
+Linear q
+
+
+
+C[q]
+
+> i
+
+
+
+. (17) The center embedding enters the scalar channels, so two atoms with similar neighbor densi-ties remain distinguishable when their central species differ. The quantity qmax + 1 describes only the nominal maximum body order of the polynomial correlations before attention. The complete TRACE energy has no finite polynomial body order because layer normalization, exponential attention normalization, SiLU activations, and the nonlinear readout act within the same local environment. 
+
+F. Fixed-environment cross-attention 
+
+The ACE correlations provide one state for each center. TRACE updates this state with a transformer-style block containing multihead scaled dot-product cross-attention, a residual connection, and a scalar feed-forward sublayer. The operation is cross-attention from the center to its directed edges, not self-attention among neighbor tokens and not graph attention between updated atomic states. The center supplies the query, while fixed edge tensors supply the keys and equivariant values. The implementation supports L blocks; every model reported here uses one. For block t and head p, the query and key are 
+
+q(t) 
+
+> ip
+
+= W Q,t p LN 
+
+
+
+h(t)
+
+> i,ℓ =0
+
+
+
+, (18) 
+
+k(t) 
+
+> ijp
+
+= W K,t p LN( aij,ℓ =0 ) . (19) where p = 1 , . . . , H labels a head, dk is its query and key dimension, and LN normalizes scalar channels. Both vectors are invariant scalars with respect to spatial transformations, so their dot product defines the invariant logit 
+
+s(t) 
+
+> ijp
+
+= (q(t) 
+
+> ip
+
+)Tk(t)
+
+> ijp
+
+√dk
+
++ b(t) 
+
+> p
+
+(B(dij )) − softplus( λ(t) 
+
+> p
+
+)dij , es(t) 
+
+> ijp
+
+= s(t)
+
+> ijp
+
+/T att (τ ). (20) 9Here b(t) 
+
+> p
+
+is a learned radial bias, softplus( λ(t) 
+
+> p
+
+) is a nonnegative distance coefficient, and 
+
+Tatt (τ ) > 0 is a dimensionless attention temperature at training epoch τ . The subscript distinguishes it from thermodynamic temperature. Its training schedule is stored with the run, and Tatt = 1 for all reported inference calculations. TRACE includes a unit null contribution when normalizing each neighbor set, 
+
+α(t) 
+
+> ijp
+
+= fc(dij ) exp( es(t)
+
+> ijp
+
+)1 + P  
+
+> k∈N (i)
+
+fc(dik ) exp( es(t)
+
+> ikp
+
+). (21) so the cutoff factor is not canceled by normalization when only one edge is present. Conse-quently, α(t) 
+
+> ijp
+
+→ 0 as dij → rc, and an edge leaves the attention sum smoothly. The value for each head is an equivariant linear map of the fixed edge tensor, 
+
+v(t) 
+
+> ijp
+
+= Linear V,t p (aij ), (22) and the head-averaged update is added to the center through a residual connection, 
+
+u(t) 
+
+> i
+
+= Linear O,t 
+
+ 1
+
+H
+
+> H
+
+X
+
+> p=1
+
+X 
+
+> j∈N (i)
+
+α(t)
+
+> ijp
+
+v(t)
+
+> ijp
+
+ , eh(t) 
+
+> i
+
+= h(t) 
+
+> i
+
++ γ(t)attn ⊙ u(t) 
+
+> i
+
+. (23) The smooth bias-free radial network gives v(t) 
+
+> ijp
+
+= O(fc) near the cutoff, while α(t) 
+
+> ijp
+
+contains a second, explicit cutoff factor. Each edge contribution to the update is therefore O(f 2c ), rather than an exact algebraic product of two cutoff factors. Within each irrep copy, the effective residual scale γ(t)attn is shared over all magnetic (quantum number index) components 
+
+m. It is an invariant scalar multiplier and preserves the tensor transformation law; ⊙ denotes multiplication by these tied scales. Training applies dropout to the attention weights before aggregation, whereas validation and inference do not. The attention residual is followed by a feed-forward update of the scalar channels. For each nonscalar irrep copy in eh(t) 
+
+> i
+
+, TRACE first forms the invariant squared norm 
+
+n(t) 
+
+> icℓ
+
+=
+
+> ℓ
+
+X
+
+> m=−ℓ
+
+eh(t,ℓ )
+
+> icm
+> 2
+
+, ℓ > 0. (24) The even scalar channels and these norms are then combined as 
+
+χ(t) 
+
+> i
+
+= LN 
+
+heh(t)
+
+> i,ℓ =0
+
+, {n(t)
+
+> icℓ
+
+}ℓ> 0
+
+i
+
+, (25) ∆s(t) 
+
+> i
+
+= MLP (t)FFN 
+
+
+
+χ(t)
+
+> i
+
+
+
+, (26) 
+
+h(t+1)  
+
+> i,ℓ =0
+
+= eh(t) 
+
+> i,ℓ =0
+
++ γ(t)FFN ⊙ ∆s(t) 
+
+> i
+
+, (27) 
+
+h(t+1)  
+
+> i,ℓ> 0
+
+= eh(t)
+
+> i,ℓ> 0
+
+. (28) 10 Tensor norms can therefore influence later scalar queries and the energy, but no compo-nentwise nonlinearity is applied to nonscalar irreps. The implemented scalar MLP has the sequence linear–SiLU–dropout–linear–dropout. The two dropout operations use the same probability as attention dropout and are disabled during validation and inference. The normalization over the local neighbor set and the scalar feed-forward network are nonlin-ear. The complete model consequently has no finite effective body order even though its pre-attention density correlations do. The query depends on the current state of center i, whereas the keys and values depend only on fixed descriptors aij . No updated state h(t) 
+
+> j
+
+is sent from atom j to atom i. The spatial support of each atomic energy is therefore exactly rc for any number of blocks. A force on atom i differentiates every site energy whose environment contains i and can consequently depend on pairs of atoms separated by up to about 2 rc. Domain decomposition still needs only one rc ghost halo for each owned center, followed by reverse communication of forces on ghost atoms.  
+
+> G. Fixed-environment dependency
+
+The dependency can be compared directly with message passing. A generic graph update has the form 
+
+h(t+1)  
+
+> i
+
+= Φ 
+
+h(t) 
+
+> i
+
+, X 
+
+> j∈N (i)
+
+Ψ( h(t) 
+
+> i
+
+, h(t) 
+
+> j
+
+, rij )
+
+ , (29) in which the current state of neighbor j enters the update of center i. TRACE instead uses 
+
+h(t+1)  
+
+> i
+
+= Φ loc 
+
+
+
+h(t) 
+
+> i
+
+, {aij }j∈N (i)
+
+
+
+, aij = a(Zj , rij ), (30) where every aij is built once from the input species and geometry. The edge set is a fixed geometric memory, while only the center state changes between blocks. Equation (30) is therefore local cross-attention rather than an exchange of learned sender states. 11 H. Invariant readout, forces, and stress 
+
+After L attention blocks, let ¯hi = h(L) 
+
+> i
+
+be the final center state. Only its even scalar channels enter the atomic-energy readout, 
+
+Ei = MLP E
+
+ ¯hi,ℓ =0 
+
+ , E = X
+
+> i
+
+Ei + Eref ({Zi}). (31) Forces are derivatives of this scalar energy, not separate network outputs, 
+
+Fi = − ∂E ∂ri h
+
+. (32) The resulting force field is conservative up to numerical precision and neighbor-list toler-ances. For a periodic structure with positive volume, stress is the derivative of the same energy with respect to symmetric homogeneous strain. Define 
+
+ϵ(η) = 
+
+
+
+η1 η4 η5
+
+η4 η2 η6
+
+η5 η6 η3
+
+ , Λ(η) = I + ϵ(η). (33) Here Λ is the deformation map, not an atomic force. Applying it to both the cell and Cartesian coordinates keeps fractional coordinates fixed, 
+
+h′ = hΛ, r′ 
+
+> i
+
+= riΛ. (34) At zero strain, V = | det h|. In the ASE convention used for the training labels and calcu-lator, the Cauchy stress is 
+
+σaa = 1
+
+V∂E ∂η a η=0 
+
+, a = 1 , 2, 3, (35) 
+
+σxy = 12V∂E ∂η 4 η=0 
+
+, σxz = 12V∂E ∂η 5 η=0 
+
+, σyz = 12V∂E ∂η 6 η=0 
+
+. (36) The factor 1 /2 appears because one shear parameter changes two symmetric off-diagonal entries. In the ASE sign convention, P = − tr( σ)/3, and the corresponding LAMMPS virial is W = −V σ. Finite differences of all six strain components and the deployed virial path are tested against these equations. 12 I. Training objective and data partitioning 
+
+Energies constrain the value of the learned surface, while forces and stress constrain its derivatives. All three can therefore enter one training objective. For batch B, let Iσs = 1 when structure s has a stress label and zero otherwise. TRACE minimizes 
+
+LE = 1
+
+|B| 
+
+X
+
+> s∈B
+
+Es − Eref 
+
+> s
+
+Ns
+
+2
+
+, (37) 
+
+LF = 1
+
+|B| 
+
+X
+
+> s∈B
+
+13Ns
+
+X
+
+> i,a
+
+ Fsia − F ref 
+
+> sia
+
+2 , (38) 
+
+Lσ = 16|B| 
+
+X
+
+> s∈B
+
+Iσs
+
+> 6
+
+X
+
+> v=1
+
+ σsv − σref 
+
+> sv
+
+2 , (39) 
+
+L = wE LE + wF LF + wσ(t)Lσ + wSob LSob . (40) The superscript “ref” denotes the reference label for a given data set. The energy error is divided by the number of atoms before it is squared. Force errors are averaged over the 3 Ns
+
+Cartesian components of each structure. Thus every structure has equal weight, regardless of size; this is not the same as averaging all atomic components over a mixed-size data set. Structures without stress labels contribute zero to Lσ, but its denominator remains the full batch size. Its effective contribution therefore depends on the labeled fraction of the batch. The optional local-linearization term is 
+
+LSob = 1
+
+|B| 
+
+X
+
+> s∈B
+
+"
+
+Es(rs + δs) − Es(rs) + 
+
+> Ns
+
+X
+
+> i=1
+
+Fsi · δsi 
+
+#2
+
+, δsia ∼ N (0 , σ 2 
+
+> δ
+
+), (41) where the force in the linear term is detached from this auxiliary graph. The stress weight may be increased gradually during the first epochs to avoid large second-derivative updates before the energy surface has learned its basic local shape. Reported errors are defined independently of the loss weights. With ∆ Es = Es − Eref  
+
+> s
+
+,the energy RMSE is RMSE E =
+
+P  
+
+> s
+
+Ns(∆ Es/N s)2
+
+P 
+
+> s
+
+Ns
+
+1/2
+
+. (42) The force RMSE is the square root of the structure-averaged component mean-square error, RMSE F =
+
+"
+
+1
+
+|S| 
+
+X
+
+> s∈S
+
+13Ns
+
+X
+
+> i,a
+
+(∆ Fsia )2
+
+#1/2
+
+. (43) 13 The stress RMSE includes the six Voigt components of structures that carry stress labels, RMSE σ =
+
+"
+
+16|S σ|
+
+X
+
+> s∈S σ
+> 6
+
+X
+
+> v=1
+
+(∆ σsv )2
+
+#1/2
+
+. (44) We report energy RMSE in meV per atom, force RMSE in eV ˚ A−1, and stress RMSE in eV ˚ A−3.Adjacent molecular-dynamics frames are correlated. TRACE therefore uses blocked split-ting by default: contiguous blocks are assigned to validation, and a gap around each block is omitted to reduce temporal leakage. This is more demanding than a random frame split, but independent trajectories and phases are still needed to test transferability.  
+
+> J. Optimization, checkpointing, and scaling
+
+TRACE supports AdamW/AMSGrad and the Muon matrix optimizer [27], with AdamW for auxiliary parameter groups. The Muon update and auxiliary path follow the open-source Nequix implementation [28]; TRACE uses the parameter grouping stated below. Because Muon was used for the CsPbI 3 model presented in the following sections, we give the implemented update explicitly. For a matrix gradient Gt and momentum Mt,
+
+Mt = βMt−1 + (1 − β)Gt, (45) 
+
+Ht = (1 − β)Gt + βMt, (46) with Ht = Mt instead when Nesterov momentum is disabled. If Ht has shape m × n, it is transposed temporarily when m > n . The normalized matrix is 
+
+X0 = Ht
+
+∥Ht∥F + 10 −7 , (47) Five quintic Newton–Schulz steps then approximate its matrix zero-power map, 
+
+Ak = XkXT 
+
+> k
+
+, (48) 
+
+Xk+1 = aXk + ( bAk + cA2
+
+> k
+
+)Xk, (49) with ( a, b, c ) = (3 .4445 , −4.7750 , 2.0315). After restoring the original orientation, the result is multiplied by pmax(1 , m/n ) to give Ut. With learning rate η and decoupled weight decay 
+
+λ,
+
+Θt+1 = (1 − ηλ )Θt − ηUt. (50) 14 For the CsPbI 3 model, Muon updates only the query, key, and hidden scalar feed-forward matrices. AdamW updates embeddings, radial and tensor-product parameters, normaliza-tion parameters, biases, residual scales, and the energy readout. Both groups use η = 10 −3
+
+and λ = 10 −5. Muon uses β = 0 .95; AdamW uses coefficients (0 .9, 0.95) and ϵ = 10 −10 .Newton–Schulz operations use float32 in the reported CPU run. The run manifest records the learning-rate schedule, gradient clipping, attention-temperature schedule, stress-weight ramp, optimizer state, and data split. Deployment retains only the scalar-energy graph. ASE and LAMMPS obtain forces and virials by differentiating that graph. For LAMMPS, a fixed type map is stored when the PyTorch checkpoint is exported to a TorchScript/LibTorch artifact and loaded by the native pair style. Strict locality means that domain decomposition needs the usual cutoff ghost atoms, but no repeated exchange of hidden states between ranks. For mean neighbor count n, the evaluation cost has the form 
+
+O[N n (Cedge + LHC attn )] + O(N C CG + N C read ) , (51) where L and H are the numbers of blocks and heads. Cedge , Cattn , CCG , and Cread denote the costs of an edge tensor, one attention head, the local correlations, and the readout. For bounded n, the total work is linear in N . More blocks increase local work but do not enlarge the cutoff environment or domain halo. This asymptotic result is not a hardware benchmark. Actual accelerator and multi-GPU performance also depends on neighbor lists, tensor kernels, derivatives, memory movement, and communication.  
+
+> III. APPLICATIONS
+
+Calculating errors on novel test structures do not by themselves establish that a machine learning potential reproduces the physics and chemistry needed in simulations to calculate experimentally measurable observables in physical and chemical systems. We therefore test TRACE on three different problems: relative energies of polymorphs, finite-temperature stability, and hard-core phase transformation in CsPbI 3; partial radial distribution functions in liquid water; and the activation free energy of a chemical reaction. Each chemical system is trained separately with the similar local TRACE architecture and observables are compared against experiments. 15 A. Crystallization: polymorph energetics, phase diagram, and rare-events 
+
+CsPbI 3 is a fully inorganic halide perovskite with immense potential for solar energy. Its “black” perovskite phase possesses a band gap of ≃1.7 to 1.8 eV, which is nearly ideal for the top absorbing layer in a perovskite–silicon tandem solar cell—a design capable of pushing theoretical solar to power conversion efficiencies beyond 40% [29, 30]. However, a major practical challenge is that this photo-active black phase is metastable. It naturally competes with a structurally stable, but yellow and photo-inactive, non-perovskite δ phase. At the atomic level, the inactive δ phase consists of edge-sharing PbI 6 octahedra, whereas the active black phases (whether orthorhombic, tetragonal, or cubic) are defined by corner-sharing octahedra with varying tilt angles. During both the synthesis and daily operation of these solar cells, the material frequently transitions between these polymorphs. Simulating this transition is uniquely difficult be-cause it involves sweeping changes: the Pb–I connectivity breaks and reforms, the local environment around the cesium atoms shifts entirely, and the overall volume and shape of the simulation cell changes continuously. Therefore, to be successful, a potential must accomplish two things: it must correctly predict the relative thermodynamic stability of each polymorph, and it must guarantee smooth, continuous forces and stresses throughout massive structural disruptions. To train a TRACE potential capable of handling this complexity, we utilized our previ-ously established r 2SCAN+rVV10 density functional theory (DFT) calculations [31]. This dataset provides high-fidelity energies, forces, and stresses across 979 snapshots of peri-odic 96-atom CsPbI 3 supercells of all polymorphs. We rigorously divided this data into 863 training structures and 100 validation structures. To ensure the model learns the underlying physics rather than simply memorizing closely correlated molecular dynamics snapshots, we intentionally discarded 16 boundary frames to cleanly separate the training and validation sets. The model was trained entirely on this fixed dataset in a single pass, without relying on any active learning steps. The complete model architecture and training parameters are summarized in Table I. 16 Quantity Value Cutoff / radial basis 6.0 ˚ A / 12 Bessel functions Maximum angular degree ℓmax = 2 Node irreps 64 × 0e + 32 × 1o + 16 × 2e
+
+Correlation irreps 16 × 0e + 8 × 1o + 4 × 2e
+
+Pre-attention density degree / nominal maximum body order 3 / 4 Radial network 12 → 32 → TP weights Attention 1 local block, 2 heads Scalar FFN invariant scalars and ℓ > 0 squared norms Readout 64 → 64 → 1Trainable parameters 132,005 Optimizer Muon for hidden matrices; AdamW auxil-iary groups Learning rate / weight decay 10 −3 / 10 −5
+
+Batch size / epochs 8 / 100 Loss weights ( wE , w F , w σ) (1 , 10 , 10 3 → 10 5)Stress-weight ramp 20 epochs Local-linearization ( wSob , σ δ) (10 −3, 0.02 ˚ A) Attention dropout / layer scale 0.03 / 0.01 Direct force/stress heads none Long-range electrostatics not included TABLE I. Architecture and training parameters for the CsPbI 3 model. The nominal body order counts the center and applies only to the polynomial density correlations before attention. Repeated neighbor indices also produce lower-body terms. Attention and the nonlinear readout remove a finite body-order interpretation of the complete model. 
+
+17 After training, we first test the zero-temperature relative energies after relaxing both the atomic positions and the cell of each polymorph. The checkpoint with the lowest val-idation loss, obtained at epoch 76, was used to relax 20-atom cells of the edge-sharing δ,orthorhombic γ, tetragonal β, and cubic α phases. Every relaxation reached a maximum force below 0.01 eV ˚ A−1. Relative to the δ phase, TRACE-MLIP gives energies of 0, 12.55, 16.17, and 26.05 kJ mol −1 per formula unit for δ, γ, β, and α, respectively. The correspond-ing r 2SCAN+rVV10 values are approximately 0, 12.1, 17.1, and 27.4 kJ mol −1 per formula unit [Fig. 2]. TRACE-MLIP preserves the phase ordering, and its deviations from DFT are 0.45, −0.93, and −1.35 kJ mol −1 per formula unit for γ, β, and α. The DFT and TRACE structures were relaxed independently; the comparison therefore tests relaxed phase energies rather than single-point energies at a common geometry.     
+
+> FIG. 2. Relative energies of independently relaxed CsPbI 3polymorphs from r 2SCAN+rVV10 DFT and TRACE-MLIP, in kJ mol −1per formula unit relative to the edge-sharing δphase.
+
+However, relative energies alone do not determine which phase is stable at finite tem-peratures and pressures. The stable phase minimizes the Gibbs free energy, G = H − T S ,where entropy can change the zero-temperature phase diagrams. Therefore, we calculated the absolute free energies of 480-atom edge-sharing δ and cubic α cells at T0 = 450 K and 
+
+p = 1 .01325 bar. For each phase s ∈ { δ, α }, the TRACE energy Us(R) was connected to 18 the energy of an Einstein crystal through the Frenkel–Ladd path [36] 
+
+Uλ,s (R) = (1 − λ)Us(R) + λU Ein ,s (R),UEin ,s (R) = 12
+
+X
+
+> i
+
+κZi,s ri − r0 
+
+> i,s
+> 2
+
+, 0 ≤ λ ≤ 1. (52) where R = {ri} contains all atomic positions, r0 
+
+> i,s
+
+is the reference site of atom i, and κZi,s 
+
+is the spring constant for its chemical species. The reference volume Vs is the mean N pT 
+
+volume at ( T0, p ), and the spring constants are obtained from the mean-square displacements in each phase. The path has the TRACE solid at λ = 0 and the Einstein crystal at λ = 1. After removing center-of-mass motion, the Helmholtz free energy of phase s is 
+
+Fs(T0, V s) = FEin ,s (T0, V s) + 
+
+Z 10
+
+⟨Us − UEin ,s ⟩λ,s dλ. (53) For each phase, five independent pairs of 30-ps forward and reverse paths were combined with the symmetric work estimator, which reduces the leading error from finite switching rates [37]. From Gs(T0, p ) = Fs(T0, V s) + pV s, the free energy at other temperatures follows from the Gibbs–Helmholtz relation 
+
+Gs(T, p )
+
+T = Gs(T0, p )
+
+T0
+
+−
+
+Z TT0
+
+Hs(T ′, p )
+
+T ′2 dT ′, Hs = ⟨Us + K + pV ⟩N pT . (54) The enthalpy was sampled every 50 K from 300 to 650 K. Figure 3 shows the resulting change in stability. At 400 K, ∆ Gδα = Gδ − Gα = −4.87 kJ mol −1 per formula unit, so the δ phase is stable. At 650 K, ∆ Gδα = +1 .92 kJ mol −1 per formula unit, and the α
+
+phase is stable. Linear interpolation gives ∆ Gδα = 0 at ≃580 K. High-temperature x-ray diffraction experiments find δ / cubic coexistence from 563 to 602 K and a fully cubic phase at 602 K [38]; the calculated crossing lies within the experimental observations. The nominal 95% block-and-replica bootstrap interval is 553–599 K. This interval measures statistical uncertainty from the sampled trajectories, but not the remaining forward–reverse hysteresis of 0.7–4.7 meV per atom or the error from the single 480-atom cell. The value ∼580 K is therefore a preliminary classical estimate. Within these limits, TRACE reproduces both the zero-temperature relative energies and finite-temperature phase diagrams. Moving beyond stable equilibrium phases, we next test whether the TRACE potential can describe a highly complex transition relevant to industrial applications: the δ-to-perovskite transformation in CsPbI 3. This process requires edge-sharing PbI 6 octahedra to break apart and form a corner-sharing network. At the same time, the local environments of the Pb, I, 19 FIG. 3. Finite-temperature stability of edge-sharing δ-CsPbI 3 and cubic α-CsPbI 3 at 1.01325 bar. Left: Gibbs free energies relative to Gα(300 K), obtained from a Frenkel–Ladd reference at 450 K and Gibbs–Helmholtz integration. Right: ∆ Gδα = Gδ − Gα; negative values favor δs and positive values favor α. The shaded band is the nominal 95% block-and-replica bootstrap interval. Ver-tical lines mark the calculated crossing at ∼580 K and the experimental completion of the cubic transformation near 600 K. The calculation uses 240-atom cells and classical nuclei. 
+
+and Cs atoms must change alongside the dimensions of the simulation cell. Earlier simu-lations have shown that this transformation produces complicated intermediate structures, including mixed-connectivity layers and stacking faults [31] and later observed in various experiments [32–35]. We therefore designed a test to see if our fixed potential could drive this entire collective reorganization of this multi-species system. To follow the transformation, we employ biased simulations using multi-species structure-factor reaction coordinate, adapted from our previous work on CsPbI 3 crystallization [31]. Let Aα denote the atoms of species α ∈ { I, Pb , Cs } and let rij be the minimum-image distance from a Pb center i to atom j. The species-resolved local response is: 
+
+s(α) 
+
+> i
+
+= 1 + X  
+
+> j∈A α, j ̸=irij <r (α)c
+
+j0(qαrij )j0
+
+πr ij 
+
+r(α)c
+
+
+
+, j0(x) = sin xx , j0(0) = 1 , (55) 
+
+χα(u) = (u/s ⋆α)6
+
+1 + ( u/s ⋆α)6 , Sp = X
+
+> i∈A Pb
+
+Y
+
+> α∈{ I,Pb ,Cs }
+
+χα
+
+
+
+s(α)
+
+> i
+
+
+
+. (56) Equation (55) uses a spherical Bessel function to probe the specific perovskite length scale, 20 while a second function smoothly brings each pair contribution to zero at its radial cutoff. The parameters are: (qI, q Pb , q Cs ) = (21 .99 , 23 .78 , 14 .36) nm −1,r(α)c = 1 .2 nm ,
+
+(s⋆ 
+
+> I
+
+, s ⋆
+
+> Pb
+
+, s ⋆
+
+> Cs
+
+) = (1 .5, 1.3, 1.5) .
+
+(57) The switch function, χα, maps each the local response toward zero or one. When multiplied together, their product is large only when the I, Pb, and Cs environments around a single Pb center. Summing this across all Pb centers gives Sp, an extensive measure of a multi-species crystalline structure. Because it uses only distances between identical species, Sp is independent of cell translation and rotation. 
+
+FIG. 4. Collective phase transformation during the enhanced-sampling transition in CsPbI 3. (a) Pb-centered perovskite order Sp. (b) Fractions of linked Pb pairs sharing one iodide (corner sharing), two iodides (edge sharing), or three or more iodides (higher sharing). Connectivity is defined with a 4.2-˚ A Pb–I cutoff. 
+
+To test the model, we prepared a 640-atom system (128 formula units) in the edge-sharing 
+
+δ phase. After 2 ps of thermalization, we ran the simulation at 400 K and 1 bar with a 21 2-fs time step, allowing all cell lengths and angles to fluctuate for reaching equilibrium. We then applied an expanded-ensemble bias potential using overlapping umbrellas along 
+
+Sp for sampling between the δ and perovskite phases [39, 40]. Crucially, this bias only changes statistical weights and sample free energy surface; where the underlying TRACE energy surface remained unchanged. Throughout the trajectory, every energy, force, and cell derivative was evaluated using the same frozen checkpoint, without any active learning or additional electronic-structure calculations. The simulation demonstrates a clear structural transition [Fig. 4(a)]. For the first 20 ps, the system remains in the non-perovskite basin with Sp near 0.8. The order parameter then increases to 8.13 at 21 ps and reaches 29.92 by 28 ps, eventually stabilizing between 30 and 33 for the remainder of the 60-ps run. To verify that this change reflects a true physical rewiring of the PbI 6 network, we tracked how iodides were shared between linked Pb pairs. Initially, all 256 linked pairs share an edge between all PbI 6 octahedra. By 60 ps, the network has completely transformed: 293 pairs are corner-sharing, leaving only 21 edge-sharing pairs and 21 pairs that share three or more iodides. This means corner-sharing pairs grow to account for 87.5% of the linked network. The fact that the mixed corner-edge-sharing structure coexist during the simulations indicates that the cell reorganizes heterogeneously, rather than shifting all at once [Fig. 4(b)]. This simultaneous increase in both Sp and corner-sharing connectivity proves that the fixed potential remains stable while the PbI 6 network, all three sublattices, and the simulation cell completely reorganize. The model successfully navigates into a new structural basin without needing to be trained on the intermediate configurations. We note that this biased trajectory demonstrates a collective rare event; it does not provide a physical time sequence or a specific microscopic mechanism. Extracting a quan-titative free-energy barrier would require converged sampling, independent replicas, and electronic-structure validation outside the training distribution.  
+
+> B. Liquids: water structure from a reduced CCSD(T) reference set
+
+Water is fundamental to chemistry and biology. For machine learning interatomic poten-tials, it represents a unique challenge. Unlike the rigid lattice of a crystalline solid, liquid water relies on a constantly fluctuating hydrogen-bond network. To succeed here, a model 22 cannot just hold a structure together; it must remain stable while accurately capturing dy-namical, finite-temperature correlations. To see how well TRACE handles this disorder, we trained it on a deliberately restricted subset of the widely used MB-pol coupled-cluster dataset. Our goal is to establish a classical baseline for the TRACE architecture using lim-ited data, not to compete with the extensive sampling or nuclear-quantum corrections found in dedicated water models like NEP-MB-pol [46]. To create this stress test, we stripped down the available 1250-frame NEP-MB-pol dataset to 417 configurations. We split this data into 359 training structures and 50 validation structures, carefully discarding eight boundary frames to prevent the model from memorizing adjacent, highly correlated molecular dynamics snapshots. The TRACE model—configured with a 6-˚ A cutoff, ℓmax = 2, 64 hidden scalar channels, and two attention heads—was trained on CPUs. We selected the checkpoint with the lowest validation loss (epoch 77), which yielded errors of 7.22 meV atom −1 for energy, 0.110 eV ˚ A−1 for forces, and 4 .93 ×10 −4 eV ˚ A−3
+
+for stress. We deployed this potential in LAMMPS to simulate a periodic box of 144 water molecules. We performed a classical isothermal-isobaric ( N P T ) simulations at 300 K and 1 bar for 135.2 ps trajectory, using a 0.5-fs time step. Figure 5 compares our resulting partial radial distribution functions against established experimental data. For a model trained on such a limited dataset, this agreement is highly encouraging. TRACE places the first oxygen– oxygen (O–O) peak at 2.85 ˚ A with a height of 2.52. This closely tracks the ambient-water x-ray data from Skinner et al. [47], which locates the peak at 2.80 ˚ A with a height of 2.58. Across the broader intermolecular range (2 .2 ≤ r ≤ 6.0 ˚ A), the pointwise RMSE between our predicted O–O structure and the experimental curve is just 0.217. While the first O–O peak aligns well with experiment, structural agreement alone does not guarantee a perfect thermodynamic model. Because this was a purely classical simu-lation, it inherently misses the nuclear quantum effects that naturally soften the structure of real water. Furthermore, this relatively short trajectory was primarily designed to cap-ture local correlations, meaning the mean density and time-averaged pressure are not yet fully converged. A truly quantitative validation of the liquid equation of state requires independent configurations, longer production intervals, checks for finite-size effects, and matching quantum-thermodynamic conditions. Most importantly, matching an N P T radial distribution function is only the first step; the pressure and virial must ultimately be veri-23 FIG. 5. Partial radial distribution functions from a 144-molecule classical TRACE trajectory at 300 K and 1 bar: (a) O–O, (b) O–H, and (c) H–H. Solid curves show the final cumulative averages. Crosses in (a) are every eighth point from the 295-K x-ray O–O data of Skinner et al. [47]. Crosses in (b) and (c) are Soper’s 298-K neutron-diffraction/EPSR functions [48], read from Fig. 1 of Ref. [46]. Panel (b) is limited to gOH = 4 so that the intermolecular structure remains visible; the intramolecular O–H peak lies above this range. 
+
+fied independently under variable-cell dynamics to confirm the macroscopic stability of the liquid. 24 C. Chemical reactions: activation free energy of methyl migration 
+
+While the solid and liquid examples validate structural stability without altering cova-lent connectivity, chemical reactions present a stricter test of breaking and formation a chemical bond. To determine whether this same local construction can accurately capture transition-state kinetics and free-energy profiles during such bond reorganization, we model a fundamentally important class of organic reactions: methyl migration. Specifically, we examine the intramolecular rearrangement of 2,2-dimethylisoindene to 1,2-dimethylindene [Fig. 6(a)], a process highly sensitive to kinetic barriers. One C–C bond weakens as an-other forms, so the trajectory samples geometries between the two stable connectivities. Experiments in pentane give an activation free energy of 29 .2 ± 1.1 kcal mol −1 at 365.6 K [43–45]. Vitartas et al. released reference configurations at the PBE0-D3BJ/def2-SVP level [45]. We joined 192 structures from their inherited-bias well-tempered-metadynamics active-learning calculation with 131 structures from downhill active learning. A fixed split as-signs 274 structures to training and 49 to validation. We fitted TRACE once to this com-bined dataset, without another active-learning cycle or new electronic-structure labels. The model has 132,005 trainable parameters, a 5.0-˚ A cutoff, ℓmax = 2, 12 radial functions, pre-attention density degree three (nominal maximum body order four), and one two-head fixed-environment attention block. Muon updates the hidden matrices and AdamW the re-maining parameters. Full-precision CPU training used batches of eight for 2000 epochs. At the final checkpoint, the training energy RMSEs are 1.94 meV atom −1; the corresponding force RMSEs are 0.050 eV ˚ A−1, see [Fig. 6(b)]. Using this potential, we calculate the free-energy profile with umbrella sampling [41]. We define a reaction coordinate, s, using the distances from the migrating methyl carbon ( rm)to its original ( ro) and new ( rn) attachment sites: 
+
+r1 = |rm − ro| , r2 = |rm − rn| , s = r1 − r2. (58) Here, negative and positive values of s correspond to the reactant and product states, re-spectively. To fully sample the free energy along this coordinate, we apply a harmonic bias potential to each umbrella window k:
+
+U bias  
+
+> k
+
+(s) = κ
+
+2 (s − sk)2 , κ = 20 eV ˚ A−2. (59) 25 FIG. 6. Description of methyl migration from 2,2-dimethylisoindene to 1,2-dimethylindene. (a) Reaction scheme; dashed contacts define the distances in Eq. (58). (b) Training errors for the fixed 274/49 split. Pale lines are epoch values; opaque lines are 31-epoch moving medians. (c) Umbrella-sampling profile at 365.6 K, shown as the mean and pointwise 95% Student-t interval over seven replicas. Squares mark the experimental barrier in pentane and the PBE0-D3BJ/def2-SVP qRRHO estimate. These are scalar barrier references, not profiles along s.
+
+26 To ensure we capture the transition state structure, we took 30 previously published window centers (from −0.9685 to 1 .0283 ˚ A) and added nine new midpoint windows, giving 39 windows in total. We simulated each gas-phase trajectory at 365.6 K for 40 ps with a 0.5-fs time step. Initial velocities were drawn independently from a Maxwell–Boltzmann distribution, and we discarded the first 10 ps of each run for equilibration. We then used the weighted histogram analysis method (WHAM) [42] to remove the sampling biases and reconstruct the unbiased probability density, P (s). The free-energy profile, relative to the reactant minimum ( sRS ), is calculated as: ∆G(s) = −kBT ln 
+
+ P (s)
+
+P (sRS )
+
+
+
+. (60) While simulating an isolated molecule at a constant temperature technically yields a Helmholtz free-energy difference, we use the standard symbol ∆ G to match conventional notations. We perform seven independent runs of umbrella sampling, and the activation free energies are highly consistent among all of them, ranging from 27.860 to 27.967 kcal mol −1. The mean is 27 .923 ±0.031 kcal mol −1. The peak of the free-energy profile occurs between s = −0.1186 and −0.0955 ˚ A, with an average position of −0.1048 ˚ A that aligns well with the optimized transition state structure. We can be confident in these results because the underlying robust sampling: the smallest overlap between adjacent window histograms remains around 40% (0.399–0.413) across all replicas. Furthermore, throughout all 273 trajectories, the molecular geometries remain stable, never violating our geometric limits ( r1 + r2 < 3.20 ˚ A or methyl C–H > 1.35 ˚ A). Ultimately, this means the smoothness of our free-energy profile comes from genuinely well-connected data and reproducible sampling, not from artificial, post hoc smoothing. When we compare the TRACE barrier to existing benchmarks, the results are highly consistent. Our value sits 1.31 kcal mol −1 higher than the static PBE0-D3BJ/def2-SVP qRRHO estimate (26.6 kcal mol −1) and 1.29 kcal mol −1 lower than the experimental average. It is also very close to the 28 .2 ± 0.1 kcal mol −1 result from the original potential [45]. We must note that the experiment was performed in a solvent, and the qRRHO method relies on a stationary-point approximation, whereas our TRACE results are classical gas-phase simulation. Nevertheless, the tight agreement across our replicas proves that this model provides a highly reproducible activation energy for the chemical bond breaking and 27 formation during methyl migration. To eventually extend this to a full solvent-phase rate constant, future work would need to define a standard state, verify convergence over longer trajectories, and account for dynamical recrossing beyond our one-dimensional coordinate.  
+
+> IV. SCOPE AND LIMITATIONS
+
+Three limits define the present scope. First, TRACE retains natural-parity irreducible representations and projects every density-correlation degree into a finite learned channel space. It does not enumerate a complete linear ACE or U -matrix basis. The nominal four-body description applies only before attention; normalization and nonlinear scalar maps remove a finite body-order interpretation of the final energy. The effect of this truncation should be tested by varying parity content, angular and radial resolution, correlation degree, and channel count separately, and by measuring physical observables. Energy and harmonic errors alone do not establish accuracy for anharmonic thermomechanical response [5]. Second, the present energy has a finite cutoff and no explicit Coulomb, Ewald, charge-equilibration, dispersion-tail, or reciprocal-space term. For ionic CsPbI 3, this assumption must be tested against cutoff and cell size, long-wavelength distortions, dielectric environ-ment, and charged defects. A long-range term should be introduced only if controlled tests reveal a systematic error that improved local data cannot remove. Third, locality does not by itself prove practical speed or transferability. For bounded density, TRACE has linear asymptotic work and one geometric halo, but this does not establish an accuracy or throughput advantage over another MLIP. The current Torch-Script/LibTorch interface is not evidence of GPU-resident million-atom performance. Such a claim requires matched training, device-resident profiling, energy–force–virial agreement, memory measurements, and strong- and weak-scaling tests on specified hardware.  
+
+> V. DISCUSSION AND CONCLUSIONS
+
+TRACE is built around one dependency: an ACE-correlated center state queries tensorial edge features that remain fixed by the input species and geometry. ACE, O(3) equivariance, attention, and local energy decomposition all have established precedents. TRACE combines them so that nonlinear processing remains inside one cutoff environment and forces and stress 28 remain derivatives of a single invariant energy. The applications test this construction through physical observables rather than fit er-rors alone. For CsPbI 3, TRACE reproduces the r 2SCAN+rVV10 ordering of four relaxed polymorphs, gives a preliminary classical phase crossing at ≃580 K, and remains stable during conversion from an edge-sharing crystal to predominantly corner-sharing order. Aseparate water model places the first O–O maximum close to the diffraction reference. For methyl migration, seven independent umbrella calculations give 27 .92 ± 0.03 kcal mol −1
+
+while sampling C–C bond rearrangement. With these results, we show that the same fixed-environment construction can be applied for wide range of crystalline, liquid, and reactive systems. 
+
+> DATA AND SOFTWARE AVAILABILITY
+
+The implementation, training configurations, and tests are available at github.com/ paramvir3/Transformers-ACE and Zenodo doi:10.5281/zenodo.21631673 
+
+> ACKNOWLEDGEMENT
+
+The author acknowledges the use of OpenAI Codex in the development of this project.      
+
+> [1] J. Behler and M. Parrinello, “Generalized Neural-Network Representation of High-Dimensional Potential-Energy Surfaces,” Physical Review Letters 98 , 146401 (2007).
+> doi:10.1103/PhysRevLett.98.146401 .[2] A. P. Bart´ ok, M. C. Payne, R. Kondor, and G. Cs´ anyi, “Gaussian Approximation Potentials: The Accuracy of Quantum Mechanics, without the Electrons,” Physical Review Letters 104 ,136403 (2010). doi:10.1103/PhysRevLett.104.136403. [3] A. P. Thompson, L. P. Swiler, C. R. Trott, S. M. Foiles, and G. J. Tucker, “Spectral neighbor analysis method for automated generation of quantum-accurate interatomic potentials,”
+> Journal of Computational Physics 285 , 316–330 (2015). doi:10.1016/j.jcp.2014.12.018.
+
+29 [4] A. V. Shapeev, “Moment Tensor Potentials: A Class of Systematically Improvable Interatomic Potentials,” Multiscale Modeling & Simulation 14 , 1153–1173 (2016). 
+
+doi:10.1137/15M1054183 .[5] B. P´ ota, P. Ahlawat, G. Cs´ anyi, and M. Simoncelli, “Thermal Conductivity Predictions with Foundation Atomistic Models,” arXiv:2408.00755 (2024). arXiv:2408.00755. [6] R. Drautz, “Atomic cluster expansion for accurate and transferable interatomic potentials,” 
+
+Physical Review B 99 , 014104 (2019). doi:10.1103/PhysRevB.99.014104. [7] M. Geiger and T. Smidt, “e3nn: Euclidean Neural Networks,” arXiv:2207.09453 (2022). arXiv:2207.09453. [8] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, “E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials,” Nature Communications 13 , 2453 (2022). doi:10.1038/s41467-022-29939-5. [9] C. Chen and S. P. Ong, “A universal graph deep learning interatomic potential for the periodic table,” Nature Computational Science 2, 718–728 (2022). doi:10.1038/s43588-022-00349-3. [10] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, and K. A. Persson, “A framework to evaluate machine learning crystal stability predictions,” Nature Machine Intelligence 7, 836–847 (2025). doi:10.1038/s42256-025-01055-1. [11] I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Csanyi, “MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields,” in 
+
+Advances in Neural Information Processing Systems 35 (2022). NeurIPS proceedings. [12] A. Bochkarev, Y. Lysogorskiy, and R. Drautz, “Graph Atomic Cluster Expansion for Semilocal Interactions beyond Equivariant Message Passing,” Physical Review X 14 , 021036 (2024). doi:10.1103/PhysRevX.14.021036. [13] Y. Lysogorskiy, A. Bochkarev, and R. Drautz, “Graph atomic cluster expansion for foundational machine learning interatomic potentials,” arXiv:2508.17936 (2025). arXiv:2508.17936. [14] X. Fu, B. M. Wood, L. Barroso-Luque, D. S. Levine, M. Gao, M. Dzamba, and C. L. Zitnick, “Learning Smooth and Expressive Interatomic Potentials for Physical Property Prediction,” 
+
+30 arXiv:2502.12147 (2025). arXiv:2502.12147. [15] D. Bahdanau, K. Cho, and Y. Bengio, “Neural Machine Translation by Jointly Learning to Align and Translate,” in International Conference on Learning Representations (2015). arXiv:1409.0473. [16] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin, “Attention Is All You Need,” in Advances in Neural Information Processing Systems 30 (2017). NeurIPS proceedings. [17] J. Lee, Y. Lee, J. Kim, A. R. Kosiorek, S. Choi, and Y. W. Teh, “Set Transformer: A Framework for Attention-based Permutation-Invariant Neural Networks,” in Proceedings of the 36th International Conference on Machine Learning , Proceedings of Machine Learning Research 97 , 3744–3753 (2019). PMLR proceedings. [18] D. Zhang et al. , “Pretraining of attention-based deep learning potential model for molecular simulation,” npj Computational Materials 10 , 94 (2024). doi:10.1038/s41524-024-01278-7. [19] F. B. Fuchs, D. E. Worrall, V. Fischer, and M. Welling, “SE(3)-Transformers: 3D Roto-Translation Equivariant Attention Networks,” in Advances in Neural Information Processing Systems 33 , 1970–1981 (2020). arXiv:2006.10503. [20] P. Th¨ olke and G. De Fabritiis, “TorchMD-NET: Equivariant Transformers for Neural Network Based Molecular Potentials,” in International Conference on Learning Representations (2022). arXiv:2202.02541. [21] Y.-L. Liao, A. J. Hoffman, S. C. Shen, A. Duval, S. W. Norwood, and T. E. Smidt, “EquiformerV3: Scaling Efficient, Expressive, and General SE(3)-Equivariant Graph Attention Transformers,” arXiv:2604.09130 (2026). arXiv:2604.09130. [22] J. T. Frank, O. T. Unke, and K.-R. M¨ uller, “SO3krates: Equivariant Attention for Interactions on Arbitrary Length-Scales in Molecular Systems,” in Advances in Neural Information Processing Systems 35 , 29400–29413 (2022). NeurIPS proceedings. [23] S. N. Pozdnyakov and M. Ceriotti, “Smooth, exact rotational symmetrization for deep learning on point clouds,” in Advances in Neural Information Processing Systems 36 (2023). NeurIPS proceedings. [24] E. Qu and A. S. Krishnapriyan, “The Importance of Being Scalable: Improving the Speed and Accuracy of Neural Network Interatomic Potentials Across Chemical Domains,” in 
+
+Advances in Neural Information Processing Systems 37 (2024). doi:10.52202/079017-4412. 
+
+31 [25] B. Rhodes, S. Vandenhaute, V. ˇSimkus, J. Gin, J. Godwin, T. Duignan, and M. Neumann, “Orb-v3: atomistic simulation at scale,” arXiv preprint arXiv:2504.06231 (2025). doi:10.48550/arXiv.2504.06231. [26] A. Musaelian, S. Batzner, A. Johansson, L. Sun, C. J. Owen, M. Kornbluth, and B. Kozinsky, “Learning local equivariant representations for large-scale atomistic dynamics,” 
+
+Nature Communications 14 , 579 (2023). doi:10.1038/s41467-023-36329-y. [27] K. Jordan, Y. Jin, V. Boza, You Jiacheng, F. Cesista, L. Newhouse, and J. Bernstein, “Muon: An optimizer for hidden layers in neural networks” (2024), online methods note. [28] T. Koker, M. Kotak, and T. Smidt, “Training a Foundation Model for Materials on a Budget,” arXiv:2508.16067 (2025). arXiv:2508.16067; associated Nequix implementation: github.com/atomicarchitects/nequix. [29] S. P. Bremner, C. Yi, I. Almansouri, A. Ho-Baillie, and M. A. Green, “Optimum band gap combinations to make best use of new photovoltaic materials,” Solar Energy 135 , 750–757 (2016). doi:10.1016/j.solener.2016.06.042. [30] M. H. Futscher and B. Ehrler, “Efficiency Limit of Perovskite/Si Tandem Solar Cells,” ACS Energy Letters 1, 863–868 (2016). doi:10.1021/acsenergylett.6b00405. [31] P. Ahlawat, “Size dependent solid-solid crystallization of halide perovskites,” arXiv:2404.05644 (2024). arXiv:2404.05644. [32] J. Chen, S. Chen, X. Liu, D. Zhu, B. Cai, X. Luo, W. Feng, Y. Cheng, Y. Xiong, J. Du, Z. Li, D. Zhang, L. Duan, and D. Ma, “Molecule-induced ripening control in perovskite quantum dots for efficient and stable light-emitting diodes,” Science Advances 11 , eads7159 (2025). doi:10.1126/sciadv.ads7159. [33] J. Chen, K. Ji, L. Dai, H. Xiang, Z. Yu, A. N. Iqbal, J. Wang, X. Ma, R. Guo, M. Anaya, X. Song, Y. Lu, Y.-H. Chiang, W. Li, Y. Shen, X. Luo, A. Mirabelli, Y. Cheng, X. Chen, D. Ma, Z. Fan, Y. Yang, L. Duan, S. D. Stranks, and H. Zeng, “Nanoscale heterophase regulation enables sunlight-like full-spectrum white electroluminescence,” Nature Communications 16 , 3621 (2025). doi:10.1038/s41467-025-58743-0. [34] Y.-H. Song, B. Li, Z.-J. Wang, X.-L. Tai, G.-J. Ding, Z.-D. Li, H. Xu, J.-M. Hao, K.-H. Song, L.-Z. Feng, Y.-L. Hu, Y.-C. Yin, B.-S. Zhu, G. Zhang, H. Ju, G. Zheng, W. Hu, Y. Lin, F. Fan, and H.-B. Yao, “Intragrain 3D perovskite heterostructure for high-performance pure-red perovskite LEDs,” Nature 641 , 352–357 (2025). doi:10.1038/s41586-025-08867-6. 
+
+32 [35] Z. Dong, J. Hu, X. Guo, Z. Shi, H. Chen, Y. Wang, R. Luo, J. A. Steele, Z. Degnan, E. Solano, Q. Zhou, N. Kalasariya, N. Li, T. Wang, J. Chen, L. K. Lee, Y. Wang, J. Li, M. Stolterfoht, M. Sui, Y. Lu, and Y. Hou, “Intermediate phase evolution for stable and oriented evaporated wide-bandgap perovskite solar cells,” Nature Materials 25 , 635–642 (2026). doi:10.1038/s41563-025-02375-8. [36] D. Frenkel and A. J. C. Ladd, “New Monte Carlo method to compute the free energy of arbitrary solids. Application to the fcc and hcp phases of hard spheres,” Journal of Chemical Physics 81 , 3188–3193 (1984). doi:10.1063/1.448024. [37] R. J. R. X. Freitas, M. Asta, and M. de Koning, “Nonequilibrium free-energy calculation of solids using LAMMPS,” Computational Materials Science 112 , 333–341 (2016). doi:10.1016/j.commatsci.2015.10.050. [38] D. M. Trots and S. V. Myagkota, “High-temperature structural evolution of caesium and rubidium triiodoplumbates,” Journal of Physics and Chemistry of Solids 69 , 2520–2526 (2008). doi:10.1016/j.jpcs.2008.05.007. [39] G. A. Tribello, M. Bonomi, D. Branduardi, C. Camilloni, and G. Bussi, “PLUMED 2: New feathers for an old bird,” Computer Physics Communications 185 , 604–613 (2014). doi:10.1016/j.cpc.2013.09.018. [40] M. Invernizzi and M. Parrinello, “Rethinking Metadynamics: From Bias Potentials to Probability Distributions,” Journal of Physical Chemistry Letters 11 , 2731–2736 (2020). doi:10.1021/acs.jpclett.0c00497. [41] G. M. Torrie and J. P. Valleau, “Nonphysical sampling distributions in Monte Carlo free-energy estimation: Umbrella sampling,” Journal of Computational Physics 23 , 187–199 (1977). doi:10.1016/0021-9991(77)90121-8. [42] S. Kumar, J. M. Rosenberg, D. Bouzida, R. H. Swendsen, and P. A. Kollman, “The weighted histogram analysis method for free-energy calculations on biomolecules. I. The method,” 
+
+Journal of Computational Chemistry 13 , 1011–1021 (1992). doi:10.1002/jcc.540130812. [43] W. R. Dolbier, Jr., K. E. Anapolle, L. McCullagh, K. Matsui, J. M. Riemann, and D. Rolison, “Thermal [1,5] sigmatropic alkyl shifts of isoindenes,” Journal of Organic Chemistry 
+
+44 , 2845–2849 (1979). doi:10.1021/jo01330a006. [44] C. Manning, M. R. McClory, and J. J. McCullough, “Sigmatropic rearrangements of 1,1-diarylindenes: Migratory aptitudes of aryl migration in the ground and electronically 
+
+33 excited states,” Journal of Organic Chemistry 46 , 919–930 (1981). doi:10.1021/jo00318a018. [45] V. Vitartas, H. Zhang, V. Juraskova, T. Johnston-Wood, and F. Duarte, “Active learning meets metadynamics: Automated workflow for reactive machine learning interatomic potentials,” Digital Discovery 5, 108–122 (2026). doi:10.1039/D5DD00261C. [46] K. Xu, T. Liang, N. Xu, P. Ying, S. Chen, N. Wei, J. Xu, and Z. Fan, “NEP-MB-pol: A unified machine-learned framework for fast and accurate prediction of water’s thermodynamic and transport properties,” npj Computational Materials 11 , 279 (2025). doi:10.1038/s41524-025-01777-1. [47] L. B. Skinner, C. J. Benmore, J. K. R. Weber, J. B. Parise, and T. R. Hart, “Benchmark oxygen–oxygen pair-distribution function of ambient water from x-ray diffraction measurements with a wide Q range,” Journal of Chemical Physics 138 , 074506 (2013). doi:10.1063/1.4790861. [48] A. K. Soper, “The radial distribution functions of water and ice from 220 to 673 K and at pressures up to 400 MPa,” Chemical Physics 258 , 121–137 (2000). doi:10.1016/S0301-0104(00)00179-8. 
+
+34 Appendix A: Fixed-environment tensorial cross-attention 
+
+This Appendix states the TRACE attention algorithm at the level of its tensor depen-dencies and sparse implementation. The purpose is to distinguish three ideas that are easily conflated: restricting atomic interactions to a finite geometric neighborhood, applying at-tention to the tokens in that neighborhood, and transmitting a learned hidden state from one atomic center to another. TRACE uses the first two operations but not the third. Its block is most precisely described as sparse local center-to-edge cross-attention over fixed equivariant ACE density tokens.  
+
+> 1. Center states and fixed directed-edge tokens
+
+Let N be the number of atoms and let E be the image-resolved directed neighbor list, 
+
+E = {e = ( j → i, Sij ) : de = ∥rj − ri + Sij h∥ < r c} . (A1) Its size is Ne = |E| . For each edge e, s(e) = j denotes the sender and r(e) = i the receiver or central atom. Periodic images are distinct entries when they lie inside the cutoff. The ACE encoder first evaluates the cutoff-weighted radial vector 
+
+B(de) = fc(de) ϕ1(de), . . . , ϕ Nr (de) (A2) and maps it through the bias-free radial network 
+
+we = MLP r[B(de)] . (A3) The resulting weights parameterize the directed equivariant token 
+
+ae = aij = TP dens 
+
+eZj , {Yℓm (bre)}ℓm ; we
+
+ , (A4) where eZj is the sender-species embedding, ϕn is a Bessel or Gaussian primitive, and the semicolon separates the tensor inputs from the external tensor-product weights. Because 
+
+B(rc) = 0, the radial network is smooth and has no additive bias, and its SiLU activation maps zero to zero, its complete map Fr satisfies Fr(0) = 0. For finite network parameters and radial primitives that are smooth at rc,
+
+we = Fr[B(de)] = JFr (0)B(de) + O(∥B(de)∥2) = O(fc(de)) , ae = O(fc(de)) . (A5) 35 Thus the nonlinear radial network does not algebraically factor into fc times a distance-only network; Eq. (A5) is the precise asymptotic statement. Since the quintic envelope satisfies 
+
+fc(d) = O[( rc − d)3] from inside the cutoff, we, ae, and their first two radial derivatives vanish at rc. Receiver-wise summation gives the local neighbor density, 
+
+Ai = X
+
+> e:r(e)= i
+
+ae. (A6) The learned Clebsch–Gordan correlations of Ai, together with the central-species embed-ding, form the initial center state h(0)  
+
+> i
+
+in Eq. (17). The edge tokens {ae} are then retained as a fixed input-derived memory during all attention blocks in that energy evaluation. They are recomputed whenever the atomic configuration or cell changes. They can depend on learned parameters, species, distances, directions, and the periodic cell, but not on an attention-updated state h(t) 
+
+> j
+
+.For the illustrative ℓmax = 2 construction with correlation channels = 16, the edge representation is 16 × 0e ⊕ 8 × 1o ⊕ 4 × 2e, Da = 16 + 8(3) + 4(5) = 60 . (A7) With hidden dim = 64, the center representation is 64 × 0e ⊕ 32 × 1o ⊕ 16 × 2e, Dh = 64 + 32(3) + 16(5) = 240 . (A8) The flattened widths 60 and 240 count magnetic components of irreducible tensors; they are not collections of unrelated invariant scalars. 
+
+2. Queries, keys, and equivariant values 
+
+At block t, the even scalar channels of the center state provide H queries, 
+
+q(t) 
+
+> ip
+
+= W Q,t p LN h
+
+
+
+h(t)
+
+> i,ℓ =0
+
+
+
+∈ Rdk , p = 1 , . . . , H. (A9) Only the invariant scalar part of each fixed edge token provides its keys, 
+
+k(t) 
+
+> ep
+
+= W K,t p LN a(ae,ℓ =0 ) ∈ Rdk . (A10) The complete edge tensor, including nonscalar irreps, provides one equivariant value per head, 
+
+v(t) 
+
+> ep
+
+= W V,t p ae ∈ V h. (A11) 36 Here W V,t p : Va → V h is an equivariant linear map. It mixes multiplicity channels only between matching angular degree and parity and therefore preserves the O(3) transformation law. The operations denoted by LN h and LN a are PyTorch affine layer normalizations with 
+
+ϵ = 10 −5, applied over the multiplicity channels of the even-scalar center and edge sectors, respectively; they do not mix magnetic components of nonscalar irreps. The query and key projections are bias-free. Every block has its own learned W K,t and W V,t . Thus the keys and values need not be numerically identical between blocks; “fixed” refers to their dependence on the unchanged token ae, rather than on a propagated sender state. More explicitly, 
+
+∂k(t)
+
+> ep
+
+∂h(t)
+
+> s(e)
+
+= 0, ∂v(t)
+
+> ep
+
+∂h(t)
+
+> s(e)
+
+= 0. (A12) These are direct computational partial derivatives of one attention block, with the fixed token and network parameters held constant; they do not assert that h and a have independent dependence on the underlying coordinates or shared embedding parameters. The fixed token does contain the learned species embedding eZs(e) ; the restriction concerns the absence of a layer-updated sender state. All reported models use one attention block, while the implementation permits several blocks with independent projections. In array notation, these objects have dimensions 
+
+Q : [N, H, d k], K : [Ne, H, d k],α : [Ne, H ], Vp : [Ne, D h].
+
+(A13) For example, N = 40, Ne = 622, H = 2, and dk = 32 give query and key arrays of shape [40 , 2, 32] and [622 , 2, 32], respectively, and 622 scores per head. 
+
+3. Why the score array is [Ne, H ], not [Ne, N e, H ]
+
+Scaled dot-product attention was introduced in the Transformer as QK T/√dk [16]. This product is square only for self-attention when the query and key sequences have the same length. For a particular TRACE center i and one attention head, collect its ni incoming edge keys and values into 
+
+Ki ∈ Rni×dk , Vi ∈ Rni×Dh , Qi ∈ R1×dk . (A14) 37 The ordinary cross-attention score row for that center has shape 
+
+QiKT
+
+> i
+
+√dk
+
+∈ R1×ni . (A15) TRACE evaluates one such row for every center. Because the ni are different, these ragged rows are stored consecutively in the edge array, with 
+
+Ne =
+
+> N
+
+X
+
+> i=1
+
+ni. (A16) Equivalently, define a conceptual center–edge mask 
+
+Mie =
+
+
+
+1, r(e) = i, 
+
+0, r(e)̸ = i. 
+
+(A17) A dense center–edge tensor would contain N N eH entries, but only the NeH entries satisfying 
+
+Mie = 1 are valid. The implementation stores exactly those entries, 
+
+η(t) 
+
+> ep
+
+= (q(t)
+
+> r(e)p
+
+)Tk(t)
+
+> ep
+
+√dk
+
+. (A18) In code this contraction is 
+
+logits = ( queries[receiver] * keys ).sum(dim=-1) / math.sqrt(key_dim) 
+
+The indexing operation gathers the query of the correct receiver for every edge, changing the query shape from [ N, H, d k] to [ Ne, H, d k]. Elementwise multiplication aligns each valid query–key pair, and sum(dim=-1) evaluates 
+
+> dk
+
+X
+
+> μ=1
+
+qr(e),pμ ke,pμ = qT
+
+> r(e)p
+
+kep . (A19) This is the same vector dot product as one entry of QK T; an explicit transpose is unnecessary because the valid vectors have already been paired by receiver .An [ Ne, N e] score matrix would define edge-to-edge self-attention, in which every directed edge queries every other edge. Even a cutoff-local version would require a separate ni × ni
+
+matrix at each center and P 
+
+> i
+
+n2 
+
+> i
+
+scores. Neither operation is used in TRACE. Instead, one 38 environment-conditioned center query selects among the fixed tokens in its own neighbor-hood. This relation to attention pooling over an unordered set is closest at the general level to Set Transformer [17], although TRACE uses a geometry-dependent ACE center query rather than a learned seed and requires equivariant tensor values. Moreover, q(t) 
+
+> i
+
+is formed from the ACE-correlated center state and therefore depends on all edges in N (i). Each score is consequently conditioned on the complete local environment even though only one aligned center–edge dot product is evaluated for each token. 
+
+4. Radial logits and cutoff-preserving segment softmax 
+
+The dot product is augmented by invariant radial terms, 
+
+s(t) 
+
+> ep
+
+= η(t) 
+
+> ep
+
++ b(t) 
+
+> p
+
+(B(de)) − softplus( λ(t) 
+
+> p
+
+)de, (A20) where the final term is present when the distance penalty is enabled, as it is for the re-ported models. The implemented radial-bias network is Linear( Nr, max(16 , 4H))–SiLU– Linear(max(16 , 4H), H ); unlike the descriptor radial network, these two linear maps include biases. The score is dimensionless, so softplus( λ(t) 
+
+> p
+
+) has reciprocal-distance units in the chosen coordinate convention. The score passed to normalization is 
+
+es(t) 
+
+> ep
+
+= s(t)
+
+> ep
+
+max( Tatt , 10 −4). (A21) The scheduled Tatt is used during training and equals one for the reported inference calcu-lations. All terms are invariant under O(3): the queries and keys are 0 e channels, and the remaining functions depend only on de. The score therefore cannot select a preferred spatial direction. The softmax is evaluated independently for the incoming edges of every receiver and every head, 
+
+α(t) 
+
+> ep
+
+= fc(de) exp( es(t) 
+
+> ep
+
+)1 + X
+
+> e′:r(e′)= r(e)
+
+fc(de′ ) exp( es(t)
+
+> e′p
+
+). (A22) The unit in the denominator is a null channel with logit zero. Its normalized weight is 
+
+α(0 ,t ) 
+
+> ip
+
+= 11 + X
+
+> e:r(e)= i
+
+fc(de) exp( es(t) 
+
+> ep
+
+), α(0 ,t ) 
+
+> ip
+
++ X
+
+> e:r(e)= i
+
+α(t) 
+
+> ep
+
+= 1 . (A23) 39 The null channel has no value vector and therefore acts only as a gate on the magnitude of the neighbor update. In particular, the physical-edge weights sum to 1 − α(0 ,t ) 
+
+> ip
+
+< 1, rather than to one. Without this channel, if all retained edges shared a small cutoff factor, ordinary softmax normalization could divide that common factor away. Equation (A22) instead gives 
+
+αep → 0 as de → rc. For fc(de) > 0, the same normalization can be viewed as an ordinary softmax over a null logit zero and physical-edge logits esep + log fc(de); the explicit form avoids taking log 0 at the cutoff. For numerical stability, the implementation uses 
+
+mip = max 
+
+
+
+0, max  
+
+> e:r(e)= i
+
+esep 
+
+
+
+, (A24) followed by 
+
+νep = fc(de) exp( esep − mr(e)p), (A25) 
+
+ν(0)  
+
+> ip
+
+= exp( −mip ), (A26) 
+
+Dip = ν(0)  
+
+> ip
+
++ X
+
+> e:r(e)= i
+
+νep , αep = νep /D r(e)p. (A27) The initial zero in the segment maximum is precisely the null-channel logit. The maximum and sum are implemented as receiver-indexed scatter reductions. The exponentials and reductions are explicitly evaluated in float32, the denominator is bounded below by 10 −12 ,and the weights are cast back to the input type. A center with no incoming edge receives no attention update; if the complete edge list is empty, the implementation skips attention and applies only the scalar feed-forward sublayer. 
+
+5. Equivariant aggregation, residual update, and scalar feed-forward map 
+
+For each head, the weighted values are accumulated into their receivers, 
+
+z(t) 
+
+> ip
+
+= X
+
+> e:r(e)= i
+
+α(t) 
+
+> ep
+
+v(t) 
+
+> ep
+
+. (A28) During training, dropout is applied to αep after normalization and before Eq. (A28); vali-dation and inference use the undropped weights. The reported configurations use dropout probability 0.03. If mep is an independent Bernoulli mask with retention probability 1 − pd,the coefficient used during training is 
+
+bαep = mep 
+
+1 − pd
+
+αep . (A29) 40 This is the standard inverted-dropout convention, so E[bαep ] = αep . Dropout is not followed by a second normalization. The active scatter operation is schematically 
+
+update.index_add_( 0, receiver, alpha[:, p:p+1] * values )
+
+This receiver-only accumulation is required by the directed-edge convention. Token j → i
+
+describes sender j inside the environment whose state is stored at receiver i, so it contributes to hi. In a full directed list, the reverse token i → j separately contributes to hj . The sender index has already entered the species embedding and geometry in Eq. (A4); it is intentionally not used to fetch a current sender hidden state. The head sum is averaged, projected equivariantly, and added through an irrep-wise residual scale, 
+
+eh(t) 
+
+> i
+
+= h(t) 
+
+> i
+
++ γ(t)attn ⊙ W O,t 1
+
+H
+
+> H
+
+X
+
+> p=1
+
+z(t)
+
+> ip
+
+!
+
+. (A30) Thus TRACE averages head updates in their common equivariant output space; it does not concatenate the heads as in the original sequence Transformer. Equation (A5) and the linear value map give vep = O(fc), while αep contains an explicit cutoff factor. Each edge contribution to the attention update is therefore O(f 2c ) as de → r− 
+
+> c
+
+. With the quintic envelope this is O[( rc − de)6], so the contribution and its first two radial derivatives vanish at the cutoff. For checkpoint compatibility, the implementation stores component parameters θ(ℓ,t ) 
+
+> cm
+
+, but uses only their mean within each irrep copy, 
+
+γ(ℓ,t ) 
+
+> c
+
+= 12ℓ + 1 
+
+> ℓ
+
+X
+
+> m=−ℓ
+
+θ(ℓ,t ) 
+
+> cm
+
+, [γ(t)attn ⊙ x](ℓ) 
+
+> cm
+
+= γ(ℓ,t ) 
+
+> c
+
+x(ℓ)
+
+> cm
+
+. (A31) Thus the effective scale is one scalar per irrep copy, broadcast over all magnetic components. The reported models initialize every stored component to 10 −2. Because αep and γ(ℓ,t ) 
+
+> c
+
+are invariant and vep is equivariant, each zip and the residual update transform equivariantly. The feed-forward sublayer does not apply an unconstrained componentwise MLP to non-scalar tensors. It concatenates the even scalar channels with invariant squared norms 
+
+n(t) 
+
+> icℓ
+
+= eh(t,ℓ )
+
+> ic
+> 2
+
+=
+
+> ℓ
+
+X
+
+> m=−ℓ
+
+eh(t,ℓ )
+
+> icm
+> 2
+
+, ℓ > 0, (A32) 41 The exact scalar path is 
+
+ξ(t) 
+
+> i
+
+= LN s
+
+heh(t)
+
+> i,ℓ =0
+
+, {n(t)
+
+> icℓ
+
+}ℓ> 0
+
+i
+
+, (A33) 
+
+g(t) 
+
+> i
+
+= Drop pd
+
+h
+
+SiLU 
+
+
+
+W (t)1 ξ(t) 
+
+> i
+
++ b(t)1
+
+i 
+
+, (A34) ∆s(t) 
+
+> i
+
+= Drop pd
+
+h
+
+W (t)2 g(t) 
+
+> i
+
++ b(t)2
+
+i
+
+, (A35) 
+
+h(t+1)  
+
+> i,ℓ =0
+
+= eh(t) 
+
+> i,ℓ =0
+
++ γ(t)FFN ⊙ ∆s(t) 
+
+> i
+
+, (A36) 
+
+h(t+1)  
+
+> i,ℓ> 0
+
+= eh(t)
+
+> i,ℓ> 0
+
+. (A37) Here Drop pd is inverted dropout during training and the identity during validation and inference. The reported models use pd = 0 .03 and initialize γ(t)FFN to 10 −2. For the illustrative representation in Eqs. (A7) and (A8), ξi has 64 + 32 + 16 = 112 components and the default hidden width is 2(64) = 128. LN s is an affine layer normalization with ϵ = 10 −5. The nonscalar tensors remain unchanged in this sublayer. An invariant atomic readout then gives Ei. The coordinate- and cell-independent reference Eref is added by the training and calculator wrappers, so E = P 
+
+> i
+
+Ei + Eref yields the same conservative force and stress derivatives as the learned residual energy. 
+
+6. Algorithmic sequence 
+
+For one block, the implemented calculation can be summarized as follows: 1. Normalize the current center representation and project its even scalar channels to 
+
+Q[N, H, d k]. 2. Normalize the scalar part of the fixed edge tensor and project it to K[Ne, H, d k]. 3. Gather Q[receiver] , contract the aligned query–key pairs over dk, and add the radial bias and nonnegative distance penalty. 4. Apply the lower-bounded attention-temperature factor and the cutoff-preserving seg-ment softmax of Eq. (A27); during training, apply post-softmax dropout without renormalization. 5. For each head, map the complete fixed edge tensor equivariantly to its value, multiply by the scalar attention weight, and scatter-add the result to the receiver. 42 6. Average the heads, apply the equivariant output projection and tied irrep-wise layer scale, and add the attention residual. 7. Form the invariant tensor norms, normalize the combined scalar-and-norm vector, apply linear–SiLU–dropout–linear–dropout, multiply the scalar residual by its layer-scale vector, and add it only to the scalar channels. At no step is h(t) 
+
+> s(e)
+
+read to construct the key or value. Thus increasing the number of blocks changes the nonlinear interrogation of one fixed environment but does not propagate an updated state through a chain of atoms.  
+
+> 7. Permutation symmetry, locality, and linear scaling
+
+Permuting edge storage leaves receiver-indexed reductions unchanged. Relabeling equiv-alent atoms correspondingly relabels the center outputs, while their energy sum restores permutation invariance. Because the attention weights are O(3)-invariant scalars, the val-ues are equivariant, parities are explicit, and the readout is restricted to 0 e, the energy is invariant under O(3). The sparsity comes from two separate restrictions. First, the physical neighbor list retains only periodic directed edges inside rc. Second, center i attends only to tokens whose receiver is i. For mean neighbor count n,
+
+Ne ≃ N n. (A38) Every retained geometric edge is used; there is no learned top-k selection, thresholding, or stochastic pruning. Query formation costs O(N Hd k); the aligned query–key contraction costs O(NeHd k) and stores O(NeH) logits. At fixed widths, edge maps and reductions cost 
+
+O(Ne), center correlations and readout cost O(N ), and activation memory is O(N +Ne). The model is therefore linear in system size for bounded n. Global atom and edge self-attention instead store O(N 2H) and O(N 2e H) scores, respectively; local edge-to-edge self-attention stores O(H P 
+
+> i
+
+n2 
+
+> i
+
+). Linear asymptotic cost is not a hardware benchmark: throughput also depends on device-resident neighbor lists, fused kernels, compiled derivatives, memory traffic, force and virial accumulation, and inter-rank communication. Locality fixes the rc ghost halo and removes hidden-state exchange, but not these costs. 43

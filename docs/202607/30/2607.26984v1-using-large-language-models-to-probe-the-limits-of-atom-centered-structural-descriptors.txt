@@ -1,0 +1,1630 @@
+Title: Using large language models to probe the limits of atom-centered structural descriptors
+
+URL Source: https://arxiv.org/pdf/2607.26984v1
+
+Published Time: Thu, 30 Jul 2026 01:01:39 GMT
+
+Number of Pages: 38
+
+Markdown Content:
+## Using large language models to probe the limits of atom-centered structural descriptors 
+
+Michelangelo Domina 1 and Michele Ceriotti 1, ∗
+
+> 1
+
+Laboratory of Computational Science and Modeling, Institut des Mat´ eriaux, ´Ecole Polytechnique F´ ed´ erale de Lausanne, 1015 Lausanne, Switzerland 
+
+(Dated: July 30, 2026) Mapping an atomic structure to a compact set of geometric descriptors is an essential step in any machine-learning application to atomic-scale modeling. A powerful and widely-used approach can be understood as a discretization of the histogram of pair distances, triangles, etc., that results in a hierarchy of symmetry-invariant atom-centered descriptors. Unfortunately, the lower rungs on this hierarchy (two, three, four-neighbor clusters) were found to be incomplete, with symmetry-unrelated pairs of structures having exactly the same descriptors. However, all the “descriptor degeneracies” reported so far are resolved by considering larger clusters of neighbors to build the descriptors. We report examples of 3D structures that are indistinguishable even if one considers clusters of up to 
+
+seven neighbors, and to arbitrary order when considering a practical level of discretization of the descriptors, discovered with the assistance of large language models. The key ingredients in their construction can be traced to results that have been known for decades in different communities; the model was able to find the references and recognize their significance for the problem at hand. We believe this experiment exposes an extremely fruitful usage pattern for AI in science: translating results between different communities and application domains, accelerating the process by which serendipitous discoveries in a field become paradigm-shifting breakthroughs in another. 
+
+I. INTRODUCTION 
+
+Machine-learning models used to classify, or predict properties of, molecules and condensed-matter groups of atoms can be seen as operating over 3D point clouds, decorated with labels describing the chemical nature of the atoms. A central focus of the early days of this field (which is worth remembering dates back at least to the early 2000s [1–3]) involved building local, often atom-centered, representations of configurations that en-code geometric relations between atoms in a symmetry-adapted form [4], and using such local representations as inputs to machine-learning models for interatomic po-tentials [5, 6] or for electronic-structure information such as valence electron densities and effective tight-binding Hamiltonians [7, 8]. Even though many alternative ap-proaches were proposed to build these representations, a systematic study revealed that constraints imposed by the symmetry structure of the O(3) group restrict the operations one can use to construct symmetric represen-tations, and so all approaches could be systematically classified in terms of a hierarchy of ν-points correlations of the atomic neighbor density [9]. Almost at the same time, a few papers published by Pozdnyakov et al. [10– 12] revealed, to the surprise of many, that the simplest, widely used 2-, 3- and 4-points correlations are incom-plete , i.e. that there are pairs of atomic arrangements that are not related by symmetry, but share the exact same correlations, irrespective of the radial cutoff, or the resolution used to discretize the density correlations. The practical implications of these degeneracies are not conclusively established: for a fixed number of neighbors,  
+
+> ∗michele.ceriotti@epfl.ch
+
+exact three-body degeneracies lie on lower-dimensional sets [10], even though numerical instabilities affect con-figurations that are near-degenerate [11, 13, 14], and the most direct evidence of their impact in a realistic ap-plication only becomes apparent in the regime of a very large dataset of very high-energy configurations. The dis-tinction between generic and universal completeness also appears in a related global problem: according Boutin and Kemper’s dimension and size conditions, the pair-distance multiset determines almost every finite point cloud up to congruence, but exact counterexamples ex-ist [15]. Nevertheless, the realization that low-order rep-resentations have fundamental limitations played a role in accelerating the transition to using higher-order cor-relations [16, 17], to a concerted effort to define prov-ably complete descriptors [18–20] as well as to the use of equivariant neural networks that build learnable high-order correlations, and include equivariant message pass-ing steps that further increase the resolving power of the models [21, 22]. Several questions remained open: is the trispectrum (5-body correlations) sufficient to resolve all pairs of atomic environments? Are there structures that are degenerate relative to all their atom-centered environ-ments, rather than just one, as is the case for distance-based graph networks [12]? Even though these might be little more than curiosities for a field that is starting to question whether rotational equivariance must be hard-wired into the backbone architecture [23, 24], some of us kept thinking about them – admittedly without much sense of urgency – but could not make any progress be-yond the known examples from Pozdnyakov et al. In recent months, several reports have described LLM-assisted progress on difficult problems in pure and ap-plied mathematics [25, 26], including several problems listed as open in the Erd¨ os Problems database [26]. Sawin arXiv:2607.26984v1 [physics.chem-ph] 29 Jul 2026 2subsequently gave an explicit quantitative refinement of a separate LLM-assisted disproof [27]. This got us cu-rious as to whether they would be similarly helpful in attacking this problem, that while being clearly mathe-matical in nature has some relevance to the use of ge-ometric machine learning in chemical physics and ma-terials simulations. We report on our experiments in this direction, not only because the outcomes are posi-tive (the LLMs proposed several geometric examples that are degenerate, not only for the trispectrum but up to the hexaspectrum, and up to arbitrary order when using a finite angular discretization of the neighbor density), but because we believe that the process ( how the LLM achieved these results) provides useful lessons as to how this community could leverage existing, publicly acces-sible, general-purpose LLMs as assistants to accelerate scientific discovery.  
+
+> II. ATOM-CENTERED DESCRIPTORS
+
+Atom-centered descriptors represent an atomic config-uration as a collection of local environments, expressed in a form that is invariant to translations, rotations, and permutations of equivalent atoms [9, 16, 28]. For the en-vironment around atom i, we define the neighbor density from the relative positions rij = rj − ri as 
+
+ρi(r) = X
+
+> j
+
+wj fcut (rij )δ(r − rij ), (1) where rij = |rij | – which is invariant to translations and neighbor-index permutations. The cutoff function en-forces locality, while the weights wj distinguish atomic species or, more abstractly, color the points in the cloud. The weights are usually vectors, and can be implemented in practice as a one-hot encoding of elements or an al-chemical contraction [29]. In what follows we assume, for simplicity and because multiple density channels usually 
+
+lift geometric degeneracies, wj = 1. In most implementations the point density is usually smoothed, and/or discretized on a finite radial and an-gular basis 
+
+c(i) 
+
+> nlm
+
+=
+
+Z
+
+dr Rn(r)Y ∗
+
+> lm
+
+(ˆ r)ρi(r), (2) where Rn are radial basis functions and Ylm are spherical harmonics. Rotational invariants are then constructed by coupling products of these coefficients to total angu-lar momentum zero, and to even parity when invariance under the full O(3) group is required. The density correlations are usually evaluated directly in this basis. Products of ν expansion coefficients are coupled with Clebsch–Gordan coefficients so that the re-sulting feature transforms as a scalar, 
+
+B(i) 
+
+> νnl
+
+= X
+
+> m1...m ν
+
+C0 
+
+> l1m1...l νmν
+> ν
+
+Y
+
+> a=1
+
+c(i) 
+
+> nalama
+
+, (3) where C0  
+
+> l1m1...l νmν
+
+denotes a generalized angular-momentum coupling to total angular momentum zero, and n and l collect the indices of the radial and angular basis functions, respectively. These scalar contractions are the rotationally invariant ν-correlations of the neigh-bor density. In signal-processing language, ν = 2 corre-sponds to the power spectrum (introduced in atomistic modeling as the Smooth Overlap of Atomic Positions, SOAP [28]), ν = 3 to the bispectrum (used in the spec-tral neighbor analysis potential, SNAP [30]), ν = 4 to the trispectrum, and so on. The full, untruncated hier-archy provides a complete basis for expanding symmetry-invariant functions of the neighbor coordinates [18, 31]. At fixed order ν, the correlations encode the geometries of ν neighbors through their distances from the center and their mutual angles. Counting the central atom, they correspond to ( ν + 1)-body correlations: ν = 1 fea-tures characterize the set of pair distances, ν = 2 the set of triangles, and ν = 3 the set of tetrahedra. At this order, parity-odd SO (3)-invariant bispectrum com-ponents can distinguish a chiral tetrahedron from its mirror image, whereas an O(3)-invariant representation omits these components because they change sign under reflection [32]. Higher-order invariants are obtained by coupling products of four and more coefficients, making the descriptor sensitive to progressively larger local ar-rangements. Because ν = 1 retains only the multiset of center– neighbor radii, it cannot uniquely characterize an envi-ronment. A classical global analogue arises in crystal-lography: the Patterson function [33] is the autocorrela-tion of a full structure density, equivalently the weighted distribution of all interatomic displacements. It pools one-neighbor information over all atoms taken in turn as the center and therefore corresponds to ν = 1 in the present center-conditioned hierarchy, even though it is quadratic in the global density. Patterson introduced the term homometric for structures with the same species-resolved Patterson function and hence identical diffrac-tion patterns, emphasizing that they need be neither identical nor mirror-related. Rosenblatt and Seymour later gave a complete algebraic characterization of Pat-terson homometry for finite point distributions with inte-ger weights [34]. By contrast, ν = 2 correlates two neigh-bors about a retained center and encodes triangles. The successful use of the SOAP power spectrum [28] and re-lated three-body atom-centered symmetry functions [35] suggested much stronger resolving power. However, in the early 2020s Pozdnyakov et al. proposed a geometric construction [10] yielding degenerate pairs that cannot be distinguished by the power spectrum, and one for struc-tures that cannot be distinguished by the bispectrum (see Fig. 1). The existence of these pathological configurations im-plies a limitation of any model built on them, even though the extent to which it affects performance in practi-cal cases is difficult to quantify. Ref. 10 demonstrates a clear degradation of model performance for a poten-3b 2020 bispectrum counter-example    
+
+> BB'
+> same bispectrum
+> different trispectrum
+> a2020 power-spectrum counter-example
+> AA'
+> same power spectrum
+> different bispectrum
+> FIG. 1. Atomic configurations that (a) share the same power spectrum (SOAP features, 3-body symmetry functions) and (b) share the same bispectrum (SNAP descriptors), as pre-sented in Ref. 10.
+
+tial for CH 4 configurations based on the power spectrum (even if the dataset does not contain specifically power-spectrum-breaking pairs), but in more complicated cases it is difficult to tell whether poor performance of low-order invariant models depends specifically on incom-pleteness rather than on other architectural factors. Be-sides, there are many ways an ML model can be modified to address these limiting cases. First, any global prop-erty can be expressed as a sum of contributions from each atom, and so the neighbor -centered environments can be used to lift the degeneracies. Second, neighbor-centered information can be used in a message-passing scheme to also resolve the ambiguity at the environment level (pair-distance-limited features being the only case for which a true structure-level degeneracy has been found [12]). Third, increasing the descriptor order can resolve indi-vidual degeneracies: the bispectrum distinguishes the power-spectrum pair in Fig. 1(a), and the trispectrum distinguishes the bispectrum pair in Fig. 1(b) [10, 36]. It is also worth mentioning that alternative frameworks exist that achieve completeness with low-order invari-ants following alternative approaches. These include e.g. defining a common reference frame by aligning the ten-sors of inertia [37], using the centroid and pairs of selected points as common references [38], or defining scalar de-scriptors relative to triplets of atoms rather than indi-vidual centers [19]. In all these and in similar construc-tions [39, 40], features remain tied to a shared center, reference frame, or ordered tuple, whereas fixed-order density correlations pool small motifs without recording which motifs share points. The question pursued below is therefore more specific: how far can incompleteness per-sist within the familiar hierarchy of fixed-order density correlations?  
+
+> III. DEGENERATE STRUCTURES FOR HIGH-ORDER CORRELATIONS
+
+Even though ν = 4 descriptors suffice to lift the degen-eracy of the structures in Fig. 1, there are pairs of atomic configurations that cannot be resolved by the trispec-trum – nor by the ν = 5 , 6, 7 correlations. In fact, if one also considers a finite discretization level of the angular correlations (which is always the case in practice) one can build counterexamples for any correlation order . We found these configurations with the help of a large lan-guage model, which we will discuss in the next section. We want however to first provide an atlas of the differ-ent types of degeneracies that were identified, sketching the mechanism that determines loss of resolving power, and leaving detailed constructions, coordinates, valida-tion procedures, and search prompts to the Supplemen-tary Information (SI) [41].  
+
+> A. ν-decks and cyclic structures
+
+Take a regular polygon with N sites and index its ver-tices by s = 0 , . . . , N − 1, with addition understood mod-ulo N . A subset S ⊂ ZN specifies which sites are oc-cupied. To turn this pattern into an atom-centered en-vironment, place the central atom at the origin and, for every s ∈ S, a neighbor at azimuth ϕs = 2 πs/N , i.e. at 
+
+rs = R(cos ϕs, sin ϕs, 0). All neighbors then lie on the ring of radius R shown in Fig. 2(a); different environ-ments correspond to different choices of S. The integer s
+
+is therefore just a site label, and adding the same integer to every label rotates the entire environment. Let as be the binary occupancy of site s. For s = ( s1, . . . , s ν−1), define 
+
+dSν (s) = X
+
+> g∈ZN
+
+ag ag+s1 · · · ag+sν−1 (4) which counts the occupied copies of the oriented pattern (0 , s 1, . . . , s ν−1) as the origin g runs around the ring. For example, dS 
+
+> 3
+
+(p, q ) counts triangles with vertices ( g, g +
+
+p, g + q). 4
+
+FIG. 2. Atlas of representation-degenerate atom-centered environments. Blue and orange distinguish the two members of each pair, gray marks points common to both, and the open circle is the central atom. (a) Planar cyclic pairs with identical complete decks through the order shown. (b) Two three-dimensional lifts of the 18-of-36 cyclic pair: adding two polar atoms gives A, A ′,while copying the pattern onto two parallel rings gives B, B ′. Rotating the upper ring by the same arbitrary angle α in both environments preserves the D4 degeneracy. (c) Finite-representation degeneracy for coaxial 9- and 10-fold rings. Every relative angle has the same retained features for νmax = 8 and lmax = 10. The markers identify the exceptional angles at which the point clouds are O(3) congruent. (d) Intrinsic rank-three pairs whose degeneracy is genuinely three-dimensional. For reflection-even 
+
+O(3) invariants, the first three pairs agree through D4 and the last through D5. Parity-odd SO (3) invariants distinguish the 13- and 16-point pairs at D4, and the 23- and 26-point pairs at D3. Radial-shell separations are compressed for visibility. 
+
+More generally, dSν is precisely the cyclic k-deck of re-construction theory, with k = ν. In particular, Rad-cliffe and Scott [47] proved that the directed 3-deck de-termines, up to translation, every subset of Zp when p is prime and almost every subset of ZN as N → ∞ .For the atom-centered environments considered here, however, the offsets s and −s describe the same geomet-ric motif traversed in opposite directions. Indeed, revers-ing a planar ring is equivalent in three dimensions to a rotation by π about a diameter. For each s, we therefore combine the multiplicities of the two orientations by the pointwise sum 
+
+DSν (s) = dSν (s) + dSν (−s). (5) This reflected correlation array is redundant: permu-tations of the offsets and different choices of the refer-ence site can represent the same unlabeled motif, and a motif equivalent to its own reflection can be counted twice. Identifying all entries that represent the same motif and applying the corresponding class-dependent 5normalization gives the complete reflection-symmetrized deck Dν (S), namely the histogram that assigns to every 
+
+ν-site motif class its number of occurrences. The raw array and this canonical histogram contain the same in-formation, so equality of either is equivalent. To express the same construction in the atomistic lan-guage used above, take the discrete Fourier transform of the occupancy pattern, 
+
+bam ≡ 
+
+> N−1
+
+X
+
+> s=0
+
+as exp 
+
+
+
+− 2πims N
+
+
+
+. (6) Because all neighbors have radius R and polar angle π/ 2, the density coefficients factorize as 
+
+cnlm = Rn(R)Y ∗
+
+> lm
+
+(π/ 2, 0) bam,
+
+where the common cutoff factor has been absorbed into Rn(R). As explicitly shown in the SI, for m =(m1, . . . , m ν−1), the Fourier transform of the deck with respect to its offsets is 
+
+bDSν (m) = 2 Re 
+
+
+
+> ν
+
+Y
+
+> j=1
+
+bamj
+
+ , with mν ≡ − 
+
+> ν−1
+
+X
+
+> j=1
+
+mj .
+
+(7) Substituting the factorized coefficients cnlm into areflection-even invariant and pairing the terms indexed by m and −m gives 
+
+BSνnl = 12
+
+X
+
+> m
+
+Wnl (m) bDSν (m), (8) where Wnl (m) is determined by the radial basis func-tions, the spherical harmonics evaluated at ( π/ 2, 0), and the angular-momentum coupling coefficients; it does not depend on the occupied subset S. Equation (8) shows that equal decks give identical reflection-even Bνnl for every radial and angular channel. The reflection-odd invariants vanish for these coplanar environments, so their complete order-ν atomistic spectra are identical. If the decks agree through order ν, the lower-order spec-tra and all repeated-index contributions agree as well. Gr¨ unbaum and Moore proved that, for rational-valued cyclic sequences with nonzero total weight, full com-plex invariants through order six determine the sequence up to translation, with order four sufficient when N is odd [48]. This distinction is important here: Gr¨ unbaum and Moore’s theorem uses the full complex products, while the reflection-symmetrized deck Dν retains only their real parts by identifying opposite orientations. The lowest-order pair in Fig. 2(a) was already known in mu-sic theory: up to rotations and reflections, it is Collins’s pair of nine-note collections in an 18-tone pitch space with matching three-note pattern counts [49]. Building on this idea, Mandereau et al. later reported two 18-site patterns on a regular 36-gon that are not related by a rotation or reflection, yet have identical decks through 
+
+D4 [50]. As atomic environments, they have the same power spectrum, bispectrum, and trispectrum, and are first distinguished by the tetraspectrum. This planar pair appears in Fig. 2(a) and provides the starting point for the two three-dimensional lifts in panel (b). We discuss further the origin of this construction in Sec. IV A. The other pairs in Fig. 2(a) push the same idea to much higher order. They occupy 54 sites of Z154 ,161 of Z462 , and 9912 of Z20790 , and share all decks through D5, D6, and D7, respectively. The D7 deck contains approximately 1 .86 × 10 24 seven-neighbor selec-tions, so direct enumeration is impractical. As detailed in the SI, we instead exploit a unique decomposition into smaller coprime rings, which both makes exact verifi-cation tractable and explains why these high-order de-generacies are consistent with Pebody’s universal recon-struction bound [51]: directed decks through order six determine every subset of every finite cyclic group up to translation. Since none of the constituent patterns used here is a translate of its mirror, each must therefore re-veal its orientation by that order. Their combination can nevertheless remain degenerate under Dν until a single correlation detects the orientations of both components at once. The Z20790 pair first separates at D8: the two noncongruent environments agree on every cluster of up to seven neighbors (or eight-body order when the central atom is included), providing an explicit counterexample to completeness at ν = 7. These degeneracies are basis-independent, and cannot be resolved irrespective of the resolution at which the correlations are discretized. On the other hand, even for ν values that should theoreti-cally lift the degeneracy, the very large number of neigh-bors means that in practice an impractically high angu-lar resolution would be needed to distinguish them using density correlation features. Further information on the construction and properties of these counterexamples is provided in the SI.  
+
+> B. Lifting cyclic degeneracies to three dimensions
+
+The examples in Fig. 2(a) are planar, but their degen-eracy is not a consequence of coplanarity. Figure 2(b) illustrates two lifts using the Z36 pair, but both con-structions are general: if S, S ′ ⊂ ZN have identical decks through order ν, either lift produces three-dimensional environments with identical complete SO (3) correlations through the same order. The first lift adds two identical atoms at the poles of the sphere containing the ring. Once the polar atoms in a cluster are specified, its remaining geometry is a lower-order cluster of the original ring and therefore has the same multiplicity in both environments. A reflection of the ring is now realized by a rotation by π about a diameter, which exchanges the two poles. The resulting environments A and A′ lie on a single sphere and have identical complete SO (3) correlations through ν = 4. A second lift duplicates the pattern on two parallel rings and allows an arbitrary relative rotation α between 6them. Let R−(S) and R+(S) denote the lower and upper rings, respectively. For S ⊂ ZN , define 
+
+XS (α, h ) = R−(S) ∪ R +(S),
+
+R−(S) = { R cos θs, R sin θs, −h : s ∈ S},
+
+R+(S) = { R cos( θs + α), R sin( θs + α), h  : s ∈ S},
+
+(9) where θs = 2 πs/N . All neighbors lie on the sphere of radius √R2 + h2. A rotation or reflection of the planar pattern lifts, respectively, to an axial rotation or to a ro-tation by π that exchanges the two layers. Because the pattern is copied to both rings, this layer exchange pairs every lifted motif with its reflected counterpart, includ-ing motifs that span the two rings. Equal planar decks through order ν therefore give equal complete SO (3) cor-relations through the same order for every α and h̸ = 0. The oriented-deck proof is reported in the SI. For the Z36 pair, Eq. (9) gives the environments B and 
+
+B′ in Fig. 2(b). For generic α and h they are noncon-gruent, but their complete spectra agree through ν = 4 and first differ at ν = 5. The lifted pair is therefore a genuinely three-dimensional trispectrum degeneracy that persists when parity-odd SO (3) invariants are retained. As shown in the SI, the construction extends to any finite collection of mirror-paired rings centered on the same atom. The pair labelled by p may have its own radius, heights ±hp, and opposite twists ±αp. A sin-gle rotation by π exchanges all pairs simultaneously, so the cyclic deck equality is preserved through the same or-der. The two-ring lift above is the special case containing only one pair. At the other extreme, one can generate degenerate pairs that are periodic along one direction by stacking an infinite number of lifted rings along the same axis.  
+
+> C. Finite-representation degeneracies
+
+The preceding examples remain degenerate at a fixed correlation order even when the angular basis is complete. A complementary obstruction arises in every practical representation, for which both the maximum correlation order νmax and the angular cutoff lmax are finite. For any such pair of cutoffs, one can construct a continuous fam-ily of noncongruent environments with identical retained features. Consider two coaxial regular rings containing q1 and 
+
+q2 atoms, placed at different radii or polar angles so that they cannot be interchanged, and let α be their relative azimuthal rotation. The sum over a qa-fold ring can-cels every spherical-harmonic component except those for which qa divides m. Consequently, a scalar correlation can depend on α only if it transfers a nonzero total mag-netic index between the rings. Angular-momentum con-servation requires this transfer to be divisible by both q1
+
+and q2, and hence to have magnitude at least lcm( q1, q 2). An order-ν feature with l ≤ lmax can transfer at most 
+
+νl max . For coprime ring sizes, the sufficient condition 
+
+q1q2 = lcm( q1, q 2) > ν max lmax (10) therefore makes every retained invariant independent of 
+
+α, for every radial channel and angular-momentum cou-pling path. This spectral invariance holds for every rel-ative rotation. For generic choices of the two ring ge-ometries, however, the point cloud is congruent to that at α = 0 only when α = 2 πk/ (q1q2), with k ∈ Z. Ev-ery other value changes the cross-ring distances and gives a noncongruent environment with the same retained fea-tures. For any finite ( νmax , l max ), one may choose q1 = N
+
+and q2 = N + 1 with N (N + 1) > ν max lmax (consecutive numbers are always coprime), so a counterexample al-ways exists. The selection-rule proof of Eq. (10), together with the noncongruence argument, is given in Sec. S3 of the SI. Figure 2(c) uses ( q1, q 2) = (9 , 10), νmax = 8, and 
+
+lmax = 10, so that 90 > 80. All relative angles there-fore give the same retained features, while the configu-rations congruent to α = 0 occur only at multiples of 360 ◦/90 = 4 ◦, shown by the markers in the figure. The illustrated 2 ◦ rotation is simply one noncongruent rep-resentative: the first possible phase-sensitive correlation occurs at correlation order 19. Thus every finite trun-cation admits a counterexample, although a fixed two-ring pair becomes distinguishable once the cutoffs are increased sufficiently – even though this cutoff might be so high as to make a model based on the correspond-ing features numerically unstable and/or computation-ally impractical. Although the objects and mechanism differ, this order-by-order failure has a signal-processing analogue: for every prescribed finite autocorrelation or-der, Yellott and Iverson constructed a different pair of infinite-support band-limited images that agree at that order but differ at the next [52].  
+
+> D. Intrinsic rank-three structures
+
+The lifts in Fig. 2(b) inherit their degeneracy from a planar pattern. Figure 2(d) shows a different class: in each pair the neighbor vectors span all of R3, and the degeneracy is intrinsic to the three-dimensional geometry. For reflection-even O(3) descriptors, the first three pairs, containing 13, 16, and 23 neighbors, have iden-tical complete Gram decks through D4 and first differ at D5. The 13-point construction uses the eight proper rotations of a cube-like twisted square prism: the dis-played structures differ only by reflecting one axial point through the origin. The 16-point example uses the twelve proper rotations of a hexagonal bipyramid. Its common core consists of two oppositely twisted hexagons, and the pair changes the orientation of a four-point decoration relative to this core. The 23-point pair uses the full octa-hedral symmetry group and reorients six points on fixed radial shells around a common unit octahedron. The 26-point construction uses the same octahedral frame 7but pushes the degeneracy one order higher: its com-plete Gram decks agree through D5 and first differ at 
+
+D6. These equalities do not extend to the complete ori-ented SO (3) decks. Parity-odd invariants distinguish the 13- and 16-point pairs at order four and the 23- and 26-point pairs at order three – even though the pairs are not 
+
+enantiomers (for which the parity-odd invariants would change sign). Thus, these examples demonstrate intrin-sically three-dimensional degeneracies of reflection-even descriptors, whereas the cyclic lifts above provide the stronger degeneracies that persist when parity-odd chan-nels are retained. Despite their different appearance, the four pairs fol-low the same symmetry principle. A common three-dimensional core fixes a reference frame, while a small set of additional points is arranged so that the symmetries of the core redistribute, but do not change, the multiplic-ities of all cards through the target order. Section S4 of the SI gives the constructions, coordinates, and proofs in detail.  
+
+> IV. AI AS THE ULTIMATE POLYMATH
+
+Having described the different families of degenerate pairs, we now turn to discussing how these counterexam-ples were found with the assistance of AI coding agents, based on Anthropic’s Claude (versions Opus 4.8 and Fa-ble) and OpenAI’s Codex (versions 5.5 and Sol 5.6). The strongest results were obtained as part of rather unstruc-tured experiments, in which we prepared a summary of the literature in our field, and we iterated across mul-tiple interactions during which we probed different lines of inquiry, confirming results both manually and using AI-generated code. We also performed more systematic experiments aimed at determining whether the AI could re-discover the counterexamples from Ref. 10 when in-structed explicitly to disregard literature prior to 2020, and to determine the variability in the outputs of entirely unsupervised searches.  
+
+> A. The sound of atoms
+
+Having used the Z36 pair above as a technical con-struction, we now return to its origin. At the level of note pairs, Mandereau et al. made the connection ex-plicit: the musical interval vector is the Patterson func-tion of the corresponding binary pitch-class distribution, making Z-relation and homometry equivalent for such collections [53]. In a companion study, the same authors extended this correspondence to larger note patterns and called two collections Z(4) -related when every four-note pattern occurs equally often in both. They reported the first such pair in Z36 whose complete collections are not related by transposition or inversion, which is exactly the pair used here [50]. As discussed in the SI, the occupied residues represent pitch classes: rotating the cyclic pat-tern transposes every note by the same amount, whereas reflecting it reverses all interval directions, the operation known as pitch-class inversion. The k-vector used in that literature counts how often each k-note set class occurs up to these two operations and contains the same in-formation as the reflection-symmetrized cyclic deck used here. Equality of the decks through D4 therefore says that the two collections contain each interval class, three-note set class, and four-note set class with the same mul-tiplicity, even though the complete collections are not related by transposition or inversion. The significance of this example therefore lies in the translation between fields. Recent studies of AI-assisted mathematics show that language models can contribute both by constructing new arguments and by locating previous solutions obscured in the literature [25, 26]. Here, the essential step was to recognize that a mu-sical Z(4) -relation and the incompleteness of an atom-centered ν = 4 descriptor are the same reconstruction problem expressed in different vocabularies. In our view, this mode of discovery is far from trivial, and not un-like the way many human discoveries are made [54]. The over-specialization of modern science is often decried as slowing down discovery, and in this sense LLM assistants simplify tremendously the search for relevant results in far-away disciplines, as well as their translation into a lan-guage that is easier to digest by researchers in another domain.  
+
+> B. Reproducibility of AI searches
+
+Given the stochastic nature of LLM inference, one may wonder whether each query will find strong counterex-amples. It is also interesting to consider whether models need knowledge of the 2020 Pozdnyakov et al. structures.                                
+
+> TABLE I. Classification of the repeated isolated searches. The tuple ( N, d, c ) gives the neighbor count, family dimension, and codimension defined in the text. The columns headed “off” and “on” count distinct pairs returned under the offline and online conditions, respectively. The same pair returned in separate runs counts once per run, whereas duplicate out-puts within one run count only once. The cyclic row groups constructions with a common deck mechanism rather than a continuous component. Codex Claude class (N, d, c ) off on off on relation four-neighbor power (4 ,7,2) 8387connected family six-neighbor scalar (6 ,4,11) 1 200same representative seven-neighbor scalar (7 ,6,12) 1 100same representative cyclic rings and lift —6121same mechanism
+
+8
+
+> FIG. 3. Representative classes recovered by the repeated isolated searches: (a) the four-neighbor power family, represented by an icosahedral subset; (b) the six-neighbor scalar family, represented by an integer shell; (c) the seven-neighbor scalar family, represented by a dodecahedral twist reversal; and (d) the cyclic rings and lift, represented by the 9-of-18 ring I. The scalar degeneracies in panels (b) and (c) are reflection-even, and pseudoscalar channels distinguish the displayed pairs. Blue and orange distinguish the two environments in each pair, and the open marker is the central atom. The corresponding parametrizations and the other representatives are reported in the SI.
+
+To test these questions, we run experiments in which we present the same prompt to Claude Code (Opus v. 4.8) and Codex (5.6 Sol). We repeat each of two search conditions eight times with each model. Both prompts instruct the model to start from a selection of papers in-cluding Refs. 9, 16, 28, 32, 35 and to avoid using informa-tion published after 2019. One forbids internet searches, whereas the other encourages searches of older literature in addition to the papers provided (see the SI for the full prompts). The searches returned many coordinate descriptions, but relabeling, rescaling, or rotating a pair can make the same construction look different. We therefore grouped the outputs by their underlying family. Two pairs be-long to the same continuous class if one can be deformed into the other while maintaining deck equality. Figure 3 shows one representative per class, and Table I reports how often each class was recovered. The family dimen-sion d measures how many independent changes of shape preserve the degeneracy. After removing global rota-tions, an N -neighbor environment has D = 3 N − 3 in-ternal degrees of freedom, and the corresponding codi-mension is c = D − d. A larger d therefore corre-sponds to a broader family of geometrically distinct but representation-degenerate environments. The first three rows of Table I are continuous classes in this sense. The cyclic examples have different sizes and do not form one continuous family: they are grouped only by their com-mon deck-counting mechanism, so d and c are not de-fined. One negative result is particularly revealing. Although the systematic searches were designed in part to test whether the models could rediscover the 2020 counterex-amples, none returned the full bispectrum-degenerate pair of Ref. 10 and the closest results were the two seven-neighbor dodecahedral twist-reversal reports. As shown in the SI, if mirror images are treated as equivalent, these examples belong to the same Gram-deck family as the 2020 construction. However, their oriented geometries are different: their parity-even bispectrum components agree, whereas parity-odd, pseudoscalar components dis-tinguish them. The searches therefore recovered a nearby but weaker degeneracy, rather than the complete SO (3)-bispectrum counterexample reported in 2020. It is also remarkable that unsupervised searches, with standard-ized prompts, led to a large variability of outcomes, and in general to results that were much weaker than those found by interactive “conversations” with the LLM. These observations, albeit anecdotal, suggest that defin-ing, and refining, the scientific question at hand remains an important role for the human scientist using AI assis-tance.  
+
+> V. CONCLUSIONS
+
+We have shown examples of atomic structures that cannot be discriminated by fixed-order, permutation-symmetrized atom-centered density correlations, going up to invariant descriptors that are equivalent to knowl-edge of the full histogram of seven-neighbor (eight-body, including the center) clusters. These high-order degenerate configurations are very far from any plausible chemical structure, and do little more than reinforce the notion, that is already widely accepted nowadays, that fixed atom-centered invariant descriptors are not the most efficient way of building a machine-learning model of chemical interactions, and add to the list of scenarios in which fixed-order pool-ing within equivariant architectures limits the expres-sive power of the resulting models. What is remarkable is that representation-degenerate structures that are far more powerful than those introduced in Ref. 10 were al-ready essentially present in the literature, but in a con-text so far from that of machine-learning potentials to make them extremely difficult to find. Given the ease with which LLMs could scout the literature, recognize the relevance of these references, and translate them into results that are directly relevant in this domain, it is hard not to wonder whether the same query, performed 9in 2019, could have provided in a few hours a definite answer to a research question that required months of human investigation to reach a more restrictive answer. Our experiments asking the LLMs to ignore literature past 2019 are not conclusive (Ref. 10 is almost certainly in the training corpus of all models) but the logic un-derlying the examples discovered with these prompts is clearly based in prior work, and so it is plausible to an-swer this question affirmatively. Even though stronger claims of AI systems being capable of fully autonomous scientific investigation [55] may still be somewhat con-troversial, the simple usage pattern we exploit here has already a tremendous potential of accelerating discovery. This is certainly the case when facilitating the transla-tion of results between theoretical fields that speak dif-ferent dialects of the same universal mathematical lan-guage, but it is also likely to be beneficial for empirical disciplines that use characterization and analytical tech-niques with the potential of being re-purposed to address different research questions than they were designed for, and for which the ability of LLMs to identify patterns across a large corpus of literature can be a remedy for the over-specialization of science. 
+
+ACKNOWLEDGMENTS 
+
+MD and MC acknowledge support from a SNSF grant (project ID 200020 214879). 
+
+DATA AVAILABILITY 
+
+The validation scripts and input structures supporting this study will be made openly available upon publica-tion [36]. 
+
+[1] J. Behler and M. Parrinello, Generalized Neural-Network Representation of High-Dimensional Potential-Energy Surfaces, Phys. Rev. Lett. 98 , 146401 (2007). [2] M. Rupp, A. Tkatchenko, K.-R. M¨ uller, and O. A. von Lilienfeld, Fast and Accurate Modeling of Molecular At-omization Energies with Machine Learning, Phys. Rev. Lett. 108 , 058301 (2012). [3] A. P. Bart´ ok, M. C. Payne, R. Kondor, and G. Cs´ anyi, Gaussian Approximation Potentials: The Accuracy of Quantum Mechanics, without the Electrons, Phys. Rev. Lett. 104 , 136403 (2010). [4] F. Musil, A. Grisafi, A. P. Bart´ ok, C. Ortner, G. Cs´ anyi, and M. Ceriotti, Physics-Inspired Structural Representa-tions for Molecules and Materials, Chem. Rev. 121 , 9759 (2021). [5] J. Behler, Four Generations of High-Dimensional Neural Network Potentials, Chem. Rev. 121 , 10037 (2021). [6] O. T. Unke, S. Chmiela, H. E. Sauceda, M. Gastegger, I. Poltavsky, K. T. Sch¨ utt, A. Tkatchenko, and K.-R. M¨ uller, Machine Learning Force Fields, Chem. Rev. 121 ,10142 (2021). [7] A. Grisafi, A. Fabrizio, B. Meyer, D. M. Wilkins, C. Corminboeuf, and M. Ceriotti, Transferable Machine-Learning Model of the Electron Density, ACS Cent. Sci. 
+
+5, 57 (2019). [8] Q. Gu, Z. Zhouyin, S. K. Pandey, P. Zhang, L. Zhang, and W. E, Deep learning tight-binding approach for large-scale electronic simulations at finite temperatures with ab initio accuracy, Nat. Commun. 15 , 6772 (2024). [9] M. J. Willatt, F. Musil, and M. Ceriotti, Atom-density representations for machine learning, J. Chem. Phys. 
+
+150 , 154110 (2019). [10] S. N. Pozdnyakov, M. J. Willatt, A. P. Bart´ ok, C. Ortner, G. Cs´ anyi, and M. Ceriotti, Incompleteness of Atomic Structure Representations, Phys. Rev. Lett. 125 , 166001 (2020). [11] S. N. Pozdnyakov, L. Zhang, C. Ortner, G. Cs´ anyi, and M. Ceriotti, Local invertibility and sensitivity of atomic structure-feature mappings, Open Res. Eur. 1,126 (2021). [12] S. N. Pozdnyakov and M. Ceriotti, Incompleteness of graph neural networks for points clouds in three dimen-sions, Mach. Learn.: Sci. Technol. 3, 045020 (2022). [13] B. Parsaeifard and S. Goedecker, Manifolds of quasi-constant SOAP and ACSF fingerprints and the resulting failure to machine learn four-body interactions, J. Chem. Phys. 156 , 034302 (2022). [14] S. N. Pozdnyakov, M. J. Willatt, A. P. Bart´ ok, C. Ort-ner, G. Cs´ anyi, and M. Ceriotti, Comment on “Manifolds of quasi-constant SOAP and ACSF fingerprints and the resulting failure to machine learn four-body interactions” [J. Chem. Phys. 156, 034302 (2022)], J. Chem. Phys. 157 ,177101 (2022). [15] M. Boutin and G. Kemper, On reconstructing n-point configurations from the distribution of distances or areas, Adv. Appl. Math. 32 , 709 (2004). [16] R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99 ,014104 (2019). [17] J. Nigam, S. Pozdnyakov, and M. Ceriotti, Recursive evaluation and iterative contraction of N -body equivari-ant features, J. Chem. Phys. 153 , 121101 (2020). [18] G. Dusson, M. Bachmayr, G. Cs´ anyi, R. Drautz, S. Etter, C. van der Oord, and C. Ortner, Atomic cluster expan-sion: Completeness, efficiency and stability, J. Comput. Phys. 454 , 110946 (2022). [19] J. Nigam, S. N. Pozdnyakov, K. K. Huguenin-Dumittan, and M. Ceriotti, Completeness of atomic structure rep-resentations, APL Mach. Learn. 2, 016110 (2024). [20] H. Maennel, O. T. Unke, and K.-R. M¨ uller, Complete and efficient covariants for three-dimensional point configu-rations with application to learning molecular quantum properties, J. Phys. Chem. Lett. 15 , 12513 (2024). [21] I. Batatia, D. P. Kov´ acs, G. N. C. Simm, C. Ortner, and G. Cs´ anyi, MACE: Higher order equivariant message passing neural networks for fast and accurate force fields, Adv. Neural Inf. Process. Syst. 35 , 11423 (2022). [22] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, E(3)-equivariant graph neural networks for 10 
+
+data-efficient and accurate interatomic potentials, Nat. Commun. 13 , 2453 (2022). [23] S. N. Pozdnyakov and M. Ceriotti, Smooth, exact rota-tional symmetrization for deep learning on point clouds, Adv. Neural Inf. Process. Syst. 36 , 79469 (2023). [24] E. Qu and A. S. Krishnapriyan, The importance of being scalable: Improving the speed and accuracy of neural network interatomic potentials across chemical domains, Adv. Neural Inf. Process. Syst. 37 , 139030 (2024). [25] M. Balko, J. Greb´ ık, P. Hub´ aˇ cek, M. Kouteck´ y, M. Krip-ner, V. Rozhoˇ n, R. ˇS´ amal, and A. Z´ ameˇ cn´ ık, Bolzano: Case studies in LLM-assisted mathematical research (2026), arXiv:2604.16989 [cs.CL]. [26] T. Feng, T. Trinh, G. Bingham, J. Kang, S. Zhang, S.-h. Kim, K. Barreto, C. Schildkraut, J. Jung, J. Seo, C. Pagano, Y. Chervonyi, D. Hwang, K. Hou, S. Gukov, C.-C. Tsai, H. Choi, Y. Jin, W.-Y. Li, H.-A. Wu, R.-A. Shiu, Y.-S. Shih, Q. V. Le, and T. Luong, Semi-autonomous mathematics discovery with Gemini: A case study on the Erd˝ os problems (2026), arXiv:2601.22401 [cs.AI]. [27] W. Sawin, An explicit lower bound for the unit distance problem (2026), arXiv:2605.20579 [math.CO]. [28] A. P. Bart´ ok, R. Kondor, and G. Cs´ anyi, On representing chemical environments, Phys. Rev. B 87 , 184115 (2013). [29] M. J. Willatt, F. Musil, and M. Ceriotti, Feature opti-mization for atomistic machine learning yields a data-driven construction of the periodic table of the elements, Phys. Chem. Chem. Phys. 20 , 29661 (2018). [30] A. P. Thompson, L. P. Swiler, C. R. Trott, S. M. Foiles, and G. J. Tucker, Spectral neighbor analysis method for automated generation of quantum-accurate interatomic potentials, J. Comput. Phys. 285 , 316 (2015). [31] M. Domina and S. Sanvito, General formalism for machine-learning models based on multipolar spherical harmonics, Phys. Rev. B 112 , 085106 (2025). [32] R. Kakarala, The Bispectrum as a Source of Phase-Sensitive Invariants for Fourier Descriptors: A Group-Theoretic Approach, J. Math. Imaging Vis. 44 , 341 (2012). [33] A. L. Patterson, Homometric structures, Nature 143 , 939 (1939). [34] J. Rosenblatt and P. D. Seymour, The structure of ho-mometric sets, SIAM J. Algebraic Discrete Methods 3,343 (1982). [35] J. Behler, Atom-centered symmetry functions for con-structing high-dimensional neural network potentials, J. Chem. Phys. 134 , 074106 (2011). [36] M. Domina and M. Ceriotti, Validation scripts and input structures (2026), reproducibility archive in preparation. [37] V. Kurlin, Polynomial-time algorithms for continuous metrics on atomic clouds of unordered points, MATCH Commun. Math. Comput. Chem. 91 , 79 (2024). [38] V. Kurlin, Complete invariants of atomic clouds under rigid motion with Lipschitz continuous metrics in a poly-nomial time, MATCH Commun. Math. Comput. Chem. 10.46793/match.97-2.11426 (2026), published online 27 May 2026. [39] D. Widdowson and V. Kurlin, Resolving the data am-biguity for periodic crystals, Adv. Neural Inf. Process. Syst. 35 , 24625 (2022). [40] S. Hordan, T. Amir, S. J. Gortler, and N. Dym, Complete neural networks for complete Euclidean graphs, Proc. AAAI Conf. Artif. Intell. 38 , 12482 (2024). [41] See the Supplementary Information for detailed construc-tions and proofs, validation procedures, the musical in-terpretation, and complete results and prompts for the repeated searches, and Refs. [42–46] therein. [42] V. A. Kurlin, Complete and continuous invariants of 1-Periodic sequences in polynomial time, SIAM J. Math. Data Sci. 7, 1643 (2025). [43] J. Simon, Reconstructing Colourings of Finite Groups ,Ph.D. thesis, RWTH Aachen University, Aachen, Ger-many (2017). [44] L. Pebody, Reconstructing odd necklaces, Combinatorics, Probability and Computing 16 , 503 (2007). [45] X. Deng and R. V. Moody, How model sets can be deter-mined by their two-point and three-point correlations, J. Stat. Phys. 135 , 621 (2009). [46] X. Deng and R. V. Moody, Weighted model sets and their higher point-correlations, Can. Math. Bull. 55 , 487 (2012). [47] A. J. Radcliffe and A. D. Scott, Reconstructing subsets of Zn, J. Combin. Theory Ser. A 83 , 169 (1998). [48] F. A. Gr¨ unbaum and C. C. Moore, The use of higher-order invariants in the determination of generalized Pat-terson cyclotomic sets, Acta Crystallogr. A 51 , 310 (1995). [49] N. Collins, Uniqueness of pitch class spaces, minimal bases and Z partners, in Diderot Forum on Mathematics and Music: Computational and Mathematical Methods in Music , edited by H. G. Feichtinger and M. D¨ orfler ( ¨Osterreichische Computer Gesellschaft, Vienna, 1999) pp. 63–77. [50] J. Mandereau, D. Ghisi, E. Amiot, M. Andreatta, and C. Agon, Discrete phase retrieval in musical structures, J. Math. Music 5, 99 (2011). [51] L. Pebody, The reconstructibility of finite abelian groups, Combinatorics, Probability and Computing 13 , 867 (2004). [52] J. I. Yellott, Jr. and G. J. Iverson, Uniqueness properties of higher-order autocorrelation functions, J. Opt. Soc. Am. A 9, 388 (1992). [53] J. Mandereau, D. Ghisi, E. Amiot, M. Andreatta, and C. Agon, Z-relation and homometry in musical distribu-tions, J. Math. Music 5, 83 (2011). [54] F. Shi and J. Evans, Surprising combinations of research contents and contexts are related to impact and emerge with scientific outsiders from distant disciplines, Nature Communications 14 , 1641 (2023). [55] C. Lu, C. Lu, R. T. Lange, Y. Yamada, S. Hu, J. Foerster, D. Ha, and J. Clune, Towards end-to-end automation of AI research, Nature 651 , 914 (2026). Supplementary Material for “Using large language models to probe the limits of atom-centered structural descriptors” 
+
+Michelangelo Domina 1 and Michele Ceriotti 1, ∗
+
+> 1
+
+Laboratory of Computational Science and Modeling, Institut des Mat´ eriaux, ´Ecole Polytechnique F´ ed´ erale de Lausanne, 1015 Lausanne, Switzerland  
+
+> (Dated: July 29, 2026)
+> S1. CYCLIC COUNTEREXAMPLES OF FIG. 2
+
+As in the main text, ν denotes the correlation order. An order-ν atom-centered density correlation is a sum over ordered ν-tuples of neighbors. First consider a term containing ν distinct neighbors. Their geometry relative to the central atom is completely specified, up to O(3), by the Gram matrix Gab = ra · rb. Its diagonal entries are the squared neighbor distances, Gaa = r2
+
+> a
+
+, and its off-diagonal entries encode the angles, Gab = rarb cos θab . A ν-card is one such unlabeled ν-neighbor geometry, and the ν-deck is the multiset of all cards obtained by choosing ν
+
+distinct neighbors. These Gram cards describe reflection-even O(3) invariants, whereas the complete SO (3) spectrum distinguishes mirror-related rank-three cards through the signs of scalar triple products, giving what we call oriented cards. Because all scalar triple products vanish for coplanar cards, the Gram and oriented definitions agree in that case. Two decks are therefore equal only if every relevant ν-neighbor geometry occurs with the same multiplicity. A ν-deck stores each selected ν-neighbor geometry as a separate card. Once the cards are pooled, it no longer records that a particular neighbor may occur in several cards. This loss of correspondence is specific to deck pooling, rather than to invariant point-cloud representations in general. The Simplexwise Centered Distribution introduced by Kurlin [1] organizes the information differently. In three dimensions, it uses two selected points and the centroid as three common references and stores, for every remaining point, one row containing all distances to these references together with a signed quantity that records its side of their plane. Because the measurements in each row remain grouped as properties of the same point, the collection over all selected pairs is complete for finite unlabeled clouds that span all three dimensions, under translations and rotations. For an N -site regular polygon, label the sites 0 , . . . , N − 1 in cyclic order. If a card occupies s1 < · · · < s ν , its cyclic gaps are (s2 − s1, . . . , s ν − sν−1, N + s1 − sν ). (S1) They count the polygon edges between successive selected sites while going once around the ring. For example, the card {0, 2, 5} on an eight-site ring has gaps (2 , 3, 3). Choosing a different starting site cyclically permutes this list, while reflection reverses it. In our cyclic-deck validation script [2], we use the lexicographically smallest cyclic permutation of the gap list and its reversal as an exact label for a polygonal card. Identifying a card S ⊂ ZN with the one-periodic sequence S + N Z turns Eq. (S1) into the consecutive-gap, or time-shift, vector of Ref. [3]. The same canonicalization plays two different roles. In Ref. [3], the vector is built from all points in one period, so it describes the entire periodic sequence and is complete. Here it is built separately for each selected ν-point card. We then retain only the multiset of card labels, which discards the information about which cards overlap in the same sites. Thus, completeness of the full-motif vector does not imply completeness of the ν-deck. The ordered tuples in a density correlation may repeat a neighbor index. For example, the order-four tuple (a, a, b, c ) contains only the three-neighbor card {a, b, c }, with the additional instruction that a is used twice. For each card, the correlation sum contains every assignment of such repetition patterns to its neighbors. Consequently these contributions are fixed by the lower-order decks. By comparing D1, D 2, . . . , D ν , the script checks both the terms with 
+
+ν distinct neighbors and all repeated-index terms entering an order-ν density correlation. The implementation uses exact integer arithmetic. The only non-integer coordinates occur in the 16-point example and belong to Q(√3); they are stored as integer pairs a + b√3. It verifies every deck from D1 through the order stated in Fig. 2, either by explicit enumeration or by the exact two-axis certificate derived below. The highest matched orders are summarized in the table. The two largest cyclic examples cannot be checked by explicitly storing every card. The 161-point structure already contains more than 2 .2×10 10 six-neighbor selections, while the 9912-point structure contains approximately 1 .86 ×10 24  
+
+> ∗michele.ceriotti@epfl.ch
+
+1rank configuration matched deck cards classes enumerated 2 9 of 18 cyclic sites D3 84 27 ✓
+
+2 18 of 36 cyclic sites D4 3060 828 ✓
+
+2 54 of 154 cyclic sites D5 3 162 510 1 019 738 ✓
+
+2 161 of 462 cyclic sites D6 ∼ 2.201 × 10 10 – ×
+
+2 9912 of 20790 cyclic sites D7 ∼ 1.861 × 10 24 – ×
+
+3 13-point pair D4 715 298 ✓
+
+3 16-point pair D4 1820 394 ✓
+
+3 23-point pair D4 8855 1232 ✓
+
+3 26-point pair D5 65780 19368 ✓
+
+TABLE S1. Highest matched decks for the finite configurations in Fig. 2. The rank is the dimension of the linear span of the neighbor vectors. A checkmark indicates that every card was enumerated and the complete class counters, including multiplicities, were compared directly. A cross indicates that direct enumeration is impractical, so the equality is instead established exactly by the two-axis argument presented below. 
+
+seven-neighbor selections. Their equality is instead verified through the directed cyclic counts introduced in the main text. If as ∈ { 0, 1} records whether site s is occupied in S ⊂ ZN , the multiplicity of the oriented motif with offsets 
+
+s = ( s1, . . . , s ν−1) is 
+
+dSν (s1, . . . , s ν−1) =  
+
+> N−1
+
+∑
+
+> g=0
+
+ag ag+s1 · · · ag+sν−1 , (S2) which counts occupied ν-tuples with the prescribed relative offsets. In Fourier space the same counts have a particularly simple form. We use the discrete Fourier transform ̂
+
+am = 
+
+> N−1
+
+∑
+
+> s=0
+
+as exp 
+
+(
+
+− 2πims N
+
+)
+
+(S3) and Fourier transform dSν with respect to each offset sj . To keep the reference point explicit, label it j = ν and set 
+
+sν = 0. The change of variables tj = g + sj is then bijective, with tν = g. Finally, define mν ≡ − ∑ν−1 
+
+> j=1
+
+mj (mod N ), so that ∑νj=1 mj ≡ 0 (mod N ). Writing t = ( t1, . . . , t ν ), substitution gives ̂
+
+dSν (m1, . . . , m ν−1) ≡ ∑
+
+> s1,...,s ν−1
+
+dSν (s1, . . . , s ν−1) exp 
+
+− 2πi
+
+N
+
+> ν−1
+
+∑
+
+> j=1
+
+mj sj
+
+
+
+= ∑
+
+> t∈ZνN
+
+
+
+> ν
+
+∏
+
+> j=1
+
+atj
+
+ exp 
+
+− 2πi
+
+N
+
+> ν−1
+
+∑
+
+> j=1
+
+mj (tj − tν )
+
+
+
+= ∑
+
+> t∈ZνN
+
+
+
+> ν
+
+∏
+
+> j=1
+
+atj
+
+ exp 
+
+− 2πi
+
+N
+
+> ν
+
+∑
+
+> j=1
+
+mj tj
+
+
+
+=
+
+> ν
+
+∏
+
+> j=1
+
+̂
+
+amj .
+
+(S4) Thus an order-ν correlation is represented by products of ν density coefficients whose frequency indices sum to zero. The transform is invertible, so equality of all products in Eq. (S4) is exactly equivalent to equality of all real-space counts in Eq. (S2). Reflection sends as to a−s and hence ̂ am to ̂ a−m =̂ a∗
+
+> m
+
+. The pointwise reflection symmetrization of the directed counts is therefore 
+
+DSν (s) = dSν (s) + dSν (−s), (S5) and its Fourier transform is ̂
+
+DSν (m1, . . . , m ν−1) = 2 Re [̂ am1 · · · ̂ amν−1̂ a−m1−···− mν−1
+
+] . (S6) 2The array DSν (s) is a redundant encoding of the cyclic motif histogram: permutations of the offsets and different choices of the reference site can represent the same unlabeled motif, and a motif equivalent to its own reflection can be counted twice. Identifying all entries that represent the same motif and applying the corresponding class-dependent normalization gives the complete deck Dν (S), the multiset containing every motif class with its number of occurrences. The raw array and the canonical deck contain the same information, so equality of either is equivalent. In finite-group terminology, this is the binary subset deck for the dihedral action on the ring [4]. We now return to the finite construction and document how the three large cyclic pairs in Fig. 2a were generated. In all three cases, the number of ring sites is obtained by N = n0n1n2, with n0, n 1, n 2 pairwise coprime. The Chinese remainder theorem relabels each site t ∈ Z/N Z on the ring by the unique triple (η, u, v ) ∈ Z/n 0Z × Z/n 1Z × Z/n 2Z, (S7) where the three cyclic indices have sizes n0, n1, and n2, respectively. We read this relabeling as the coordinate η
+
+partitioning the ring into n0 disjoint slices, each containing n1n2 sites indexed by ( u, v ). This is only a relabeling of the one-dimensional ring, not an embedding into a three-dimensional space. On this partition, each example combines two specified small binary patterns, denoted A and B, on rings of sizes n1
+
+and n2. We refer to these smaller patterns as modules . The parameters and occupied-site patterns used for the three examples are shown in Fig. S1; the occupied residues are also listed explicitly in our cyclic-deck validation script [2]. Under the CRT relabeling, the full-ring occupancy as introduced above is written aη,u,v . Let αu = 1u∈A and 
+
+βv = 1v∈B be the occupancy functions of the two modules in that row. For the first member X of the reported pair, the full-ring occupancy is 
+
+aη,u,v = 1η=0 αu + 1η̸ =0 βv . (S8) In the slice η = 0, the occupancy is a0,u,v = αu and does not depend on v. Thus, for every occupied site u ∈ A,all n2 points (0 , u, v ) with v ∈ Zn2 are occupied: the pattern A is copied n2 times along the v coordinate. In every slice η̸ = 0, the occupancy is instead aη,u,v = βv and does not depend on u. Hence every occupied site v ∈ B is copied at all n1 values of u, and this is repeated in each of the n0 − 1 nonzero η-slices. For the 54-of-154 example, (n0, n 1, n 2) = (2 , 7, 11) and each module contains three occupied sites. The η = 0 slice therefore contributes 11 ×3 = 33 sites and the nonzero slice contributes 7 × 3 = 21, for a total of 54 occupied sites on a ring of size 2 × 7 × 11 = 154. The partner X′ is obtained by reflecting A while leaving B unchanged. A reflection of a cyclic module has the general form u 7 → c − u: it is the standard reflection u 7 → − u followed by a cyclic shift by c. These shifts can be chosen independently for A and B without changing the full configuration up to rotation. Indeed, for any module shifts ∆ A ∈ Zn1 and ∆ B ∈ Zn2 , the Chinese remainder theorem gives a shift ∆ ∈ ZN satisfying ∆ = 0 (mod n0), ∆ = ∆ A (mod n1), ∆ = ∆ B (mod n2).
+
+The global rotation t 7 → t + ∆ preserves the η-slices, shifts A by ∆ A, and shifts B by ∆ B . We may therefore choose the origins of the two module rings independently and write the reflection simply as αu 7 → α−u.We now determine how this partial reflection can affect a density correlation. As shown above, an order-ν cyclic correlation is represented in Fourier space by products of ν density coefficients whose frequencies sum to zero. For the present construction, the repeated copies of A and B make most Fourier coefficients vanish: the nonzero coefficients are confined to two lines in frequency space. Deriving these two lines will allow us to track separately the orientation information carried by the two modules. Take the discrete Fourier transform with respect to all three CRT coordinates, ̂
+
+aλ,μ,κ =
+
+> n0−1
+
+∑
+
+> η=0
+> n1−1
+
+∑
+
+> u=0
+> n2−1
+
+∑
+
+> v=0
+
+aη,u,v exp 
+
+[
+
+−2πi
+
+( λη n0
+
++ μu n1
+
++ κv n2
+
+)] 
+
+.
+
+Here λ is conjugate to the slice coordinate η, while μ and κ are conjugate to the module coordinates u and v,respectively. The transforms of the two modules are ̂
+
+αμ =
+
+> n1−1
+
+∑
+
+> u=0
+
+αue−2πiμu/n 1 ,̂ βκ =
+
+> n2−1
+
+∑
+
+> v=0
+
+βv e−2πiκv/n 2
+
+Consider first the contribution 1η=0 αu in Eq. (S8), which encodes module A. It is nonzero only at η = 0 and is independent of v. Its Fourier transform therefore contains the finite sum 
+
+> n2−1
+
+∑
+
+> v=0
+
+e−2πiκv/n 2 =
+
+{
+
+n2, κ = 0 ,
+
+0, κ̸ = 0 .
+
+3A A′ (mirror) B (unchanged) 
+
+54 of 154 sites 
+
+> (n₀, n₁, n₂) = (2, 7, 11)
+> site 0
+> 3 of 7
+> site 0
+> 3 of 7
+> site 0
+> 3 of 11
+
+161 of 462 sites 
+
+> (n₀, n₁, n₂) = (3, 14, 11)
+> site 0
+> 7 of 14
+> site 0
+> 7 of 14
+> site 0
+> 3 of 11
+
+9912 of 20790 sites 
+
+> (n₀, n₁, n₂) = (11, 135, 14)
+> site 0
+> 33 of 135
+> site 0
+> 33 of 135
+> site 0
+> 7 of 14
+
+FIG. S1. Cyclic modules used to construct the three large pairs in Fig. 2a. In each row, A ⊂ Z/n 1Z (blue) and B ⊂ Z/n 2Z
+
+(green) are the two modules used to build the first configuration X. The partner X′ replaces A by its mirror A′ = −A (orange) and leaves B unchanged. The module origins are chosen so that site 0 lies on the reflection axis. Filled and open markers denote occupied and unoccupied sites. 
+
+The contribution from A is therefore n2̂ αμ1κ=0 .The second contribution, 1η̸ =0 βv , encodes module B and is independent of u. The sum over the n1 values of u gives 
+
+n11μ=0 by the same argument. Unlike the first contribution, this one is present in every selector slice η = 1 , . . . , n 0 −1. Summing these copies with their Fourier phases produces the factor 
+
+hλ ≡
+
+> n0−1
+
+∑
+
+> η=1
+
+e−2πiλη/n 0 =
+
+{
+
+n0 − 1, λ = 0 ,
+
+−1, λ̸ = 0 .
+
+For λ̸ = 0, the corresponding sum including η = 0 is zero; omitting that term, which equals one, leaves hλ = −1. Combining the two contributions gives ̂
+
+aλ,μ,κ = n2̂ αμ 1κ=0 + n1hλ̂ βκ 1μ=0 . (S9) For a fixed slice frequency λ, it is helpful to view ̂ aλ,μ,κ as a table whose row and column indices are μ and κ. The repeated copies of A contribute only along the row κ = 0, where the values are proportional to ̂ αμ. The repeated copies of B contribute only along the column μ = 0, where the values are proportional to ̂ βκ. The Fourier coefficients therefore form a cross in the ( μ, κ ) plane: its row and column are the “two axes.” Their intersection is ̂
+
+aλ, 0,0 = n2|A| + n1hλ|B|,
+
+4which is real because hλ, |A|, and |B| are real. With the module origin chosen as above, the reflected module used in the partner configuration is A′ = {− u mod n1 :
+
+u ∈ A}. Its occupancy function is α′ 
+
+> u
+
+= α−u, and its Fourier coefficients satisfy ̂
+
+α′ 
+
+> μ
+
+=̂ α−μ =̂ α∗
+
+> μ
+
+.
+
+Thus, passing from X to X′ conjugates every coefficient on the A row. The B column is unchanged because the same module B is used in both configurations, and the intersection is unchanged because it depends on A only through the real number |A|.It remains to determine the first correlation order that can detect this partial reflection. Equation (S6) shows that each Fourier component of the reflection-symmetrized deck is twice the real part of a frequency-conserving product. Choose one such set of ν frequency triples and denote the corresponding product for X by 
+
+QX =
+
+> ν
+
+∏
+
+> j=1
+
+̂
+
+aλj ,μ j ,κ j .
+
+The corresponding Fourier-deck components are ̂
+
+DX = 2 Re( QX ),̂ DX′ = 2 Re( QX′ ).
+
+They can differ only if Re( QX )̸ = Re( QX′ ). If QX = 0, at least one factor in the product is zero. Reflecting A conjugates the coefficients on the A row and leaves the B column unchanged, so it preserves every zero coefficient. The same factor therefore vanishes for X′,giving QX′ = 0. All zero products already match in Fourier space, so we can focus only on the nonzero products. For a product to be nonzero, every factor must lie on the Fourier-space cross. We sort these factors according to whether they lie on the A row, on the B column, or at their intersection. The intersection coefficients are real and identical for X and X′, as are the factors n1, n2, and hλj . They can therefore be collected into a common real prefactor C. If Pα denotes the product of the remaining module coefficients ̂ αμj from the A row, and Pβ the corresponding product of ̂ βκj from the B column, then 
+
+QX = CP αPβ .
+
+We now use frequency conservation to determine what products Pα and Pβ can occur. Equation (S4) requires the total frequency of QX to vanish. Each factor in QX carries the three labels ( λj , μ j , κ j ), and these labels add when the factors are multiplied. Since the three CRT coordinates are independent, the total frequency vanishes only when it vanishes separately along each coordinate: 
+
+> ν
+
+∑
+
+> j=1
+
+λj ≡ 0 (mod n0),
+
+> ν
+
+∑
+
+> j=1
+
+μj ≡ 0 (mod n1),
+
+> ν
+
+∑
+
+> j=1
+
+κj ≡ 0 (mod n2).
+
+Together with the cross-shaped support, these conditions separate frequency conservation between the two modules. Every factor on the B column has μj = 0, so only the A-row factors can cancel one another to make the total μ
+
+frequency zero. The frequencies in Pα must therefore sum to zero by themselves. Conversely, every factor on the A
+
+row has κj = 0, so the frequencies in Pβ must also sum to zero by themselves. Thus every valid full-ring product contains a frequency-conserving correlation term of A and one of B.Replacing A by A′ conjugates Pα, while Pβ and C remain unchanged. Thus QX′ = CP ∗ 
+
+> α
+
+Pβ , and the difference between the corresponding deck components is determined by Re( QX′ ) − Re( QX ) = 2 C Im( Pα) Im( Pβ ). (S10) Equation (S10) shows why the imaginary parts encode orientation. Reflection conjugates Pα: its real part is un-changed, whereas its imaginary part changes sign. The full deck component can therefore change only if both Pα and 
+
+Pβ have nonzero imaginary parts. Let p be the first order at which a frequency-conserving product of coefficients from module A can have a nonzero imaginary part, and define q analogously for module B. Below order p, the Fourier correlations of A contain no orientation-sensitive signal, and below order q, the same is true for B. For example, if every second-order product from A is real, ̂
+
+αμ̂ α−μ = |̂ αμ|2,
+
+5and if at least one third-order product ̂
+
+αμ1̂ αμ2̂ α−μ1−μ2
+
+is complex, then p = 3 and A first reveals its orientation at third order. If instead p = 4, then all of its third-order products are real and orientation first appears at fourth order. The role of q is identical for module B.The thresholds also have a direct real-space interpretation. Let dAr (s) be the number of occurrences of the directed motif s in module A, using the definition in Eq. (S2). Reflection reverses every offset, so the mirror A′ satisfies 
+
+dA′ 
+
+> r
+
+(s) = dAr (−s).
+
+Consequently, p is the first order at which some directed motif has different multiplicity in A and A′:
+
+p = min 
+
+{
+
+r : dAr (s)̸ = dA′ 
+
+> r
+
+(s) for some s
+
+}
+
+.
+
+Equation (S4) shows that this is equivalent to the Fourier definition above. The Fourier transform of dAr is the collection of frequency-conserving products of r module coefficients, and reflection conjugates each product. If every product is real, conjugation leaves the transformed counts unchanged. If instead one is non-real, the transformed counts change and since the Fourier transform is invertible, at least one real-space count must then change as well. In our cyclic-deck validation script [2], we use the real-space criterion and compare exact integer counts to obtain p
+
+for A and, analogously, q for B.Finally, consider a full product of order ν. To distinguish X from X′, it must contain enough A-row factors to make Im( Pα)̸ = 0 and enough B-column factors to make Im( Pβ )̸ = 0. By definition, this requires at least p factors from A
+
+and q from B, so ν ≥ p + q. Intersection factors are real and provide no orientation information, so they cannot lower this minimum. The reflection-symmetrized decks are therefore identical at every order ν ≤ p + q − 1. To see that the decks do differ at order p + q, combine the first correlation of A that changes under reflection with the first such correlation of B. Minimality of p and q excludes the real zero modes ̂ α0 and ̂ β0 from these products. Since Pα and Pβ already conserve the μ and κ frequencies separately, setting every λj to zero makes their combined product conserve all three CRT frequencies. Equation (S9) contributes a factor n2 for each A-row term and n1(n0 − 1) for each B-column term, so the real prefactor in QX = CP αPβ is 
+
+C = np
+
+> 2
+
+[n1(n0 − 1) ]q > 0.
+
+Equation (S10) therefore gives a nonzero difference, and the first differing deck is Dp+q .These thresholds also admit general bounds. Pebody’s results imply that any binary cyclic module is distinguished from a non-translate of its mirror by directed order six, or by order four when its size is odd [5, 6]. Since n1 and n2
+
+are coprime, at least one is odd and hence p + q ≤ 4 + 6 = 10. The two-axis construction can therefore agree through at most D9.For example, ( p, q ) = (3 , 3) means that at least three factors are needed from each module. Using this validation script [2], we obtain this threshold for the 54-of-154 pair, whose decks therefore agree through D5 and first differ at 
+
+D6. We similarly obtain ( p, q ) = (4 , 3) and (4 , 4) for the 161-of-462 and 9912-of-20790 pairs, whose first differences occur at D7 and D8, respectively. Finally, it constructs each full binary pair and verifies exhaustively that no rotation or reflection relates its two members. The reported choices of n0 are particular members of larger families. Once A, B, n1, and n2 are fixed, any n0 ≥ 2coprime to both n1 and n2 gives the same construction on a ring of size N = n0n1n2, with |X| = n2|A|+( n0 −1) n1|B|.The thresholds p and q are properties of the two modules and therefore do not change with n0, so the resulting pair remains deck-degenerate through Dp+q−1. Changing n0 produces a different finite ring and noncongruence under rotations and reflections should be checked for each chosen value. The use of cyclic factors to produce correlation ambiguities has a precedent in a different setting. Deng and Moody transferred a finite cyclic ambiguity to distinct infinite aperiodic model sets with identical two- and three-point correlation measures [7], and later obtained weighted six-colour examples agreeing through fifth order [8]. The resulting correlations are long-run directed averages over infinite sets, while the fifth-order examples use non-binary weights. Neither therefore provides a finite binary counterexample at the higher orders reached here.  
+
+> S2. THREE-DIMENSIONAL LIFTS OF CYCLIC DECK DEGENERACIES
+
+Planar input. Let S, S ′ ⊂ ZN be two occupied patterns on the same regular N -gon, and suppose that their reflection-symmetrized cyclic decks agree at every order ν′ ≤ ν. On the polygon, a global shift s 7 → s + c is a rotation and a 6reversal s 7 → c − s is a reflection of the cyclic ordering. The deck therefore contains the combined multiplicity 
+
+DSν′ (s) = dSν′ (s) + dSν′ (−s),
+
+rather than the two directed counts separately. A planar card carries no additional handedness: all scalar triple products vanish, and its cyclic reflection can also be realized by a proper three-dimensional rotation through π about the corresponding axis in the polygon plane. 
+
+Orientation after lifting. Lifting the points away from this plane requires more care. A three-dimensional card can have a nonzero scalar triple product, so a deck modulo proper rotations can distinguish its two orientations. We write 
+
+DSO (3)  
+
+> ν′
+
+for this oriented deck. Equality of the planar cyclic decks does not, by itself, imply equality of these stronger 
+
+SO (3) decks. The constructions below preserve the degeneracy because the cyclic reflection is accompanied by an exchange of two identical layers. Together these operations are a proper three-dimensional rotation. Because every occupied polygon site is copied to both layers, every lifted occurrence has the reflected, layer-exchanged partner required by this rotation. Their combined multiplicity is precisely dSν′ (s) + dSν′ (−s), the quantity already fixed by the cyclic deck. We first prove this statement for two layers with an arbitrary relative rotation and then extend it to cylindrical stacks. 
+
+Two copies with an arbitrary relative rotation. Write θs = 2 πs/N . As in the main text, denote the lower and upper lifted rings by R−(S) and R+(S), respectively. Place the lower copy at height −h and the upper copy at height +h, rotated by an arbitrary angle α:
+
+R−(s) = ( R cos θs, R sin θs, −h) ,
+
+R+(s) = ( R cos( θs + α), R sin( θs + α), h ) ,
+
+R±(S) = {R ±(s) : s ∈ S} ,XS (α, h ) = R−(S) ∪ R +(S).
+
+(S11) The first two lines give the position of site s on the lower and upper rings. The third line collects these points over all occupied sites s ∈ S, and the last line combines the two rings into the lifted environment. The same values of R,
+
+h, and α are used for S and S′, and all atoms in the two layers have the same species. A shift s 7 → s + c simply rotates the entire two-ring environment about the z axis by θc. Reversing the order of the sites around the polygon also has a direct geometric realization: a rotation by π about the horizontal axis whose direction in the xy plane makes an angle ( θc + α)/2 with the x axis. This half-turn exchanges the upper and lower rings while sending each site s to its reflected position c − s. If ¯ ϵ denotes the ring opposite to ϵ, then 
+
+Rϵ(s) 7 −→ R ¯ϵ(c − s). (S12) This construction works for every relative rotation α: changing α only rotates the horizontal axis used for the half-turn. Since the transformation is a proper rotation, a motif and its reflected, layer-exchanged copy represent the same oriented SO (3) card. To enumerate the lifted ν′-deck, select any ν′ distinct atoms from the union of the two rings. For each selected atom, forget its height but retain the polygon site onto which it projects and the sign ϵ ∈ {− , +} of its ring. Choose one selected atom as the reference. If its projected site is g, the remaining projected sites can be written as 
+
+g + s1, . . . , g + sν′−1,
+
+with all indices understood modulo N . The offsets need not be distinct. If two selected atoms are the upper and lower copies of the same polygon site, they have the same projected offset but opposite ring signs. The vector 
+
+ϵ = ( ϵ0, . . . , ϵ ν′−1) therefore retains the information lost by the projection and, together with s = ( s1, . . . , s ν′−1), specifies the lifted selection. Because the same values of R, h, and α are used for S and S′, the data ( s, ϵ) specify the same three-dimensional card geometry in both lifted environments. Only the number of times that card occurs depends on the occupied pattern. For fixed admissible data ( s, ϵ), each reference site g for which g, g + s1, . . . , g + sν′−1 are occupied in S gives exactly one lifted selection. Equation (S2) counts these reference sites, so their number is dSν′ (s). Repeated projected sites require no separate treatment: they only repeat a binary occupancy factor, and a2 
+
+> t
+
+= at reduces the count automatically to the corresponding lower-order one. The half-turn in Eq. (S12) gives a second realization of the same SO (3) card. It reflects the planar offsets, s 7 → − s,and moves every selected atom to the opposite ring, ϵ 7 → ¯ϵ. This reflected realization appears dSν′ (−s) times. Since the two realizations are related by a proper rotation, the deck counts them together, giving 
+
+dSν′ (s) + dSν′ (−s) = DSν′ (s). (S13) 7This is exactly the reflection-symmetrized planar count, which is the same for S and S′ by hypothesis. Different labels ( s, ϵ) may sometimes describe the same three-dimensional card. The deck then adds their multiplicities, which preserves equality because each contribution already matches between S and S′. We therefore obtain 
+
+DSO (3)  
+
+> ν′
+
+(XS (α, h )) = DSO (3)  
+
+> ν′
+
+(XS′ (α, h )) for every ν′ ≤ ν and every α. (S14) The equality is for the full oriented deck: it includes cards distinguished by handedness and, equivalently, all parity-odd correlation channels. The O(3)-invariant correlations form a subset and are therefore equal as well. Because α
+
+was chosen arbitrarily, the equality holds for every angle applied equally to the upper layer of both structures. 
+
+Cylindrical stacks of mirror-paired rings. The two-ring lift extends to an arbitrary finite collection of ring pairs centered on the same atom. Let I = {1, . . . , P } label the pairs. For each p ∈ I , choose a radius Rp > 0, a height 
+
+hp > 0, and an angle αp. Place the two copies of the cyclic pattern at heights −hp and + hp, with opposite angular offsets −αp and + αp:
+
+Rp,ϵ (s) = ( Rp cos( θs + ϵα p), R p sin( θs + ϵα p), ϵh p) , ϵ ∈ {− 1, +1 },CS (P) = {R p,ϵ (s) : s ∈ S, p ∈ I , ϵ ∈ {− 1, +1 }} , P = {(Rp, h p, α p)}p∈I . (S15) In practice CS (P) denotes the full neighbor list of the central atom. Every pair may have its own radius, height, and twist, and different pairs may also carry different atomic species, provided that the two rings within a pair have the same species and the corresponding pair has the same species in CS and CS′ . All rings of CS carry the cyclic pattern 
+
+S, while the corresponding rings of CS′ carry S′. The two-ring environment in Eq. (S11) is the special case I = {1}
+
+and α1 = α/ 2: a global rotation by −α/ 2 changes its angular offsets from (0 , α ) to ( −α/ 2, +α/ 2). The symmetric placement makes the same half-turn work for every pair. Let Hc be the rotation by π about the horizontal axis with azimuth θc/2. In cylindrical coordinates it sends ( R, ϕ, z ) to ( R, θ c − ϕ, −z), and therefore 
+
+Hc Rp,ϵ (s) = Rp, −ϵ(c − s) for every p, ϵ, s. (S16) This identity is independent of Rp, hp, and αp: the half-turn exchanges the two rings of every pair, reverses the cyclic ordering, and leaves the central atom fixed. Now select any ν′ neighbors from the stack. Retain the pair and ring labels ( pj , ϵ j ) of each selected atom, and project the atoms onto the original polygon. For fixed labels and projected offsets s, the number of placements is 
+
+dSν′ (s), exactly as in the two-ring proof, because every ring carries the same occupied pattern S. Equation (S16) maps this selection to the same SO (3) card with offsets −s and labels ( pj , −ϵj ); the reflected placements occur dSν′ (−s)times. The combined multiplicity is therefore DSν′ (s). This argument already includes cards whose atoms come from several different pairs. Since the reflection-symmetrized planar counts agree for S and S′, we obtain 
+
+DSO (3)  
+
+> ν′
+
+(CS (P)) = DSO (3)  
+
+> ν′
+
+(CS′ (P)) for every ν′ ≤ ν. (S17) Thus any finite number of mirror-paired rings may be added without lifting the degeneracy. 8Cylindrical stacks of mirror-paired rings 
+
+π
+
+pattern S 
+
+π
+
+pattern S′ 
+
+> same deck through order 4
+
+FIG. S2. Finite example of the general cylindrical stack. The index p identifies a pair of rings with its own radius Rp, heights 
+
+±hp, and opposite angular offsets ±αp. Every ring carries S in the left environment and S′ in the right one. The central atom is shown once at the common origin. A single rotation by π about a horizontal axis exchanges the two rings in every pair and reverses their cyclic ordering, so the two stacks have identical decks through the same order as the original cyclic pair. The construction extends to any finite number of pairs. 
+
+9S3. COUNTEREXAMPLES FOR EVERY FINITE SPECTRAL REPRESENTATION 
+
+We prove the claim illustrated in Fig. 2c of the main text. Consider a descriptor that retains spherical-harmonic coefficients with l ≤ lmax and scalar correlations containing at most νmax coefficients. For every finite pair ( νmax , l max ), there is a continuous family of noncongruent environments with identical descriptors throughout this finite represen-tation. 
+
+Two-ring construction. Take two regular rings about the z axis, containing q1 and q2 points, respectively. A q-fold ring consists of q equally spaced points and is invariant under a rotation by 2 π/q . The two rings have coordinates 
+
+r1a =
+
+(
+
+R1 cos 2πa q1
+
+, R 1 sin 2πa q1
+
+, z 1
+
+)
+
+, a = 0 , . . . , q 1 − 1, (S18) 
+
+r2b(α) = 
+
+(
+
+R2 cos 
+
+(
+
+α + 2πb q2
+
+)
+
+, R 2 sin 
+
+(
+
+α + 2πb q2
+
+)
+
+, z 2
+
+)
+
+, b = 0 , . . . , q 2 − 1. (S19) Here R1, R 2 > 0, and α is the relative azimuthal orientation. The radii and heights are arbitrary; placing the rings at different distances from the central atom prevents them from being interchanged. For an arbitrary radial basis, the spherical expansion coefficients of this environment can be written as 
+
+cnlm (α) = 
+
+> q1−1
+
+∑
+
+> a=0
+
+Rn(r1)Y ∗
+
+> lm
+
+(θ1, 2πa/q 1) + 
+
+> q2−1
+
+∑
+
+> b=0
+
+Rn(r2)Y ∗
+
+> lm
+
+(θ2, α + 2 πb/q 2), (S20) where ( rs, θ s) specify the radius and polar angle of ring s. Weights and cutoff factors can be absorbed into the radial amplitudes. The effect of the ring symmetry is easiest to see through the azimuthal phase of a spherical harmonic. A rotation about the z axis changes Y ∗ 
+
+> lm
+
+only by a phase, 
+
+Y ∗
+
+> lm
+
+(θ, ϕ ) = Y ∗
+
+> lm
+
+(θ, 0) e−imϕ . (S21) For point b on the second ring, this phase is e−imα e−2πimb/q 2 . The first factor records the orientation of the ring and is common to all its points; the second samples q2 equally spaced phases. More generally, summing these phases over a q-fold ring gives 
+
+> q−1
+
+∑
+
+> a=0
+
+exp 
+
+(
+
+− 2πima q
+
+)
+
+=
+
+{
+
+q, q | m, 
+
+0, q ∤ m. (S22) The equally spaced phases cancel unless m is a multiple of q. We write q | m when m = kq for some integer k, and 
+
+q ∤ m otherwise. A q-fold ring therefore acts as an angular-frequency filter, retaining only m = 0 , ±q, ±2q, . . . . With 
+
+1q|m denoting one when q | m and zero otherwise, Eq. (S20) becomes 
+
+cnlm (α) = A(1)  
+
+> nlm
+
+1q1|m + A(2)  
+
+> nlm
+
+1q2|m e−imα , (S23) The amplitudes A(s) 
+
+> nlm
+
+contain the radial and polar dependence; the explicit phase e−imα is the only dependence on the relative ring orientation. Points on the common axis contribute only to m = 0 and do not alter this conclusion. 
+
+Invisibility of the relative rotation. Consider an arbitrary scalar correlation of order ν ≤ νmax ,
+
+Bν (α) = ∑
+
+> m1...m ν
+
+C0 
+
+> l1m1...l νmν
+> ν
+
+∏
+
+> a=1
+
+cnalama (α), la ≤ lmax . (S24) The coupling coefficient can be nonzero only when magnetic angular momentum is conserved, 
+
+> ν
+
+∑
+
+> a=1
+
+ma = 0 . (S25) Expanding the product in Eq. (S24) assigns each factor to either ring. For one such term, let 
+
+M2 = ∑
+
+> a∈I2
+
+ma (S26) 10 be the total magnetic index carried by factors from the second ring. Its entire dependence on the relative rotation is exp( −iαM 2). The possible values of M2 have a simple Fourier interpretation. Multiplying harmonic coefficients adds their magnetic indices, just as multiplying Fourier modes adds their frequencies. Since every index supplied by the second ring is a multiple of q2, their sum M2 is also a multiple of q2. A scalar feature must have zero total frequency, so the first ring must supply M1 = −M2. But this sum M1 contains only multiples of q1; consequently, the same nonzero value |M2| must be divisible by both q1 and q2. The smallest shared frequency is therefore 
+
+Q = lcm( q1, q 2) = q1q2 (S27) when the ring sizes are coprime. No lower frequency can compare their relative phase. For the example in Fig. 2c, the multiples of 9 and 10 first meet at 90. A finite representation may be unable to construct this shared frequency. Since |ma| ≤ la ≤ lmax ,
+
+|M2| ≤ ∑
+
+> a∈I2
+
+|ma| ≤ νl max ≤ νmax lmax . (S28) It follows that the sufficient condition 
+
+q1q2 > ν max lmax (S29) excludes every nonzero value of M2: a multiple of q1q2 cannot lie strictly between −q1q2 and q1q2. Every surviving term therefore has M2 = 0, its phase factor equals one, and 
+
+Bν (α) = Bν (0) for all ν ≤ νmax and la ≤ lmax . (S30) The argument applies independently to every radial channel and every angular momentum coupling path. It proves equality of all SO (3) scalar correlations in the finite box, and therefore also of the inversion-even O(3) subset. 
+
+Non-congruence and existence at every finite cutoff. The exact geometry does retain the relative phase. In particular, a distance between points on different rings satisfies 
+
+d2
+
+> ab
+
+(α) = R21 + R22 + ( z1 − z2)2 − 2R1R2 cos 
+
+(
+
+α + 2πb q2
+
+− 2πa q1
+
+)
+
+. (S31) For generic ring geometries, the configurations at α = 0 and α = ∆ α are congruent only at the discrete rotations and reflections generated by their common dihedral symmetry. Choosing ∆α / ∈ 2πq1q2
+
+Z (S32) therefore gives geometrically distinct environments. All other relative angles, modulo this finite set of identifications and its reflected copies, form a continuous family of noncongruent environments with the same finite descriptor. For any fixed finite cutoffs, choose N ≥ 3 with N (N + 1) > ν max lmax and set ( q1, q 2) = ( N, N + 1). Consecutive integers are coprime, so Eq. (S29) holds. This produces a counterexample for every finite descriptor truncation, but not a single counterexample for all truncations simultaneously: if νmax or lmax is increased, the same pair may eventually be distinguished and the construction must be repeated with larger rings. The result therefore establishes incompleteness at every finite truncation; it does not claim that a fixed environment remains indistinguishable in the limit νmax , l max → ∞ .For Fig. 2c in the main text, we used q1 = 9, q2 = 10, lmax = 10, and νmax = 8. The nine-point ring can contribute only m = 0 , ±9, while the ten-point ring can contribute only m = 0 , ±10. For a scalar feature to detect the relative angle, both rings must contribute a nonzero total angular index. These two totals must sum to zero, because rotating both rings together cannot change a scalar feature. They must therefore be equal and opposite. The smallest possibility is ( M1, M 2) = (90 , −90): reaching M1 = 90 requires ten factors with m = 9, and reaching 
+
+M2 = −90 requires nine factors with m = −10. This transfer is realized by taking ten l = m = 9 factors from the nine-point ring and nine l = 10 , m = −10 factors from the ten-point ring. The first group couples to ( L, M ) = (90 , 90), while the second couples to (90 , −90); these two rank-90 tensors have a nonzero scalar coupling. Thus, for generic ring amplitudes, an order-19 invariant proportional to cos(90 α) exists, and order 19 is the first distinguishing order. In particular, every feature retained in Fig. 2c, for which ν ≤ 8, is independent of the relative ring angle. Our finite-representation validation script [2] verifies the transfer count by exact enumeration. It also checks that the two environments shown are geometrically distinct: the relative orientations equivalent to α = 0 occur at multiples of 360 ◦/ lcm(9 , 10) = 4 ◦, whereas the second environment is obtained by rotating the ten-point ring by 2 ◦.11 S4. INTRINSIC RANK-THREE CONSTRUCTIONS OF FIG. 2D 
+
+The four pairs in Fig. 2d are genuinely three-dimensional: their neighbor vectors span R3, rather than being obtained by lifting a planar pattern. This is what we mean by “rank three.” For each pair, two claims must be established. First, every card through the stated order must occur with the same multiplicity in the two environments. Second, the complete environments must not be related by an orthogonal transformation. We keep the construction and verification of these claims separate. We first describe how symmetry was used to design the pairs and then give an independent exact check of the displayed representatives. 
+
+What is counted. To compare the decks of X and X′, we need an exact label for each ν′-neighbor geometry. For selected neighbor vectors r1, . . . , rν′ , we use the Gram matrix Gab = ra · rb. Its diagonal entries give the squared distances from the central atom, while its off-diagonal entries encode the mutual angles. It therefore determines the card up to an orthogonal transformation, as discussed in Sec. S1, and hence captures the reflection-even correlations considered here. An oriented SO (3) card would additionally retain the handedness encoded by scalar triple products. Because the selected neighbors are unlabeled, changing their order only permutes the rows and columns of G. We denote the resulting permutation-equivalence class by γ and write Dν′,γ (X) for its multiplicity in the complete deck 
+
+Dν′ (X). The label γ plays the same role here as the offset vector s in the cyclic construction: both identify a motif whose multiplicity is stored as one entry of the deck. In other words, the complete deck is the multiset containing 
+
+Dν′,γ (X) copies of every card class γ. Thus Dν′ (X) = Dν′ (X′) exactly when they contain the same card classes and 
+
+Dν′,γ (X) = Dν′,γ (X′) for every γ.
+
+Using symmetry to construct equal decks. Each pair below contains a fixed set of points, which we call the 
+
+core . The remaining points are selected from prescribed symmetry-related sites and form the decoration . Two choices of decoration, added to the same core, give the candidate environments X and X′.Directly pairing every occurrence of every card between X and X′ can be cumbersome. Instead, let a finite group 
+
+G ⊂ O(3) generate the two orbits 
+
+T + = {gX : g ∈ G}, T − = {gX ′ : g ∈ G}.
+
+We call T + and T − the two legs of the construction. In the constructions below, both legs contain the same number 
+
+r of distinct environments. Each member gX is a complete alternative environment congruent to X, and similarly for gX ′. Points belonging to different members of a leg are never combined into a larger point cloud. Every environment within one leg has the same deck because its members are related by elements of the symmetry group G ⊂ O(3). The purpose of introducing the legs is therefore not to change the deck, but to provide symmetry-related alternatives over which the card counts can be compared. For each card class γ, we count its occurrences separately in every environment of T + and add these multiplicities; we then do the same for T −. We say that the two legs balance through order ν when these accumulated counts agree for every card class and every order up to ν:
+
+∑  
+
+> Y∈T +
+
+Dν′,γ (Y ) = ∑  
+
+> Y∈T −
+
+Dν′,γ (Y ) for every ν′ ≤ ν and every γ. (S33) These are bookkeeping sums of card multiplicities over alternative environments, not card counts in a union of their points. Because every member of T + is congruent to X, and every member of T − is congruent to X′, Eq. (S33) reduces to 
+
+r D ν′,γ (X) = r D ν′,γ (X′),
+
+and cancelling r proves that the representatives have equal decks through order ν.This also clarifies the limitation of the orbit construction. If Eq. (S33) were checked by exhaustive enumeration, it would be no simpler than comparing X and X′ directly: the two sides are just r copies of the multiplicities that we want to compare. The orbit becomes useful only when symmetry gives a simpler way to establish the accumulated equality, for example by pairing whole families of card occurrences between the two orbits. It can then expose the mechanism behind the equality and guide the search for suitable decorations. The first example below provides such a pairing. For every example, our rank-three validation script [2] gives a separate certificate: it selects the cards directly from the two displayed environments, assigns each card its canonical Gram-matrix class, and compares the resulting multiplicities. This calculation uses neither the additional orbit members nor the pairing argument. 12 Rank-three constructions    
+
+> common core shared decoration only in X only in X'
+
+a 13 points: single-point reflection equal through D4; first split at D5 
+
+common core X X'   
+
+> x
+> y
+> z
+> x
+> y
+> z
+> x
+> y
+> z
+> add decoration change choice 1
+> view along x shared choices 2-4, along x
+> choice 1, along z
+
+b 16 points: partial pole reflection equal through D4; first split at D5 
+
+common core X X'   
+
+> x
+> y
+> z
+> x
+> y
+> z
+> x
+> y
+> z
+> add decoration replace two points
+> view along z shared points: view along z
+> view along y
+
+c 23 points: five-shell rearrangement equal through D4; first split at D5 
+
+common core X X'   
+
+> x
+> y
+> z
+> x
+> y
+> z
+> x
+> y
+> z
+> add decoration rearrange six points
+> view along (1,1,1) shared points: view along (1,1,1)
+> view along (1,1,1)
+
+d 26 points: higher-order shell rearrangement equal through D5; first split at D6 
+
+common core X X'   
+
+> x
+> y
+> z
+> x
+> y
+> z
+> x
+> y
+> z
+> add decoration rearrange eight points
+> view along (1,1,1) shared points: view along (1,1,1)
+> view along (1,1,1)
+
+FIG. S3. Construction of the four intrinsic rank-three pairs in Fig. 2d. Panel a: the 13-point single-point reflection. The black points are the shared choices U +2 , U +3 , and U +4 ; in particular, U +4 is the opposite pair. The blue and orange singletons are 
+
+U +1 and U −
+
+1 . Panel b: the 16-point partial pole reflection, in which two decoration points are replaced. Panel c: the 23-point five-shell rearrangement, in which six points change. Panel d: the 26-point higher-order shell rearrangement, in which eight points change. Each panel shows the common core, one representative X, and its partner X′. Gray points belong to the core, black points are shared decorations, and blue and orange points occur only in X and X′, respectively. The upper insets expose the core and shared decoration from the indicated direction, while the lower inset overlays the points that differ. Radial shell separations are compressed for visibility. Panels a–c have equal decks through D4 and differ at D5; panel d has equal decks through D5 and differs at D6.
+
+13 The 13-point pair is the simplest example, so we present it in detail to make the group-orbit mechanism explicit and show how card occurrences balance between its two legs. The later examples follow the same general construction, combining a symmetry-invariant core with alternative decorations, but use different symmetry groups and decoration pairings. We therefore describe their specific geometry more compactly rather than repeating the full argument. 
+
+Single-point reflection: 13 points. The two environments are built in two stages. First, both contain the same eight-point core, shown in gray in the first row of Fig. S3. Four of its points form a square in the plane x = +7, and the other four form a congruent square in the plane x = −7. The two squares are rotated relative to one another about the x axis, producing a twisted square prism. We denote this common core by K8.The rotations in Gax are most easily described through their action on the coordinate directions. Choose any subset of x, y, and z and reverse the signs of those directions. If the number of reversals is odd, also exchange the two transverse directions y and z to restore the handedness of the frame and make the transformation a proper rotation. The 2 3 = 8 possible choices of signs give the eight elements of Gax . We take the point with Cartesian coordinates (x, y, z ) = (7 , 11 , 13) as a seed and apply all eight rotations to it: 
+
+K8 = Gax (7 , 11 , 13) . (S34) Thus, (7 , 11 , 13) is one vertex of the core, and the notation on the right denotes its complete orbit under Gax . Applying any further rotation g ∈ Gax only permutes these eight vertices, so 
+
+gK 8 = K8.
+
+Second, we add a five-point decoration, specified by four binary choices. The first three choices contribute one point each: the point lies at one of the two ends of the x, y, or z axis. The fourth choice contributes two points: an opposite pair on either the y axis or the z axis. Denoting the two alternatives for choice j by U + 
+
+> j
+
+and U − 
+
+> j
+
+gives 
+
+U ± 
+
+> 1
+
+= {(±2, 0, 0) }, U ± 
+
+> 2
+
+= {(0 , ±3, 0) }, U ± 
+
+> 3
+
+= {(0 , 0, ±3) },U +4 = {(0 , 5, 0) , (0 , −5, 0) }, U − 
+
+> 4
+
+= {(0 , 0, 5) , (0 , 0, −5) }. (S35) There are 2 4 = 16 possible decorations. To label them, choose one symbol sj ∈ { +, −} for each binary choice j.We call the resulting four-symbol label s = ( s1, s 2, s 3, s 4) a sign word. Its jth symbol selects the corresponding set 
+
+U sj 
+
+> j
+
+, so 
+
+Xs = K8 ∪ U s1 
+
+> 1
+
+∪ U s2 
+
+> 2
+
+∪ U s3 
+
+> 3
+
+∪ U s4 
+
+> 4
+
+.
+
+Every Xs contains the eight core points, three selected singletons, and one selected opposite pair, for 13 points in total. When products of the signs are used below, the symbols + and − are identified with the numbers +1 and −1. The rotations in Gax act on the decoration in exactly the same way as they act on the coordinate axes: they may reverse the selected endpoints, exchange the roles of the y and z choices, and interchange U +4 with U − 
+
+> 4
+
+. Let gs denote the sign word obtained by applying g to the decoration selected by s. Since the same rotation leaves the core invariant as a set, 
+
+gX s = Xgs.
+
+The transformations between sign words within a symmetry orbit are therefore actual rotations of the complete environment, while the common core remains unchanged. The pair displayed in Fig. S3 (panel a) is obtained by changing only the first choice: 
+
+X = X(+ ,+,+,+) , X′ = X(−,+,+,+) .
+
+The choices U +2 , U +3 , and U +4 are common to both environments and are shown in black. The two environments therefore share twelve points and differ by the reflection of this single point through the origin. The other 14 sign choices are introduced only to explain why the D4 decks of X and X′ agree. The action of Gax 
+
+described above changes an even number of signs, after accounting for any exchange of the y and z choices. It therefore preserves the product s1s2s3s4. The eight rotations connect all eight sign words with product +1 to one another, and separately connect all eight words with product −1. These are the two symmetry orbits. All environments in a given orbit are congruent and therefore have the same deck. Here X and X′ are representatives of the two different orbits. Now select at most four atoms to form a card in some Xs. Suppose, for example, that the selected atoms come from the core and from U1, U2, and U3, but not from U4. Replacing U +4 by U − 
+
+> 4
+
+, or vice versa, changes the parity of the sign word and moves the environment to the other orbit. This single sign change is a pairing between the two orbits, not a rotation in Gax . Nevertheless, it does not move any atom belonging to the selected card, because that 14 card contains no atom from U4. These selections therefore consist of exactly the same points. The same argument applies whenever any block Uj is absent from the card. Every four-card that contains a core point necessarily omits at least one of the four decoration blocks and is covered by this pairing. The only remaining possibility is a four-card containing one atom from each of U1, U 2, U 3, U 4 and no core point. The selected atom from U4 is collinear with either the U2 or the U3 atom, and these two cases are related by a quarter turn about the x axis. The two endpoints in 
+
+U4 produce the parallel and antiparallel geometries once each, while the U1 atom is orthogonal to both. Thus every sign word gives the same two card classes with the same multiplicities. Together, the two pairings establish equality through D4 without listing all (13 4
+
+) = 715 selections. At order five, the situation changes. A card can contain one core point together with one atom from each of the four decoration blocks. No block is then unused: changing any sign changes a point that belongs to the card and the pairing argument stops holding at this order. 
+
+Partial pole reflection: 16 points. The second example uses the proper rotational symmetries of a hexagonal bipyramid. Let 
+
+H = ⟨Rz (π/ 3) , R x(π)⟩
+
+be this order-12 group. Applying its rotations to (2 /3, 1/3, 2/3) produces the common 12-point core 
+
+K12 = H(2 /3, 1/3, 2/3) . (S36) Geometrically, K12 consists of two oppositely twisted hexagons. The possible decoration sites are the six equatorial points ej = (cos( jπ/ 3) , sin( jπ/ 3) , 0), with j = 0 , . . . , 5, and the north and south poles n = (0 , 0, 1) and s = (0 , 0, −1). The two displayed environments add four of these sites: 
+
+X = K12 ∪ { e0, e 3, s, e 5}, X′ = K12 ∪ { n, e 0, e 3, e 2}. (S37) Applying all twelve rotations in H to X gives one leg, and doing the same to X′ gives the other. Their summed card counts agree through D4. The undecorated hexagonal bipyramid has a reflection that exchanges the two decorations, but that reflection also reverses the handedness of the common core. It therefore does not map the complete environ-ment X to X′. Five-card geometries are the first to detect the different orientation of the decoration relative to the core. 
+
+Common octahedral frame. The 23- and 26-point pairs use the full order-48 group Goct of signed coordinate permutations. Both environments contain the unit octahedron 
+
+K6 = {± ex, ±ey , ±ez }. (S38) These are the only points at unit distance from the central atom. Any congruence between the complete environments must therefore map this octahedron to itself and must belong to Goct . The core consequently fixes the coordinate frame, while the remaining allowed sites are organized into octahedral orbits. For example, Goct (0 , 2, 2) consists of the 12 distinct signed permutations of (0 , 2, 2): there are three possible positions for the zero coordinate and four sign choices for the two nonzero coordinates. Every point in this orbit lies on the shell r2 = 8. The group-orbit search selects subsets of this and other allowed orbits so that the card counts balance between the two legs. 
+
+Five-shell rearrangement: 23 points. Besides the unit octahedron, the allowed sites come from the orbits repre-sented by (0 , 2, 2), (5 , 5, 5), (0 , 0, 9), and (0 , 0, 14), so the complete environment occupies five distinct radial shells. A compact but complete specification of X is 
+
+X = K6 ∪ { (−2, 0, ±2) , (−2, 2, 0) , (0 , −2, ±2) , (0 , 2, −2) , (2 , −2, 0) , (2 , 0, 2) , (2 , 2, 0) ,
+
+(−5, −5, 5) , (−5, 5, −5) , (5 , −5, −5) , (5 , 5, 5) , ±9ey , ±14 ex}.
+
+Each occurrence of ± includes both sign choices; for example, ( −2, 0, ±2) denotes ( −2, 0, −2) and ( −2, 0, 2). The display contains 17 noncore points, which together with the six points in K6 give all 23 points of X. To obtain X′,we leave the six core points and eleven of the noncore points unchanged, and make three replacements: 
+
+{± 14 ex} −→ {± 14 ez },
+
+{± 9ey } −→ {± 9ex},
+
+{(0 , 2, −2) , (2 , 0, 2) } −→ { (0 , 2, 2) , (2 , 0, −2) }.
+
+The first two lines move opposite pairs of points to different coordinate axes, while the third changes the orientation of two points on the r2 = 8 shell. In total, six points are removed and six are inserted, so both environments contain 15 23 points. These changes must occur together: considered jointly, their contributions cancel in every card through 
+
+D4. Applying Goct produces two 48-environment legs satisfying Eq. (S33). The cancellation fails at D5.
+
+Higher-order shell rearrangement: 26 points. The final pair uses the same unit, body-diagonal, and axial shells, but replaces the orbit generated by (0 , 2, 2) by the orbit of (0 , 2, 3). Here 
+
+X = K6 ∪ { (−3, 0, 2) , (−3, 2, 0) , (−2, 0, ±3) , (0 , −3, −2) , (0 , −2, ±3) , (0 , 3, −2) ,
+
+(2 , ±3, 0) , (3 , 0, 2) , (3 , 2, 0) , (−5, −5, −5) , (−5, 5, 5) , (5 , −5, 5) , (5 , 5, −5) , ±9ey , ±14 ex}.
+
+The display contains 20 noncore points, which together with K6 give all 26 points of X. To obtain X′, we leave the six core points and twelve of the noncore points unchanged, and make the replacements 
+
+{± 14 ex} −→ {± 14 ez },
+
+{± 9ey } −→ {± 9ex},
+
+{(−3, 0, 2) , (0 , −3, −2) , (0 , 3, −2) , (3 , 0, 2) } −→ { (−3, 0, −2) , (0 , −3, 2) , (0 , 3, 2) , (3 , 0, −2) }.
+
+The axial rearrangement is the same as in the 23-point pair, while four points on the r2 = 13 shell reverse their orientation relative to the octahedral frame. Here the orbit search balances every card through D5, again using two legs of 48 environments. The first difference occurs at D6.
+
+Direct exact verification. Our rank-three validation script [2] compares the four displayed pairs directly, without constructing T ± or using Eq. (S33). For every selected set of ν′ neighbors, the script constructs its Gram matrix. Any equivalence between two such matrices must match equal diagonal entries, which are the squared neighbor radii. The script therefore fixes a deterministic order of the exact radial-shell labels, considers all simultaneous row and column permutations within each shell, and retains the lexicographically smallest upper triangle. Counting the resulting canonical matrices gives the complete unlabeled deck, including every multiplicity. For the 16-point pair, all coordinates are multiplied by six to clear denominators; this common rescaling does not affect rank, congruence, deck equality, or the order of the first difference. It also constructs the complete D5 decks of the 13-, 16-, and 23-point pairs and verifies that they differ. For the 26-point pair, equality through D5 is again checked by exhaustive deck enumeration. To establish the first difference at D6, it is enough to exhibit one six-card whose multiplicity changes. The script uses the card 
+
+W = {(−5, −5, 5) , (−3, −2, 0) , (0 , −9, 0) , (0 , 0, −14) , (−2, −3, 0) , (−3, 0, 2) }. (S39) It counts every six-card with the same radial-shell composition as W and compares the full canonical Gram matrix. Exactly one copy occurs in X and none in X′. The D6 decks are therefore different, and equality through D5 shows that order six is the first split.  
+
+> S5. MUSICAL INTERPRETATION OF CYCLIC DECKS
+
+Consider the familiar 12-tone equal-tempered pitch-class system. Notes separated by complete octaves are identified, so, for example, every C receives the same label 0. The twelve pitch classes can be labelled explicitly as follows; the sharp and flat names in the same entry are equivalent in this representation. residue pitch class residue pitch class 0 C 6 F♯/G♭
+
+1 C♯/D♭ 7 G2 D 8 G♯/A♭
+
+3 D♯/E♭ 9 A4 E 10 A♯/B♭
+
+5 F 11 BThe C-major chord consists of C, E, and G and is therefore represented by the subset 
+
+S = {0, 4, 7} ⊂ Z12 .
+
+Placing the twelve labels around a circle and marking the sites 0, 4, and 7 gives exactly the occupied-polygon representation used in Sec. S1. At this level, a pitch-class set records only whether each class is present; it discards 16 register, multiplicity, voicing, temporal order, duration, and dynamics. Nothing in the construction depends on having twelve pitch classes. Dividing the octave into N equal classes instead gives the cyclic group ZN , and any such pitch-class set is represented by an occupied subset S ⊂ ZN . The larger values of N in our examples can therefore be read as generalized pitch-class spaces rather than as conventional twelve-tone chords. The relevance of rotations and reflections is not merely geometric: these are standard equivalences in musical set theory. Rotating the C-major pattern by two sites gives 
+
+T2{0, 4, 7} = {2, 6, 9},
+
+which the table identifies as D, F ♯, and A: the D-major chord. The absolute notes and the key have changed, but every interval within the chord is unchanged. Transposition therefore allows music theory to recognize the same chord or scale type independently of the key in which it appears. Reflection captures a different but equally useful relation. All pitch-class labels are understood modulo 12, so choosing the reflection s 7 → 7 − s (mod 12) gives 
+
+I7({0, 4, 7}) = {0, 3, 7},
+
+which maps C major to C minor. This operation, called pitch-class inversion , reverses the direction of every interval while preserving its undirected size. Major and minor triads are therefore distinct chords but have the same interval classes, 3, 4, and 5. Here direction is ignored, so the seven-semitone perfect fifth belongs to interval class 5, its shorter complement around the twelve-tone circle. Treating the triads as members of one set class is useful when the object of the analysis is this intervallic structure rather than key, tonal function, or the ordering of the notes. Pitch-class inversion should not be confused with a chord inversion, which only changes which note is placed in the bass. More generally, on an N -class pitch circle, transposition by t and pitch-class inversion about the axis specified by 
+
+c act as 
+
+Tt(S) = {s + t (mod N ) : s ∈ S}, Ic(S) = {c − s (mod N ) : s ∈ S}.
+
+These are precisely a rotation and a reflection of the occupied polygon. Quotienting the cyclic cards by the same two operations therefore has a direct musical meaning: a card records a pattern of notes independently of its absolute transposition and of whether its interval pattern is read in its original or mirrored orientation. Selecting every group of ν notes from S and sorting these groups by their set class produces a list of how many times each ν-note pattern occurs in S. For ν = 2, it records how often each undirected interval class occurs; music theory calls this the interval-class vector, often shortened to interval vector. For ν = 3 it counts three-note patterns, and increasing ν considers progressively larger groups of notes. The complete list is called the ν-vector in the musical literature [9]. For binary pitch-class sets, it contains the same information as the canonical ν-deck up to reflection; the raw reflected correlation array DSν (s) above is a redundant encoding and can count reflection-symmetric motif classes twice. We write two collections as Z(ν)-related when all of these counts agree, and call the relation nontrivial when one complete collection cannot be obtained from the other by transposition or inversion. The parenthesized superscript distinguishes the order of the relation from the cyclic group ZN . In musical set theory, inequivalent sets with the same interval-class vector are conventionally called Z-related [10], corresponding here to the special case Z(2) .For two sets that each contain at least ν notes, equality of their ν-vectors also implies equality of every lower-order vector [9]. Every pair considered here satisfies this condition. This is exactly the nesting property of the cyclic decks. The 18-of-36 pair used in the main text is not related by transposition or inversion, yet each interval class, three-note pattern, and four-note pattern occurs equally often in both [9]. Its difference lies only in how these common pieces are assembled into the complete collection, and cannot be recovered by examining at most four notes at a time. In the notation of Ref. [9], this particular pair also satisfies B = I35 (Z36 \ A): the second set is an inversion of the complement of the first. This does not make the relation trivial here, because the set classes used above identify only transposition and inversion, not complementation. Previous work established nontrivial Z(3) -related sets in Z18 and the first Z(4) -related pair in Z36 [9, 11]. The larger cyclic pairs constructed here extend this sequence to Z(5) , Z(6) , and Z(7) relations. In musical terms, for every pitch-class set type of cardinality at most seven, the two members of the largest pair have the same multiplicity, while the complete collections are not related by transposition or inversion. Their difference first appears in the eight-note content. This correspondence is useful in both directions. In computer-assisted composition, such pairs could in principle provide a combinatorial device for changing the overall collection of pitches while preserving every smaller note pattern up to a chosen size. In atomistic machine learning, they expose the precise information lost by a descriptor that counts motifs only up to a fixed size: even exact counts of every small motif need not determine the structure that contains them. Musical set theory and atom-centered representations are consequently not just analogous applications: on a cyclic domain, they are two interpretations of the same reconstruction problem. 17 S6. EQUIVALENCE CLASSES IN THE REPEATED ISOLATED SEARCHES 
+
+The repeated isolated searches returned many pairs that look unrelated in their original coordinates. We classify these results by the family of equal pairs to which they belong, while keeping the Codex and Claude provenances separate. The provenance count records each distinct pair returned within a run. Rediscoveries in separate runs are retained once per run, whereas duplicate outputs of the same pair within one run count only once. Three relations must be distinguished. Two reports describe the same representative if their coordinates agree up to point permutations, exchange of the two partners, a common scale, and independent orthogonal transformations of the partners. Two different representatives belong to the same equal-pair component if they can be connected by a path 
+
+t 7 −→ (X(t), Y (t)), Dν
+
+(X(t)) = Dν
+
+(Y (t)), (S40) along which the points remain distinct and the two environments remain noncongruent. The common deck is allowed to change with t. This is weaker than a path inside one fixed descriptor fibre, for which Dν (X(t)) itself would be constant. Finally, constructions may share a counting mechanism without lying in the same continuous configuration space. This last relation is the appropriate one for cyclic pairs with different ring sizes or different numbers of neighbors. For an environment with N neighbors, the configuration space modulo rotations has dimension 
+
+D = 3 N − 3. (S41) If an equal-pair family has dimension d after quotienting independent rotations of its two members, we define its codimension as c = D − d. We determine d in two complementary ways. First, an explicit parametrization supplies 
+
+d independent shape parameters for which the two decks remain exactly equal. This proves that the family has dimension at least d.To show that no additional shape parameters have been missed, we use the Gram matrices of the cards. Once the correspondence between cards, and between the points within each card, has been fixed, equality of each matched pair of cards is written as equality of the corresponding Gram-matrix entries. We collect all scalar differences between these matched entries into a vector F (X, Y ), so the deck-equality equations for that correspondence are F (X, Y ) = 0. The Jacobian used below is 
+
+J = ∂F
+
+∂(X, Y ) ,
+
+the derivative of these Gram-entry differences with respect to all 6 N Cartesian coordinates of the two environments. At a generic regular solution, rank r means that the Gram equalities impose r independent local conditions, leaving a solution set of dimension 6 N − r. Three dimensions in each environment correspond only to rigid rotation and do not change its shape. Removing these six directions leaves 6 N − r − 6 independent shape parameters. If this number equals the number supplied by the explicit parametrization, the value of d is exact. At a highly symmetric representative, several Gram equalities may have the same first-order variation and the rank can drop, causing this linear count to overestimate the family dimension. We therefore evaluate the rank at a generic point of the same exact family. Table 1 in the main text and Fig. S4 summarize this classification. The displayed four-neighbor examples can be deformed continuously into one another so that, at every step, the two environments have equal two-decks and remain noncongruent. The six- and seven-neighbor examples instead belong to different families because they contain different numbers of neighbors. The cyclic examples are grouped by a common counting mechanism rather than by a continuous deformation. Among them, only the 9-of-18 ring I was found by both agents.  
+
+> A. Seven-parameter four-neighbor power family
+
+In the complete-basis limit, the power spectrum contains the geometry of every unordered pair of neighbors. For a pair {ri, rj }, this geometry is completely specified up to O(3) by the 2 × 2 Gram matrix 
+
+G(i, j ) = 
+
+(
+
+|ri|2 ri · rj
+
+ri · rj |rj |2
+
+)
+
+.
+
+Consequently, two environments have the same complete power spectrum if they contain the same multiset of these pairwise Gram matrices, including multiplicities. We do not need their single full Gram matrices to agree: that would generally make the entire environments congruent. 18 FOUR-NEIGHBOR POWER 
+
+4-of-8 ring 
+
+> FOUR-NEIGHBOR POWER
+
+4-of-12 ring 
+
+> FOUR-NEIGHBOR POWER
+
+4-of-16 ring 
+
+> FOUR-NEIGHBOR POWER
+
+Planar integer shell 
+
+> FOUR-NEIGHBOR POWER
+
+Cuboctahedral diameter 
+
+exchange 
+
+> FOUR-NEIGHBOR POWER
+
+Icosahedral four-point subset 
+
+> FOUR-NEIGHBOR POWER
+
+Cuboctahedral {110} subset 
+
+> FOUR-NEIGHBOR POWER
+
+Cuboctahedral antipodal flip 
+
+> FOUR-NEIGHBOR POWER
+
+Generic co-spherical pair 
+
+> FOUR-NEIGHBOR POWER
+
+Integer group orbit 
+
+> FOUR-NEIGHBOR POWER
+
+Two-latitude orbit 
+
+> SIX-NEIGHBOR SCALAR
+
+Integer shell at radius √5 
+
+> SEVEN-NEIGHBOR SCALAR
+
+Dodecahedral twist reversal 
+
+> CYCLIC RINGS AND LIFT
+
+9-of-18 ring I 
+
+> CYCLIC RINGS AND LIFT
+
+9-of-18 ring II 
+
+> CYCLIC RINGS AND LIFT
+
+12-of-24 planar ring 
+
+> CYCLIC RINGS AND LIFT
+
+12-of-24 latitude ring 
+
+> CYCLIC RINGS AND LIFT
+
+6-of-12 three-point motif lift FIG. S4. Atlas of the representative classes returned by the repeated isolated searches. Blue and orange show the two environments in each pair; the open marker is the central atom. The family tags identify the four-neighbor power, six-neighbor scalar, seven-neighbor scalar, and cyclic rings and lift classes. Exact definitions are given in Table S2, Eqs. (S48) and (S52), and Table S3. 
+
+19 The parametrization below constructs this matching explicitly. After relabeling three common points and applying an orthogonal change of frame, every four-neighbor representative in Fig. S4 can be written as 
+
+r+ = (0 , a, b ), r− = (0 , −a, b ),
+
+r1 = ( c, 0, d ), r2 = ( e, f, g ), r3 = ( −e, −f, g ),X(p) = {r1, r2, r3, r+}, Y (p) = {r1, r2, r3, r−},
+
+(S42) with p = ( a, b, c, d, e, f, g ). The two environments share r1, r2, and r3, so every pair formed entirely from these three points has exactly the same Gram matrix in X and Y . It remains only to match the three pairs containing r+ in X
+
+with the three pairs containing r− in Y .First, |r+| = |r−| and |r2| = |r3|. The pair containing r1 matches without exchanging any point because 
+
+r1 · r+ = r1 · r− = bd. 
+
+The other two pairs match after exchanging r2 and r3:
+
+r2 · r+ = af + bg = r3 · r−,
+
+r3 · r+ = −af + bg = r2 · r−. (S43) Together with the equal norms, these identities show that the corresponding 2 × 2 Gram matrices are identical. Every pairwise card in X therefore has a partner with the same multiplicity in Y . The complete two-decks, and hence the complete power spectra, are equal for every value of p.Table S2 gives the parameters of the eleven representatives in this common seven-parameter family. For every row, our systematic-classification validation script [2] reconstructs the displayed pair, verifies equality of the two-decks, and confirms that the two environments are not related by an O(3) transformation. Sharing the seven-parameter form in Eq. (S42) does not by itself establish this continuous connection, since a path could pass through an invalid or trivial configuration. We therefore vary the seven parameters linearly from each displayed example to the same reference point. The equal-deck identities above hold throughout, and our validation script uses exact polynomial calculations to check that no neighbor reaches the center or collides with another and that the two environments never become related by a rotation or reflection. For the generic numerical report, the script first aligns a fitted member of the family with the reported coordinates at their printed precision and then connects that fit to the nearby exact rational representative in Table S2. We now apply the general dimension count above. Each four-neighbor environment has six two-neighbor cards. For every card matching established in the preceding equations, equality of the two 2 × 2 Gram matrices gives three scalar equations. If the matched cards are {u, v} ⊂ X and {u′, v′} ⊂ Y , these equations are 
+
+|u|2 = |u′|2, |v|2 = |v′|2, u · v = u′ · v′.
+
+The six card matches therefore produce 18 scalar Gram-entry equalities in the 24 Cartesian coordinates of the two environments. Some of these equations repeat the same norm constraint, so they are not all independent. At generic parameter values their Jacobian has rank 11, and the local solution set consequently has dimension 24 − 11 = 13 before removing rotations. Six of these dimensions are the three rigid rotations of each environment, leaving 
+
+d = 24 − 11 − 6 = 7 ,
+
+in agreement with the seven explicit parameters in Eq. (S42). This agreement shows both that the parametrization generates a seven-dimensional family and that there are no additional local shape parameters at a generic point. At some more symmetric representatives the Jacobian rank is smaller because several Gram-entry equations become indistinguishable to first order. Such a rank drop does not by itself imply an additional finite deformation, so the generic rank is the relevant quantity for the dimension of this family. The codimension is therefore c = 9 − 7 = 2.  
+
+> B. Six-neighbor scalar representative
+
+In the complete-basis limit, the reflection-even scalar bispectrum records the multiset of three-neighbor geometries. Each such geometry is represented by a 3 × 3 Gram matrix, up to a simultaneous permutation of its rows and columns. Although the searches returned three six-neighbor reports, after removing their overall scale and orientation they all describe the same representative pair. This subsection studies that single pair: to determine the dimension of the equal-deck class passing through it, we allow its inner products to vary and show that the example has a four-parameter continuous extension. 20 Codex Claude representative p = ( a, b, c, d, e, f, g ) off on off on 4-of-8 ring (1 , 0, −1, 0, −1/√2, 1/√2, 0) 4 0 6 34-of-12 ring (1 , 0, −1, 0, −1/2, √3/2, 0) 2 0 0 14-of-16 ring (17 /10 , 0, −17 /10 , 0, −17                                                                                                  
+
+> √
+> 2 + √2/20 ,17
+> √
+> 2− √2/20 ,0) 0010Planar integer shell (√5,0,−√5,0,−6/√5,2/√5,0) 1000Cuboctahedral diameter exchange (1 ,1,−1,1,−1,1,0) 1000Icosahedral four-point subset (φ, 1,−1, φ, −φ, 1,0) 0100Cuboctahedral {110 }subset (√2,0,−√2,0,−1/√2,1/√2,1) 0101Cuboctahedral antipodal flip (√2/3,2/√3,−√2,0,−1/√2,√3/2,0) 0100Generic co-spherical pair (30 /29 ,63 /58 ,−189 /130 ,−24 /65 ,−19 /30 ,4/15 ,4/3) 0001Integer group orbit (1 ,2√2,−3/√2,3/√2,−1/√2,2,3/√2) 0010Two-latitude orbit (4 /5,3/5,−4/5,3/5,−2√2/5,2√2/5,−3/5) 0001
+
+TABLE S2. Representatives of the four-neighbor power family, in the gauge of Eq. (S42). The four rightmost columns count distinct pairs returned by the Codex and Claude searches under the offline (off) and online (on) conditions. Repetitions across separate runs are retained, but duplicate outputs within one run are counted once. Here φ = (1 + √5) /2 is the golden ratio. The generic row gives a nearby exact rational representative of the component associated with the numerical Claude-online report through the fit described above: its four points lie on the radius-3 /2 sphere. 
+
+Begin with three vectors u, v, w satisfying 
+
+u · u = h, v · v = w · w = e, 
+
+u · v = a, u · w = b, v · w = 0 , (S44) where h > 0, e > 0, and ∆ = he − a2 − b2 > 0. These conditions make the Gram matrix of u, v, w positive definite, so the three vectors are linearly independent. A vector in their span is therefore uniquely determined by its inner products with u, v, w.Set c = ∆ /e and define s and t by 
+
+u · s = c, v · s = b, w · s = −a, 
+
+u · t = c, v · t = −b, w · t = a. (S45) The particular value of c is chosen so that |s|2 = |t|2 = h. We can therefore form 
+
+X = {u, v, w, s, −s, −u}, Y = {u, v, w, t, −t, −u} (S46) and compare their three-neighbor cards. Every three-neighbor card contains either neither member of the added antipodal pair, exactly one member, or both. The four points u, v, w, −u are common to both environments, so cards of the first type are unchanged. To compare the other two types, all relevant inner products are collected in the following table: 
+
+u v w −us c b −a −c
+
+−s −c −b a c
+
+t c −b a −c
+
+−t −c b −a c
+
+(S47) Together with |u| = |s| = |t| and |v| = |w|, this table pairs every card containing exactly one added point. For example, {v, w, s} in X has exactly the same Gram matrix as {v, w, −t} in Y , while {u, v, s} matches {t, w, u} after the three atoms are relabeled. Cards containing both s and −s match those containing both t and −t, because the antipodal pairs have the same radius and the same two inner products, with opposite signs, with every common point. This covers all three cases. It follows that X and Y have the same multiset of 3 × 3 Gram matrices, including the same multiplicities, for every admissible ( h, e, a, b ). Our systematic-classification validation script [2] verifies this directly by enumerating all (63
+
+) = 20 cards. The integer representative shown in the atlas is obtained from (h, e, a, b ) = (5 , 5, 4, 2) . (S48) 21 At this point c = 1, and one possible realization is 
+
+u = ( −2, −1, 0) , v = ( −2, 0, −1) , w = ( −1, 0, 2) , s = (0 , −1, −2) , t = (0 , −1, 2) .
+
+Varying ( h, e, a, b ) within the inequalities above gives four independent shape parameters. The Jacobian of the equalities that match the 20 three-neighbor Gram matrices has generic rank 26 in the 36 coordinates of the two environments. After removing the three rotational degrees of freedom of each environment, this gives d = 36 −26 −6 = 4, consistently with the explicit construction, and hence codimension c = 15 − 4 = 11. This equality concerns the reflection-even scalar bispectrum. A Gram matrix determines only the magnitude of the scalar triple product, not its sign. The corresponding signed-volume channels distinguish X from Y . 
+
+> C. Seven-neighbor scalar representative
+
+The two retained local dodecahedral reports reduce, after removing their overall scale and orientation, to the same twist-reversal pair. To determine the dimension of the equal-deck class passing through it, we place the example in a six-parameter continuous extension, with one point on an axis and the other six on two equal-radius rings. In a rotation gauge, 
+
+X1 = (0 , 0, L ),X0 = ( r cos ψ, r sin ψ, h ),X2 = ( r cos( ψ + u), r sin( ψ + u), −h),X5 = ( r cos( ψ + v), r sin( ψ + v), −h),X6 = ( r cos( ψ + w), r sin( ψ + w), h ),X4 = ( r cos( ψ + v − w), r sin( ψ + v − w), −h),X3 = ( r cos( ψ + u + w − v), r sin( ψ + u + w − v), h ).
+
+(S49) The angle ψ is a global rotation and the six shape parameters are q = ( L, h, r, u, v, w ). To construct the partner, reverse the axial vector X1, and then apply the same orthogonal transformation 
+
+Q(x, y, z ) = ( z, x, −y) (S50) to all seven points. As an unordered environment, the result is therefore 
+
+Y = Q{X0, −X1, X 2, X 3, X 4, X 5, X 6}. (S51) Since Q preserves inner products, applying Q−1 to Y does not change its Gram deck. We may therefore compare X
+
+directly with Q−1Y = {X0, −X1, X 2, X 3, X 4, X 5, X 6}. These environments differ only in the sign of the axial point 
+
+X1, so every card not containing X1 is unchanged. Consider now a three-card containing X1 and two ring points. If one point lies on each ring, reversing X1 exchanges its two axial inner products, + hL and −hL . The card is therefore preserved by exchanging the labels of the two ring points. It remains to consider two points on the same ring. After removing the common angle ψ, the upper-ring points 
+
+X0, X 6, X 3 have angles 0 , w, u + w − v, respectively, while the lower-ring points X2, X 5, X 4 have angles u, v, v − w.Match the three upper-ring pairs with lower-ring pairs as follows: 
+
+{X0, X 6} ←→ { X4, X 5}, ∆θ = w, 
+
+{X0, X 3} ←→ { X2, X 4}, ∆θ = u + w − v, 
+
+{X6, X 3} ←→ { X2, X 5}, ∆θ = u − v. 
+
+In each row, the two pairs have the same angular difference up to sign and hence the same mutual inner product, 
+
+r2 cos(∆ θ) + h2. Moreover, X1 has inner product + hL with every upper-ring point, while −X1 has the same inner product with every lower-ring point. Thus, every card containing X1 and two upper-ring points matches the card containing −X1 and the corresponding lower-ring pair. For a card containing X1 and two lower-ring points, use the same correspondence in the opposite direction, matching it with the card containing −X1 and the corresponding upper-ring pair. The two axial inner products are then −hL , and the mutual inner product of the ring points is unchanged. These three cases establish equality of the complete scalar three-decks for every q. Varying q gives an exact equal-pair path. The dodecahedral twist-reversal point shown in the atlas is 
+
+q =
+
+(√3, 1
+
+√3 ,
+
+√ 83 , π
+
+3 , − arctan 
+
+√34 + √5 , arctan 
+
+√34 − √5
+
+)
+
+. (S52) 22 At a generic exact point of this family, the matched Jacobian has rank 30 in 42 pair coordinates. After removing six independent rotations, the family dimension is 42 − 30 − 6 = 6 and its codimension is 18 − 6 = 12. The dodecahedral view hides a simpler organization that is already present in Eq. (S49) and is analogous to the one presented in Ref. [12]. Appropriately rotated, the points X0, X 6, X 3 form a triangle in the plane z = h, while 
+
+X2, X 5, X 4 form a second triangle in the parallel plane z = −h. All six lie on rings of radius r about the same axis, and X1 lies on that axis. Figure S5 shows this directly. X
+
+X0 
+
+> unchanged
+> same rotation 2020 axial flip
+
+FIG. S5. Reorienting the dodecahedral pair and comparing it with the 2020 construction. In the first column, the seven selected neighbors are shown on the faint full dodecahedral shell; the green point identifies the neighbor that becomes axial. In the second column, only X′ is rotated so that its ring axis and green point align with those of X. The same additional rotation is then applied to both environments, giving the third column: the green point is at the north pole in both rows, while the two triangles on the parallel rings have opposite relative twists. These transformations are all proper rotations. The final column shows the bispectrum counterexample of Ref. [12], in the same orientation and with the spherical rendering used in Fig. 1b of the main text. Here the two triangles remain fixed and the green axial point moves from the north to the south pole. Filled and open markers distinguish the two ring planes. 
+
+Figure S5 suggests a more transparent description of the same family. Let β = ( β1, β 2, β 3) give the angles of the upper triangle, and let α be the relative rotation of the lower triangle. We denote the two possible twist directions by 
+
+aj = ( R cos βj , R sin βj , h ),
+
+b(±) 
+
+> j
+
+= (R cos( βj ± α), R sin( βj ± α), −h). (S53) We write T± = {a1, a2, a3, b(±)1 , b(±)2 , b(±)3 } for the corresponding six triangle points. This introduces no new con-struction. After removing the global angle ψ, direct comparison with Eq. (S49) gives R = r, β = (0 , w, u + w − v), and α = v − w; the heights h and L are unchanged. Substituting Eq. (S52) therefore gives exactly the dodecahedral pair shown in Fig. S5. Because the scalar three-deck equality holds for every q, this dodecahedral point can be varied continuously within the same six-parameter degenerate family. One convenient endpoint is the rational geometry (R, h, L ) = 
+
+(
+
+1, 25 , 75
+
+)
+
+, β =
+
+(
+
+0, π
+
+2 , arctan 43
+
+)
+
+, α = arctan 12 5 . (S54) At this endpoint, the family reverses the relative twist while keeping the axial point fixed, whereas the 2020 coun-terexample keeps the triangles fixed and flips the axial point: twist reversal: T+ ∪ { (0 , 0, L )} ←→ T− ∪ { (0 , 0, L )},
+
+2020 axial flip: T+ ∪ { (0 , 0, L )} ←→ T+ ∪ { (0 , 0, −L)}. (S55) The two lines share their first environment. Their second environments are mirror images. To state the relation explicitly, let Rz (θ) denote the proper rotation through angle θ about the z axis, and let −I denote inversion through the origin. We define 
+
+Pα = Rz (α − π)( −I).
+
+23 Codex Claude representative SA SB off on off on 9-of-18 ring I {0, 1, 2, 3, 4, 6, 8, 14 , 15 } {0, 1, 2, 3, 5, 6, 7, 9, 13 } 4 0 1 19-of-18 ring II {0, 1, 2, 3, 5, 7, 8, 11 , 13 } {0, 1, 3, 6, 7, 8, 9, 11 , 13 } 1 0 0 012-of-24 planar ring {0, 1, 3, 5, 6, 7, 8, 9, 10 , 11 , 14 , 16 } {0, 2, 3, 4, 5, 7, 8, 9, 10 , 11 , 13 , 18 } 1 0 0 012-of-24 latitude ring {0, 1, 2, 3, 4, 5, 6, 8, 10 , 11 , 19 , 21 } {0, 1, 2, 3, 4, 6, 7, 8, 9, 11 , 17 , 22 } 0 0 1 06-of-12 three-point motif lift {0, 1, 3, 4, 5, 8} {0, 3, 4, 5, 7, 8} = 8 − SA 0 1 0 0
+
+TABLE S3. Cyclic selectors for the five representatives in the final row of Fig. S4. The first three rows are planar rings, the fourth is the latitude ring, and the last is the three-point motif lift. The four rightmost columns give the Codex and Claude counts in the offline (off) and online (on) conditions. 
+
+Thus, Pα first inverts every point and then rotates the result through α − π about the z axis. It is an improper orthogonal transformation, with det Pα = −1, and maps the twist-reversed structure onto the axial-flipped one: 
+
+Pα(T− ∪ { (0 , 0, L )}) = T+ ∪ { (0 , 0, −L)}. (S56) Thus, the dodecahedral report and the 2020 example belong to the same scalar/ O(3) family. A generic twist-reversal pair is nevertheless distinguished by the parity-odd components of the SO (3) bispectrum, because the correspondence above is improper and reverses signed volumes. At the axial-flip configuration the signed-volume deck also agrees, so this pair remains bispectrum-degenerate even when all orientation-sensitive channels are included. 
+
+D. Cyclic rings and lift 
+
+The final search class contains five distinct pairs: three planar rings, one latitude ring, and one three-dimensional motif lift. They share the cyclic counting mechanism of Sec. S1, but do not form one continuous family: the ring size N and selectors SA, S B ⊂ ZN are discrete choices rather than shape parameters. The main-text table therefore groups these examples by mechanism and leaves their family dimension d and codimension c undefined. Table S3 lists the selectors and records where each pair was found. For the four single-ring pairs, we write 
+
+RN (S; R, z ) = 
+
+{( 
+
+R cos 2πs N , R sin 2πs N , z 
+
+)
+
+: s ∈ S
+
+}
+
+. (S57) 
+
+Planar rings. The first three rows use R = 1 and z = 0. A cyclic shift of S rotates the environment about the z
+
+axis, while reversing its cyclic order is a rotation through π about a suitable axis in the ring plane. The reflection-symmetrized cyclic counts therefore determine the complete geometric decks. For all three pairs they agree through order three and differ at order four. 
+
+Latitude ring. The fourth row keeps the same cyclic indexing but places the ring above the central atom, with (R, z ) = 32
+
+(
+
+cos 3π
+
+20 , sin 3π
+
+20 
+
+)
+
+.
+
+All twelve neighbors remain at distance 3 /2 from the center. The nonzero height changes the role of cyclic reversal: the planar rotation described above would move this ring from z to −z, whereas reversing the order at fixed z is an improper reflection. The cyclic orientation of a three-atom card can now be detected by the sign of its scalar triple product, so reflection-symmetrized counts are not sufficient. Instead, the two selectors satisfy 
+
+dSA 
+
+> r
+
+(s) = dSB 
+
+> r
+
+(s) for every s and r = 1 , 2, 3.
+
+This directed equality fixes both the geometry and orientation of every card through order three while the four-decks differ. 
+
+Three-dimensional motif lift. The final row converts each selected cyclic index into a complete rotated copy of the fixed three-atom motif 
+
+m0 = (1 , 0, 1/5) , m1 = (6 /5, 1/5, −2/5) , m2 = (4 /5, −3/10 , 7/10) , M = {m0, m1, m2}. (S58) 24 Let Rj be the rotation about the z axis through 2 πj/ 12. The twelve sets Rj M, with j = 0 , . . . , 11, are the twelve possible rotated copies of the motif. The cyclic selector S chooses six of these copies, and the corresponding environment is 
+
+XS = ⋃
+
+> j∈S
+
+Rj M = {Rj mt : j ∈ S, t = 0 , 1, 2}. (S59) The two environments in the counterexample are XSA and XSB . Each selected copy contributes three atoms, so each environment contains 6 × 3 = 18 atoms. Viewed one atom at a time, the rotated images Rj mt of each fixed mt lie on one coaxial ring. The complete environment therefore lies on three rings. Crucially, these rings are not populated independently: selecting an index 
+
+j includes the whole rotated motif Rj M, with one atom on each ring. The same selector S thus controls every within-ring and cross-ring pattern. To see this explicitly, write rj,t = Rj mt. A proper rotation by R−j1 sends any three-atom card to 
+
+{rj1,t 1 , rj2,t 2 , rj3,t 3 } 7 −→ { mt1 , R j2−j1 mt2 , R j3−j1 mt3 }.
+
+Its geometry therefore depends only on the three motif labels ( t1, t 2, t 3) and the directed cyclic differences ( j2 −j1, j 3 −
+
+j1). Cards drawing atoms from three, two, or one distinct motif copies are counted by d3, d2, or d1, respectively. These directed counts agree for SA and SB , so every signed SO (3) three-card has the same multiplicity in the two lifted environments. Their four-decks differ. Our systematic-classification validation script [2] independently verifies the deck equalities and first differing orders of the displayed representatives. It reconstructs the eight exact power-source geometries and the dodecahedral source pair and aligns the generic fit with the reported coordinates within their printed precision. It also checks the continuous paths between the power-family representatives, confirms the rational two-triangle equivalence, and evaluates the three Jacobian ranks quoted above. 25 E. Prompts used in the isolated searches 
+
+Each agent was launched in an isolated working directory containing the same collection of pre-2020 papers and one of the two instruction files reproduced below. The offline condition explicitly prohibited internet access, whereas the online condition encouraged a broader interdisciplinary literature search while retaining the same publication-date restriction. Each condition was repeated eight times with each agent. The text is reproduced verbatim from the corresponding AGENTS.md files. 
+
+Offline condition 
+
+Completeness of representations for atomic-scale structure ========================================================== General instructions --------------------Base your reasoning on the papers in ‘literature/‘. Do not for any reason rely explicitly on more recent work, from 2020 included onwards. Do not look for literature, do not access internet nor perform online search. Do not use any memories from our previous interactions, nor from data outside of the present project folder. The problem -----------The question is whether the low-order invariants, e.g. the SOAP power spectrum and the bispectrum, cf. Bartok 2013, are "complete" descriptors, i.e. if they are guaranteed to differentiate between any atomic geometry that are not related by symmetry. In other words, if there is a bijective map between the local atomic point-cloud configuration and the descriptors. That this is not obvious is clear by the existence of "homometric" structures that have the same set of interatomic distances (equivalent to the radial part of the density expansion coefficients) but are not superimposable. I am especially interested in structures that cannot be distinguished regardless of the resolution (truncation of the density expansion basis) and the cutoff (truncation of the environment). Is the power spectrum (2-neighbors) enough? Is the bispectrum? Is the trispectrum (4-neighbors?). Find the highest-possible order of degeneracy for a structure, isolated or periodic, relative to one or all of its centers. Required output ---------------Generate a pair of structures, saving them as ‘<prefix>-a.xyz‘ and ‘<prefix>-b.xyz‘ for each distinct construction that you identify, together with a ‘<prefix>.md‘ file describing the logic of the construction and providing the verified references that you have used, if any. If the two structures are supposed to be degenerate only relative to one "special center" make that the first atom and call it C, and call H all the other atoms that should be only neighbors. If a structure is degenerate relative to all atoms, then make all atoms C. Work exclusively in the present folder and keep a dump of the conversation in there as well. 
+
+Online condition 
+
+Completeness of representations for atomic-scale structure ========================================================== General instructions --------------------Base your reasoning on the papers in ‘literature/‘. Do not for any reason rely explicitly on more recent work, from 2020 included onwards. Look for interdisciplinary references, also outside the specific application domain, and on your own deductions based on the available literature. Do not use data outside of the present project folder. Context -------Machine-learning interatomic potentials have been built, at least starting from the early 2000s, based on the construction of atom-centered descriptors of the geometry and composition of molecules and materials. In order to ensure that the model is consistent with Euclidean symmetries (translations, continuous rotations) and with permutations of atomic indices, one typically starts by building an expansion of the neighbor density in spherical harmonics and radial functions, and then combines them to obtain rotationally-invariant coefficients. The logic is discussed extensively in the reference papers in ‘literature/‘. The problem -----------The question is whether the low-order invariants, e.g. the SOAP power spectrum and the bispectrum, cf. Bartok 2013, are "complete" descriptors, i.e. if they are guaranteed to differentiate between any atomic geometry that are not related by symmetry. In other words, if there is a bijective map between the local atomic point-cloud configuration and the descriptors. That this is not obvious is clear by the existence of "homometric" structures that have the same set of interatomic distances (equivalent to the radial part of the density expansion coefficients) but are not superimposable. I am especially interested in structures that cannot be distinguished regardless of the resolution (truncation of the density expansion basis) and the cutoff (truncation of the environment). Is the power spectrum (2-correlations) enough? Is the bispectrum (3-correlations)? Is the trispectrum (4-correlations?) Is the tetraspectrum (5-correlations?). Find the highest-possible order of degeneracy for a structure, isolated or periodic, relative to one or all of its centers. While planar examples are considered succesful findings already, I am interest in counterexamples with a full 3D point cloud which do not rely on a rank-2 construction. This does not include the trivial case in which we add two symmetric points at the north and south pole of the point cloud to lift the proof from planar to 3D. Instead, we should look for a genuine different geometry that is not fundamentally based on a planar polygon. Required output ---------------Generate a pair of structures, saving them as ‘<prefix>-a.xyz‘ and ‘<prefix>-b.xyz‘ for each distinct construction that you identify, together with a ‘<prefix>.md‘ file describing the logic of the construction and providing the verified references that you have used, if any. If the two structures are supposed to be degenerate only relative to one "special center" make that the first atom and call it C, and call H all the other atoms that should be only neighbors. If a structure is degenerate relative to all atoms, then make all atoms C. Work exclusively in the present folder and keep a dump of the conversation in there as well. 
+
+[1] Vitaliy Kurlin, “Complete invariants of atomic clouds under rigid motion with Lipschitz continuous metrics in a polynomial time,” MATCH Commun. Math. Comput. Chem. (2026), 10.46793/match.97-2.11426, published online 27 May 2026. [2] Michelangelo Domina and Michele Ceriotti, “Validation scripts and input structures,” (2026), reproducibility archive in preparation. [3] Vitaliy A. Kurlin, “Complete and continuous invariants of 1-Periodic sequences in polynomial time,” SIAM J. Math. Data Sci. 7, 1643–1663 (2025). [4] Jan Simon, Reconstructing Colourings of Finite Groups , Ph.D. thesis, RWTH Aachen University, Aachen, Germany (2017). 
+
+26 [5] Luke Pebody, “The reconstructibility of finite abelian groups,” Combinatorics, Probability and Computing 13 , 867–892 (2004). [6] Luke Pebody, “Reconstructing odd necklaces,” Combinatorics, Probability and Computing 16 , 503–514 (2007). [7] Xinghua Deng and Robert V. Moody, “How model sets can be determined by their two-point and three-point correlations,” J. Stat. Phys. 135 , 621–637 (2009). [8] Xinghua Deng and Robert V. Moody, “Weighted model sets and their higher point-correlations,” Can. Math. Bull. 55 ,487–497 (2012). [9] John Mandereau, Daniele Ghisi, Emmanuel Amiot, Moreno Andreatta, and Carlos Agon, “Discrete phase retrieval in musical structures,” J. Math. Music 5, 99–116 (2011). [10] John Mandereau, Daniele Ghisi, Emmanuel Amiot, Moreno Andreatta, and Carlos Agon, “Z-relation and homometry in musical distributions,” J. Math. Music 5, 83–98 (2011). [11] Nick Collins, “Uniqueness of pitch class spaces, minimal bases and Z partners,” in Diderot Forum on Mathematics and Mu-sic: Computational and Mathematical Methods in Music , edited by Hans G. Feichtinger and Monika D¨ orfler ( ¨Osterreichische Computer Gesellschaft, Vienna, 1999) pp. 63–77. [12] Sergey N. Pozdnyakov, Michael J. Willatt, Albert P. Bart´ ok, Christoph Ortner, G´ abor Cs´ anyi, and Michele Ceriotti, “Incompleteness of Atomic Structure Representations,” Phys. Rev. Lett. 125 , 166001 (2020). 
+
+27 38

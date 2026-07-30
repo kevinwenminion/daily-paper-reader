@@ -1,0 +1,2057 @@
+Title: 2607.26422v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.26422v1
+
+Published Time: Thu, 30 Jul 2026 00:22:36 GMT
+
+Number of Pages: 44
+
+Markdown Content:
+1
+
+Physics -informed Machine Learning Prediction of Hubbard Interaction Parameters 
+
+Jiyeon Kim 1*, Indukuru Ramesh Reddy 2*, Bongjae Kim 2†, Sooran Kim 1,2, 3†
+
+> 1
+
+Department of Physics Education, Kyungpook National University, Daegu 41566, South Korea 
+
+> 2
+
+Department of Physics, Kyungpook National University, Daegu 41566, South Korea 
+
+> 3
+
+KNU G -LAMP Project Group, KNU Institute of Basic Sciences, Kyungpook National 
+
+University, Daegu, 41566, Korea. 
+
+*J. K. and I.R.R. contributed equally to this work. 
+
+> †
+
+Corresponding authors: bongjae@knu.ac.kr , sooran@knu.ac.kr 2
+
+ABSTRACT 
+
+Accurate d etermination of Hubbard interaction parameters is essential for beyond -DFT approaches 
+
+such as DFT+ U, DFT+DMFT, and DFT +U +V in correlated materials . In practice, however, these 
+
+parameters are often chosen empirically, limit ing their transferability across materials . Advanced 
+
+computational approaches such as the constrained random -phase approximation (cRPA) provide 
+
+a rigorous route for evaluating Hubbard interactions, but their computational cost remains a 
+
+bottleneck for large -scale materials screening. Here, we present machine -learning (ML) model s
+
+for predict ing cRPA -derived Hubbard interaction parameters : effective on -site Ueff , inter -site V,
+
+and Hund’s coupling J for transition -metal oxides (TM Os ). We combine ensemble -learning 
+
+models with a regression -based brute -force search (BFS) approach to achieve both predictive 
+
+accuracy and explicit analytical expressions. We construct f eatures that capture electronic, 
+
+structural, and atomic properties, including the TM -d bandwidth and TM -d/O -p band -center 
+
+separation , as physically motivated descriptors of localization and screening. Our ensemble models 
+
+achieve RMSE s of 0.148 eV, 0.062 eV, and 0.007 eV for Ueff , V, and J, respectively . The derived 
+
+analytical forms directly relate Ueff to electron localization and TM -d/O -p hybridization, suggest 
+
+the importance of hybridization and structural compactness in determining V, and indicate that J
+
+is governed primarily by elemental descriptors of the TM ion. Together, the present study provide s
+
+an efficient approach for predicting cRPA -derived Ueff , V, and J, while offering physical insight 
+
+into the factors underlying these Hubbard interactions .3
+
+1. INTRODUCTION 
+
+Strong electron correlation effects associated with transition -metal (TM) ions critically 
+
+influence the electronic, structural, and magnetic properties of functional materials. To account for 
+
+these correlation effects, first -principles approaches based on density functional theory (DFT) have 
+
+been developed to address self -interaction errors and improve the description of localized 
+
+electrons .1–5 Among these methods, the DFT+ U scheme has been extensively employed to 
+
+describe correlated systems, as it explicit ly treat s on -site Coulomb interactions (U) without 
+
+demanding high computational cost .6–12 However, in some correlated materials, Coulomb 
+
+interactions exhibit a moderate decay with interatomic distance, highlighting the importance of 
+
+long -range Coulomb interactions .13 –17 In such cases, the DFT+ U+V formalism extends DFT+ U by 
+
+explicitly including inter -site Coulomb interactions ( V), providing a more appropriate framework 
+
+for describin g these systems .18 –20 
+
+In practice, the Hubbard parameters U and /or V are frequently tuned to reproduce 
+
+experimental observables, such as band gaps, magnetic moments, or structural properties .21 –25 
+
+However, such empirical parameterization may limit the transferability of the DFT+ U(+V)
+
+approach. To overcome this limitation, s everal first -principles approaches have been proposed to 
+
+determine Hubbard interaction parameters .26 –30 Among them, the constrained random -phase 
+
+approximation (cRPA) has been widely employed as a first -principles method 14,31 –35 for 
+
+determining Hubbard interaction parameters by explicitly treating electronic screening effects .36 
+
+As a result, cRPA -derived interaction parameters are expected to show improved transferability 
+
+across different materials and conditions without reliance on experimental inputs .
+
+On top of a transparent connection to low -energy model approaches, cRPA enables analy ses
+
+of individual screening channels and dynamical, frequency -dependent features in correlated -4
+
+electron systems .37 –39 Furthermore, previous cRPA studies have shown that the local Hubbard 
+
+interactions critically depend on a competition between orbital localization and electronic 
+
+screening associated with TM -d/O -p hybridization .14,35,40 –43 Such microscopic insight into 
+
+Hubbard interaction parameters is a key merit of cRPA. Nevertheless, the high computational cost 
+
+of cRPA remains a major challenge for large -scale computational screening. 
+
+Recent studies have therefore explored machine -learning (ML) approaches for the efficient 
+
+prediction of Hubbard interaction parameters .44 –48 Early studies em ploy ed Bayesian optimization 
+
+to determine effective on -site U or both on -site U and inter -site V parameters by fitting DFT+ U(+ V)
+
+band structure s to hybrid band structures .44,45 Cai et al . extended this approach by first determining 
+
+U values using Bayesian optimization and then develop ing random forest regression models for 
+
+Mn oxides. Using structural descriptors, t hey identified the Mn -O bond lengths as a key factor 
+
+governing the Hubbard U values .46 On the other hand , Xia et al . calculated U values of Fe oxides 
+
+using linear -response constrained DFT and developed XGBoost regression models with structural 
+
+fingerprints , specifically Voronoi fingerprints, to describe the local atomic environment .47 More 
+
+recently, Uhrin et al . employed equivariant neural networks and predicted self -consistent U and V
+
+parameters obtained from linear -response density -functional perturbation theory (DFPT) . The y
+
+used atomic occupation matrices as descriptors that reflect geometry, local chemical environment, 
+
+and electronic structure .48 
+
+While these studies demonstrate the effectiveness of ML in predicting Hubbard interaction 
+
+parameters , ML prediction of cRPA -derived Ueff , V, and J using descriptors that capture electron 
+
+localization and screening effects has remain ed largely unexplored . Along side recent efforts to 
+
+compare and reconcile different methodologies for calculati ng Hubbard parameters ,49,50 ML 5
+
+analysis of cRPA data may also provide insight in to DFT -based approaches for estimating the 
+
+Hubbard interactions , particular ly in their extension to low -energy model descriptions .27,30,51,52 
+
+In this work, we develop ML models to predict cRPA -derived Hubbard interaction 
+
+parameters : effective on -site Ueff , inter -site V, and the Hund’s coupling J for a diverse set of 
+
+transition -metal oxides ( TM Os ). Using cRPA values as reference targets, th is approach enables 
+
+efficient estimation of first -principles Hubbard interactions and can accelerate DFT+ U and 
+
+DFT+ U+V workflows while retaining a physical basis. Starting from cRPA calculations of Ueff , V,
+
+and J, we construct a dataset of TMOs and define descriptors associated with electronic properties ,
+
+local structure, and atomic characteristics . In particular, we include electronic -structure descriptors 
+
+associated with the competing effects of localization and screening . To achieve both predictive 
+
+accuracy and physical interpretability, we combine two complementary approaches: ensemble 
+
+learning models and a regression -based brute -force search (BFS) method. The former identif ies 
+
+key features governing each interaction parameter , while the latter provides explicit analytical 
+
+formulas that improve model interpretability. B y addressing Ueff , V, and J within a common 
+
+framework, this approach enables a systematic comparison of the physical factors associated with 
+
+on -site Coulomb interaction, inter -site Coulomb interaction, and Hund’s exchange interaction . The 
+
+overall workflow of the present study is summarized in Figure 1. 6
+
+Fig ure 1. Workflow of the ML approach for predicting cRPA -derived Ueff , V, and J.
+
+2. METHODS 
+
+2.1 cRPA Calculations 
+
+The effective on -site Coulomb interaction Ueff , inter -site Coulomb interaction V, and Hund’s 
+
+coupling J for the TM -d manifold were computed using cRPA. The correlated subspace ,
+
+corresponding to the TM -d manifold, was constructed by projecting DFT Kohn -Sham states onto 
+
+Wannier bands, while the computational details of the DFT calculations and Wannierization 7
+
+procedure are provided in the S upporting Information . Using the resulting Wannier bands, the 
+
+cRPA interaction parameters were evaluated by excluding screening processes associated with the 
+
+TM -d bands with in the correlated sub space. Specifically, the polarization contribution of the 
+
+correlated sub space (Pc) was removed from the total polarization ( P) to obtain the rest -space 
+
+polarization, ( Pr = P - Pc). Among the various cRPA schemes for evaluating Pc, we adopted the 
+
+projector -based cRPA method 53 implemented within VASP .54 Further theoretical background and 
+
+technical details of the cRPA method can be found in previous studies .34,55 
+
+The screened Coulomb interaction can subsequently be determined by solving the following 
+
+Bethe -Salpeter -type equation , 𝑈 !" = [𝑈 #$%& ]!" − 𝑃 %, where U (Ubare ) denotes the screened (bare) 
+
+Coulomb interaction. The interaction matrix elements were then evaluated in the static limit U(ω=0) 
+
+among the related Wannier bands in the correlated subspace as follows :
+
+𝑼 '()* (𝜔 = 0) = ∫ ∫ 𝑑 +𝒓 𝑑 +𝒓 ,𝒲 '∗(𝒓 )𝒲 )
+
+> ∗
+
+(𝒓 ,)𝑼 (𝒓 , 𝒓 ,)𝒲 ((𝒓 )𝒲 *(𝒓 ,) (1) 
+
+where 𝒲 (𝒓 ) represents the maximally localized Wannier functions spanning the correlated 
+
+subspace. The on -site Coulomb interaction ( U) and Hund’s coupling ( J) were obtained by 
+
+averaging the matrix elements 𝑼 '''' and 𝑼 '('( (i ≠ j), respectively. For the on -site U, all 𝒲 (𝒓 )
+
+involved in the matrix element are centered on the same TM site. For the inter -site V, 𝒲 '(𝒓 )
+
+and 𝒲 )(𝒓 ) are centered on one TM site, while 𝒲 ((𝒓 ) and 𝒲 *(𝒓 ) are centered on another TM site. 
+
+2.2 ML Algorithms 
+
+We employed Random Forest Regression (RF) , Gradient Boosting Regression (GBR) , and 
+
+Extreme Gradient Boosting (XGB) models implemented using the scikit -learn Python library to 
+
+predict the cRPA -derived Ueff , V, and J parameters .56 –58 Model performance was evaluated using 
+
+leave -one -out cross -validation (LOOCV), and the prediction performance was quantified using the 8
+
+root -mean -square error (RMSE) and the coefficient of determination ( R2), with R2 evaluated from 
+
+the aggregated LOOCV predictions. 
+
+We further applied a regression -based BFS algorithm 59 –62 to identify explicit relationships 
+
+between the primary features and the target parameters Ueff , V, and J. The primary features were 
+
+selected from key descriptors through the ensemble -model analysis . Each primary feature was 
+
+transformed using a predefined set of 15 nonlinear functions : 1, x, 1/ x, x2, 1/ x2, x3, 1/ x3, √𝑥 , 1/ √𝑥 ,
+
+ex, e-x, e1/ x, e-1/ x, ln( x + 1), and 1/ln( x + 1). These transformed variables constitute prototypical 
+
+features, which were then multiplicatively combined to generate compound features. The resulting 
+
+compound features were used to construct linear regression models of the form 𝑔 = 𝑤 . +
+
+∑ 𝑤 ' 
+
+> /
+> '0"
+
+𝐶 ', where Ci denotes a compound feature, wi is the corresponding regression coefficient, 
+
+and m is the number of compound features included in the model. Here, 𝑔 represents the 
+
+interaction parameters : Ueff , V, or J. We denote these models as mCnF, where m is the number of 
+
+compound features and n is the number of primary features constituting each compound feature. 
+
+For a given mCnF configuration, all possible combinations of compound features were first 
+
+screened by fitting the full dataset, after which the top -three performing candidate models were 
+
+evaluated using LOOCV. 
+
+3. RESULTS 
+
+3.1 Feature Construction 
+
+We first constructed a dataset of cRPA -derived Hubbard interaction parameters (Ueff , V, and 
+
+J) for TMOs with perovskite, olivine, spinel, layered , and layered perovskite structures, as listed 
+
+in Table S1. To identify physics -informed features, we focus on two key factors expected to 
+
+influence these interactions in TMOs: the localization of TM -d orbitals and the hybridization 9
+
+between TM -d and O -p states . Based on this physical picture , we selected two electronic -structure 
+
+features , the bandwidth of the TM -d band (W) and the energy separation between the TM -d and 
+
+O-p band centers (Dd-p), as illustrated in Fig. 2 (a) . These two features quanti fy the strength of 
+
+electron localization and p-d hybridization , respectively: a larger W indicates weaker localization ,
+
+wh ereas a larger Dd-p corresponds to weaker p-d hybridization. Details on the calculation of W and 
+
+Dd-p are provided in the Su pporting Information .
+
+Fig ure 2. Definition of electronic descriptors and their correlation s with Ueff . (a) Schematic 
+
+illustration of the projected density of states (PDOS) used to define the electronic descriptors. T he 
+
+TM -d band and O -p band centers , 𝜺  
+
+> d
+
+and 𝜺 
+
+> p
+
+, are computed within the energy window from Emin to 10 
+
+Emax . W denotes the TM -d bandwidth, and Dd-p denotes the band -center separation. Correlations of 
+
+Ueff with (b) W and ( c) Dd-p.
+
+As shown in Fig . 2( b), the TM -d bandwidth W exhibits a negative correlation with Ueff . At 
+
+larger bandwidths (>7 eV), a slight deviation from the overall trend is observed, which is 
+
+associated with 4 d materials . In contrast , the band -center separation between TM -d and O -p, Dd-p,
+
+shows a positive correlation with Ueff , as in Fig. 2(c). Th ese trend s are consistent with previous 
+
+cRPA studies ,14,35,41,43 in which an increase in U was attributed to enhanced localization of TM -d
+
+orbital s (smaller W) and reduced hybridization between TM -d and O-p orbitals (larger Dd-p).
+
+In addition to these two electronic -structure features , we also considered fundamental 
+
+atomic properties (atomic number, group, and period of TM ion ), compositional parameters 
+
+(average d-electron number, average oxidation state, and the number of atoms and TM ions per 
+
+unit cell), and structural characteristics (shortest TM -O bond length, volume per formula unit, and 
+
+space group number) , as summarized in Table 1. Among these features , the average oxidation state 
+
+of the TM ion , nox , exhibits the strongest Pearson correlation coefficient (PCC) with Ueff (-0.7 07) 
+
+as shown in Table 1 . This is consistent with previous observations of a correlation between 
+
+Hubbard U and the oxidation state of the TM ion .63 The two electronic features discussed above 
+
+also show relatively strong correlations with Ueff : Dd-p exhibits the second -highest correlation 
+
+(0.539), and W shows a sizable negative correlation ( -0.448). The PCCs of all feature s with V and 
+
+J are listed in Table S2. 
+
+Table 1 . List of the 12 features and their Pearson correlation coefficients (PC Cs) with Ueff .  
+
+> Symbol Description PCC
+
+11 
+
+W Bandwidth of TM -d band -0.448 
+
+Dd-p Separation of TM-d and O -p band centers 0.539 
+
+ZTM Atomic number of TM -0.219 
+
+GTM Group number of TM 0.028 
+
+PTM Period number of TM -0.234 
+
+nd Average number of d electrons of TM ion 0.271 
+
+nox Average oxidation state of TM ion -0.707 
+
+Nu.c Number of atoms in the unit cell 0.459 
+
+TM u.c Number of TM ions in the unit cell 0.438 
+
+dTM -O Shortest distance between TM and O 0.461 
+
+Vf.u Volume per formula unit -0.178 
+
+SG Space group number -0.329 
+
+3.2 Pr ediction of on -site Ueff 12 
+
+Fig ure 3. Prediction performance of ensemble -learning models for Ueff . (a) RF, (b) GBR, and (c) 
+
+XGB evaluated using RMSE and R² as a function of the number of selected features. (d) Parity 
+
+plot for the best -performing XGB model, c ompar ing predicted and cRPA -deriv ed Ueff values .
+
+Figure 3 compares the prediction performance of three ensemble regression models , RF ,
+
+GBR , and XGB . All possible combinations of the 12 features were examined for different numbers 
+
+of selected features , resulting in a total of ΣI"1  
+
+> 2
+
+J = 4,095 models for each regression model . Only 
+
+the best -performing combination for each number of feature s is shown in Fig. 3(a -c) . Among the 
+
+three models, the RF model achieve d its best performance with an RMSE of 0.21 4 eV and an R²
+
+of 0.8 01 using five features (nox , nd, N u.c , V f.u , ZTM ). The GBR model show ed improve d accuracy ,
+
+achieving an RMSE of 0.158 eV and an R² of 0.8 88 with six features (nox , nd, N u.c , V f.u , TM u.c ,
+
+PTM ). The highest overall performance was obtained with XGB, which achieved an RMSE of 0.148 
+
+eV and an R² of 0.899 using six features (nox , nd, Nu.c , V f.u , ZTM , G TM ). Fig ure 3(d ) present s the 
+
+comparison between the predicted Ueff and the cRPA -derived Ueff values for the corresponding 
+
+best -performing XGB model. 
+
+Across the best -performing feature combinations of all three models, four features : nd, nox ,
+
+Nu.c , and Vf.u , were consistently included. It is worth noting that these four features are readily 
+
+available and do not require additional DFT calculations. Th is four -feature combination also 
+
+corresponds to the optimal four -feature set in the XGB model, highlighting its importance for 
+
+accurate predictions. For this four -feature XGB model, an RMSE of 0.168 eV and an R2 of 0.88 6
+
+were obtained , and the XGB performance is nearly saturated with only four features as shown in 
+
+Fig. 3(c) . The Gini importance (GI) from the RF algorithm further shows that nd and nox make the 13 
+
+dominant contribut ion s to the prediction accuracy , with GI values of approximately 0.3 , followed 
+
+by V f.u (~0.2 ) and N u.c (0.15 ), as shown in Table S3.
+
+We also examined the best -performing four -feature combination from the XGB model that 
+
+explicitly includes both W and Dd-p, two physical quantities highlighted in previous cRPA 
+
+studies .14,35,41,43 For this feature set (W, Dd-p, nd, and Vf.u ), the XGB model achieves a moderate 
+
+prediction accuracy with an RMSE of 0.250 eV and an R2 of 0.756. In this case, Dd-p and W are the 
+
+most important features , each with GI values of ~0.3, followed by nd (~0.25 ) and V f.u (0.16 ) as 
+
+shown in Table S3.
+
+Fig ure 4. Prediction performance of the BFS models for Ueff using two feature sets. (a,b) RMSE 
+
+as a function of the number of primary and compound features . (c,d) Parity plots for the best -
+
+performing 3C2F models, compari ng predicted Ueff values with cRPA -derived values . (e,f) Three -
+
+dimensional (3 D) surfaces of the corresponding 3C2F models. Panels (a), (c), and (e) correspond 
+
+to feature set 1, wh ile panels (b), (d), and (f) correspond to feature set 2. 14 
+
+Based on these results , we selected two four -feature sets for the BFS model s. The first feature 
+
+set (set 1), nox , nd, N u.c , and Vf.u , was chosen as the best four -fe ature combination from the XGB 
+
+model and includes compositional and structural descriptors. The second set (set 2), consisting of 
+
+W, Dd-p, nd, and Vf.u , was selected as a physically motivated set to enable a more direct analysis of 
+
+the roles of electron localization and hybridization in determining the Hubbard U parameter. 
+
+For each of these two feature sets , the BFS model was developed using four primary features 
+
+and 15 predefined functional forms, generating 57 prototypical features and 50,625 compound 
+
+features. Figure s 4(a,b) show t he performance of the BFS models in predicting Ueff using feature 
+
+set s 1 and 2 as a function of the number of primary and compound features , denoted by the mCnF
+
+notation defined in the Methods section . For both feature sets, the prediction accuracy generally 
+
+improves as the number of features increases . We consider up to 4F for 1C, 3F for 2C, and 2F for 
+
+3C , as higher -order combinations provide only marginal additional improvements . Among the 
+
+evaluated configurations, the 3C2F model performed best , ach ievi ng RMSE /R2 values of 0.240 
+
+eV /0.77 3 for set 1 and 0.207 eV /0.813 for set 2 , as shown in Fig . 4(c,d) . Overall, set 2 outperformed 
+
+set 1, exhibiting lower RMSE values. This suggests that, within the present BFS framework, the 
+
+inclusion of W and Dd-p provides a more effective basis for constructing analytical expressions for 
+
+Ueff .               
+
+> 𝑈 !"" =1.898 𝑒 #(!
+> "#$ %&%)−9.978 𝑒 (!
+> &'.)
+> #!
+> "#$ )+133 .485 &%
+> +
+> (*'.))++11 .337 (2)
+
+Equation 2 provide s the best 3C2F model for predicting the Ueff values of TMOs using 
+
+feature set 1 . The equations of thre e best -performing 3C2F model s are summarized in Table S4.
+
+For set 1, the three best models show nearly identical prediction accuracies, with RMSE of 0.240 -
+
+0.243 eV and R2 of 0.773 -0.774 , and the ir functional forms differ only in the term involving nox .
+
+Notably, Nu.c is absent in the equations , suggesting that it s contribution is less significant than 15 
+
+those of the other features in set 1 , consistent with the GI analysis . Furthermore, t hese explicit 
+
+analytic al expressions rely only on readily available features and can therefore be applied direc tly 
+
+without access to the original training dataset or code .
+
+To visualize the feature dependence more clearly, three -dimensional (3D) surfaces for the 
+
+best -performing 3C2F model are shown in Fig. 4(e). For set 1, Ueff decreases with increas ing nox ,
+
+while la rger V f.u tends to reduce Ueff in the large -nd regime . T he dependenc e on nd is more complex ,
+
+exhibiting a nonmonotonic trend in which Ueff initially decreases and then increases with 
+
+increasing nd. (See also Figure S1.)               
+
+> 𝑈 !"" =0.626 D+#,
+> ln (1+𝑊 )−1.963 7𝑛 +
+> 𝑊 +0.275 𝑛 +-
+> ln (1+V"./)+3.559 (3)
+
+For feature set 2, eq 3 gives the best -performing 3C2F model. The three best -performing 
+
+models exhibit RMSE values of 0.207 -0.225 eV and R2 values of 0.812 -0.813 (Table S4).
+
+Importantly, t hese equations provide a direct and quantitative relation between Ueff and the 
+
+electronic descriptors associated with localization and screening, represented by W and Dd-p,
+
+respectively .
+
+Figure 4(f) shows t he 3D plot of eq 3, illustrat ing how Dd-p, W, and nd collectively determine 
+
+Ueff . For visualization, Vf.u was fixed at the dataset average (59.753 Å 3), as it has the smallest GI 
+
+among set 2. As indicated by the first term in eq 3 and shown in Fig. 4(f) , an increas e in Dd-p, which 
+
+reflects reduced d-p hybridization, leads to a larger Ueff , in agreement with the trend in Fig. 2(c) .
+
+In contrast , because W appears in competing terms in eq 3, its effect on Uef f is nd-dependent. As a 
+
+result, increas ing W lowers Ueff at small nd, but this tendency can be weaken ed or reverse d for 
+
+larger nd. The dependence on nd is also intricate , as observed for set 1 , where Ueff first decreases 
+
+and then increases with increasing nd, as show n in Fig. S1(b) . Th is nonmonotonic behavior of Ueff 
+
+is consistent with trends reported in previous studies .14,43,64,65 In addition, according to the third 16 
+
+term in eq 3, increasing V f.u reduces Ueff . Overall, the analytical expressions for Ueff directly 
+
+connect its variation to localization and TM -d/O -p hybridization, while also capturing additional 
+
+contributions from composition - and structure -related descriptors. 
+
+3.3 Prediction of inter -site V
+
+Fig ure 5. Prediction performance of ensemble -learning and BFS models for V. (a) Model 
+
+performance of RF, GBR, and XGB model s as a function of the number of selected features. (b) 
+
+Parity plot for the XGB model with five selected features, compari ng predicted and cRPA -deriv ed 
+
+V values . (c) BFS model performance using feature set 1 (nd, N u.c , V f.u , and P TM ). (d ) 3D surface 
+
+of the best -performing BFS model for feature set 1. 
+
+We next extend our analysis to the prediction of V using the RF, GBR, and XGB models ,
+
+and the corresponding performance i s shown in Fig. 5 (a) . As the number of features increase s, all 17 
+
+three models exhibit a rapid decreas e in RMSE , which saturate s with four to six feature s. The RF 
+
+model achieves its best performance with five features ( nd, N u.c , V f.u , SG, and ZTM ), giving an 
+
+RMSE of 0.065 eV and an R2 of 0.686 . The GBR model shows improved performance , reaching 
+
+an RMSE of 0.061 eV and an R2 of 0.764 with four features ( nox , nd, V f.u , and SG). For XGB, the 
+
+minimum RMSE of 0.060 eV was obtained using ten features , while its performance is already 
+
+close to saturation with five features ( nd, N u.c , V f.u , SG, and ZTM ), yielding an RMSE of 0.062 eV 
+
+and an R2 of 0.784 . Figure 5(b) shows the corresponding parity plot for this five -feature XGB 
+
+model. 
+
+For the BFS analysis , we focused on compact four -feature sets, since the ensemble -model 
+
+performance is already nearly saturated in this regime , while fewer variables make the resulting 
+
+analytical expressions more tractable and interpretable. In selecting the primary features, we 
+
+considered not only predictive accuracy but also the physical transparency of the resulting 
+
+formulas. Although the best four -feature GBR model showed slightly better performance, it 
+
+included the space -group number (SG), whose role is less straightforward to interpret in an explicit 
+
+analytical expression. We therefore adopted the best four -feature XGB combination as the fir st 
+
+primary feature set (set 1), namely nd, N u.c , V f.u , and P TM . As a second primary feature set (set 2), 
+
+we selected the best -performing four -feature combination that explicitly includes Dd-p and W,
+
+namely Dd-p, W, nd, and TM u.c .
+
+The prediction performance of the BFS model s for set 1 and set 2 is shown in Fig. 5(c) and 
+
+Fig. S2(a), respectively. The best performance of the BFS model for set 1 is obtained with the 
+
+3C2F configuration , yielding an RMSE of 0.071 eV and an R2 of 0.763 , while the best performance 
+
+for set 2 is achieved with the 2C3F configuration , yielding an RMSE of 0.074 eV and R2 of 0.697 .
+
+Overall, set 1 provides better predictive accuracy than set 2. 18                
+
+> 𝑉 =0.919 𝑒 #&%
+> ;N/.0
+> +1.673 ×10 #1(N/.0)1
+> V"./
+> +8.342 ×10 2𝑒 #*'.)(N/.0)1+1.193 (4)
+
+Equation 4 gives the best -performing BFS model for set 1. The three best -performing models 
+
+for set 1 are summarized in Table S5, and their functional forms are highly similar. In particular, 
+
+only the first term associated with Nu.c differs slightly among the three models, indicating the 
+
+robustness of the resulting expressions. Notably, PTM does not appear in the final equations, 
+
+suggesting that it plays a smaller role than the other descriptors in set 1. As in the Ueff case, these 
+
+analytical expressions depend on features that do not require any pr ior calculations, which 
+
+enhances their practical applicability to other TMO materials. 
+
+Figure 5(d) shows the 3D plot of the best -performing 3C2F model equation for set 1 . Smaller 
+
+volumes lead to larger V, and larger N u.c tends to be associated with larger V. These results suggest 
+
+that structurally compact or dense systems exhibit larger inter -site Coulomb interactions. This can 
+
+be understood from the general distance dependence of inter -site Coulomb interactions, which 
+
+decrease with increasing interatomic distance s.13,14,66 In addition, increasing nd leads to smaller V.                  
+
+> 𝑉 =2.363 ×10 #1>D+#,?1𝑒 (3
+> 45 ).,#&%)+8.392 ×10 #6𝑛 +ln >1+D+#,?𝑒 45 ).,+1.197 (5)
+
+For feature set 2 , eq 5 gives the best -performing model. The three best -performing models 
+
+for set 2 are also summarized in Table S5, and their functional forms are again similar, with only 
+
+slight variations in the first term. The dependence of V on Dd-p is particularly pronounced, as 
+
+evident from both eq 5 and Fig. S2(b): increasing Dd-p leads to a larger V. Interestingly, W does not 
+
+appear in the final equations, indicating that it makes the smallest contribution among the set 2 
+
+descriptors. This suggests that , in contrast to the local interaction Ueff , which reflects both d-orbital 
+
+localization and TM -d/O -p hybridization, the nonlocal interaction V is less directly associated with 
+
+d-orbital localization and is more strongly influenced by hybridization -related screening. As
+
+shown in Fig. S2(b), a larger TM u.c. generally increases V at moderate and large nd. This behavior 19 
+
+suggests that a higher density of interacting TM ions can enhance the inter -site Coulomb 
+
+interaction . An increase in nd generally decrease s V. Taken together , the analytical expressions for 
+
+V suggest that both hybridization -related screening and structural compactness contribute to the 
+
+inter -site interaction. Th is structural trend is qualitatively consistent with the Ohno -type decay 
+
+with Resta -screened distribution of the Coulomb interactions .13,14,66 
+
+3.4 Prediction of Hund’s coupling J20 
+
+Fig ure 6. Prediction performance of the ML model for J and key descriptors. (a) Parity plot for 
+
+the RF model with a single feature, Z TM , comparing predicted and cRPA -deriv ed J values. 
+
+Correlations of J with (b) Z TM and (c) G TM .
+
+We next turn to the prediction of the Hund’s coupling parameter J using the same ML 
+
+framework. In contrast to Ueff and V, J is predicted remarkably well even with a single descriptor. 
+
+As shown in Fig ure S3, using only Z TM , the RF, GBR, and XGB models already achieve RMSE 
+
+values of 0.015 -0.016 eV and R2 of 0.954. Figure 6(a) shows the corresponding parity plot from 
+
+the RF model, while Fig. 6(b) shows the dependence of J on Z TM . Two distinct branches are 
+
+observed, corresponding to 3 d and 4 d TM compounds, and within each branch J increases with 
+
+increasing Z TM . This trend is consistent with the expectation that Hund’s coupling is primarily 
+
+determined by the local character of TM d-orbitals and tends to increase with d-electron 
+
+filling .14,34,35,42,43 
+
+Among the three ensemble models, XGB gives the best performance, achieving an RMSE 
+
+of 0.007 eV and an R2 of 0.989 using three features: G TM , P TM , and SG. Here, G TM describes the 
+
+sequence of TM elements within a given period, and PTM distinguishes the 3 d and 4 d series. As 
+
+shown in Fig. 6(c), J increases systematically with G TM , while the 3d and 4 d materials form two 
+
+clearly separated series distinguished by PTM .
+
+We further analyzed J using BFS models based on two three -feature sets selected from the 
+
+XGB results: set 1 (G TM , P TM , and SG) , and set 2 ( Dd-p, W, and Z TM ). The corresponding BFS 
+
+prediction performance is summarized in Fig. S4(a,b). Since both sets already achieve R2 > 0.9 
+
+with simple expressions, we selected 1C2F and 2C2F as representative forms for set 1 and set 2, 21 
+
+respectively. The 1C2F model for set 1 gives an RMSE of 0.015 eV and an R2 of 0.954, while the 
+
+2C2F model for set 2 yields an RMSE of 0.022 eV and an R2 of 0.929 .
+
+Table S6 summarizes the representative BFS expressions for predicting J. For set 1, the best -
+
+performing BFS model is       
+
+> 𝐽 =3.001 G45
+> P45
+> 1+0.354 (6)
+
+which depends only on elemental descriptors. The inverse dependence on P TM indicates reduced 
+
+exchange interaction with increasing period of the TM series , while the increase with G TM is 
+
+consistent with the trend in Fig. 6(c). A two -dimensional (2D) projection of eq 6 is shown in Fig. 
+
+S4(c). 
+
+For set 2, the resulting BFS expressions in Table S6 retain only W and Z TM , indicating that 
+
+Dd-p does not appear in the final model . As shown in Fig. S4(d,e), J tends to increase with Z TM and 
+
+generally decreases with increasing W. Since 4 d compounds typically have broader d-band s than 
+
+3d compounds, W effectively distinguishes the two TM series. Thus, while J is governed primarily 
+
+by intrinsic atomic characteristics of the TM ion, additional descriptors such as PTM and W help 
+
+account for systematic differences between TM series. 
+
+In contrast to Hubbard U and inter -site V, Hund’s J is weakly screened with in cRPA, so that 
+
+the bare atomic trend is largely preserved , and atomic -like localization effect s remain prominent .
+
+Consequently, t he contraction of the d-orbital with increasing nuclear charge, i.e. Z TM (and G TM ), 
+
+plays a n important role in determining J, while screening -related parameters such as Dd-p have only 
+
+a limited influence. 
+
+To further reduce the influence of the 3 d/4 d distinction, we additionally performed 1C1F -
+
+BFS calculations using only 3 d compounds. Within this restricted dataset, the optimal set 1 model 
+
+is 𝐽 = 0.003 𝐺 34  
+
+> 1
+
++ 0.510 , while the best set 2 model is 𝐽 = 2.5 × 10 !5 𝑍 34  
+
+> +
+
++ 0.286 . Both 22 
+
+models give the same prediction accuracy, with an RMSE of 0.015 eV and an R2 of 0.943. These 
+
+results further support that J can be described accurately using a minimal set of elemental 
+
+descriptors within the same TM series. 
+
+4. CONCLUSIONS 
+
+In this work , w e developed ML models for predict ing cRPA -derived Hubbard interaction 
+
+parameters, Ueff , V, and Hund’s coupling J in TM Os by combi ni ng ensembl e-learning models with 
+
+a regression -based BFS analysis . Th is approach achieves high predictive accuracy while also 
+
+provid in g analytical expressions that offer insight into the underlying physics of the interaction 
+
+parameters. The selected descriptors were designed to capture electronic, structural, and atomic 
+
+characteristics, including physically motivated quantities associated with localization and TM -
+
+d/O -p hybridization. 
+
+This study shows that the three interaction parameters can be interpreted within a common 
+
+approach while still exhibiting distinct physical tendencies. For Ueff , the ensemble models show ed 
+
+strong predictive performance, and the BFS analysis yielded analytical formulas that directly 
+
+connect Ueff to localization and hybridization effects through descriptors such as W and Dd-p. For 
+
+V, the ensemble models also achieved good predictive performance, and the derived analytical 
+
+forms suggested a more prominent role of Dd-p than W, together with structural compactness . For 
+
+J, accurate prediction was achieved using only a very small number of elemental descriptors, 
+
+indicating that Hund’s coupling is governed primarily by intrinsic atomic characteristics of the TM 
+
+ion. 
+
+Overall, the present framework demonstrates that cRPA -derived Hubbard parameters can 
+
+be predicted not only efficiently but also in a physically interpretable manner. More broadly, our 23 
+
+study provides a practical route for identifying descriptor -property relationships in correlated 
+
+oxides and accelerating beyond -DFT workflows through physics -informed machine learning. 
+
+ASSOCIATED CONTENT 
+
+Data Availab ility Statement 
+
+The code used in this study is available at https://github.com/CMPL -KNU/cRPA -parameter -
+
+prediction . The data supporting the findings of this study are available from the corresponding 
+
+author upon reasonable request. 
+
+Supporting Information 
+
+Additional details on the calculation of electronic descriptors and computational methods; cRPA -
+
+derived Ueff , V, and J values for transition -metal oxides; Pearson correlation coefficients and Gini 
+
+importance values; brute -force search model equations; additional figures showing descriptor 
+
+dependence and mode l performance for Ueff , V, and J; energy windows for band -center 
+
+calculations and Wannier -function construction; and Wannier -interpolated band structures. 
+
+AUTHOR INFORMATION 
+
+Corresponding Auth ors
+
+Sooran Kim - Department of Physics Education, Kyungpook National University, Daegu 41566, 
+
+South Korea ; Department of Physics, Kyungpook National University, Daegu 41566, South 
+
+Korea ; KNU G -LAMP Project Group, KNU Institute of Basic Sciences, Kyungpook National 
+
+University, Daegu, 41566, Korea. 
+
+Bongjae Kim - Department of Physics, Kyungpook National University, Daegu 41566, South 
+
+Korea 24 
+
+Authors 
+
+Jiyeon Kim - Department of Physics Education, Kyungpook National University, Daegu 41566, 
+
+South Korea 
+
+Indukuru Ramesh Reddy - Department of Physics, Kyungpook National University, Daegu 
+
+41566, South Korea 
+
+Author contributions 
+
+J.K . developed the ML models, and I.R.R. performed the cRPA calculations . S.K. and B.K. 
+
+conceived and supervised the study. All authors contributed to data analysis and participated in 
+
+writing and revising the manuscript. 
+
+Notes 
+
+The authors declare no competing interests. 
+
+ACKNOWLEDGMENTS 
+
+This work was supported by the National Research Foundation of Korea (NRF) (Grant No. 
+
+2022R1F1A1063011 , RS -2025 -00557388 ). This work was also supported by Learning &
+
+Academic research institution for Master’s ⋅PhD students, and Postdocs (LAMP) Program of the 
+
+NRF grant funded by the Ministry of Education (No. RS -2023 -00301914). BK was also supported 
+
+by the National Research Foundation of Korea (NRF) grant funded by the Korea government 
+
+(MSIT) (Grants No. RS -2023 -00256050 , No. RS -2026 -25472078, and No. RS -2022 -NR068223) 
+
+and KISTI Supercomputing Center (Project No. KSC -2023 -CRE -0413) .25 
+
+REFERENCES 
+
+(1) Perdew, J. P.; Zunger, A. Self -Interaction Correction to Density -Functional 
+
+Approximations for Many -Electron Systems. Phys. Rev. B 1981 , 23 (10), 5048 –5079. 
+
+https://doi.org/10.1103/PhysRevB.23.5048. 
+
+(2) Cohen, A. J.; Mori -Sánchez, P.; Yang, W. Insights into Current Limitations of Density 
+
+Functional Theory. Science 2008 , 321 (5890), 792 –794. 
+
+https://doi.org/10.1126/science.1158722. 
+
+(3) Anisimov, V. I.; Zaanen, J.; Andersen, O. K. Band Theory and Mott Insulators: Hubbard 
+
+U Instead of Stoner I. Phys. Rev. B 1991 , 44 (3), 943 –954. 
+
+https://doi.org/10.1103/PhysRevB.44.943. 
+
+(4) Heyd, J.; Scuseria, G. E.; Ernzerhof , M. Hybrid Functionals Based on a Screened 
+
+Coulomb Potential. J. Chem. Phys. 2003 , 118 (18), 8207 –8215. 
+
+https://doi.org/10.1063/1.1564060. 
+
+(5) Sun, J.; Ruzsinszky, A.; Perdew, J. P. Strongly Constrained and Appropriately Normed 
+
+Semilocal Density Functional. Phys. Rev. Lett. 2015 , 115 (3), 036402. 
+
+https://doi.org/10.1103/PhysRevLett.115.036402. 
+
+(6) Dudarev, S. L.; Botton, G. A.; Savrasov, S. Y.; Humphreys, C. J.; Sutton, A. P. Electron -
+
+Energy -Loss Spectra and the Structural Stability of Nickel Oxide: An LSDA+U Study. 
+
+Phys. Rev. B 1998 , 57 (3), 1505 –1509. https://doi.org/10.1103/PhysRevB.57.1505. 
+
+(7) Liechtenstein, A. I.; Anisimov, V. I.; Zaanen, J. Density -Functional Theory and Strong 
+
+Interactions: Orbital Ordering in Mott -Hubbard Insulators. Phys. Rev. B 1995 , 52 (8), 
+
+R5467 –R5470. https://doi.org/10.1103/PhysRevB.52.R5467. 
+
+(8) Zhou, F.; Marianetti, C. A.; Cococcioni, M.; Morgan, D.; Ceder, G. Phase Separation in 
+
+LixFePO4 Induced by Correlation Effects. Phys. Rev. B 2004 , 69 (20), 201101(R). 
+
+https://doi.org/10.1103/PhysRevB.69.201101. 
+
+(9) Wang, L.; Maxisch, T.; Ceder, G. Oxidation Energies of Transition Metal Oxides within 
+
+the GGA+U Framework. Phys. Rev. B 2006 , 73 (19), 195107. 
+
+https://doi.org/10.1103/PhysRevB.73.195107. 
+
+(10) Zhou, F.; Cococcioni , M.; Marianetti, C. A.; Morgan, D.; Ceder, G. First -Principles 
+
+Prediction of Redox Potentials in Transition -Metal Compounds with LDA+ U. Phys. Rev. 
+
+B 2004 , 70 (23), 235121. https://doi.org/10.1103/PhysRevB.70.235121. 
+
+(11) Cococcioni, M.; Marzari, N. Energetics and Cathode Voltages of LiMPO 4 Olivines 
+
+(M=Fe, Mn) from Extended Hubbard Functionals. Phys. Rev. Mater. 2019 , 3 (3), 033801. 
+
+https://doi.org/10.1103/PhysRevMaterials.3.033801. 
+
+(12) Kirchner -Hall, N. E.; Zhao, W.; Xiong, Y.; Timrov , I.; Dabo, I. Extensive Benchmarking 
+
+of DFT+U Calculations for Predicting Band Gaps. Applied Sciences 2021 , 11 (5), 2395. 
+
+https://doi.org/10.3390/app11052395. 
+
+(13) Di Sante, D.; Kim, B.; Hanke, W.; Wehling, T.; Franchini, C.; Thomale, R.; Sangiovanni, 
+
+G. Electronic Correlations and Universal Long -Range Scaling in Kagome Metals. Phys. 
+
+Rev. Res. 2023 , 5 (1), L012008. https://doi.org/10.1103/PhysRevResearch.5.L012008. 
+
+(14) Reddy, I. R.; Kang, C. -J.; Kim, S.; Kim, B. Exploring the Role of Nonlocal Coulomb 
+
+Interactions in Perovskite Transition Metal Oxides. NPJ Comput. Mater. 2024 , 10 (1), 
+
+286. https://doi.org/10.1038/s41524 -024 -01454 -9. 26 
+
+(15) Reddy, I. R.; Ghosh, S.; Kim, B.; Kang, C. -J. Role of On -Site and Intersite Coulomb 
+
+Interactions in KV 3Sb 5: A fi rst -Principles DFT+ U+V Study. Phys. Rev. B 2025 , 112 (11), 
+
+115109. https://doi.org/10.1103/fnbn -65bd. 
+
+(16) Naveas, N.; Pulido, R.; Marini, C.; Gargiani , P.; Hernandez -Montelongo, J.; Brito, I.; 
+
+Manso -Silván, M. First -Principles Calculations of Magnetite (Fe 3O4) above the Verwey 
+
+Temperature by Using Self -Consistent DFT + U + V. J. Chem. Theory Comput. 2023 , 19 
+
+(23), 8610 –8623. https://doi.org/10.1021/acs.jctc.3c00860. 
+
+(17) Timrov, I.; Aquilante, F.; Cococcioni, M.; Marzari, N. Accurate Electronic Properties and 
+
+Intercalation Voltages of Olivine -Type Li -Ion Cathode Materials from Extended Hubbard 
+
+Functionals. PRX Energy 2022 , 1 (3), 033003. 
+
+https://doi.org/10.1103/PRXEnergy.1.033003. 
+
+(18) Leiria Campo Jr, V.; Cococcioni, M. Extended DFT + U + V Method with on -Site and 
+
+Inter -Site Electronic Interactions. Journal of Physics: Condensed Matter 2010 , 22 (5), 
+
+055602. https://doi.org/10.1088/0953 -8984/22/5/055602. 
+
+(19) Timrov, I.; Marzari, N.; Cococcioni, M. Hubbard Parameters from Density -Functional 
+
+Perturbation Theory. Phys. Rev. B 2018 , 98 (8), 085127. 
+
+https://doi.org/10.1103/PhysRevB.98.085127. 
+
+(20) Lee, S. -H.; Son, Y. -W. First -Principles Approach with a Pseudohybrid Density Functional 
+
+for Extended Hubbard Interactions. Phys. Rev. Res. 2020 , 2 (4), 043410. 
+
+https://doi.org/10.1103/PhysRevResearch.2.043410. 
+
+(21) Deskins, N. A.; Dupuis, M. Electron Transport via Polaron Hopping in Bulk TiO 2: A 
+
+Density Functional Theory Characterization. Phys. Rev. B 2007 , 75 (19), 195212. 
+
+https://doi.org/10.1103/PhysRevB.75.195212. 
+
+(22) Dudarev, S. L.; Liu, P.; Andersson, D. A.; Stanek, C. R.; Ozaki, T.; Franchini, C. 
+
+Parametrization of LSDA+ U for Noncollinear Magnetic Configurations: Multipolar 
+
+Magnetism in UO 2. Phys. Rev. Mater. 2019 , 3 (8), 083802. 
+
+https://doi.org/10.1103/PhysRevMaterials.3.083802. 
+
+(23) Franchini, C.; Podloucky, R.; Paier, J.; Marsman, M.; Kresse, G. Ground -State Properties 
+
+of Multivalent Manganese Oxides: Density Functional and Hybrid Density Functional 
+
+Calculations. Phys. Rev. B 2007 , 75 (19), 195128. 
+
+https://doi.org/10.1103/PhysRevB.75.195128. 
+
+(24) Hong, J.; Stroppa, A.; Íñiguez, J.; Picozzi, S.; Vanderbilt, D. Spin -Phonon Coupling 
+
+Effects in Transition -Metal Perovskites: A DFT + U and Hybrid -Functional Study. Phys. 
+
+Rev. B 2012 , 85 (5), 054417. https://doi.org/10.1103/PhysRevB.85.054417. 
+
+(25) Haas, L.; Mlkvik, P.; Spaldin, N. A.; Ederer, C. Incorporating Static Intersite Correlation 
+
+Effects in Vanadium Dioxide through DFT+ V. Phys. Rev. Res. 2024 , 6 (4), 043177. 
+
+https://doi.org/10.1103/PhysRevResearch.6.043177. 
+
+(26) Dederichs, P. H.; Blügel, S.; Zeller, R.; Akai, H. Ground States of Constrained Systems: 
+
+Application to Cerium Impurities. Phys. Rev. Lett. 1984 , 53 (26), 2512 –2515. 
+
+https://doi.org/10.1103/PhysRevLett.53.2512. 
+
+(27) Cococcioni, M.; de Gironcoli, S. Linear Response Approach to the Calculation of the 
+
+Effective Interaction Parameters in the LDA+U Method. Phys. Rev. B 2005 , 71 (3), 
+
+035105. https://doi.org/10.1103/PhysRevB.71.035105. 
+
+(28) Agapito, L. A.; Curtarolo, S.; Buongiorno Nardelli, M. Reformulation of DFT+ U as a 
+
+Pseudohybrid Hubbard Density Functional for Accelerated Materials Discovery. Phys. 
+
+Rev. X 2015 , 5 (1), 011006. https://doi.org/10.1103/PhysRevX.5.011006. 27 
+
+(29) Solovyev, I. V.; Imada, M. Screening of Coulomb Interactions in Transition Metals. Phys. 
+
+Rev. B 2005 , 71 (4), 045103. https://doi.org/10.1103/PhysRevB.71.045103. 
+
+(30) Falletta, S.; Pasquarello, A. Hubbard U through Polaronic Defect States. NPJ Comput. 
+
+Mater. 2022 , 8 (1), 263. https://doi.org/10.1038/s41524 -022 -00958 -6. 
+
+(31) Aryasetiawan, F.; Karlsson, K.; Jepsen, O.; Schönberger, U. Calculations of Hubbard U
+
+from First -Principles. Phys. Rev. B 2006 , 74 (12), 125106. 
+
+https://doi.org/10.1103/PhysRevB.74.125106. 
+
+(32) Miyake, T.; Aryasetiawan, F. Screened Coulomb Interaction in the Maximally Localized 
+
+Wannier Basis. Phys. Rev. B 2008 , 77 (8), 085122. 
+
+https://doi.org/10.1103/PhysRevB.77.085122. 
+
+(33) Imada, M.; Miyake, T. Electronic Structure Calculation by First Principles for Strongly 
+
+Correlated Electron Systems. J. Physical Soc. Japan 2010 , 79 (11), 112001. 
+
+https://doi.org/10.1143/JPSJ.79.112001. 
+
+(34) Reddy, I. R.; Kaltak, M.; Kim, B. Comparative Analysis of Methods for Calculating 
+
+Hubbard Parameters Using CRPA. Phys. Rev. B 2025 , 111 (19), 195144. 
+
+https://doi.org/10.1103/PhysRevB.111.195144. 
+
+(35) Kim, B.; Kim, K.; Kim, S. Quantification of Coulomb Interactions in Layered Lithium 
+
+and Sodium Battery Cathode Materials. Phys. Rev. Mater. 2021 , 5 (3), 035404. 
+
+https://doi.org/10.1103/PhysRevMaterials.5.035404. 
+
+(36) Aryasetiawan, F.; Imada, M.; Georges, A.; Kotliar, G.; Biermann, S.; Lichtenstein, A. I. 
+
+Frequency -Dependent Local Interactions and Low -Energy Effective Models from 
+
+Electronic Structure Calculations. Phys. Rev. B 2004 , 70 (19), 195104. 
+
+https://doi.org/10.1103/PhysRevB.70.195104. 
+
+(37) Kotliar , G.; Savrasov, S. Y.; Haule, K.; Oudovenko, V. S.; Parcollet, O.; Marianetti, C. A. 
+
+Electronic Structure Calculations with Dynamical Mean -Field Theory. Rev. Mod. Phys. 
+
+2006 , 78 (3), 865 –951. https://doi.org/10.1103/RevModPhys.78.865. 
+
+(38) Biermann, S. Dynamical Screening Effects in Correlated Electron Materials —a Progress 
+
+Report on Combined Many -Body Perturbation and Dynamical Mean Field Theory: ‘GW + 
+
+DMFT.’ Journal of Physics: Condensed Matter 2014 , 26 (17), 173202. 
+
+https://doi.org/10.1088/0953 -8984/26/17/173202. 
+
+(39) Petocchi, F.; Nilsson, F.; Aryasetiawan, F.; Werner, P. Screening from eg States and 
+
+Antiferromagnetic Correlations in d(1,2,3) Perovskites: A GW +EDMFT Investigation. Phys. 
+
+Rev. Res. 2020 , 2 (1), 013191. https://doi.org/10.1103/PhysRevResearch.2.013191. 
+
+(40) Panda, S. K.; Jiang, H.; Biermann, S. Pressure Dependence of Dynamically Screened 
+
+Coulomb Interactions in NiO: Effective Hubbard, Hund, Intershell, and Intersite 
+
+Components. Phys. Rev. B 2017 , 96 (4), 045137. 
+
+https://doi.org/10.1103/PhysRevB.96.045137. 
+
+(41) Vaugier, L.; Jiang, H.; Biermann, S. Hubbard U and Hund Exchange J in Transition Metal 
+
+Oxides: Screening versus Localization Trends from Constrained Random Phase 
+
+Approximation. Phys. Rev. B 2012 , 86 (16), 165105. 
+
+https://doi.org/10.1103/PhysRevB.86.165105. 
+
+(42) Si, L.; Liu, P.; Franchini, C. Evolution of the Coulomb Interactions in Correlated 
+
+Transition -Metal Perovskite Oxides from the Constrained Random Phase Approximation. 
+
+Phys. Rev. Mater. 2025 , 9 (1), 015001. 
+
+https://doi.org/10.1103/PhysRevMaterials.9.015001. 28 
+
+(43) Kim, B.; Liu, P.; Tomczak, J. M.; Franchini, C. Strain -Induced Tuning of the Electronic 
+
+Coulomb Interaction in 3 d Transition Metal Oxide Perovskites. Phys. Rev. B 2018 , 98 (7), 
+
+075130. https://doi.org/10.1103/PhysRevB.98.075130. 
+
+(44) Yu, M.; Yang, S.; Wu, C.; Marom, N. Machine Learning the Hubbard U Parameter in 
+
+DFT+ U Using Bayesian Optimization. NPJ Comput. Mater. 2020 , 6 (1), 180. 
+
+https://doi.org/10.1038/s41524 -020 -00446 -9. 
+
+(45) Yu, W.; Zhang, Z.; Wan, X.; Guo, H.; Gui, Q.; Peng, Y.; Li, Y.; Fu, W.; Lu, D.; Ye, Y.; 
+
+Guo, Y. Active Learning the High -Dimensional Transferable Hubbard U and V
+
+Parameters in the DFT + U + V Scheme. J. Chem. Theory Comput. 2023 , 19 (18), 6425 –
+
+6433. https://doi.org/10.1021/acs.jctc.2c01116. 
+
+(46) Cai, G.; Cao, Z.; Xie, F.; Jia, H.; Liu, W.; Wang, Y.; Liu, F.; Ren, X.; Meng, S.; Liu, M. 
+
+Predicting Structure -Dependent Hubbard U Parameters via Machine Learning. Materials 
+
+Futures 2024 , 3 (2), 025601. https://doi.org/10.1088/2752 -5724/ad19e2. 
+
+(47) Xia, W.; Chen, G.; Zhu, Y.; Hou, Z.; Tsuchiya, T.; Wang, X. Machine Learning Model for 
+
+the Prediction of Hubbard U Parameters and Its Application to Fe -O Systems. J. Chem. 
+
+Theory Comput. 2024 , 20 (22), 10095 –10102. https://doi.org/10.1021/acs.jctc.4c01004. 
+
+(48) Uhrin, M.; Zadoks, A.; Binci, L.; Marzari, N.; Timrov, I. Machine Learning Hubbard 
+
+Parameters with Equivariant Neural Networks. NPJ Comput. Mater. 2025 , 11 (1), 19. 
+
+https://doi.org/10.1038/s41524 -024 -01501 -5. 
+
+(49) Yang, W.; Timrov, I.; Aquilante, F.; Son, Y. -W. Comparing Hubbard Parameters from 
+
+Linear -Response Theory and Hartree -Fock -Based Approach. ArXiv 2025 .
+
+http://arxiv.org/abs/2512.16803. 
+
+(50) Carta, A.; Timrov , I.; Beck, S.; Ederer, C. Bridging Constrained Random -Phase 
+
+Approximation and Linear Response Theory for Computing Hubbard Parameters. ArXiv 
+
+2025 . http://arxiv.org/abs/2505.03698. 
+
+(51) Mosey, N. J.; Carter, E. A. Ab Initio Evaluation of Coulomb and Exchange Parameters for 
+
+DFT+U Calculations. Phys. Rev. B 2007 , 76 (15), 155123. 
+
+https://doi.org/10.1103/PhysRevB.76.155123. 
+
+(52) Kulik, H. J.; Cococcioni, M.; Scherlis , D. A.; Marzari, N. Density Functional Theory in 
+
+Transition -Metal Chemistry: A Self -Consistent Hubbard U Approach. Phys. Rev. Lett. 
+
+2006 , 97 (10), 103001. https://doi.org/10.1103/PhysRevLett.97.103001. 
+
+(53) Kaltak, M. Merging GW with DMFT. Ph.D. thesis, University of Vienna, Vienna, 2015. 
+
+(54) Kresse, G.; Furthmüller, J. Efficient Iterative Schemes for Ab Initio Total -Energy 
+
+Calculations Using a Plane -Wave Basis Set. Phys. Rev. B 1996 , 54 (16), 11169 –11186. 
+
+https://doi.org/10.1103/PhysRevB.54.11169. 
+
+(55) Kaltak, M.; Hampel, A.; Schlipf, M.; Reddy, I. R.; Kim, B.; Kresse, G. Constrained 
+
+Random Phase Approximation: The Spectral Method. Phys. Rev. B 2025 , 112 (24), 
+
+245102. https://doi.org/10.1103/m3gh -g6r6. 
+
+(56) Breiman, L. Random Forests. Mach. Learn. 2001 , 45 , 5 –32. 
+
+(57) Friedman, J. H. Greedy Function Approximation: A Gradient Boosting Machine. The 
+
+Annals of Statistics 2001 , 29 (5), 1189 –1232. 
+
+(58) Chen, T.; Guestrin, C. XGBoost: A Scalable Tree Boosting System. In Proceedings of the 
+
+ACM SIGKDD International Conference on Knowledge Discovery and Data Mining ;
+
+Association for Computing Machinery, 2016; Vol. 13 -17 -August -2016, pp 785 –794. 
+
+https://doi.org/10.1145/2939672.2939785. 29 
+
+(59) Lee, D.; You, D.; Lee, D.; Li, X.; Kim, S. Machine -Learning -Guided Prediction Models 
+
+of Critical Temperature of Cuprates. J. Phys. Chem. Lett. 2021 , 12 (26), 6211 –6217. 
+
+https://doi.org/10.1021/acs.jpclett.1c01442. 
+
+(60) You, D.; Ganorkar, S.; Kim, S.; Kang, K.; Shin, W. -Y.; Lee, D. Machine Learning -Based 
+
+Prediction Models for Formation Energies of Interstitial Atoms in HCP Crystals. Scr. 
+
+Mater. 2020 , 183 , 1 –5. https://doi.org/10.1016/j.scriptamat.2020.02.042. 
+
+(61) Kim, C.; Pilania, G.; Ramprasad, R. From Organized High -Throughput Data to 
+
+Phenomenological Theory Using Machine Learning: The Example of Dielectric 
+
+Breakdown. Chemistry of Materials 2016 , 28 (5), 1304 –1311. 
+
+https://doi.org/10.1021/acs.chemmater.5b04109. 
+
+(62) Ghiringhelli, L. M.; Vybiral, J.; Levchenko, S. V.; Draxl, C.; Scheffler, M. Big Data of 
+
+Materials Science: Critical Role of the Descriptor. Phys. Rev. Lett. 2015 , 114 (10), 
+
+105503. https://doi.org/10.1103/PhysRevLett.114.105503. 
+
+(63) Bastonero, L.; Malica, C.; Macke, E.; Bercx, M.; Huber, S.; Timrov, I.; Marzari, N. First -
+
+Principles Hubbard Parameters with Automated and Reproducible Workflows. NPJ 
+
+Comput. Mater. 2025 , 11 (1), 183. https://doi.org/10.1038/s41524 -025 -01685 -4. 
+
+(64) Tomczak, J. M.; Miyake, T.; Aryasetiawan, F. Realistic Many -Body Models for 
+
+Manganese Monoxide under Pressure. Phys. Rev. B 2010 , 81 (11), 115116. 
+
+https://doi.org/10.1103/PhysRevB.81.115116. 
+
+(65) Tomczak, J. M.; Miyake, T.; Sakuma, R.; Aryasetiawan, F. Effective Coulomb 
+
+Interactions in Solids under Pressure. Phys. Rev. B 2009 , 79 (23), 235133. 
+
+https://doi.org/10.1103/PhysRevB.79.235133. 
+
+(66) Resta, R. Thomas -Fermi Dielectric Screening in Semiconductors. Phys. Rev. B 1977 , 16 
+
+(6), 2717 –2722. https://doi.org/10.1103/PhysRevB.16.2717. S1
+
+Physics -informed Machine Learning Prediction of Hubbard Interaction Parameters 
+
+Jiyeon Kim 1*, Indukuru Ramesh Reddy 2*, Bongjae Kim 2†, Sooran Kim 1, 2,3 †
+
+> 1
+
+Department of Physics Education, Kyungpook National University, Daegu 41566, South Korea 
+
+> 2
+
+Department of Physics, Kyungpook National University, Daegu 41566, South Korea 
+
+> 3
+
+KNU G -LAMP Project Group, KNU Institute of Basic Sciences, Kyungpook National 
+
+University, Daegu, 41566, Korea. 
+
+*J.K. and I.R.R. contributed equally to this work. 
+
+†Corresponding authors: bongjae@knu.ac.kr , sooran@knu.ac.kr S2
+
+## Note S1. Computational details 
+
+The DFT calculations were performed using VASP .1 The generalized gradient 
+
+approximation (GGA) in the Perdew -Burke -Ernzerhof (PBE) parametrization was used for the 
+
+exchange -correlation functional .2 The electron -ionic core interaction was represented by projector 
+
+augmented wave potentials (PAWs) .3 A large plane -wave cutoff energy 500 eV was employed for 
+
+all the perovskite and layered perovskite structures, while 650 eV was used for other structures. 
+
+For the response function calculations, the cutoff energy was set to the default value, correspondin g
+
+to two -thirds of the plane -wave cutoff energy. The Brillouin zone was sampled using G-centered 
+
+k-point meshes with a reciprocal space resolution of 0.03 -0.04 ⨉ 2π Å-1. The convergence criterion 
+
+for the self -consistent electronic energy minimization was set to 10 -8 eV. 
+
+The interaction parameters of the TM -d manifold, including the effective on -site Coulomb 
+
+interaction (Ueff ), inter -site Coulomb interaction ( V), and Hund ’s coupling ( J), were computed 
+
+using the constrained random -phase approximation (cRPA) within the projector -based 
+
+implementation in VASP .1,4 The central part of cRPA is in defining the correlated subspace, 
+
+typically corresponding to the TM -d manifold , and obtaining the associated polarizability ( Pc). 
+
+Here, the correlated subspace was defined using maximally localized Wannier functions (MLWFs) 
+
+constructed from DFT Kohn –Sham states using WANNIER9 05 interfaced with VASP via 
+
+VASP2WANNIER9 0.6 The MLWFs were constructed within a d–dp model including both TM -d
+
+and O -p states, while the interaction parameters were evaluated for the TM -d manifold only. The 
+
+disentanglement energy window s (𝕎 ) used for constructing the Wannier functions are listed in 
+
+Table S7 . Default parameters were used for both the disentanglement convergence criterion and 
+
+Wannierization .7,8 
+
+To account for V along both the in -plane and out -of -plane directions, supercells were 
+
+constructed according to the crystal geometry. For the perovskite and layered perovskite structures, 
+
+Sr MO3 (M = 3d and 4 d) and Sr 2MO4 (M = 3d and 4 d), √2 ⨉√2 ⨉2 and √2 ⨉√2 ⨉1 supercells were 
+
+employed, respectively. For layered (Li /Na )MO2 materials, a 1⨉1⨉2 supercell was used for the 
+
+monoclinic structures ( M = Mn and Ni), while a 1⨉√3 ⨉1 supercell was adopted for the remaining 
+
+hexagonal structures. For the olivine and spinel structures , both in -plane and out -of -plane V are 
+
+already contained within the 1⨉1⨉1 olivine cell and the primitive spinel cell . Thus , cRPA S3
+
+calculations were performed without constructing supercells for these structures to reduce 
+
+computational cost. 
+
+## Note S2. Calculation of Dd-p and W
+
+The TM -d and O -p band centers, 𝜺 d and 𝜺 p, were calculated from projected density of states 
+
+(PDOS )9 as 
+
+𝜺 !(#) = ∫ 𝒏 𝒅 (𝒑 )(𝝐 𝒅 (𝒑 ))   
+
+> 𝑬 𝒎𝒂𝒙
+> 𝑬 𝒎𝒊𝒏
+
+𝝐 𝒅 (𝒑 )𝒅 𝝐 𝒅 (𝒑 )
+
+∫ 𝒏 𝒅 (𝒑 )(𝝐 𝒅 (𝒑 ))   
+
+> 𝑬 𝒎𝒂𝒙
+> 𝑬 𝒎𝒊𝒏
+
+𝒅 𝝐 𝒅 (𝒑 )
+
+where 𝒏 𝒅 (𝒑 ) is the PDOS and 𝝐 𝒅 (𝒑 ) denotes the energy of the TM -d (O -p) states. The integration 
+
+limits Emin and Emax define the energy window used to calculate the band centers, as illustrated 
+
+schematically in Fig. 2(a) of the main text. Accordingly, Dd-p is obtained from the energy separation 
+
+between 𝜺 ! and 𝜺 #. The corresponding Emin and Emax values are given in Table S7.
+
+The TM -d bandwidth ( W) was calculated from the energy width of TM -d Wannier bands 
+
+(green dashed lines) shown in band structures presented in Figures S5-S10 . The Wannier -
+
+interpolated bands and corresponding density functional theory (DFT ) band structures for Sr MO3
+
+(M = 3 d) and Li MO2 (M = 3 d) have been reported previously .7,8 S4
+
+Table S1. List of transition -metal oxide compounds and cRPA -deriv ed Ueff , V, and J values .
+
+Structure type List Ueff V J
+
+Perovskite 
+
+SrTiO 3 4.912 1.64 0 0.57 0
+
+SrVO 3 4.033 1.354 0.609 
+
+SrCrO 3 3.459 1.3 00 0.64 0
+
+SrMnO 3 3.596 1.313 0.672 
+
+SrFeO 3 4.021 1.192 0.7 00 
+
+SrCoO 3 3.378 1.391 0.725 
+
+SrMoO 3 4.029 1.231 0.515 
+
+SrTcO 3 3.903 1.213 0.54 0
+
+SrRuO 3 3.857 1.262 0.553 
+
+SrRhO 3 3.278 1.302 0.561 
+
+Olivine 
+
+LiMnPO 4 5.388 1.682 0.67 0
+
+LiFePO 4 5.374 1.67 0 0.723 
+
+NaMnPO 4 5.085 1.591 0.66 0
+
+NaFePO 4 5.148 1.598 0.716 
+
+NaCoPO 4 5.184 1.604 0.767 
+
+MnPO 4 4.391 1.576 0.682 
+
+FePO 4 4.135 1.595 0.726 
+
+CoPO 4 4.152 1.63 0 0.769 
+
+NiPO 4 4.202 1.635 0.819 
+
+Spinel 
+
+LiCr 2O4 3.968 1.429 0.642 
+
+LiMn 2O4 3.814 1.367 0.687 
+
+LiFe 2O4 3.936 1.363 0.742 
+
+LiCo 2O4 4.002 1.406 0.801 
+
+LiNi 2O4 4.239 1.387 0.864 
+
+Li 2Ti 2O4 4.516 1.506 0.531 
+
+Li 2V2O4 4.274 1.454 0.586 
+
+Li 2Mn 2O4 4.143 1.327 0.672 
+
+Li 2Co 2O4 4.956 1.879 0.798 
+
+Mn 2O4 3.615 1.378 0.686 
+
+Layered 
+
+LiVO 2 4.332 1.285 0.592 
+
+LiCrO 2 4.168 1.272 0.639 
+
+LiMnO 2 4.219 1.295 0.674 
+
+LiFeO 2 4.202 1.277 0.738 
+
+LiCoO 2 5.584 1.524 0.805 
+
+LiNiO 2 4.942 1.139 0.852 
+
+NaVO 2 4.005 1.121 0.594 
+
+NaCrO 2 3.781 1.12 0 0.636 
+
+NaMnO 2 3.972 1.265 0.673 
+
+NaFeO 2 3.915 1.14 0 0.731 
+
+NaCoO 2 5.104 1.347 0.799 
+
+NaNiO 2 4.404 1.163 0.845 
+
+MnO 2 3.253 1.146 0.681 
+
+CoO 2 3.521 1.025 0.796 
+
+NiO 2 4.55 0 1.373 0.839 
+
+Layered 
+
+perovskite 
+
+Sr 2TiO 4 5.019 1.503 0.555 
+
+Sr 2VO 4 3.673 1.235 0.594 
+
+Sr 2CrO 4 3.297 1.216 0.617 
+
+Sr 2MnO 4 3.207 1.217 0.655 
+
+Sr 2FeO 4 3.049 1.223 0.684 
+
+Sr 2CoO 4 2.849 1.246 0.712 
+
+Sr 2MoO 4 4.02 0 1.162 0.5 00 
+
+Sr 2TcO 4 4.02 0 1.123 0.52 0S5
+
+Sr 2RhO 4 3.316 1.257 0.55 0
+
+Sr 2RuO 4 3.773 1.213 0.541 
+
+Table S2. Pearson correlation coefficients between each feature and the interaction parameters 
+
+Ueff , V, and J.
+
+Feature Ueff V J
+
+W -0.448 -0.458 -0.731 
+
+Dd-p 0.539 0.405 -0.312 
+
+ZTM -0.219 -0.283 -0.394 
+
+GTM 0.028 0.051 0.745 
+
+PTM -0.234 -0.307 -0.601 
+
+nd 0.271 0.228 0.789 
+
+nox -0.707 -0.526 -0.35 0
+
+Nu.c 0.459 0.638 0.145 
+
+TM u.c 0.438 0.578 0.31 0
+
+dTM -O 0.461 0.184 -0.114 
+
+Vf.u -0.178 0.066 -0.374 
+
+SG -0.329 -0.132 -0.277 
+
+Table S3. Gini importance of features in sets 1 and 2 for predicting Ueff .
+
+Set 1 GI 
+
+1 nd 0.321 
+
+2 nox 0.290 
+
+3 Vf.u 0.235 
+
+4 Nu.c 0.154 
+
+Set 2 GI 
+
+1 Dd-p 0. 308 
+
+2 W 0. 284 
+
+3 nd 0. 247 
+
+4 Vf.u 0.1 61 S6
+
+Table S4. Equations of the best -performing 3C2F models for predicting Ueff 
+
+Model equations (set 1) RMSE (eV) R2
+
+1 1.898 𝑒 !( # 
+
+> $!" %$#)
+
+− 9.978 𝑒 ( #   
+
+> '$.&!#
+> $!" )
+
++ 133 .485 𝑛 )
+
+> *
+
+(V+.-)* + 11 .337 0.240 0.773 
+
+2 0.741 2𝑛 ./ 𝑒 !$# − 9.991 𝑒 ( #   
+
+> '$.&!#
+> $!" )
+
++ 133 .250 𝑛 )
+
+> *
+
+(V+.-)* + 11 .349 0.241 0.773 
+
+3 0.096 𝑛 ./  
+
+> 0
+
+𝑒 !$# − 3.298 𝑒  
+
+> #
+> '$.&
+
+ln (1 + 𝑛 ./ ) + 119 .859 𝑛 )
+
+> *
+
+(V+.-)* + 8.801 0.243 0.774 
+
+Model equations (set 2) RMSE (eV) R2
+
+1 0.626 D)!1
+
+ln (1 + 𝑊 ) − 1.963 8𝑛 )
+
+𝑊 + 0.275 𝑛 )0
+
+ln (1 + V+.-) + 3.559 0.207 0.813 
+
+2 0.321 9D)!1:𝑒 # 
+
+> 2
+
+− 1.604 8𝑛 )
+
+𝑊 + 0.262 𝑛 )0
+
+ln (1 + V+.-) + 3.204 0.210 0.812 
+
+3 0.022 9D)!1:0𝑛 ) − 2.235 𝑒 ( #  
+
+> 2!#
+> $#)
+
++ 0.302 𝑛 )0
+
+2V+.-
+
++ 4.732 0.225 0.812 
+
+Fig ure S1. Dependence of Ueff on the number of d electrons of TM ion, nd (a) for set 1 and (b) set 
+
+2, both at fixed volume V f.u = 59.7 53 Å3. For set 2, Dd-p was fixed at its average value of 2.918 eV. S7
+
+Fig ure S2. BFS results for V using feature set 2 ( Dd-p, W, nd, and TM u.c ) (a) Model performance 
+
+depending on the number of features . ( b) Three -dimensional (3D) surfaces of the best -performing 
+
+BFS model .
+
+Table S5. Equations of the three best -performing BFS models for predicti ng V.
+
+3C2F Model equations (set 1) RMSE (eV) R2
+
+1 0.919 𝑒 !$#
+
+2N-.3
+
++ 1.673 × 10 !* (N-.3)*
+
+V+.-
+
++ 8.342 × 10 4 𝑒 !'$.& (N-.3)* + 1.193 0.071 0.763 
+
+2 0.710 𝑒 !$#
+
+ln (1 + N-.3) + 1.670 × 10 !* (N-.3)*
+
+V+.-
+
++ 8.352 × 10 4 𝑒 !'$.& (N-.3)* + 1.193 0.071 0.759 
+
+3 2.234 𝑒 !$#
+
+N-.3
+
++ 1.674 × 10 !* (N-.3)*
+
+V+.-
+
++ 8.252 × 10 4 𝑒 !'$.& (N-.3)* + 1.197 0.072 0.765 
+
+2C3F Model equations (set 2) RMSE (eV) R2
+
+1 2.363 × 10 !* 9D)!1:*𝑒 ( # 
+
+> 56 &.'!$#)
+
++ 8.392 × 10 !7 𝑛 ) ln 91 + D)!1: 𝑒 56 &.' + 1.197 0.074 0.697 
+
+2 4.437 × 10 !* 9D)!1:*𝑒 !$#
+
+ln (1 + TM-.3) + 8.400 × 10 !7 𝑛 ) ln 91 + D)!1: 𝑒 56 &.' + 1.197 0.074 0.696 
+
+3 7.689 × 10 !* 𝑒 8D#()!$#9
+
+TM -.3
+
++ 8.363 × 10 !7 𝑛 ) ln 91 + D)!1: 𝑒 56 &.' + 1.199 0.076 0.695 S8
+
+Fig ure S3. Prediction performance of ensemble -learning models for J. (a) RMSE and (b) R2 values 
+
+as function s of the number of selected features. 
+
+Fig ure S4. Prediction performance of BFS models for J. (a,b) RMSE as a function of the number 
+
+of features using feature set s 1 and 2, respectively. (c,d) Two -dimensional plots of the 
+
+representative BFS model for set 1 (1C2F) and set 2 (2C2F), respectively. (e) Relationship between 
+
+J and W.S9
+
+Table S6. Equations of r epresentative BFS model s for predicti ng J.
+
+1C2F Model equations (set 1) RMSE (eV) R2
+
+1 3.001 G56 
+
+P56  
+
+> *
+
++ 0.354 0.015 0.954 
+
+2 0.197 G56  
+
+> 0
+
+𝑒 !:*+ + 0.488 0.020 0.941 
+
+3 2.256 G56 𝑒 !:*+ + 0.399 0.020 0.935 
+
+2C2F Model equations (set 2) RMSE (eV) R2
+
+1 −0.055 2𝑊 Z56 − 1.287 × 10 7 1
+
+√𝑊 Z56  
+
+> *
+
++ 1.666 0.022 0.929 
+
+2 −815 .016 1
+
+√𝑊 Z56  
+
+> 0
+
+− 0.099 ln (1 + 𝑊 )2Z56 + 2.148 0.023 0.922 
+
+3 −0.073 ln (1 + 𝑊 )2Z56 − 9.933 × 10 * 1
+
+ln (1 + 𝑊 )Z56  
+
+> *
+
+) + 1.678 0.024 0.918 
+
+Table S7. List of transition -metal oxide compounds, the corresponding [ Emin , Emax ] energy window 
+
+(in eV) used for calculating the TM -d and O -p band centers, and the disentanglement energy 
+
+window 𝕎 (in eV) used for Wannier -function construction. All energy values are given relative to 
+
+the Fermi level ( EF = 0 eV). 
+
+Structure type List [Emin , Emax ] 𝕎 
+
+Perovskite 
+
+SrTiO 3 [-8.0, 9.0] Ref. 1 
+
+SrVO 3 [-8.0, 6.0] Ref. 1 
+
+SrCrO 3 [-8.0, 5.0] Ref. 1 
+
+SrMnO 3 [-8.0, 5.0] Ref. 1 
+
+SrFeO 3 [-8.0, 4.0] Ref. 1 
+
+SrCoO 3 [-8.0, 4.0] Ref. 1 
+
+SrMoO 3 [-9.0, 8.0] [-7.82;7.88] 
+
+SrTcO 3 [-9.0, 7.0] [-8.32;6.48] 
+
+SrRuO 3 [-9.0, 7.0] [-7.99;5.81] 
+
+SrRhO 3 [-9.0, 6.0] [-7.67;5.43] 
+
+Olivine 
+
+LiMnPO 4 [-11.0, 2.0] [-10.92;1.08] 
+
+LiFePO 4 [-11.0, 2.0] [-10.64;0.76] 
+
+NaMnPO 4 [-11.0, 2.0] [-10.72;1.08] 
+
+NaFePO 4 [-11.0, 2.0] [-10.39;0.81] 
+
+NaCoPO 4 [-11.0, 2.0] [-10.50;0.80] 
+
+MnPO 4 [-11.0, 3.0] [-10.03;1.87] 
+
+FePO 4 [-11.0, 3.0] [-9.64;1.56] 
+
+CoPO 4 [-11.0, 3.0] [-9.65;1.25] 
+
+NiPO 4 [-11.0, 3.0] [-9.27;1.03] S10 
+
+Spinel 
+
+LiCr 2O4 [-9.0, 4.0] [-8.02 ;3.08] 
+
+LiMn 2O4 [-9.0, 4.0] [-7.08;2.62] 
+
+LiFe 2O4 [-9.0, 4.0] [-7.16;2.54] 
+
+LiCo 2O4 [-9.0, 4.0] [-6.46;2.14] 
+
+LiNi 2O4 [-9.0, 4.0] [-7.46;1.04] 
+
+Li 2Ti 2O4 [-9.0, 4.0] [-8.37;3.63] 
+
+Li 2V2O4 [-9.0, 4.0] [-8.26;2.94] 
+
+Li 2Mn 2O4 [-9.0, 4.0] [-7.22;2.58] 
+
+Li 2Co 2O4 [-9.0, 4.0] [-7.10;1.30] 
+
+Mn 2O4 [-9.0, 4.0] [-7.09;3.20] 
+
+Layered 
+
+LiVO 2 [-9.0, 4.0] [-8.58;3.52] 
+
+LiCrO 2 [-9.0, 4.0] [-8.10;2.60] 
+
+LiMnO 2 [-9.0, 4.0] [-7.69;2.71] 
+
+LiFeO 2 [-9.0, 4.0] [-6.92;1.88] 
+
+LiCoO 2 [-9.0, 4.0] [-8.12;1.48] 
+
+LiNiO 2 [-9.0, 4.0] [-7.98;0.72] 
+
+NaVO 2 [-8.0, 4.0] [-7.19;2.61] 
+
+NaCrO 2 [-8.0, 4.0] [-6.98;2.12] 
+
+NaMnO 2 [-8.0, 4.0] [-6.56;2.14] 
+
+NaFeO 2 [-8.0, 4.0] [-5.98;1.42] 
+
+NaCoO 2 [-8.0, 4.0] [-6.90;1.10] 
+
+NaNiO 2 [-8.0, 4.0] [-6.71;0.69] 
+
+MnO 2 [-8.0, 4.0] [-6.69;3.01] 
+
+CoO 2 [-8.0, 4.0] [-6.76;2.84] 
+
+NiO 2 [-8.0, 4.0] [-7.13 ;1.77] 
+
+Layered 
+
+perovskite 
+
+Sr 2TiO 4 [-8.0, 8.0] [-5.33;7.95] 
+
+Sr 2VO 4 [-8.0, 5.5] [-7.08;5.72] 
+
+Sr 2CrO 4 [-8.0, 5.0] [-7.03;4.97] 
+
+Sr 2MnO 4 [-8.0, 5.0] [-6.93;4.47] 
+
+Sr 2FeO 4 [-8.0, 4.0] [-6.42;3.88] 
+
+Sr 2CoO 4 [-8.0, 4.0] [-6.39;3.71] 
+
+Sr 2MoO 4 [-10.0, 9.0] [-8.36;8.34] 
+
+Sr 2TcO 4 [-10.0, 9.0] [-8.16;7.3 4]
+
+Sr 2RhO 4 [-10.0, 9.0] [-8.07;6.83] 
+
+Sr 2RuO 4 [-10.0, 9.0] [-7.87;6.13] S11 
+
+Figure S5. Nonmag netic band structures of layered materials together with their Wannier -
+
+interpolated bands. The solid blue (red) and dashed orange (green) lines represent the DFT 
+
+and Wannier -interpolated bands of O -p (TM -d) bands, respectively. The disentanglement 
+
+energy window s for constructing the Wannier functions are represented by solid magenta 
+
+lines. (a) NaVO 2, (b) NaCrO 2, (c) NaMnO 2, (d) NaFeO 2, (e) NaCoO 2, (f) NaNiO 2, (g) MnO 2,
+
+(h) CoO 2, and (i) NiO 2.S12 
+
+Figure S6. Nonmagnetic band structures of spinel materials together with their Wannier -
+
+interpolated bands. Line colors and styles are identical to those used in Figure S5. (a) 
+
+LiCr 2O4, (b) LiMn 2O4, (c) LiFe 2O4, (d) LiCo 2O4, (e) LiNi 2O4, (f) Li 2Ti 2O4, (g) Li 2V2O4, (h) 
+
+Li 2Mn 2O4, ( i) Li 2Co 2O4, and (j) Mn 2O4.S13 
+
+Figure S7. Nonmagnetic band structures of olivine materials together with their Wannier -
+
+interpolated bands. Line colors and styles are identical to those used in Figure S5. (a) 
+
+LiMnPO 4, (b) LiFePO 4, (c) NaMnPO 4, (d) NaFePO 4, (e) NaCoPO 4, (f) MnPO 4, (g) FePO 4,
+
+(h) CoPO 4, and (i) NiPO 4.
+
+Figure S8. Nonmagnetic band structures of Sr 2MO4 (M = 3d) layered perovskite materials 
+
+together with their Wannier -interpolated bands. Line colors and styles are identical to those 
+
+used in Figure S5. (a) Sr 2TiO 4, (b) Sr 2VO 4, (c) Sr 2CrO 4, (d) Sr 2MnO 4, (e) Sr 2FeO 4, and (f) 
+
+Sr 2CoO 4.S14 
+
+Figure S9. Nonmagnetic band structures of Sr 2MO4 (M = 4d) layered perovskite materials 
+
+together with their Wannier -interpolated bands. Line colors and styles are identical to those 
+
+used in Figure S5. (a) Sr 2MoO 4, (b) Sr 2TcO 4, (c) Sr 2RuO 4, and (d) Sr 2RhO 4.
+
+Figure S10. Nonmagnetic band structures of Sr MO3 (M = 4d) perovskite materials together 
+
+with their Wannier -interpolated bands. Line colors and styles are identical to those used in 
+
+Figure S5. (a) SrMoO 3, (b) SrTcO 3, (c) SrRuO 3, and (d) SrRhO 3.S15 
+
+## References 
+
+(1) Kresse, G.; Furthmüller , J. Efficient Iterative Schemes for Ab Initio Total -Energy 
+
+Calculations Using a Plane -Wave Basis Set. Phys. Rev. B 1996 , 54 (16), 11169 –11186. 
+
+https://doi.org/10.1103/PhysRevB.54.11169. 
+
+(2) Perdew, J. P.; Burke, K.; Ernzerhof, M. Generalized Gradient Approximation Made 
+
+Simple. Phys. Rev. Lett. 1996 , 77 (18), 3865 –3868. 
+
+https://doi.org/10.1103/PhysRevLett.77.3865. 
+
+(3) Blöchl, P. E. Projector Augmented -Wave Method. Phys. Rev. B 1994 , 50 (24), 17953 –
+
+17979. https://doi.org/10.1103/PhysRevB.50.17953. 
+
+(4) Kaltak , M. Merging GW with DMFT. Ph.D. thesis, University of Vienna, Vienna, 2015. 
+
+(5) Mostofi, A. A.; Yates, J. R.; Lee, Y. -S.; Souza, I.; Vanderbilt, D.; Marzari, N. Wannier90: A 
+
+Tool for Obtaining Maximally -Localised Wannier Functions. Comput. Phys. Commun. 
+
+2008 , 178 (9), 685 –699. https://doi.org/10.1016/j.cpc.2007.11.016. 
+
+(6) Franchini, C.; Kováčik, R.; Marsman, M.; Sathyanarayana Murthy, S.; He, J.; Ederer, C.; 
+
+Kresse, G. Maximally Localized Wannier Functions in LaMnO 3 within PBE + U, Hybrid 
+
+Functionals and Partially Self -Consistent GW: An Efficient Route to Construct Ab Initio 
+
+Tight -Binding Parameters for e g Perovskites. Journal of Physics: Condensed Matter 2012 ,
+
+24 (23), 235602. https://doi.org/10.1088/0953 -8984/24/23/235602. 
+
+(7) Reddy, I. R.; Kang, C. -J.; Kim, S.; Kim, B. Exploring the Role of Nonlocal Coulomb 
+
+Interactions in Perovskite Transition Metal Oxides. NPJ Comput. Mater. 2024 , 10 (1), 286. 
+
+https://doi.org/10.1038/s41524 -024 -01454 -9. 
+
+(8) Reddy, I. R.; Kaltak , M.; Kim, B. Comparative Analysis of Methods for Calculating 
+
+Hubbard Parameters Using CRPA. Phys. Rev. B 2025 , 111 (19), 195144. 
+
+https://doi.org/10.1103/PhysRevB.111.195144. 
+
+(9) Wang, V.; Xu, N.; Liu, J. -C.; Tang, G.; Geng, W. -T. VASPKIT: A User -Friendly Interface 
+
+Facilitating High -Throughput Computing and Analysis Using VASP Code. Comput. Phys. 
+
+Commun. 2021 , 267 , 108033. https://doi.org/10.1016/j.cpc.2021.108033.

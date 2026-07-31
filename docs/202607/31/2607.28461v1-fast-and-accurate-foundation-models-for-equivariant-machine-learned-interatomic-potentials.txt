@@ -1,0 +1,2431 @@
+Title: Fast and Accurate Foundation Models for Equivariant Machine-Learned Interatomic Potentials
+
+URL Source: https://arxiv.org/pdf/2607.28461v1
+
+Published Time: Fri, 31 Jul 2026 01:28:26 GMT
+
+Number of Pages: 25
+
+Markdown Content:
+# Fast and Accurate Foundation Models for Equivariant Machine-Learned Interatomic Potentials 
+
+Se´ an R. Kavanagh, 1, ∗ Chuin Wei Tan, 2 Menghang Wang, 2 Marc L. Descoteaux, 2 Gabriel de Miranda Nascimento, 3 Ulrik Unneberg, 2 Laura Zichi, 2 Francesco Libbi, 2 Norma Rivano, 2 Austin Glover, 4
+
+Vivek Bharadwaj, 4 Anders Johansson, 5 William C. Witt, 2 Albert Musaelian, 6 and Boris Kozinsky 2, 7, † 
+
+> 1
+
+Yusuf Hamied Department of Chemistry, University of Cambridge, Cambridge, UK 
+
+> 2
+
+John A. Paulson School of Engineering and Applied Sciences, Harvard University, Cambridge, MA, USA 
+
+> 3
+
+Department of Materials Science and Engineering, Massachusetts Institute of Technology, Cambridge, MA, USA 
+
+> 4
+
+Department of Molecular Science and Software Engineering, University of California, Berkeley, CA, USA 
+
+> 5
+
+Sandia National Laboratories, Albuquerque, NM, USA 
+
+> 6
+
+Mirian Technologies Inc., Boston, MA, USA 
+
+> 7
+
+Robert Bosch LLC Research and Technology Center, Watertown, MA, USA 
+
+Machine-learned interatomic potentials (MLIPs) have emerged as a transformative tool for computational materials science and chemistry, with universal potentials trained on large and diverse datasets now routinely deployed as ‘foundation models’ for downstream fine-tuning in targeted chemical spaces. Many scientific appli-cations of the resulting models, such as molecular dynamics (MD), require high inference and training speeds as well as accuracy. In this work we examine the limits of equivariant MLIPs, which directly encode physical symmetries in model architectures, to achieve these competing targets – particularly in the regime of extremely large datasets where data efficiency is less critical. We show how this trade-off can be addressed, and present a family of foundation potentials in the NequIP and Allegro equivariant MLIP architectures which achieve leading inference speeds and strong scalability as well as excellent accuracies across a range of community benchmarks – spanning materials discovery, thermal conductivity prediction, and near-equilibrium mechani-cal and thermodynamic properties. Accelerations implemented within the NequIP infrastructure now permit training of high-accuracy foundation potentials on ultra-large datasets with dramatically reduced computational cost. Alongside, we show that efforts to improve model accuracy for materials discovery should focus on dataset diversity and improved, consistent descriptions of transition metal compound energy surfaces. 
+
+I. INTRODUCTION 
+
+Machine-learned interatomic potentials (MLIPs) have become an indispensable tool for computational materials science and chemistry. 1–3 The recent availability of large and diverse datasets of first-principles simulation data (primarily Density Functional Theory (DFT)), such as MPtrj, 4 Alexandria, 5
+
+OMat24, 6 MatPES, 7 MAD, 8 and OMol25 9 has enabled train-ing of MLIPs which are capable of predicting energies and forces over wide chemical spaces with reasonable accuracies – often termed ‘universal potentials’. Potentials trained on large datasets are being used increasingly as ‘foundation models’, where they provide a pre-trained set of weights and parameters which can then be re-trained, or fine-tuned, on smaller datasets within a target chemical space. 10–12 
+
+Fine-tuning has been shown to significantly decrease ad-ditional training dataset size requirements for downstream application, while yielding comparable predictive accuracies to bespoke models 10,12,13 . While this approach reduces the time to generate training data, the size and inference speed of the resulting fine-tuned model may be a limiting factor in the scientific simulation workflow. Moreover, training large universal models on massive datasets has remained a difficult and computationally-expensive task, often requiring weeks, thus impeding architectural and hyperparameter explorations.   
+
+> ∗sk2045@cam.ac.uk
+> †allegro-nequip@g.harvard.edu
+
+To address these outstanding issues, in this work, we present a family of equivariant graph neural network foundation models from the NequIP 14 and Allegro 15 model frameworks, trained on the MPtrj, 4 Alexandria, 5 and OMat24 6 datasets. The NequIP 14 framework pioneered the development of inter-atomic potentials based on equivariant graph neural networks (GNNs), where physical symmetries such as rotation and inversion, as well as translation, are directly incorporated within the model architecture. Equivariant models have been shown to improve accuracies, data efficiency and generalization for MLIPs, 16–18 , with several state-of-the-art GNN models based on the NequIP architecture. 19–21 
+
+Allegro 15 built on the equivariant architecture to employ strictly-local representations without atom-centred message passing, achieving highly-scalable parallel inference on large systems. 22 Notably, Allegro uses atom pairs as the central model feature (graph edges), along with iterated tensor products of equivariant representations to model many-body interactions, rather than atoms as in NequIP. This work was facilitated by recent infrastructural developments 23 in the NequIP framework, including train-time graph compilation, distributed data-parallel (DDP) strategies for scalable multi-GPU training and optimised tensor product kernels, 24,25 which allow efficient and scalable training on large datasets. We validate the accuracies of these models using a variety of community benchmarks, including geometry relaxations and materials discovery, 26 predictions of non-equilibrium phonon-related properties, 7 and thermal conductivities, 27 demonstrating excellent performance. We find that accuracies on current inorganic materials discovery arXiv:2607.28461v1 [physics.comp-ph] 30 Jul 2026 2benchmarks are pre-dominantly limited by compositional diversity and the description of potential energy surfaces for transition metal compounds in training datasets. Finally, we demonstrate the leading inference speeds and excellent scalability of our trained models.  
+
+> II. TRAINING ACCELERATIONS
+
+Fig. 1 shows the acceleration in model training provided by recent additions of graph compilation and accelerated tensor-product kernels to the NequIP framework, 23 giving 5-10x cumulative acceleration in model training. Mixed-precision was also used to accelerate training. Specifically, double floating-point precision ( float64 ) was used for node embeddings, before casting to single-precision ( float32 )for tensor products and casting back to double-precision for model read-out, matching the default settings in NequIP and Allegro. Mixed floating-point precision 28,29 was then used for intermediate computations (such as matrix multiplica-tions) during model training , showing a negligible effect on accuracies while giving up to 1.35x and 3x train-time speedups for NequIP and Allegro respectively, depending on model hyperparameters. When employing ‘automatic mixed precision’ with the bfloat16 28 format, all scatter add 
+
+operations were reduced in higher precision (float32 )to stabilise training – now implemented by default in the NequIP infrastructure. The impact of mixed-precision on accuracy depends on data magnitudes, with greater effects on errors for datasets with larger absolute values, such as in the OMol25 9 molecular dataset. In such cases, mixed-precision can be used for the majority of training epochs, followed by a short continuation with full precision, to achieve similar train-time speed-up without loss in accuracy. 30 We note that mixed-precision (including the use of TensorFloat32 
+
+precision) was disabled for inference tasks in this work, as it was found to introduce noise and slow convergence. In addition to these per-GPU training accelerations, we lever-aged the custom Distributed Data Parallel (DDP) training strategy in NequIP 23 to allow distributed multi-GPU training and reduce training times. Combined, these accelerations al-low the training of large foundation potentials on ultra-large datasets of over 100M structures (e.g. OMat24 6) with a rela-tively modest cost of ∼100 – 750 GPU hours (with NVIDIA H100/H200 GPUs). This dramatically lowers the barrier to training high-accuracy foundation potentials, which we hope will facilitate ready extension to advanced architectures within the community (such as charge-aware models). 31,32  
+
+> III. LARGE MODEL TRAINING
+
+The key hyperparameters chosen for NequIP and Allegro models trained in this work are shown in Table 1. A range of models were trained for both architectures, with differing prioritisation of accuracy and speed. In general, we find that Allegro model training takes approximately twice as many epochs to converge as with NequIP, likely related to its strictly-local / pair-wise representation. For both architec-tures, we find a two-stage training to yield optimal results, with a greater weighting of force errors in the loss function for the initial training run until force errors have converged, followed by a short continuation run with 5-10x increased weighting of energy errors in the loss, a reduced learning rate and no mixed-precision. Stochastic weight averaging (SWA) 33 was also used in these continuation runs, but the effect was found to be quite minor. NequIP and Allegro models were trained on four inorganic materials datasets of increasing size and structural diversity, all derived from semi-local DFT calculations. The smallest is the DIRECT 34 dataset of ∼186k structures, constructed by DImensionality-Reduced Encoded Clusters with sTrati-fied (DIRECT) sampling of the MPF.2021.2.8.All dataset of Materials Project geometry relaxations (itself a sub-set of compounds and geometries from the MPtrj 4 dataset). The Ma-terials Project Trajectory (MPtrj) dataset 4 comprises ∼1.58M structures sampled from geometry relaxations and static cal-culations in the Materials Project database as of Septem-ber 2022. The MPA dataset ( ∼10.5M structures) combines MPtrj with the Alexandria dataset 5 of equilibrium and near-equilibrium structures, sub-sampled to remove structure pro-totypes overlapping with the Matbench Discovery 26 materials discovery test set (sAlex) 6. The largest, OAM ( ∼113M struc-tures), incorporates the OMat24 dataset 6 of non-equilibrium geometries from ab initio molecular dynamics and relaxation trajectories of rattled structures from the Alexandria 5 dataset, along with MPA. When training with the OAM dataset, we first train with just the OMat24 dataset 6, before fine-tuning on the MPA dataset to ensure compatibility with Materials Project 35 calculation settings (as required for the Matbench Discovery 26 benchmark tasks). In this manuscript, we use the 
+
+{architecture }-{dataset }-{model size } syntax to re-fer to the various trained models, where architecture is ei-ther NequIP or Allegro, dataset is DIRECT, MP (for MPtrj), MPA or OAM, and model size is S, M, L or XL for small, medium, large or extra-large, respectively.  
+
+> IV. BENCHMARK PERFORMANCE
+
+To demonstrate the accuracy of these foundation potentials, we evaluate their performance on a set of established com-munity benchmark tasks, 7,26,27 with results given in Table 2. Briefly, this includes: • Materials Discovery: One of the most common work-flows in computational materials science is the predic-tion of the ground-state geometry and energy of a given atomic configuration, i.e. the minimum of the potential energy surface (PES), using gradient relaxation. The 
+
+matbench-discovery 26 structural relaxation bench-mark assesses model accuracies for this task, by con-sidering the error in predicted convex hull energies (EWBM, MAE ) and atomic structures (RMSD) for the 3No Compilation Graph Compilation 
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+> Frames per GPU-hour (Normalised)
+> Standard Kernels
+> w/TensorFloat32
+> w/Automatic Mixed Precision
+> CuEquivariance
+> w/TensorFloat32
+> w/Automatic Mixed Precision
+
+No Compilation Graph Compilation 
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10 
+
+> Frames per GPU-hour (Normalised)
+> Standard Kernels
+> w/TensorFloat32
+> OpenEquivariance
+> w/TensorFloat32
+
+NequIP Allegro 
+
+Figure 1. Accelerated Model Training . Training speeds for large NequIP and Allegro models with the MPtrj dataset, 4 plotted as the number of data frames (atomic structures with energy and forces) trained on per GPU-hour. Training speeds are measured without and with graph compilation ( torch.compile ), using standard tensor product kernels or the recently-implemented OpenEquivariance 24 (for NequIP) and 
+
+cuEquivariance 25 (for Allegro) kernels, and without or with mixed floating-point precision strategies ( TensorFloat32 or Automatic Mixed Precision 28 ). Training times were recorded using a single node of 4 NVIDIA A100 40 GB GPUs on the NERSC Perlmutter system, with further details given in Section VII. The same batch sizes were used to standardise comparisons, but we note that mixed-precision and accelerated kernels also significantly reduce GPU memory demand, allowing larger batch sizes and thus second-order train-time accelerations. 10 6 10 7
+
+Model Size (Number of Parameters) 
+
+20 
+
+30 
+
+40 
+
+50 
+
+60 
+
+> EWBM, MAE  [meV/atom]
+
+Materials Discovery Error ( EWBM, MAE )
+
+NequIP-OAM-{model size} 
+
+= 0.21, R2 = 0.85 
+
+Allegro-OAM-{model size} 
+
+= 0.19, R2 = 0.99 
+
+10 6 10 7
+
+Model Size (Number of Parameters) 
+
+0.1 
+
+0.2 
+
+0.5 
+
+1.0 
+
+> SRME
+
+Thermal Conductivity Error ( SRME )
+
+NequIP-OAM-{model size} 
+
+= 0.48, R2 = 0.90 
+
+Allegro-OAM-{model size} 
+
+= 0.33, R2 = 0.97 
+
+Figure 2. Model Size Learning Curve . Test errors for NequIP and Allegro models trained on the OAM dataset (NequIP/Allegro-OAM-
+
+{model size }) and evaluated on the Matbench Discovery 26 benchmark suite, as a function of model size (Tables 1 and 2). This includes the mean absolute error (MAE) in convex hull energy predictions for unseen compounds ( EWBM, MAE , left) and the dimensionless Symmetric Relative Mean Error in thermal conductivities for 103 binary compounds ( κSRME , right). Dashed lines show least-squares power law fits to the data ( L = a · x−α ), with the fitted scaling exponent α and coefficient of determination R2 given in the figure legends. See Table 2 for tabulated values. Model hyperparameters, training datasets and naming syntax are described in Section III. 4
+
+Table 1. Key model hyperparameters for NequIP and Allegro MLIPs trained in this work. lmax refers to the maximum rotation order of the neural network model features. MLP = Multi-layer perceptron. 
+
+Model Size Radial Cutoff ( ˚ A) lmax Tensor Features (l = 0, 1... lmax )Message-Passing Layers MLP Depth Parameters 
+
+NequIP Small 4.5 1 128, 64 2 – 0.6 M Medium 6 2 128, 64, 32 4 – 3.2 M Large 6 3 128, 64, 32, 32 6 – 6.8 M Extra-Large 6 4 320, 96, 64, 32, 32 6 – 32.1 M Allegro Small 5 2 64, 64, 64 3 1 1.4 M Medium 6 2 64, 64, 64 5 1 7.2 M Large 7 3 64, 64, 64, 64 4 2 12.7 M Table 2. Performance metrics for the NequIP and Allegro models, trained on the MP and OAM datasets, with accuracy benchmarks from the Matbench Discovery 26 and MatCalc 7 test suites. This includes the mean absolute error (MAE) in convex hull energy predictions for unseen compounds ( EWBM, MAE ), the root-mean-square deviation (RMSD) in predicted geometries of unseen compounds, dimensionless Symmetric Relative Mean Error in thermal conductivities for 103 binary compounds ( κSRME ), MAE in constant-volume heat capacity ( Cv, MAE ), and mean ratio of predicted to reference force magnitudes ( f / fDFT ). Model hyperparameters, training datasets and naming syntax are described in Section III, with additional details of benchmark evaluation parameters in Section VII. The NequIP-OAM-XL model yields the best accuracies across each benchmark. Model EWBM, MAE 26 
+
+(meV/atom) RMSD 26 
+
+( ˚ A) κSRME 27 Cv, MAE 7
+
+(J mol −1 K−1)
+
+f / fDFT 7,36 
+
+(%) 
+
+Allegro-MP-L 44.3 0.083 0.486 10 93 NequIP-MP-L 42.7 0.087 0.368 8 97 Allegro-OAM-S 32.9 0.072 0.673 7 95 Allegro-OAM-M 24.7 0.064 0.437 5 97 Allegro-OAM-L 21.4 0.063 0.313 4 97 NequIP-OAM-S 45.9 0.094 0.855 14 86 NequIP-OAM-M 24.5 0.067 0.254 6 95 NequIP-OAM-L 21.5 0.063 0.163 5 97 NequIP-OAM-XL 19.7 0.060 0.129 4 98 
+
+WBM un-seen test set of ∼ 250 , 000 hypothetical in-organic solids. 37 This test set was originally generated through ionic substitution of chemically-similar species in known materials, followed by geometry relaxations using Density Functional Theory (DFT) to predict ther-modynamic stabilities. 37 
+
+• Thermal Conductivity: Many physical attributes of materials are governed by their dynamic – rather than static – properties, as dictated by off-equilibrium atomic forces; i.e. PES gradients. The accuracy of inter-atomic potentials for modelling such dynamic proper-ties can be evaluated by considering phonon band struc-tures (representing atomic vibrations) and derived prop-erties. Here, the recently introduced benchmark from P´ ota et al. 27 provides a rigorous test, using predicted 2nd- and 3rd-order atomic force constants to compute thermal conductivities, and comparing to DFT refer-ence values. This benchmark provides a robust test of off-equilibrium PES accuracy and smoothness (key to stability in molecular dynamics simulations, for in-stance), and revealed issues with over-fitting to equilib-rium properties and force noise in some previous gen-erations of foundation potentials. 26 Given that thermal conductivities vary over several orders of magnitude, and to deconvolute the effect of fortuitous error can-cellations in phonon properties, the authors introduce a unit-less Symmetric Relative Mean Error ( κSRME ) met-ric based on single-phonon conductivities for quantify-ing performance on this benchmark. • Bulk Mechanical Properties Beyond microscopic phonons and related properties, the dynamic response of solids to structural perturbations can be quantified through derived macroscopic properties such as heat ca-pacity ( CV), bulk modulus ( K) and shear modulus ( G). Kaplan et al. 7 recently introduced benchmarks for these near-equilibrium properties, which highlighted the im-portance of quality data to achieve reliable and general-izable MLIPs. These benchmarks additionally include a 510 6 10 7 10 8
+
+Training Dataset Size (Number of Structures) 
+
+20 
+
+30 
+
+40 
+
+50 
+
+60 
+
+> EWBM, MAE  [meV/atom]
+
+DIRECT 
+
+MP 
+
+MPA 
+
+OAM 
+
+Materials Discovery Error ( EWBM, MAE )    
+
+> NequIP-{dataset}-XL
+> = 0.18, R2= 0.92
+> Allegro-{dataset}-L
+> = 0.17, R2= 0.93
+
+10 6 10 7 10 8
+
+Training Dataset Size (Number of Structures) 
+
+0.1 
+
+0.2 
+
+0.5 
+
+1.0 
+
+> SRME
+
+DIRECT 
+
+MP 
+
+MPA 
+
+OAM 
+
+Thermal Conductivity Error ( SRME )               
+
+> NequIP-{dataset}-XL
+> = 0.24, R2= 0.99
+> Allegro-{dataset}-L
+> = 0.11, R2= 0.99
+> Figure 3. Training Data Learning Curve . Test errors for the largest NequIP and Allegro models trained in this work (NequIP-{dataset }-XL and Allegro-{dataset }-L) and evaluated on the Matbench Discovery 26 benchmark suite, as a function of training dataset size. This includes the mean absolute error (MAE) in convex hull energy predictions for unseen compounds ( EWBM, MAE , left) and the dimensionless Symmetric Relative Mean Error in thermal conductivities for 103 binary compounds ( κSRME , right). Dashed lines show least-squares power law fits to the data ( L=a·x−α), with the fitted scaling exponent αand coefficient of determination R2given in the figure legends. See Table 2 for tabulated values. Model hyperparameters, training datasets and naming syntax are described in Section III.
+
+test of force magnitudes on high energy states (% |Fi|), to quantify PES and phonon over-softening due to bi-ased sampling of near-equilibrium structures in training datasets. 36 
+
+We find excellent performance across these benchmarks for the NequIP and Allegro models trained in this work, on par with the best performing models reported to date. 26 For the most part, we witness the expected trends in benchmark performance with continuously improving accuracies as we scale to increasingly larger model and training dataset sizes (Figs. 2 and 3). For both the materials discovery and thermal conductivity accuracy benchmarks, we see a consistent power-law relation (near-linear trend on the log-log scale) with model size for the small, medium and large models for both NequIP and Allegro (Fig. 2) – further illustrated in Fig. S2 by only fitting to these data-points. The NequIP-OAM-XL model deviates from the power law trend for both accuracy benchmarks, as the accuracy begins to saturate at these model sizes. Moreover, different hyperparameter choices (Table 1) have varying effects on the total number of parameters (which often does not correlate well with true model capacity), and thus ideal power-law scaling is not necessarily expected for the model-size learning curve. For the training data-size learning curves we see mostly similar trends, with ideal power law scaling for the thermal conductivity benchmark ( R2 = 0.99), and near-ideal scaling for materials discovery ( R2 ∼ 0.93), for both NequIP and Allegro. Imperfect scaling for the materials discovery task here stems from the significant under-performance when scaling from the MPA to OAM datasets – even more apparent when omitting the OAM datapoint from the fit (Fig. S3) – despite ideal scaling for the thermal conductivity benchmark.  
+
+> A. Materials Discovery Benchmark Performance
+
+The lack of a significant improvement in materials discovery accuracy, when expanding from the ∼10.5 million structures MPA dataset to the ∼113 million structures OAM dataset, can be explained by considering the distribution of training data and materials discovery errors over the periodic table. In Fig. 4, we plot the element-wise materials discovery benchmark errors for the NequIP-OAM-XL model, obtained by averaging the convex hull energy errors across all phases in the test set and weighting by elemental fraction in each phase composition. From this elemental error distribution, we see that multi-valent transition metals – particularly the first-row transition metals V, Cr, Mn and Fe – have consistently higher errors than the overall average; from ∼27 – 48 meV /atom, compared to 19 .7 meV /atom over all elements/compositions. Potential energy surfaces of compounds containing transition metals are notoriously difficult to model, both for metals and 610 20 50 100 
+
+> NequIP (meV/atom)
+
+Ac 
+
+> 22.9
+
+Th 
+
+> 16.6
+
+Pa 
+
+> 20.7
+
+U
+
+> 23.8
+
+Np 
+
+> 45.0
+
+Pu 
+
+> 102.1
+
+Am 
+
+> -
+
+Cm 
+
+> -
+
+Bk 
+
+> -
+
+Cf 
+
+> -
+
+Es 
+
+> -
+
+Fm 
+
+> -
+
+Md 
+
+> -
+
+No 
+
+> -
+
+Lr 
+
+> -
+
+La 
+
+> 12.8
+
+Ce 
+
+> 13.4
+
+Pr 
+
+> 13.6
+
+Nd 
+
+> 12.7
+
+Pm 
+
+> 22.1
+
+Sm 
+
+> 13.1
+
+Eu 
+
+> 34.0
+
+Gd 
+
+> 21.5
+
+Tb 
+
+> 12.6
+
+Dy 
+
+> 13.5
+
+Ho 
+
+> 12.4
+
+Er 
+
+> 12.1
+
+Tm 
+
+> 11.4
+
+Yb 
+
+> 22.5
+
+Lu 
+
+> 12.9
+
+Fr 
+
+> -
+
+Ra 
+
+> -
+
+Rf 
+
+> -
+
+Db 
+
+> -
+
+Sg 
+
+> -
+
+Bh 
+
+> -
+
+Hs 
+
+> -
+
+Mt 
+
+> -
+
+Ds 
+
+> -
+
+Rg 
+
+> -
+
+Cn 
+
+> -
+
+Nh 
+
+> -
+
+Fl 
+
+> -
+
+Mc 
+
+> -
+
+Lv 
+
+> -
+
+Ts 
+
+> -
+
+Og 
+
+> -
+
+Cs 
+
+> 14.8
+
+Ba 
+
+> 15.5
+
+Hf 
+
+> 14.0
+
+Ta 
+
+> 27.5
+
+W
+
+> 21.8
+
+Re 
+
+> 15.0
+
+Os 
+
+> 21.9
+
+Ir 
+
+> 23.1
+
+Pt 
+
+> 20.5
+
+Au 
+
+> 21.1
+
+Hg 
+
+> 16.8
+
+Tl 
+
+> 15.4
+
+Pb 
+
+> 27.0
+
+Bi 
+
+> 17.2
+
+Po 
+
+> -
+
+At 
+
+> -
+
+Rn 
+
+> -
+
+Rb 
+
+> 14.4
+
+Sr 
+
+> 13.8
+
+Y
+
+> 16.2
+
+Zr 
+
+> 14.5
+
+Nb 
+
+> 19.0
+
+Mo 
+
+> 23.6
+
+Tc 
+
+> 25.1
+
+Ru 
+
+> 20.2
+
+Rh 
+
+> 18.6
+
+Pd 
+
+> 17.2
+
+Ag 
+
+> 15.3
+
+Cd 
+
+> 12.6
+
+In 
+
+> 18.6
+
+Sn 
+
+> 16.4
+
+Sb 
+
+> 22.4
+
+Te 
+
+> 28.6
+
+I
+
+> 15.4
+
+Xe 
+
+> excl.
+
+K
+
+> 12.4
+
+Ca 
+
+> 15.5
+
+Sc 
+
+> 12.0
+
+Ti 
+
+> 15.4
+
+V
+
+> 27.0
+
+Cr 
+
+> 37.3
+
+Mn 
+
+> 47.9
+
+Fe 
+
+> 33.9
+
+Co 
+
+> 18.3
+
+Ni 
+
+> 14.5
+
+Cu 
+
+> 14.7
+
+Zn 
+
+> 14.6
+
+Ga 
+
+> 14.6
+
+Ge 
+
+> 17.0
+
+As 
+
+> 17.5
+
+Se 
+
+> 20.8
+
+Br 
+
+> 18.1
+
+Kr 
+
+> -
+
+Na 
+
+> 11.1
+
+Mg 
+
+> 16.6
+
+Al 
+
+> 13.8
+
+Si 
+
+> 18.9
+
+P
+
+> 21.4
+
+S
+
+> 17.9
+
+Cl 
+
+> 19.2
+
+Ar 
+
+> -
+
+Li 
+
+> 13.7
+
+Be 
+
+> 9.2
+
+B
+
+> 19.1
+
+C
+
+> 22.5
+
+N
+
+> 23.6
+
+O
+
+> 19.8
+
+F
+
+> 19.0
+
+Ne 
+
+> -
+
+H
+
+> 27.2
+
+He 
+
+> -
+
+Convex Hull Energy MAE [meV/atom] 
+
+10 20 50 100 
+
+Figure 4. Per-Element Errors for Materials Discovery . Distribution of element-wise convex hull energy mean absolute error (MAE) across the periodic table for the matbench-discovery 26 materials discovery benchmark, using the NequIP-OAM-XL model. Errors are shown in meV/atom, using a logarithmic colourbar scale. The largest element-wise errors are seen for compounds containing multi-valent first-row transition metals (V, Cr, Mn, Fe), low-prevalence actinides (Np, Pu), along with Eu, Ta, Te, Pb and H. 
+
+insulators. 38 Complex multi-valent and correlated behaviour requires care in quantum training data generation. Localised orbitals and highly-directional many-body interactions often require high levels of radial and angular resolution for accurate modelling. 38 Also, universal MLIPs are tasked to learn a single ground-state potential energy surface as a function of only atomic positions and types for a large variety of electronic structure configurations (spin/oxidation states). Recent work 39 has shown that inconsistencies in the application of Hubbard U corrections in training data propagates into systematic errors in the resulting models. Hubbard U corrections are selectively applied for oxide and fluoride compounds containing V, Cr, Mn, Fe, Co, Ni, Mo or W, in the inorganic training datasets used in this work (OMat24 6 Alexandria 5 and MPtrj 4), but not in metallic or non-oxide/fluoride compositions with these elements, following the Materials Project 35 default settings. We thus ascribe the larger materials discovery errors for (first-row) transition metal compounds to the innate complexity of many-body transition metal bonding and inconsistencies in the application of +U electron correlation corrections, which effectively provide an inconsistent training target. Np and Pu also stand out as clear high-error outliers in Fig. 4, likely the result of low prevalence in the training datasets and again complex multi-valent and highly-correlated electronic behaviour. Excluding the first-row transition metals reduces the ma-terials discovery convex hull energy MAE from 19.7 to 16 .3 meV /atom, while also omitting Np and Pu compounds further reduces the MAE to 13 .9 meV /atom, indicating that these outliers are dominating the overall benchmark metrics. This analysis helps explain the poor improvement in materials discovery benchmark accuracies when expanding the training dataset from MPA to include OMat24 6 (i.e. OAM), despite significant improvements in thermal conductivity bench-marks. The large OMat24 dataset 6 comprises off-equilibrium structures generated via rattling and molecular dynamics of configurations already present in the Alexandria (MPA) dataset, 5 and so provides useful additional information on energy surface gradients (and thus phonon-related properties) but offering no additional chemical diversity. Moreover, the same +U correction scheme as the Alexandria 5 and MPtrj 4 datasets was employed, to retain consistency with the Materials Project 35 computational settings. Combined, these issues result in minimal improvement in materials discovery benchmark accuracies with the larger OMat24 dataset. 6 We note that similar distributions in element-wise relative errors are obtained for other foundation potentials trained on the same datasets and evaluated on the same benchmark (Sec-tion S3), reflecting that these are general trends related to the data and mostly independent of specific model architectures and hyperparameter choices. 7Taken together, this analysis suggests some key directions to improve foundation potential accuracies going forward. Firstly, avoiding systematic errors from the propagation of in-consistent computational settings / application of correction schemes is crucial. This could be achieved by ensuring fully-consistent computational parameters across all training data, but is extremely restrictive and would require a large portion of the available training data to be excluded or re-calculated. Alternatively, appropriately treating these distinct computa-tional setups (i.e. energy surfaces) as separate labels in multi-fidelity frameworks – such as multi-head architectures – of-fers a promising route to retaining useful chemical informa-tion while avoiding systematic errors from inconsistent energy surfaces. Secondly, chemical diversity is evidently a crucial ingredient in training datasets for materials discovery efforts, being a key limiting factor in predictive accuracies here. Fu-ture efforts in dataset building (for the goal of materials dis-covery) could focus on expanding both chemical and struc-tural diversity, going beyond ionic substitution and likely re-quiring structure-searching methods or generative models. Fi-nally, the diverse range of complexity in atomic environments and interactions poses real challenges. Multi-valent elements with highly-directional d or f orbitals require high radial and angular resolution in accurate models, while elements with simpler bonding interactions (e.g. alkali metals) have much lower requirements. Simply raising the radial and angular res-olution (i.e. model capacity) across the board results in major inefficiencies due to these diverse requirements – though be-comes increasingly feasible with software accelerations and growth in computing power. Future architectural develop-ments which allow models to smoothly integrate multi-fidelity representations, based on the central element or other atomic environment features, could allow optimal combinations of accuracy and efficiency.  
+
+> B. Thermal Conductivity Benchmark Performance
+
+As discussed above, the thermal conductivity benchmark is a robust validation of energy surface smoothness and gradients in the trained models. In contrast to the materials discovery benchmark, we see a more consistent improvement in thermal conductivity prediction accuracy ( κSRME ) as we increase both the model and (in particular) dataset sizes, as shown in Figs. 2 and 3. This continuous ideal scaling in thermal conductivity accuracy with training data is expected, given that each successively larger dataset comprises further off-equilibrium geometries, resulting in increasingly accurate models of energy surface gradients. This trend reiterates the importance of non-equilibrium geometries for training robust and versatile MLIPs. Future dataset construction efforts tar-geting non-equilibrium properties (such as finite-temperature and transport phenomena) should continue to prioritise these configurations, ideally being combined with approaches that maximise structural diversity to boost data efficiency. 7,40 
+
+We note that while the materials discovery accuracies and trends are broadly similar between NequIP and Allegro, the Allegro κSRME values are consistently larger than for NequIP. In particular, the learning rates for κSRME with Allegro are significantly lower than NequIP, with α = 0.33 and 0.11 for the model and data-size learning curves, respectively, compared to α = 0.48 and 0.24 for NequIP (Figs. 2 and 3). The origins of this under-performance are not immediately clear, as validation errors for forces – which we find to most closely correlate with κSRME – are on par with, if not slightly better than, those of the NequIP models. We do find that Allegro κSRME values are more sensitive to the atomic displacement distance used in the underlying finite-difference phonon calculations, which has been associated with floating-point precision effects before, 30,41 but increas-ing the displacement magnitude does not fully close the gap to NequIP. Decomposing the error by phonon frequency, we see that while the overall κSRME is dominated by the low-energy acoustic range (0–1 THz) as expected, Allegro exhibits consistently larger errors in phonon frequencies than NequIP across the full spectrum (Section S4). Evaluating our set of trained models on the 26,234 Materials Project 35 
+
+structures for which reference DFT phonon data is available, we find similar trends in the relative accuracies of the models – though with lower average errors than the 103 binary materials in the κSRME test set. One natural hypothesis is that this reflects the strictly-local architecture of Allegro, which limits its effective receptive field to 2 × Rmax ≈ 14 ˚ Aand could in principle miss longer-range contributions to the force constants. An alternative possibility is a subtle difference in PES smoothness between the pair-centred and atom-centred representations, which is more consequential for second- and third-order force-constant derivatives than for equilibrium energies and forces; we leave a full resolution of this question to future work. We do note, however, that the Allegro κSRME values are still comparable to other leading model architectures trained on the same datasets. 26  
+
+> C. MatCalc Benchmarks
+
+We additionally evaluate our foundation potentials on the MatCalc benchmark suite, 7 which tests both near-equilibrium materials properties (structural similarity to DFT references after geometry relaxation ( dMAE ), formation energies ( E f
+
+> MAE
+
+), bulk modulus K, shear modulus G and constant-volume heat capacity CV) and off-equilibrium PES fidelity (via the ratio of predicted to reference (DFT) force magnitudes on high-energy perturbed structures, f / fDFT ). The results are shown in Table 3, alongside reported values for other foundation potentials in the literature. For comparison, we also train an Allegro model from scratch on the MatPES 7 dataset, using 
+
+lmax = 3, 64 scalar and tensor features, and 3 layers with a width of 128. The NequIP-OAM-XL model achieves top performance across near-equilibrium benchmarks, achieving low mean absolute errors (MAEs) in particular for derived macroscopic properties such as the bulk modulus ( KMAE =12.7 GPa), shear modulus ( GMAE = 14.1 GPa) and constant-volume heat capacity ( Cv, MAE = 4.02 J mol −1 K−1). 8                                                                                                                  
+
+> Dataset Model dMAE Ef
+> MAE (meV/atom) KMAE (GPa) GMAE (GPa) Cv, MAE (J mol −1K−1)f/fDFT
+> MatPES CHGNet 40.296 95.9 23.7 20.6 23.0 0.914 MatPES TensorNet 42 0.252 90.2 18.0 14.8 13.7 0.930 MatPES Allegro 0.244 90.6 18.6 14.3 10.8 0.917 OAM NequIP-OAM-S 0.409 68.9 24.3 19.3 13.7 0.861 OAM NequIP-OAM-M 0.300 31.4 16.0 14.5 5.60 0.950 OAM NequIP-OAM-L 0.281 26.6 14.9 14.9 4.49 0.973 OAM NequIP-OAM-XL 0.279 25.4 12.7 14.1 4.02 0.979 OAM Allegro-OAM-S 0.309 39.3 17.4 14.1 7.33 0.953 OAM Allegro-OAM-M 0.290 31.2 14.4 15.7 5.86 0.960 OAM Allegro-OAM-L 0.287 24.7 12.7 14.7 4.38 0.969 MatterSim MatterSim-5M 43 0.322 40.5 16.9 15.8 5.46 0.973 UMA UMA-s 44 0.267 25.0 14.9 21.5 3.60 0.986
+> Table 3. MatCalc benchmark results; including structural similarity to DFT references after geometry relaxation ( dMAE , unit-less), formation energies per atom ( Ef
+> MAE ), bulk modulus ( KMAE ), shear modulus ( GMAE ), constant-volume heat capacity ( Cv, MAE ) and off-equilibrium force magnitudes ( f/fDFT , unit-less). OAM refers to the protocol of initial model training on the OMat24 dataset, 6prior to fine-tuning on the subsampled Alexandria 5and MPtrj 4datasets. The MatterSim dataset contains Alexandria, 5MPtrj, 4and closed-source synthetic data. The UMA dataset contains the OC20++, 45 OMat24, 6OMol25, 9ODAC25, 46 and OMC25 47 datasets.
+
+Moreover, we find that over-softening, where MLIPs trained primarily on near-equilibrium structures tend to systemati-cally under-estimate forces in high-energy/force regions, 36 is minimal for our (extra-)large models, with an f / fDFT ratio of 0.98. From Table 3, we do see, however, that with de-creased model size, over-softening becomes significant, with an f / fDFT ratio of 0.86 for the NequIP-OAM-S model. Sur-veying the f / fDFT ratios in Tables 2 and 3 for NequIP/Allegro models of different model sizes and training datasets (MP vs OAM), we see that both model size and dataset influence over-softening. Larger models and datasets with greater off-equilibrium configurations (i.e. Alexandria 5 and OMat24 6)yield reduced over-softening, but with model size being the surprisingly larger factor.  
+
+> D. Accuracy-Speed Trade-off
+
+In Fig. 5, we plot the accuracies of our trained NequIP and Allegro models, as given by the current 
+
+matbench-discovery 26 ‘combined performance score’ (CPS), against their inference speeds in molecular dynamics production runs, alongside corresponding values for other foundation potentials in the literature. In its current form, CPS averages the materials discovery, thermal conductivity, and structural similarity (RMSD) accuracies with a relative weighting of 5:4:1. 26 Here we measure inference speeds with both the Atomic Simulation Environment (ASE) 48 – to allow direct comparability with a range of other community models, many of which lack LAMMPS interfaces – and the 
+
+LAMMPS 49 MD engine – where possible. As expected, we see that LAMMPS allows greater inference speeds for larger sys-tems and smaller models (along with supporting multi-GPU simulations; Section V), while minimal differences with ASE are seen for larger models and smaller systems where pure GPU model inference dominates. For medium-sized models with small system sizes (64 – 512 atoms), ASE can give faster inference than LAMMPS for NequIP and Allegro, by sup-porting the combination of (1) ahead-of-time (AOTInductor) compilation via nequip-compile and (2) accelerated tensor-product kernels – while the LAMMPS interfaces currently only support one or other of these accelerations, but not both. We see that our NequIP models define the accuracy–speed Pareto front across a wide range of model sizes and inference speeds. For instance, despite the same combined performance score as the eSEN-30M-OAM 30 model, the NequIP-OAM-XL model is approximately an order of magnitude faster at inference time. The large, medium and small models offer fur-ther substantive speedups at accuracies competitive with lead-ing published models. We attribute this favourable accuracy-speed trade-off of the NequIP models to a combination of ac-celerated tensor-product kernels, which minimise the compute cost of equivariant operations, 24,25 and judicious model hy-perparameter choices. We note that other community bench-marks where we have uploaded the NequIP/Allegro OAM models, such as the CatBench 50 suite, also show these mod-els exhibiting leading inference speeds and good accuracies. 51 
+
+The full set of single-GPU LAMMPS MD inference speed benchmarks for the subset of models with LAMMPS interfaces are shown in Fig. S9, where the NequIP and Allegro models, particularly through the Kokkos-accelerated ML-IAP 52 inter-face, again rank among the fastest potentials evaluated.  
+
+> V. SCALING
+
+To evaluate the utility of our NequIP foundation potentials for large-scale simulations, we evaluated the parallel perfor-mance of the large and small (NequIP-OAM-L and NequIP-OAM-S) models in multi-GPU LAMMPS MD simulations, us-ing 4–256 A100 (80 GB) or MI250X GPUs with diamond-structured silicon systems ranging from 32.8k to 102.5M 910 1 10 2 10 3         
+
+> 0.60
+> 0.65
+> 0.70
+> 0.75
+> 0.80
+> 0.85
+> 0.90
+> 0.95
+> 64 Atoms
+> 10 110 210 3
+> 512 Atoms
+> 10 010 110 2
+> 1728 Atoms
+> 10 010 110 2
+> 13,824 Atoms
+> Accuracy (CPS)
+> MD Inference Speed [timestep/s]
+> NequIP-OAM-S
+> NequIP-OAM-M
+> NequIP-OAM-L
+> NequIP-OAM-XL
+> Allegro-OAM-S
+> Allegro-OAM-M
+> Allegro-OAM-L
+> GRACE-1L-OAM
+> GRACE-2L-OAM
+> GRACE-2L-OAM-L
+> EquiformerV3
+> PET-OAM-XL
+> eSEN-30M-OAM
+> ORB v3
+> SevenNet-Omni
+> MACE-MPA-0
+> Nequix MP PFT
+> ASE LAMMPS ASE Front LAMMPS Front
+
+Figure 5. Accuracy-Speed Trade-off . matbench-discovery 26 ‘Combined Performance Score’ (CPS) plotted against Molecular Dynamics (MD) inference speed for Si diamond systems ranging from 64 to 13,824 atoms, using a single NVIDIA A100-SXM4 (80 GB) GPU. MD simulations were performed with both the Atomic Simulation Environment (ASE) 48 (hollow markers) and LAMMPS 49 (filled markers) – for models with LAMMPS interfaces – using the publicly-documented setup and available accelerators for each model. In each panel, the Pareto front of accuracy versus inference speed is shown as dashed and solid black lines for ASE and LAMMPS . In the current version, CPS averages the materials discovery, thermal conductivity and structural similarity matbench-discovery 26 benchmark accuracies (Table 2) with a relative weighting of 5:4:1. Models missing for larger system sizes crashed with out-of-memory errors. 
+
+atoms, as shown in Fig. 6. While the iterative message-passing architecture of NequIP and derived models previ-ously prevented multi-GPU inference in molecular dynam-ics, the recently-implemented Kokkos-accelerated ML-IAP interface 52–54 with ghost atom exchange now allows efficient parallelisation over many GPUs, along with OpenEquivari-ance kernels 24 for faster inference. Under strong scaling (where number of atoms is kept fixed), throughput increases substantially with node count for all system sizes and mod-els, with larger systems exhibiting better parallel efficiency and continuing to scale well up to 64 nodes (256 GPUs). Un-der weak scaling (where atoms/node is kept fixed), through-put remains nearly constant with increasing node counts, indi-cating ideal scalability and relatively small growth of parallel overhead across the measured range, despite the communi-cation at each layer in the message-passing model. Scaling performance is closer to ideal for larger system sizes as ex-pected, while A100 (80 GB) GPUs demonstrate greater par-allel efficiency over MI250X at large node counts, particu-larly for smaller systems. Both models support a large num-ber of atoms before exhausting GPU memory. Over our re-ported datapoints, we show a maximum scale of 22.0k atoms per MI250X GCD on Frontier and 43.9k atoms per A100 (80 GB) GPU on Perlmutter, using NequIP-OAM-L. With NequIP-OAM-S, we can perform a 100M atom simulation with as few as 32 Frontier (AMD) or Perlmutter (NVIDIA) GPU nodes. The multi-GPU inference scaling performance of Allegro models has already been well demonstrated. 15,22,23 
+
+VI. CONCLUSION 
+
+We have presented a family of equivariant foundation poten-tials in the NequIP 14 and Allegro 15 architectures, spanning a range of model sizes and trained on inorganic materi-als datasets of increasing scale and diversity (DIRECT, 34 
+
+MPtrj, 4 MPA, 5 OAM 6). These models achieve competi-tive accuracies across a range of established community benchmarks – materials discovery, 26 thermal conductivity, 27 
+
+and near-equilibrium properties 7 – while dominating the accuracy–speed Pareto front. Dimensionality reduction analysis of chemical type embeddings, shown in Section S6, demonstrates that fundamental chemical relationships are learned without explicit programming, with progressively clearer chemical structure at larger model sizes. Large-scale foundation potentials are already supporting diverse, com-plex machine-learning workflows. This library of fast and accurate pre-trained models in the widely-used NequIP 14 and Allegro 15 architectures will provide useful starting points for model fine-tuning, greatly aiding data efficiency and accuracy for researchers in the atomistic modelling community. These results were made possible by recent architectural and infrastructural developments in the NequIP framework, 23 
+
+including train-time graph compilation, accelerated tensor-product kernels, 24,25 judicious mixed-precision training and distributed data-parallel strategies. Together, these advances yield 5–10x cumulative train-time speed-ups and reduce the 10 1
+
+2
+
+4
+
+8
+
+16 
+
+32 
+
+64 
+
+128 
+
+> 64.0k atoms
+> 175.6k atoms
+> 1.4M atoms
+> 1.0M atoms
+> 3.0M atoms
+> 11.9M atoms
+> 102.5M atoms
+
+1 2 4 8 16 32 64 
+
+Number of Nodes 
+
+1
+
+2
+
+4
+
+8
+
+16 
+
+32 32.8k atoms/node 
+
+> 64.0k atoms/node
+> 175.6k atoms/node
+
+1 2 4 8 16 32 64 
+
+Number of Nodes 
+
+> 373.2k atoms/node
+> 1.0M atoms/node
+> 3.0M atoms/node
+> Timesteps per Second Timesteps per Second
+> Strong Scaling Weak Scaling
+
+# NequIP-OAM-L NequIP-OAM-S  
+
+> AMD MI250X NVIDIA A100
+
+Figure 6. Multi-GPU Scaling with NequIP. Strong (top) and weak (bottom) scaling performance of the large and small NequIP models (NequIP-OAM-L and NequIP-OAM-S) in LAMMPS 49 using the ML-IAP interface 52 with OpenEquivariance 24 kernels and torch.compile .MD simulations were performed using diamond-structured silicon systems ranging from 32.8k to 102.5M atoms, with NVIDIA A100 (80 GB) and AMD MI250X GPUs on the Perlmutter and Frontier clusters respectively. Each Perlmutter node contains 4 GPUs while each Frontier node contains 8 MI250X GCDs. 
+
+cost of training a high-accuracy foundation potential to a few hundred GPU-hours, now within the reach of individual research groups. Combined with the recently-implemented Kokkos-accelerated ML-IAP interface 52 in LAMMPS ,49 which enables efficient multi-GPU inference for message-passing models, these advances open the door to routine simulation of ∼100M-atom systems on relatively modest node counts. Moreover, the updated NequIP framework prioritises exten-sibility, allowing for methodological extensions and novel architectures 55–59 or training strategies to readily build on this core framework (to avoid redundant efforts) and fully leverage this accelerated, modular and natively-parallel infrastructure. Our analysis of error distributions indicates that further progress in MLIPs for materials discovery will depend less on raw model or dataset scaling and more on improved data – broader chemical and structural diversity beyond ionic sub-stitution, consistent (or principled multi-fidelity) treatment of d/ f -electron systems – and improved architectures – in-cluding spin states and accounting for the greater radial and angular resolution demands of correlated systems. Archi-tecturally, models capable of smoothly varying their radial and angular resolution with the local chemical environment could help reconcile the disparate complexities of various el-ements/compounds without uniformly inflating model capac-ity. 
+
+VII. METHODS 
+
+The full training hyperparameters and package files for all models presented in this work are available through https: //nequip.net and at https://doi.org/final-zenodo ,which can be readily downloaded and employed for fine-tuning applications with NequIP and Allegro. The key 11 hyperparameters varied for different model sizes in this work are shown in Table 1. In all cases, the parity of feature vector irreducible representations (irreps) was restricted to that of the spherical harmonics (i.e. even for l = 0, 2... ,odd for l = 1, 3... ; corresponding to parity: false ), which was found to boost speed (∼1.5-2x) with minor effect on accuracies ( <3 %). We note that this choice still corresponds to an SO (3)-equivariant network architecture. This work used PyTorch version 2.7.1, NequIP version 0.16 from github.com/mir-group/nequip, Allegro version 0.7 from github.com/mir-group/allegro, e3nn version 0.5.6 from github.com/e3nn/e3nn, OpenEquivariance version 0.4 from github.com/PASSIONLab/OpenEquivariance and cuEquivariance version 0.6 from github.com/NVIDIA/cuEquivariance – though we note that the packaged models (used for fine-tuning) are fully compatible with the latest versions of each. As mentioned above, the use of reduced floating-point precision (such as TensorFloat32 format) at inference time was found to introduce significant noise in predictions, most notably with forces. For the materials discovery benchmark, this increased the number of ionic steps required for geometry relaxations, while the final energies were mostly unaffected. For the thermal conductivity benchmark, the noise in forces gave dramatically increased predictive errors, as discussed in Refs. 30,41. Increasing the atomic displacement distance in the phonon calculations partially reduced the impact of lower precision on benchmark accuracies. 30,41 Increasing from full single-precision ( float32 ) to double-precision ( float64 )at inference did not further improve predictive accuracies, as expected. 41,60 
+
+To support efficient training on large datasets up to terabytes in file sizes, while using distributed data parallel (multiple GPUs), the Lightning Memory Mapped Database (LMDB) format was employed, 61 as implemented in the NequIP architecture. 23 We note that the total number of parameters in our NequIP models is quite sensitive to the number of node (atom) embedding features ( type_embed_num_features ), but with relatively minor effect on speed and accuracy – once again highlighting that model parameter count can only be taken as a very rough estimate of the order of magnitude of training and inference speed. Adaptive loss weighting was trialled, where loss coefficients are dynamically updated during training based on validation error updates, but did not yield a significant improvement in test accuracies for these large datasets. This included an extension of the approach proposed by Ocampo et al. 62 – which tends to a 1:1:1 energy:force:stress loss coefficient ratio – to weight the updates by the initial loss coefficients, but still did not give meaningful improvements. This approach may be more beneficial when a suitable choice of loss coefficients is not known a priori , however. In addition to the results shown in Fig. 1, training speeds evaluated using the DIRECT 34 dataset are also provided in Fig. S1, showing the same trends. For all training speed measurements, a per-GPU batch size of 40 frames was used for NequIP (giving a total batch size of 160), with the ‘large’ model configuration (Table 1). For Allegro, a reduced batch size of 6 frames per-GPU (total batch size of 24), with 
+
+lmax = 2, 5 ˚ A radial cutoff and 4 layers was used to prevent memory overload for the baseline models. We note that the exact speedup factors from graph compilation, accelerated tensor product kernels and mixed precision will depend on the set of model hyperparameters, which influence the fraction of time spent on different numerical operations such as matrix multiplications, tensor products and so on. Train-time speed results for NequIP with automatic mixed-precision were not recorded as this precision setting is incompatible with 
+
+OpenEquivariance 24 in Pytorch ≤ 2.7.1, but is expected to be supported in the latest Pytorch releases. Recent work 63 has revealed non-zero net forces in subsets of large DFT datasets, including OMat24 6, a signature of imperfect convergence in electronic densities and forces. We trialled training on only frames with net force (drift) less than 5 or 10 % of the summed force magnitude (as a measure of potential relative error), which corresponded to the removal of a few percent of the ab initio MD sub-dataset of OMat24, 6
+
+but was found to have a negligible effect on model accuracies – in line with other observations. 6 Notably, the total energies are found to be relatively unaffected by under-convergence in these configurations. 64 We also trialled training on only the ab initio MD sub-dataset of OMat24, 6 as in Ref. 41 where it was found to improve homo-nuclear diatomic energy curves, but again it was found to have mostly negligible effect (beyond a slight reduction in materials discovery accuracy), while NequIP models trained on the full OMat24 6 dataset show good homo-nuclear energy accuracies. 51 
+
+For the Matcalc 7 geometry relaxation benchmarks, the initial structure perturbation was re-ran with the same random seed (=8) for all models, to ensure a like-for-like comparison. Con-vex hull energy mean absolute errors ( EWBM, MAE ) are taken over the set of unique structural prototypes from the WBM test set ( ∼215k of the ∼250k compounds). 26 To decompose 
+
+EWBM, MAE to per-element values in Fig. 4, the mean value of absolute errors weighted by atomic fraction was used: MAE X = ∑i fX,i ENequIP   
+
+> f,i
+
+− EDFT  
+
+> f,i
+
+∑i fX,i
+
+, (1) where fX,i = NX,i/Natoms ,i is the atomic fraction of element X
+
+in structure i, with the sum running over the full WBM 37 test set. Xe is omitted from the element-wise error distribution in Fig. 4 as it only occurs once (with XeF 2) in the WBM 37 
+
+test set of ∼250k compounds, and thus is not statistically significant. Model training was primarily performed using NVIDIA A100/H100/H200 GPUs at the FASRC Cannon cluster at Harvard University and the NERSC Perlmutter system. Atotal batch size of 640 frames was used, distributed over 4–16 GPUs. Total model training costs varied from ∼100 to 750 12 (H200) GPU hours. The AdamW optimizer was used in all cases, with a ReduceLROnPlateau learning-rate schedule. The energy:force:stress (E:F:S) loss function coefficients were initialised to 1:5:0.1, with training continued until force validation errors plateaued, before a second training stage with 1:1:0.1 E:F:S weighting, (initial) learning rate reduced by a factor of 10, no mixed-precision, and stochastic weight averaging 33 (though the latter was found to have negligible effect). Per-atom energy loss was used, rather than total energy. For the NequIP/Allegro-OAM-{model size }
+
+models, an initial learning rate of 0.005 and weight decay of 1e-8 was used with training on OMat24 6 only, before running the second (fine-tuning) training stage on the MPA dataset. An initial learning rate and weight decay of 0.005 and 1e-8 was used when training on MPA, while 0.02 and 1e-3 was used with MPtrj/DIRECT datasets. Clipping of gradient norms to 1 was used when training on OAM and MPA, while 0.01 was used with MPtrj and DIRECT. Huber loss functions were used, with delta values of 0 .01 eV /atom for energy, 0 .01 eV / ˚A for force and 0 .1 eV / ˚A3 for stress. A stratified Huber loss function was also tested for forces, using successively smaller Huber delta values for extreme force magnitudes ( >100 eV / ˚A). This was previously found to aid training stability with the MPtrj 4 dataset, 65 but ap-peared to have negligible effect with our setup. Isolated atom energies were used for the reference atomic energy shifts in model training, taken from https://github.com/ esoteric-ephemera/isolated_atomic_energies and 
+
+https://github.com/facebookresearch/fairchem/ blob/main/configs/uma/training_release/ element_refs/iso_atom_elem_refs.yaml , while the square-root of per-element root-mean-square force mag-nitudes on MPtrj 4 was used for initial model energy scales. The FIRE 66 optimiser was used for geometry relaxations when evaluating the matbench-discovery 26 materials discovery accuracy, along with a maximum ionic force convergence threshold of 0 .015 eV / ˚A and a maximum of 200 relaxation steps. A displacement distance of 0 .035 ˚ Awas used for the finite-difference phonon calculations when computing the κSRME 27 accuracies. The LAMMPS scaling tests performed on Frontier and Perlmutter utilized the 30 March 2026 feature release of LAMMPS. The initial silicon structure was obtained from the Materials Project 35 . On NERSC Perlmutter, all sim-ulations were run on NVIDIA A100 GPUs with 80 GB of HBM2e memory. The software environment consisted of Python 3.11.0, PyTorch 2.9.0+cu129, NequIP 0.17.1, NequIP-Allegro 0.8.2, e3nn 0.6.0, and OpenEquivariance 0.6.6, together with CUDA Toolkit 12.9. The Cray Program-ming Environment module craype-accel-nvidia80 and 
+
+cray-mpich/9.0.1 were used to enable GPU acceleration and MPI communication. On OLCF Frontier, simulations used the AMD MI250X GPUs which have 128GB of HBM2e memory split across two GCDs, in a software environment with Python 3.11.15, Pytorch 2.11.0+ROCm7.2, NequIP 0.16.1, NequIP-Allegro 0.8.0, e3nn 0.5.9, and OpenEquiv-ariance 0.6.6. The key system modules rocm/7.2.0 ,
+
+PrgEng-amd/8.6.0 , and cray-mpich/9.1.0 were acti-vated. Both ASE 48 and LAMMPS 49 molecular dynamics inference speed tests were performed using the same diamond silicon structure as the LAMMPS 49 scaling tests, though at smaller supercell sizes. These single-GPU speed comparisons were performed on one NVIDIA A100-SXM4 (80 GB) GPU, using the publicly-documented setup and available accelerators for each model. When evaluating the ASE 48 and LAMMPS 49 MD runtimes, simulations were run in the NV E ensemble with a 1 fs timestep, for 1,000 unrecorded warm-up steps followed by 5,000 timed steps (200 warm-up and 500 timed steps for the substantially more expensive PET-OAM-XL 8,67 model, with LAMMPS 49 ). Reduced-precision (TensorFloat32 )arithmetic was disabled in all cases, consistent with the inference settings used elsewhere in this work, except for a subset of the PET-OAM-XL LAMMPS 49 benchmarks (Fig. S9). While inference speeds were recorded for both conserving and non-conserving variants of PET-OAM-XL, 8,67 only the conserving model speeds were used for comparisons with the other (conserving) foundation MLIPs in Fig. 5. For NequIP, Allegro and SevenNet, which support multiple LAMMPS 49 
+
+interfaces (ML-IAP, Pairstyle, e3gnn), the fastest inference speed recorded for a given model and supercell size with any interface was used for Fig. 5, while the full set of inference speeds is provided in Fig. S9. For the ASE 48 evaluations, ahead-of-time (AOTInduc-tor) compilation via nequip-compile with PyTorch 2.10.0 and accelerated tensor-product kernels were used for NequIP (OpenEquivariance 24 kernels) and Allegro (cuEquivariance 25 kernels). cuEquivariance 25 tensor product kernels were also used with MACE-MPA-0 65 ,SevenNet-Omni 68 was accelerated by FlashTP kernels, and Nequix MP PFT 69 was executed using a JAX backend config-ured with OpenEquivariance kernels. model.compile() 
+
+was used to accelerate ORB v3 41 . Both eSEN-30M-OAM 30 
+
+and EquiformerV3 70 were evaluated via the FairChem/OCP calculator path, PET-OAM-XL 8,67 via the UPETCalculator ,and GRACE 18,71 models using the TensorPotential 
+
+calculator with TensorFlow GPU support. To enable direct comparison while accommodating the in-compatible software dependencies of each model family, four separate LAMMPS builds with matched Python environments were prepared; with each LAMMPS executable compiled using GCC 12.2 and CUDA 12.9.1, and all runs using a single MPI rank. The NequIP and Allegro models were run from a single 
+
+LAMMPS build (release patch 30Mar2026 ) with the Kokkos 52 
+
+and ML-IAP packages, linked against PyTorch 2.9.1 (CUDA 12.6) with NequIP 0.17.1 and Allegro 0.8.2. Each model was benchmarked through two interfaces: (i) the native pair styles, exported as ahead-of-time (AOTInductor) compiled artifacts via nequip-compile , and (ii) the Kokkos-accelerated ML-IAP interface, 52 for which the accelerated tensor-product ker-nels are integrated — OpenEquivariance 24 for NequIP and 13 
+
+cuEquivariance 25 for Allegro. The NequIP pair style has no Kokkos implementation and was therefore run on a single GPU without Kokkos (its only Kokkos-accelerated path being ML-IAP), while the Allegro pair style and both ML-IAP paths used the Kokkos GPU backend. For the comparison models, we used the same LAMMPS /ML-IAP build to run MACE-MPA-0 65 (exported to the ML-IAP unified format with mace create lammps model ), and dedicated LAMMPS builds for GRACE 18,71 and SevenNet 68 re-flecting their distinct interfaces. GRACE-1L and GRACE-2L (small, medium and large variants) were evaluated through the TensorFlow-backed pair style grace (LAMMPS release 10 Sep 2025, ML-PACE package, TensorFlow 2.19), in which GPU execution is managed by the TensorFlow runtime rather than Kokkos. SevenNet-Omni and its larger 
+
+i12 variant were evaluated through two interfaces: the ML-IAP interface (with cuEquivariance kernels), run on the same shared ML-IAP build (release patch 30Mar2026 )as NequIP/Allegro/MACE, into which the unified ML-IAP artifact loads directly; and the TorchScript-based pair style e3gnn 20 (single MPI rank, with FlashTP), run on a dedicated 
+
+LAMMPS build (release 2 Aug 2023) patched with the SevenNet interface and the FlashTP tensor-product kernels. Finally, PET-OAM-XL 8,67 was evaluated through adedicated LAMMPS build of the metatomic branch of 
+
+metatensor/lammps , which provides the pair style metatomic interface with a Kokkos GPU backend (metatomic/kk , compiled for the sm 80 architecture). The public v1.0.0 checkpoint was exported to a metatomic 
+
+TorchScript model with metatrain ’s mtt export , and the build was linked against PyTorch 2.10.0 (CUDA 12.8) with metatomic-torch 0.1.11, metatensor-torch 0.8.5 and metatrain 2026.2.1. Four configurations were bench-marked: the default energy-conserving model, in which forces are obtained by automatic differentiation of the predicted potential energy, and a non-conservative variant, 67 
+
+in which per-atom forces are produced directly by a ded-icated output head, each evaluated with reduced-precision (TensorFloat32 ) tensor-core arithmetic both disabled and enabled. This build was configured without MPI and all runs used a single Kokkos GPU rank. All comparison-model checkpoints were obtained from their respective public releases. In addition to model configuration and package files, all data and analysis code generated as part of this work (including inference speed bench-marks with other model architectures) is provided at 
+
+doi.org/zenodo-to-publish-upon-acceptance . 
+
+> VIII. ACKNOWLEDGEMENTS
+
+The authors acknowledge useful discussions with David Rogers regarding compilation and parallel inference, Zachary Goodwin regarding phonon prediction accuracies, and the cuEquivariance team at NVIDIA for their guidance on the cuEquivariance API. SRK thanks the Harvard University Cen-ter for the Environment (HUCE) for funding a fellowship. This research used the FASRC Cannon cluster supported by the FAS Division of Science Research Computing Group at Harvard University, as well as resources of the National Energy Research Scientific Computing Center (NERSC), a Department of Energy User Facility using NERSC awards BESERCAP0026720, BESERCAP0032494 and BESER-CAP0038433. An award of computer time was provided by the INCITE program. This research used resources of the Oak Ridge Leadership Computing Facility, which is a DOE Office of Science User Facility supported under Contract DE-AC05-00OR22725. This work was supported by the National Science Foundation through the Harvard University Materials Research Science and Engineering Center Grant No. DMR-2011754. L.Z. was supported by the National Science Foun-dation Graduate Research Fellowship under Grant No. DGE-2140743. Sandia National Laboratories is a multi-mission laboratory managed and operated by National Technology & Engineering Solutions of Sandia, LLC (NTESS), a wholly owned subsidiary of Honeywell International Inc., for the U.S. Department of Energy’s National Nuclear Security Adminis-tration (DOE/NNSA) under contract DE-NA0003525. This written work is authored by an employee of NTESS. The em-ployee, not NTESS, owns the right, title and interest in and to the written work and is responsible for its contents. Any sub-jective views or opinions that might be expressed in the writ-ten work do not necessarily represent the views of the U.S. Government. The publisher acknowledges that the U.S. Gov-ernment retains a non-exclusive, paid-up, irrevocable, world-wide license to publish or reproduce the published form of this written work or allow others to do so, for U.S. Govern-ment purposes. The DOE will provide public access to results of federally sponsored research in accordance with the DOE Public Access Plan.              
+
+> [1] J. Behler and M. Parrinello, Physical Review Letters 98 , 146401 (2007). [2] A. M. Mroz, A. R. Basford, F. Hastedt, I. S. Jayasekera, I. Mosquera-Lois, R. Sedgwick, P. J. Ballester, J. D. Bocarsly, E. A. d. R. Chanona, M. L. Evans, J. M. Frost, A. M. Ganose, R. L. Greenaway, K. K. M. Hii, Y. Li, R. Misener, A. Walsh, D. Zhang, and K. E. Jelfs, Chemical Society Reviews 54 , 5433 (2025). [3] A. Mannodi-Kanakkithodi, M. Huang, P. Gorai, and S. R. Ka-vanagh, MRS Bulletin 51 , 600 (2026). [4] B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, Nature Machine Intelligence 5, 1031 (2023). [5] J. Schmidt, T. F. T. Cerqueira, A. H. Romero, A. Loew, F. J¨ ager, H.-C. Wang, S. Botti, and M. A. L. Marques, Materials Today Physics 48 , 101560 (2024). [6] L. Barroso-Luque, M. Shuaibi, X. Fu, B. M. Wood,
+
+14 
+
+M. Dzamba, M. Gao, A. Rizvi, C. L. Zitnick, and Z. W. Ulissi, Open Materials 2024 (OMat24) Inorganic Materials Dataset and Models (2024), arXiv:2410.12771 [cond-mat]. [7] A. D. Kaplan, R. Liu, J. Qi, T. W. Ko, B. Deng, J. Riebe-sell, G. Ceder, K. A. Persson, and S. P. Ong, A Founda-tional Potential Energy Surface Dataset for Materials (2025), arXiv:2503.04070 [cond-mat]. [8] A. Mazitov, F. Bigi, M. Kellner, P. Pegolo, D. Tisi, G. Fraux, S. Pozdnyakov, P. Loche, and M. Ceriotti, Nature Communica-tions 16 , 10653 (2025). [9] D. S. Levine, M. Shuaibi, E. W. C. Spotte-Smith, M. G. Taylor, M. R. Hasyim, K. Michel, I. Batatia, G. Cs´ anyi, M. Dzamba, P. Eastman, N. C. Frey, X. Fu, V. Gharakhanyan, A. S. Kr-ishnapriyan, J. A. Rackers, S. Raja, A. Rizvi, A. S. Rosen, Z. Ulissi, S. Vargas, C. L. Zitnick, S. M. Blau, and B. M. Wood, The Open Molecules 2025 (OMol25) Dataset, Evaluations, and Models (2025), arXiv:2505.08762 [physics]. [10] H. Kaur, F. D. Pia, I. Batatia, X. R. Advincula, B. X. Shi, J. Lan, G. Cs´ anyi, A. Michaelides, and V. Kapil, Faraday Discussions 
+
+256 , 120 (2025). [11] I. Mosquera-Lois, S. R. Kavanagh, A. M. Ganose, and A. Walsh, npj Computational Materials 10 , 1 (2024). [12] J. L. A. Gardner, H. Schulz, J. Helie, L. Sun, and G. N. C. Simm, Understanding multi-fidelity training of machine-learned force-fields (2026), arXiv:2506.14963 [physics.chem-ph]. [13] J. Kim, J. Kim, J. Kim, J. Lee, Y. Park, Y. Kang, and S. Han, Journal of the American Chemical Society 147 , 1042 (2025). [14] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, Na-ture Communications 13 , 2453 (2022). [15] A. Musaelian, S. Batzner, A. Johansson, L. Sun, C. J. Owen, M. Kornbluth, and B. Kozinsky, Nature Communications 14 ,579 (2023). [16] S. Batzner, A. Musaelian, and B. Kozinsky, Nature Reviews Physics 5, 437 (2023). [17] I. Batatia, D. P. Kov´ acs, G. N. C. Simm, C. Ortner, and G. Cs´ anyi, MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields (2023), arXiv:2206.07697 [cond-mat, physics:physics, stat]. [18] A. Bochkarev, Y. Lysogorskiy, and R. Drautz, Physical Review X 14 , 021036 (2024). [19] A. Merchant, S. Batzner, S. S. Schoenholz, M. Aykol, G. Cheon, and E. D. Cubuk, Nature 624 , 80 (2023). [20] Y. Park, J. Kim, S. Hwang, and S. Han, Journal of Chemical Theory and Computation 20 , 4857 (2024). [21] I. Batatia, S. Batzner, D. P. Kov´ acs, A. Musaelian, G. N. C. Simm, R. Drautz, C. Ortner, B. Kozinsky, and G. Cs´ anyi, Na-ture Machine Intelligence 7, 56 (2025). [22] B. Kozinsky, A. Musaelian, A. Johansson, and S. Batzner, in 
+
+Proceedings of the International Conference for High Perfor-mance Computing, Networking, Storage and Analysis , SC ’23 (Association for Computing Machinery, New York, NY, USA, 2023) pp. 1–12. [23] C. W. Tan, M. L. Descoteaux, M. Kotak, G. d. M. Nasci-mento, S. R. Kavanagh, L. Zichi, M. Wang, A. Saluja, Y. R. Hu, T. Smidt, A. Johansson, W. C. Witt, B. Kozinsky, and A. Musaelian, Digital Discovery 10.1039/D5DD00423C (2026). [24] V. Bharadwaj, A. Glover, A. Buluc, and J. Demmel, An Effi-cient Sparse Kernel Generator for O(3)-Equivariant Deep Net-works (2025), arXiv:2501.13986 [cs]. [25] Accelerate Drug and Material Discovery with New Math Li-brary NVIDIA cuEquivariance (2024). [26] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, and K. A. Persson, Na-ture Machine Intelligence 7, 836 (2025). [27] B. P´ ota, P. Ahlawat, G. Cs´ anyi, and M. Simoncelli, Thermal Conductivity Predictions with Foundation Atomistic Models (2024), arXiv:2408.00755 [cond-mat] version: 4. [28] BFloat16: The secret to high performance on Cloud TPUs. [29] P. Kharya, NVIDIA Blogs: TensorFloat-32 Accelerates AI Training HPC upto 20x (2020). [30] X. Fu, B. M. Wood, L. Barroso-Luque, D. S. Levine, M. Gao, M. Dzamba, and C. L. Zitnick, Learning Smooth and Expres-sive Interatomic Potentials for Physical Property Prediction (2025), arXiv:2502.12147 [physics]. [31] B. Cheng, npj Computational Materials 11 , 80 (2025). [32] T. W. Ko, R. Liu, A. R. Mishra, Z. Yu, J. Qi, and S. P. Ong, A Fast, Accurate, and Reactive Equivariant Foundation Potential (2025), arXiv:2511.07249 [cond-mat.mtrl-sci]. [33] P. Izmailov, D. Podoprikhin, T. Garipov, D. Vetrov, and A. G. Wilson, 34th Conference on Uncertainty in Artificial Intelli-gence 2018, UAI 2018 34th Conference on Uncertainty in Ar-tificial Intelligence 2018, UAI 2018, 876 (2018). [34] J. Qi, T. W. Ko, B. C. Wood, T. A. Pham, and S. P. Ong, npj Computational Materials 10 , 43 (2024). [35] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, and K. a. Persson, APL Materials 1, 011002 (2013). [36] B. Deng, Y. Choi, P. Zhong, J. Riebesell, S. Anand, Z. Li, K. Jun, K. A. Persson, and G. Ceder, npj Computational Ma-terials 11 , 9 (2025). [37] H.-C. Wang, S. Botti, and M. A. L. Marques, npj Computational Materials 7, 12 (2021). [38] C. J. Owen, S. B. Torrisi, Y. Xie, S. Batzner, K. Bystrom, J. Coulter, A. Musaelian, L. Sun, and B. Kozinsky, npj Com-putational Materials 10 , 92 (2024). [39] T. Warford, F. L. Thiemann, and G. Cs´ anyi, Better without U: Impact of Selective Hubbard U Correction on Foundational MLIPs (2026), arXiv:2601.21056 [physics] version: 1. [40] A. Mazitov, S. Chorna, G. Fraux, M. Bercx, G. Pizzi, S. De, and M. Ceriotti, Scientific Data 12 , 1857 (2025). [41] B. Rhodes, S. Vandenhaute, V. ˇ Simkus, J. Gin, J. Godwin, T. Duignan, and M. Neumann, Orb-v3: atomistic simulation at scale (2025), arXiv:2504.06231 [cond-mat]. [42] G. Simeon and G. De Fabritiis, in Advances in Neural Infor-mation Processing Systems , Vol. 36 (Curran Associates, Inc., 2023) pp. 37334–37353. [43] H. Yang, C. Hu, Y. Zhou, X. Liu, Y. Shi, J. Li, G. Li, Z. Chen, S. Chen, C. Zeni, M. Horton, R. Pinsler, A. Fowler, D. Z¨ ugner, T. Xie, J. Smith, L. Sun, Q. Wang, L. Kong, C. Liu, H. Hao, and Z. Lu, MatterSim: A Deep Learning Atomistic Model Across Elements, Temperatures and Pressures (2024), arXiv:2405.04967 [cond-mat.mtrl-sci]. [44] B. M. Wood, M. Dzamba, X. Fu, M. Gao, M. Shuaibi, L. Barroso-Luque, K. Abdelmaqsoud, V. Gharakhanyan, J. R. Kitchin, D. S. Levine, K. Michel, A. Sriram, T. Cohen, A. Das, A. Rizvi, S. J. Sahoo, Z. W. Ulissi, and C. L. Zit-nick, UMA: A Family of Universal Models for Atoms (2026), arXiv:2506.23971 [cs.LG]. [45] R. Tran, J. Lan, M. Shuaibi, B. M. Wood, S. Goyal, A. Das, J. Heras-Domingo, A. Kolluru, A. Rizvi, N. Shoghi, A. Sriram, F. Therrien, J. Abed, O. Voznyy, E. H. Sargent, Z. Ulissi, and C. L. Zitnick, ACS Catalysis 13 , 3066 (2023). [46] A. Sriram, L. M. Brabson, X. Yu, S. Choi, K. Abdelmaqsoud, E. Moubarak, P. d. Haan, S. L¨ owe, J. Brehmer, J. R. Kitchin, M. Welling, C. L. Zitnick, Z. Ulissi, A. J. Medford, and D. S. 15 
+
+Sholl, The Open DAC 2025 Dataset for Sorbent Discovery in Direct Air Capture (2025), arXiv:2508.03162 [cond-mat]. [47] V. Gharakhanyan, L. Barroso-Luque, Y. Yang, M. Shuaibi, K. Michel, D. S. Levine, M. Dzamba, X. Fu, M. Gao, X. Liu, H. Ni, K. Noori, B. M. Wood, M. Uyttendaele, A. Boromand, C. L. Zitnick, N. Marom, Z. W. Ulissi, and A. Sriram, Open Molecular Crystals 2025 (OMC25) Dataset and Models (2025), arXiv:2508.02651 [physics]. [48] A. H. Larsen, J. J. Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Du \lak, J. Friis, M. N. Groves, B. Ham-mer, C. Hargus, E. D. Hermes, P. C. Jennings, P. B. Jensen, J. Kermode, J. R. Kitchin, E. L. Kolsbjerg, J. Kubal, K. Kaas-bjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Sch¨ utt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Wal-ter, Z. Zeng, and K. W. Jacobsen, Journal of Physics: Con-densed Matter 29 , 273002 (2017). [49] A. P. Thompson, H. M. Aktulga, R. Berger, D. S. Bolintineanu, W. M. Brown, P. S. Crozier, P. J. in ’t Veld, A. Kohlmeyer, S. G. Moore, T. D. Nguyen, R. Shan, M. J. Stevens, J. Tranchida, C. Trott, and S. J. Plimpton, Computer Physics Communica-tions 271 , 108171 (2022). [50] J. Moon, U. Jeon, S. Choung, and J. W. Han, Cell Reports Phys-ical Science 6, 10.1016/j.xcrp.2025.102968 (2025). [51] Y. Chiang, T. Kreiman, C. Zhang, M. C. Kuner, E. Weaver, I. Amin, H. Park, Y. Lim, J. Kim, D. Chrzan, A. Walsh, S. M. Blau, M. Asta, and A. S. Krishnapriyan, MLIP Arena: Ad-vancing Fairness and Transparency in Machine Learning Inter-atomic Potentials via an Open, Accessible Benchmark Platform (2025), arXiv:2509.20630 [physics]. [52] A. Johansson, E. Weinberg, C. R. Trott, M. J. McCarthy, and S. G. Moore, in Proceedings of the SC ’25 Workshops of the International Conference for High Performance Comput-ing, Networking, Storage and Analysis (2025) pp. 1217–1232, arXiv:2508.13523 [cs.DC]. [53] K. Nguyen-Cong, J. T. Willman, S. G. Moore, A. B. Be-lonoshko, R. Gayatri, E. Weinberg, M. A. Wood, A. P. Thomp-son, and I. I. Oleynik, in Proceedings of the International Con-ference for High Performance Computing, Networking, Storage and Analysis , SC ’21 (Association for Computing Machinery, New York, NY, USA, 2021) pp. 1–12. [54] A. P. Thompson, L. P. Swiler, C. R. Trott, S. M. Foiles, and G. J. Tucker, Journal of Computational Physics 285 , 316 (2015). [55] D. Kim, X. Wang, S. Vargas, P. Zhong, D. S. King, T. J. Inizan, and B. Cheng, Journal of Chemical Theory and Computation 
+
+21 , 12709 (2025). [56] M. U. Maruf, S. Kim, and Z. Ahmad, The Journal of Physical Chemistry Letters 16 , 9078 (2025). [57] S. Falletta, A. Cepellotti, A. Johansson, C. W. Tan, M. L. De-scoteaux, A. Musaelian, C. J. Owen, and B. Kozinsky, Nature Communications 16 , 4031 (2025). [58] G. d. M. Nascimento, M. L. Descoteaux, L. Zichi, C. W. Tan, W. C. Witt, N. Molinari, S. Mantha, D. Kitchaev, M. Ko-rnbluth, K. Gadelrab, C. Tuffile, and B. Kozinsky, Mixture of Experts Framework in Machine Learning Interatomic Po-tentials for Atomistic Simulations (2026), arXiv:2604.26143 [physics.comp-ph]. [59] L. A. Gomes, S. Larmore, M. Wang, C. W. Tan, B. Kozin-sky, and S. A. Lopez, ChemRxiv 2026 , 10.26434/chem-rxiv.15001631/v1. [60] S. R. Kavanagh, Journal of Physics: Energy 7, 045002 (2025). [61] LMDB: Lightning Memory-Mapped Database Manager (LMDB). [62] D. Ocampo, D. Posso, R. Namakian, and W. Gao, Computa-tional Materials Science 244 , 113155 (2024). [63] D. Kuryla, F. Berger, G. Cs´ anyi, and A. Michaelides, How Ac-curate Are DFT Forces? Unexpectedly Large Uncertainties in Molecular Datasets (2025), arXiv:2510.19774 [physics.chem-ph]. [64] S. J. Sahoo, M. Maraschin, J. B. Varley, D. S. Levine, Z. Ulissi, C. L. Zitnick, W. Takemura, J. A. Gauthier, N. Govindarajan, and M. Shuaibi, Insights into CO dimerization at electrified Cu interfaces from large-scale machine learning simulations (2025), version Number: 2. [65] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kov´ acs, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, S. M. Blau, V. C˘ arare, J. P. Darby, S. De, F. D. Pia, V. L. Deringer, R. Elijoˇ sius, Z. El-Machachi, F. Falcioni, E. Fako, A. C. Ferrari, A. Genreith-Schriever, J. George, R. E. A. Goodall, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. Holm, J. Jaafar, S. Hofmann, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuo-niute, J. T. Margraf, I.-B. Magd˘ au, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, V. Svahn, C. Sutton, T. D. Swinburne, J. Tilly, C. v. d. Oord, E. Varga-Umbrich, T. Vegge, M. Vondr´ ak, Y. Wang, W. C. Witt, F. Zills, and G. Cs´ anyi, A foundation model for atomistic materials chem-istry (2024), arXiv:2401.00096 [physics]. [66] E. Bitzek, P. Koskinen, F. G¨ ahler, M. Moseler, and P. Gumbsch, Physical Review Letters 97 , 170201 (2006). [67] F. Bigi, P. Pegolo, A. Mazitov, J. Schmidt, and M. Ceri-otti, Pushing the limits of unconstrained machine-learned in-teratomic potentials (2026), arXiv:2601.16195 [physics.chem-ph]. [68] J. Kim, J. You, Y. Park, Y. Lim, Y. Kang, J. Kim, H. Jeon, S. Ju, D. Hong, S. Y. Lee, S. Choi, Y. Kim, J. W. Lee, and S. Han, Op-timizing Cross-Domain Transfer for Universal Machine Learn-ing Interatomic Potentials (2025), arXiv:2510.11241 [cond-mat.mtrl-sci]. [69] T. Koker, A. Gangan, M. Kotak, J. Marian, and T. Smidt, PFT: Phonon Fine-tuning for Machine Learned Interatomic Poten-tials (2026), arXiv:2601.07742 [cond-mat.mtrl-sci]. [70] Y.-L. Liao, A. J. Hoffman, S. C. Shen, A. Duval, S. W. Nor-wood, and T. Smidt, EquiformerV3: Scaling Efficient, Expres-sive, and General SE(3)-Equivariant Graph Attention Trans-formers (2026), arXiv:2604.09130 [cs.LG]. [71] Y. Lysogorskiy, A. Bochkarev, and R. Drautz, Graph atomic cluster expansion for foundational machine learning inter-atomic potentials (2026), arXiv:2508.17936 [cond-mat.mtrl-sci]. 1
+
+S1. ADDITIONAL TRAIN-TIME BENCHMARKS No Compilation Graph Compilation 
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+> Frames per GPU-hour (Normalised)
+> Standard Kernels
+> w/TensorFloat32
+> w/Automatic Mixed Precision
+> CuEquivariance
+> w/TensorFloat32
+> w/Automatic Mixed Precision
+
+No Compilation Graph Compilation 
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10 
+
+12 
+
+> Frames per GPU-hour (Normalised)
+> Standard Kernels
+> w/TensorFloat32
+> OpenEquivariance
+> w/TensorFloat32
+
+# a bNequIP Allegro 
+
+Figure S1. Accelerated Model Training (with DIRECT dataset). Training speeds for large NequIP and Allegro models with the DI-RECT dataset, 1 plotted as the number of data frames (atomic structures with energy and forces) trained on per GPU-hour. Training speeds are measured without and with graph compilation ( torch.compile ), using standard tensor product kernels or the recently-implemented 
+
+OpenEquivariance 2 (for NequIP) and CuEquivariance 3 (for Allegro) kernels, and with or without mixed floating-point precision strate-gies ( TensorFloat32 or Automatic Mixed Precision 4). Training times were recorded using a single node of 4 NVIDIA A100 40 GB GPUs on the NERSC Perlmutter system, with further details given in the Methods section. The same batch sizes were used to standardise comparisons, but we note that mixed-precision and accelerated kernels also significantly reduce GPU memory demand, allowing larger batch sizes and thus second-order train-time accelerations. 
+
+S2. ADDITIONAL LEARNING CURVE ANALYSES 210 6 10 7
+
+Model Size (Number of Parameters) 
+
+20 
+
+30 
+
+40 
+
+50 
+
+60 
+
+> EWBM, MAE  [meV/atom]
+
+Materials Discovery Error ( EWBM, MAE )    
+
+> NequIP-OAM-{model size}
+> = 0.32, R2= 0.98
+> Allegro-OAM-{model size}
+> = 0.19, R2= 0.99
+
+10 6 10 7
+
+Model Size (Number of Parameters) 
+
+0.1 
+
+0.2 
+
+0.5 
+
+1.0 
+
+> SRME
+
+Thermal Conductivity Error ( SRME )    
+
+> NequIP-OAM-{model size}
+> = 0.69, R2= 1.00
+> Allegro-OAM-{model size}
+> = 0.33, R2= 0.97
+
+Figure S2. Model Size Learning Curve – Small-to-Large Fit . Test errors for NequIP and Allegro models trained on the OAM dataset (NequIP/Allegro-OAM-{model size }) and evaluated on the Matbench Discovery 5 benchmark suite, as a function of model size (Tables 1 and 2). This includes the mean absolute error (MAE) in convex hull energy predictions for unseen compounds ( EWBM, MAE , left) and the dimensionless Symmetric Relative Mean Error in thermal conductivities for 103 binary compounds ( κSRME , right). Dashed lines show least-squares power law fits to the data ( L = a · x−α ) – excluding the NequIP-OAM-XL model , with the fitted scaling exponent α and coefficient of determination R2 given in the figure legends. See Table 2 for tabulated values. Model hyperparameters, training datasets and naming syntax are described in Section III. 10 6 10 7 10 8
+
+Training Dataset Size (Number of Structures) 
+
+20 
+
+30 
+
+40 
+
+50 
+
+60 
+
+> EWBM, MAE  [meV/atom]
+
+DIRECT 
+
+MP 
+
+MPA 
+
+OAM 
+
+Materials Discovery Error ( EWBM, MAE )    
+
+> NequIP-{dataset}-XL
+> = 0.25, R2= 0.99
+> Allegro-{dataset}-L
+> = 0.22, R2= 0.95
+
+10 6 10 7 10 8
+
+Training Dataset Size (Number of Structures) 
+
+0.1 
+
+0.2 
+
+0.5 
+
+1.0 
+
+> SRME
+
+DIRECT 
+
+MP 
+
+MPA 
+
+OAM 
+
+Thermal Conductivity Error ( SRME )    
+
+> NequIP-{dataset}-XL
+> = 0.22, R2= 0.99
+> Allegro-{dataset}-L
+> = 0.10, R2= 0.98
+
+Figure S3. Training Data Learning Curve – DIRECT-to-MPA Fit . Test errors for the largest NequIP and Allegro models trained in this work (NequIP-{dataset }-XL and Allegro-{dataset }-L) and evaluated on the Matbench Discovery 5 benchmark suite, as a function of training dataset size (DIRECT, MP, MPA, OAM). This includes the mean absolute error (MAE) in convex hull energy predictions for unseen compounds (EWBM, MAE , left) and the dimensionless Symmetric Relative Mean Error in thermal conductivities for 103 binary compounds ( κSRME , right). Dashed lines show least-squares power law fits to the data ( L = a · x−α ) – excluding the OAM dataset , with the fitted scaling exponent α
+
+and coefficient of determination R2 given in the figure legends. See Table 2 for tabulated values and Section III for model hyperparameters, training datasets and naming syntax. 3
+
+S3. ELEMENT-WISE MATERIALS DISCOVERY ERRORS FOR OTHER COMMUNITY MODELS 10 20 50 100 
+
+eSEN (meV/atom) 
+
+Ac 
+
+> 21.9
+
+Th 
+
+> 14.1
+
+Pa 
+
+> 18.6
+
+U
+
+> 21.7
+
+Np 
+
+> 42.7
+
+Pu 
+
+> 101.9
+
+Am 
+
+> -
+
+Cm 
+
+> -
+
+Bk 
+
+> -
+
+Cf 
+
+> -
+
+Es 
+
+> -
+
+Fm 
+
+> -
+
+Md 
+
+> -
+
+No 
+
+> -
+
+Lr 
+
+> -
+
+La 
+
+> 12.7
+
+Ce 
+
+> 12.4
+
+Pr 
+
+> 13.0
+
+Nd 
+
+> 11.3
+
+Pm 
+
+> 23.3
+
+Sm 
+
+> 12.0
+
+Eu 
+
+> 32.2
+
+Gd 
+
+> 20.0
+
+Tb 
+
+> 11.7
+
+Dy 
+
+> 12.1
+
+Ho 
+
+> 10.8
+
+Er 
+
+> 11.0
+
+Tm 
+
+> 10.2
+
+Yb 
+
+> 13.5
+
+Lu 
+
+> 11.5
+
+Fr 
+
+> -
+
+Ra 
+
+> -
+
+Rf 
+
+> -
+
+Db 
+
+> -
+
+Sg 
+
+> -
+
+Bh 
+
+> -
+
+Hs 
+
+> -
+
+Mt 
+
+> -
+
+Ds 
+
+> -
+
+Rg 
+
+> -
+
+Cn 
+
+> -
+
+Nh 
+
+> -
+
+Fl 
+
+> -
+
+Mc 
+
+> -
+
+Lv 
+
+> -
+
+Ts 
+
+> -
+
+Og 
+
+> -
+
+Cs 
+
+> 16.7
+
+Ba 
+
+> 14.6
+
+Hf 
+
+> 11.8
+
+Ta 
+
+> 27.7
+
+W
+
+> 19.1
+
+Re 
+
+> 14.6
+
+Os 
+
+> 18.7
+
+Ir 
+
+> 21.4
+
+Pt 
+
+> 19.3
+
+Au 
+
+> 20.1
+
+Hg 
+
+> 15.6
+
+Tl 
+
+> 13.5
+
+Pb 
+
+> 23.8
+
+Bi 
+
+> 16.0
+
+Po 
+
+> -
+
+At 
+
+> -
+
+Rn 
+
+> -
+
+Rb 
+
+> 15.6
+
+Sr 
+
+> 13.3
+
+Y
+
+> 14.3
+
+Zr 
+
+> 12.7
+
+Nb 
+
+> 16.7
+
+Mo 
+
+> 21.2
+
+Tc 
+
+> 20.9
+
+Ru 
+
+> 18.5
+
+Rh 
+
+> 17.6
+
+Pd 
+
+> 16.8
+
+Ag 
+
+> 14.3
+
+Cd 
+
+> 11.3
+
+In 
+
+> 16.7
+
+Sn 
+
+> 13.9
+
+Sb 
+
+> 20.3
+
+Te 
+
+> 29.2
+
+I
+
+> 13.6
+
+Xe 
+
+> excl.
+
+K
+
+> 15.1
+
+Ca 
+
+> 13.9
+
+Sc 
+
+> 10.4
+
+Ti 
+
+> 12.8
+
+V
+
+> 26.3
+
+Cr 
+
+> 36.1
+
+Mn 
+
+> 46.7
+
+Fe 
+
+> 33.2
+
+Co 
+
+> 16.0
+
+Ni 
+
+> 13.6
+
+Cu 
+
+> 13.4
+
+Zn 
+
+> 13.6
+
+Ga 
+
+> 12.8
+
+Ge 
+
+> 15.8
+
+As 
+
+> 16.6
+
+Se 
+
+> 19.3
+
+Br 
+
+> 16.9
+
+Kr 
+
+> -
+
+Na 
+
+> 10.2
+
+Mg 
+
+> 15.2
+
+Al 
+
+> 12.0
+
+Si 
+
+> 17.3
+
+P
+
+> 18.2
+
+S
+
+> 17.0
+
+Cl 
+
+> 18.4
+
+Ar 
+
+> -
+
+Li 
+
+> 12.6
+
+Be 
+
+> 8.3
+
+B
+
+> 16.5
+
+C
+
+> 20.2
+
+N
+
+> 21.8
+
+O
+
+> 20.6
+
+F
+
+> 18.5
+
+Ne 
+
+> -
+
+H
+
+> 24.6
+
+He 
+
+> -
+
+Convex Hull Energy MAE [meV/atom] 
+
+10 20 50 100 
+
+Figure S4. Per-Element Errors for Materials Discovery with eSEN-30M-OAM . Distribution of element-wise convex hull energy MAE across the periodic table for the matbench-discovery 5 materials discovery benchmark, using the eSEN-30M-OAM 6 model. Errors are shown in meV/atom, using a logarithmic colourbar scale. The largest element-wise errors are seen for multi-valent first-row transition metals (V, Cr, Mn, Fe), low-prevalence actinides (Np, Pu), along with Eu, Ta, Te, Pb and H – consistent with the NequIP-OAM models (Fig. 4). 20 30 50 80 100 
+
+MACE-MPA (meV/atom) 
+
+Ac 
+
+> 27.2
+
+Th 
+
+> 25.4
+
+Pa 
+
+> 28.7
+
+U
+
+> 33.7
+
+Np 
+
+> 50.9
+
+Pu 
+
+> 105.8
+
+Am 
+
+> -
+
+Cm 
+
+> -
+
+Bk 
+
+> -
+
+Cf 
+
+> -
+
+Es 
+
+> -
+
+Fm 
+
+> -
+
+Md 
+
+> -
+
+No 
+
+> -
+
+Lr 
+
+> -
+
+La 
+
+> 20.7
+
+Ce 
+
+> 20.5
+
+Pr 
+
+> 20.3
+
+Nd 
+
+> 19.2
+
+Pm 
+
+> 30.8
+
+Sm 
+
+> 19.4
+
+Eu 
+
+> 38.7
+
+Gd 
+
+> 27.1
+
+Tb 
+
+> 19.0
+
+Dy 
+
+> 20.4
+
+Ho 
+
+> 19.1
+
+Er 
+
+> 20.1
+
+Tm 
+
+> 18.8
+
+Yb 
+
+> 33.2
+
+Lu 
+
+> 22.1
+
+Fr 
+
+> -
+
+Ra 
+
+> -
+
+Rf 
+
+> -
+
+Db 
+
+> -
+
+Sg 
+
+> -
+
+Bh 
+
+> -
+
+Hs 
+
+> -
+
+Mt 
+
+> -
+
+Ds 
+
+> -
+
+Rg 
+
+> -
+
+Cn 
+
+> -
+
+Nh 
+
+> -
+
+Fl 
+
+> -
+
+Mc 
+
+> -
+
+Lv 
+
+> -
+
+Ts 
+
+> -
+
+Og 
+
+> -
+
+Cs 
+
+> 25.5
+
+Ba 
+
+> 23.4
+
+Hf 
+
+> 24.8
+
+Ta 
+
+> 45.9
+
+W
+
+> 31.7
+
+Re 
+
+> 26.8
+
+Os 
+
+> 31.1
+
+Ir 
+
+> 33.1
+
+Pt 
+
+> 27.1
+
+Au 
+
+> 26.5
+
+Hg 
+
+> 21.4
+
+Tl 
+
+> 19.9
+
+Pb 
+
+> 31.7
+
+Bi 
+
+> 28.4
+
+Po 
+
+> -
+
+At 
+
+> -
+
+Rn 
+
+> -
+
+Rb 
+
+> 24.8
+
+Sr 
+
+> 21.6
+
+Y
+
+> 21.9
+
+Zr 
+
+> 25.7
+
+Nb 
+
+> 34.1
+
+Mo 
+
+> 37.8
+
+Tc 
+
+> 31.5
+
+Ru 
+
+> 29.3
+
+Rh 
+
+> 26.1
+
+Pd 
+
+> 23.5
+
+Ag 
+
+> 20.1
+
+Cd 
+
+> 18.1
+
+In 
+
+> 24.2
+
+Sn 
+
+> 22.7
+
+Sb 
+
+> 31.1
+
+Te 
+
+> 39.3
+
+I
+
+> 24.6
+
+Xe 
+
+> excl.
+
+K
+
+> 23.1
+
+Ca 
+
+> 22.1
+
+Sc 
+
+> 20.0
+
+Ti 
+
+> 25.0
+
+V
+
+> 40.9
+
+Cr 
+
+> 46.2
+
+Mn 
+
+> 55.5
+
+Fe 
+
+> 43.4
+
+Co 
+
+> 25.1
+
+Ni 
+
+> 23.5
+
+Cu 
+
+> 20.5
+
+Zn 
+
+> 38.9
+
+Ga 
+
+> 20.3
+
+Ge 
+
+> 25.0
+
+As 
+
+> 29.8
+
+Se 
+
+> 31.4
+
+Br 
+
+> 26.5
+
+Kr 
+
+> -
+
+Na 
+
+> 19.4
+
+Mg 
+
+> 22.1
+
+Al 
+
+> 58.5
+
+Si 
+
+> 27.2
+
+P
+
+> 34.0
+
+S
+
+> 28.8
+
+Cl 
+
+> 29.5
+
+Ar 
+
+> -
+
+Li 
+
+> 19.8
+
+Be 
+
+> 19.5
+
+B
+
+> 32.8
+
+C
+
+> 39.0
+
+N
+
+> 41.6
+
+O
+
+> 37.5
+
+F
+
+> 27.9
+
+Ne 
+
+> -
+
+H
+
+> 35.2
+
+He 
+
+> -
+
+Convex Hull Energy MAE [meV/atom] 
+
+20  50 30  100 80 
+
+Figure S5. Per-Element Errors for Materials Discovery with MACE-MPA-0 7. Distribution of element-wise convex hull energy MAE across the periodic table for the matbench-discovery 5 materials discovery benchmark, using the MACE-MPA-0 model. Errors are shown in meV/atom, using a logarithmic colourbar scale. The largest element-wise errors are seen for multi-valent first-row transition metals (V, Cr, Mn, Fe), low-prevalence actinides (Np, Pu), along with Eu, Ta, Te, Pb and H – consistent with the NequIP-OAM models (Fig. 4). Aluminium has a noticeably higher (relative) error than with NequIP-OAM or eSEN-30M-OAM here. 4
+
+S4. THERMAL CONDUCTIVITY AND PHONON BENCHMARK ERROR ANALYSIS 0.0 2.5 5.0 7.5 10.0 12.5 15.0 
+
+Frequency [THz] 
+
+10 1
+
+10 0
+
+10 1
+
+> Mean  Mode  Error (Normalised to  Total )
+> Allegro-OAM-S
+> Allegro-OAM-M
+> Allegro-OAM-L
+> NequIP-OAM-S
+> NequIP-OAM-M
+> NequIP-OAM-L
+> NequIP-OAM-XL
+
+0 10 20 30 40 
+
+Frequency [THz] 
+
+10 1
+
+10 0
+
+10 1
+
+> Mean Phonon Frequency Error [THz]
+
+Figure S6. Decomposed Thermal Conductivity Benchmark Errors . Mean error in (left) mode-decomposed thermal conductivity and (right) 
+
+phonon frequency for NequIP/Allegro-OAM models over the original κSRME benchmark test set of 103 binary compounds, as a function of phonon frequency. Thermal conductivities are dominated by low-frequency modes, so the κMode errors are plotted in the lower energy range of 0 – 15 THz, and are normalised by the total thermal conductivity κTotal . Gaussian smoothening of width 0.2 and 0 .5 THz respectively is applied to the κMode (left) and phonon frequency (right) error plots. 50 10 20 30 40 
+
+Frequency [THz] 
+
+10 1
+
+10 0
+
+10 1
+
+> Mean Phonon Frequency Error [THz]
+
+Allegro-MP-L 
+
+Allegro-OAM-S 
+
+Allegro-OAM-M 
+
+Allegro-OAM-L 
+
+NequIP-OAM-S 
+
+NequIP-OAM-M 
+
+NequIP-OAM-L 
+
+NequIP-OAM-XL 
+
+20 0 20 40 60 80 100 
+
+Frequency [THz] 
+
+Figure S7. Mean phonon frequency errors on Materials Project structures. Mean absolute error in phonon frequencies, |∆ω|, for NequIP-OAM, Allegro-OAM and Allegro-MP-L models evaluated on all 26,234 Materials Project structures for which reference DFT phonon data is available, as a function of phonon frequency. The left panel shows the low-frequency range (0 to 40 THz) which encompasses most phonon spectra, while the right panel shows a wider range ( −30 to 110 THz) for which there are at least 100 datapoints per frequency bin (0.15 THz width). Errors are averaged over all phonon modes in each frequency bin. A displacement distance of 0 .001 ˚ A was used for the finite-difference calculations. Fig. S8 shows the same error distribution but with Gaussian smoothening applied. 0 10 20 30 40 
+
+Frequency [THz] 
+
+10 1
+
+10 0
+
+10 1
+
+> Mean Phonon Frequency Error [THz]
+
+Allegro-MP-L 
+
+Allegro-OAM-S 
+
+Allegro-OAM-M 
+
+Allegro-OAM-L 
+
+NequIP-OAM-S 
+
+NequIP-OAM-M 
+
+NequIP-OAM-L 
+
+NequIP-OAM-XL 
+
+20 0 20 40 60 80 100 
+
+Frequency [THz] 
+
+Figure S8. Mean phonon frequency errors on Materials Project structures (Smoothed). As in Fig. S7, but with Gaussian smoothening 
+
+σ = 3 THz applied. 6
+
+S5. LAMMPS SINGLE-GPU INFERENCE SPEED BENCHMARK S
+
+> M
+> L
+> XL
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> cons
+> +TF
+> nc
+> nc+TF
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+64 Atoms 
+
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> cons
+> +TF
+> nc
+> nc+TF
+
+512 Atoms 
+
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> cons
+> +TF
+> nc
+> nc+TF
+
+1728 Atoms 
+
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> cons
+> +TF
+> nc
+> nc+TF
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+> OOM
+> OOM
+> OOM
+
+4096 Atoms 
+
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> cons
+> +TF
+> nc
+> nc+TF
+> OOM
+> OOM
+> OOM
+> OOM
+
+8000 Atoms 
+
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> XL
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> S
+> M
+> L
+> cons
+> +TF
+> nc
+> nc+TF
+> OOM
+> OOM
+> OOM
+> OOM
+> OOM
+> OOM
+
+13824 Atoms 
+
+> LAMMPS MD Inference Speed [timestep/s]
+> NequIP (ML-IAP)
+> NequIP (Pairstyle)
+> Allegro (ML-IAP)
+> Allegro (Pairstyle)
+> GRACE-1L
+> GRACE-2L
+> SevenNet-Omni (ML-IAP)
+> SevenNet-i12 (ML-IAP)
+> SevenNet-Omni (e3gnn)
+> SevenNet-i12 (e3gnn)
+> MACE-MPA-0 (ML-IAP)
+> PET-OAM-XL (metatomic/kk)
+
+Figure S9. LAMMPS Single-GPU Inference Speeds . LAMMPS 8 molecular dynamics inference speeds (timesteps per second) for the NequIP-OAM and Allegro-OAM models trained in this work, alongside other community foundation potentials (GRACE-1L/GRACE-2L, 9,10 MACE-MPA-0, 7 SevenNet-Omni, 11 and PET-OAM-XL 12,13 ), as a function of system size. Each panel corresponds to a fixed number of atoms (64 to 13,824), using diamond silicon (Si) supercells. NequIP and Allegro models are shown using both the native pairstyle and the Kokkos-accelerated ML-IAP 14 interfaces. PET-OAM-XL is run through the Kokkos-accelerated metatomic interface in four variants: the energy-conserving model (“cons”) and its non-conservative, direct-force counterpart (“nc”), 13 each evaluated with and without TF32 tensor-core arithmetic (“+TF”). All simulations were run on a single NVIDIA A100 (80 GB) GPU (see Section VII of the main text for details). 
+
+S6. LEARNED TYPE EMBEDDING ANALYSIS 
+
+Clear chemical organisation is demonstrated by each dimensionality reduction analysis of the chemical type (elemental) embed-dings across all NequIP-OAM models, shown in Figs. S10 to S15. This includes separation of periodic groups and periodic-table blocks ( s, p, d, f ), clear electronegativity gradients along reduced dimensions, and clustering of chemically-similar elements (e.g. coinage metals, halogens, lanthanides, noble gases Figs. S11, S13 and S15) – with progressively cleaner structure at larger model sizes. Noble gases and heavy alkali metals consistently appear as outliers under top-2 Principal Component Analysis (PCA) analysis. For dimensionality reduction analysis, all type embeddings were standardised to have zero mean and unit variance (using 
+
+StandardScaler from scikit-learn 15 ), prior to reduction. A fixed seed ( random state=7 ) was used across all reduc-tions for reproducibility. The number of features for the type embedding layers ( type embed num features in NequIP) in the NequIP-OAM models are 32 for S, M and XL, and 48 for L. In Figs. S10 to S15 there are 89 data-points, corresponding to the 89 elements included in the OAM dataset (Figs. 4 and S4). Uniform Manifold Approximation and Projection (UMAP) dimen-sionality reduction was performed using the umap package, 16 with n neighbors=15 , min dist=0.1 , metric="euclidean" 7
+
+Figure S10. Principal Component Analysis (PCA) Dimensionality Reduction of Chemical Type Embeddings in NequIP-OAM Models .Projections of the chemical type embedding vectors learned by the NequIP-OAM models (S, M, L, XL; columns) along the top 2 principal components. Scatter points are coloured by periodic group, period (row), periodic-table block, and Pauling electronegativity, in order from the top to bottom row. Cumulative explained variance ratios are 0.27, 0.20, 0.16 and 0.18 for the S, M, L and XL models respectively, with the top 2 principal components shown, and 0.48, 0.39, 0.33 and 0.36 for the top 5 principal components. 
+
+Figure S11. PCA Dimensionality Reduction of Chemical Type Embeddings in NequIP-OAM Models – Labelled . Projections of the chemical type embedding vectors learned by the NequIP-OAM models (S, M, L, XL; columns) along the top 2 principal components, labelled by the elemental identities. Scatter points are coloured by periodic-table block. 8
+
+Figure S12. Uniform Manifold Approximation and Projection (UMAP) Dimensionality Reduction of Chemical Type Embeddings in NequIP-OAM Models . UMAP 2D projection plot of the chemical type embedding vectors learned by the NequIP-OAM models (S, M, L, XL; columns). Scatter points are coloured by periodic group, period (row), periodic-table block, and Pauling electronegativity, in order from the top to bottom row. 
+
+Figure S13. UMAP Dimensionality Reduction of Chemical Type Embeddings in NequIP-OAM Models – Labelled . UMAP 2D projection plot of the chemical type embedding vectors learned by the NequIP-OAM models (S, M, L, XL; columns), labelled by the elemental identities. Scatter points are coloured by periodic-table block. 9
+
+Figure S14. t-distributed Stochastic Neighbor Embedding ( t-SNE) Dimensionality Reduction of Chemical Type Embeddings NequIP-OAM Models . t-SNE 2D projection plot of the chemical type embedding vectors learned by the NequIP-OAM models (S, M, L, XL; columns). Scatter points are coloured by periodic group, period (row), periodic-table block, and Pauling electronegativity, in order from the top to bottom row. 
+
+Figure S15. t-SNE Dimensionality Reduction of Chemical Type Embeddings in NequIP-OAM Models – Labelled . t-SNE 2D projection plot of the chemical type embedding vectors learned by the NequIP-OAM models (S, M, L, XL; columns), labelled by the elemental identities. Scatter points are coloured by periodic-table block. 10 and n components=2 . For t-Distributed Stochastic Neighbor Embedding ( t-SNE) dimensionality reduction, a perplexity value of 10 and PCA initialisation was used, via the scikit-learn 15 package. 
+
+[1] J. Qi, T. W. Ko, B. C. Wood, T. A. Pham, and S. P. Ong, npj Computational Materials 10 , 43 (2024). [2] V. Bharadwaj, A. Glover, A. Buluc, and J. Demmel, An Efficient Sparse Kernel Generator for O(3)-Equivariant Deep Networks (2025), arXiv:2501.13986 [cs]. [3] Accelerate Drug and Material Discovery with New Math Library NVIDIA cuEquivariance (2024). [4] BFloat16: The secret to high performance on Cloud TPUs. [5] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, and K. A. Persson, Nature Machine Intelligence 7, 836 (2025). [6] X. Fu, B. M. Wood, L. Barroso-Luque, D. S. Levine, M. Gao, M. Dzamba, and C. L. Zitnick, Learning Smooth and Expressive Interatomic Potentials for Physical Property Prediction (2025), arXiv:2502.12147 [physics]. [7] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kov´ acs, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, S. M. Blau, V. C˘ arare, J. P. Darby, S. De, F. D. Pia, V. L. Deringer, R. Elijoˇ sius, Z. El-Machachi, F. Falcioni, E. Fako, A. C. Ferrari, A. Genreith-Schriever, J. George, R. E. A. Goodall, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. Holm, J. Jaafar, S. Hofmann, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuoniute, J. T. Margraf, I.-B. Magd˘ au, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, V. Svahn, C. Sutton, T. D. Swinburne, J. Tilly, C. v. d. Oord, E. Varga-Umbrich, T. Vegge, M. Vondr´ ak, Y. Wang, W. C. Witt, F. Zills, and G. Cs´ anyi, A foundation model for atomistic materials chemistry (2024), arXiv:2401.00096 [physics]. [8] A. P. Thompson, H. M. Aktulga, R. Berger, D. S. Bolintineanu, W. M. Brown, P. S. Crozier, P. J. in ’t Veld, A. Kohlmeyer, S. G. Moore, T. D. Nguyen, R. Shan, M. J. Stevens, J. Tranchida, C. Trott, and S. J. Plimpton, Computer Physics Communications 271 , 108171 (2022). [9] A. Bochkarev, Y. Lysogorskiy, and R. Drautz, Physical Review X 14 , 021036 (2024). [10] Y. Lysogorskiy, A. Bochkarev, and R. Drautz, Graph atomic cluster expansion for foundational machine learning interatomic potentials (2026), arXiv:2508.17936 [cond-mat.mtrl-sci]. [11] J. Kim, J. You, Y. Park, Y. Lim, Y. Kang, J. Kim, H. Jeon, S. Ju, D. Hong, S. Y. Lee, S. Choi, Y. Kim, J. W. Lee, and S. Han, Optimizing Cross-Domain Transfer for Universal Machine Learning Interatomic Potentials (2025), arXiv:2510.11241 [cond-mat.mtrl-sci]. [12] A. Mazitov, F. Bigi, M. Kellner, P. Pegolo, D. Tisi, G. Fraux, S. Pozdnyakov, P. Loche, and M. Ceriotti, Nature Communications 16 ,10653 (2025). [13] F. Bigi, P. Pegolo, A. Mazitov, J. Schmidt, and M. Ceriotti, Pushing the limits of unconstrained machine-learned interatomic potentials (2026), arXiv:2601.16195 [physics.chem-ph]. [14] A. Johansson, E. Weinberg, C. R. Trott, M. J. McCarthy, and S. G. Moore, in Proceedings of the SC ’25 Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis (2025) pp. 1217–1232, arXiv:2508.13523 [cs.DC]. [15] F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, J. Van-derplas, A. Passos, D. Cournapeau, M. Brucher, M. Perrot, and E. Duchesnay, Journal of Machine Learning Research 12 , 2825 (2011). [16] L. McInnes, J. Healy, N. Saul, and L. Großberger, Journal of Open Source Software 3, 861 (2018).

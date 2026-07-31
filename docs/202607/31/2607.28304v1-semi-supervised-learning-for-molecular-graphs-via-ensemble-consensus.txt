@@ -1,0 +1,1843 @@
+Title: Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus
+
+URL Source: https://arxiv.org/pdf/2607.28304v1
+
+Published Time: Fri, 31 Jul 2026 01:10:24 GMT
+
+Number of Pages: 33
+
+Markdown Content:
+# Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Rasmus Tirsgaard 1 Laurits Fredsgaard * 1 Marisa Wodrich * 1 Mikkel Jordahn 1 Mikkel N. Schmidt 1
+
+## Abstract 
+
+Machine learning is transforming molecular sci-ences by accelerating property prediction, simula-tion, and the discovery of new molecules and ma-terials. Acquiring labeled data in these domains is often costly and time-consuming, whereas large collections of unlabeled molecular data are read-ily available. Standard semi-supervised learning methods often rely on label-preserving augmen-tations, which are challenging to design in the molecular domain, where minor changes can dras-tically alter properties. In this work, we show that semi-supervised methods that rely on an ensemble consensus can boost predictive accuracy across a diverse range of molecular datasets, task types, and graph neural network architectures. We find that training with an ensemble consensus objec-tive increases robustness in models and exhibits an effect similar to knowledge distillation; an in-dividual member of an ensemble trained this way outperforms a full ensemble trained in a tradi-tional supervised fashion in almost all cases. In addition, this type of semi-supervised training re-duces calibration error. 
+
+## 1. Introduction 
+
+In recent years, machine learning has emerged as a transfor-mative tool in the molecular sciences, accelerating discovery in areas ranging from predicting quantum mechanical prop-erties (Schütt et al., 2021; 2017; Musaelian et al., 2023; Wood et al., 2025) to discovering novel drugs (Wong et al., 2024; Kellenberger et al., 2007; Vidler et al., 2013; Zhuang et al., 2014; Ren et al., 2023) and catalysts (Pillai et al., 2023; Sun et al., 2024; Bai et al., 2025). However, despite recent efforts to curate large labeled datasets (Merchant et al., 2023; Levine et al., 2026), the scarcity of labeled data remains a fundamental bottleneck. 
+
+> *
+
+Equal contribution 1Cognitive Systems, Department of Ap-plied Mathematics and Computer Science, Technical University of Denmark. Correspondence to: Rasmus Tirsgaard <rhti@dtu.dk>. 
+
+Proceedings of the 43 rd International Conference on Machine Learning , Seoul, South Korea. PMLR 306, 2026. Copyright 2026 by the author(s). 
+
+In materials and drug discovery, labels often come from com-putationally expensive simulations, such as density func-tional theory (DFT), or resource-intensive laboratory mea-surements. Consequently, datasets with specialized high-quality labels are typically small, while large databases of unlabeled molecules (e.g., ZINC (Irwin et al., 2012; Kim et al., 2024)) are not fully exploited. The combination of abundant unlabeled data and scarce labeled data presents an ideal setting for semi-supervised learning (SSL). Yet, many state-of-the-art methods are poorly suited for the molecular domain. Dominant techniques such as consis-tency training (Berthelot et al., 2019; Sohn et al., 2020) critically depend on data augmentation strategies that cre-ate perturbed copies of an input while preserving its la-bel. Such augmentations are notoriously difficult to design for molecules, where minor structural changes can drasti-cally alter the chemical properties we aim to predict. Mean-while, approaches such as iterative pseudo-labeling (Scud-der, 1965; Riloff & Wiebe, 2003; Huang et al., 2022) hinges on the ability to reliably rank predictions by confidence in order to select the best candidates for pseudo-labeling and to avoid reinforcing model errors. This highlights a critical gap where standard SSL benchmarks and algorithms do not translate well to the practical challenges of molecular science. In this work, we propose an SSL method that does not re-quire explicit data augmentations, but rather relies on an 
+
+ensemble consistency loss . Specifically, we train a model en-semble where each member learns from labeled data using a standard supervised loss and from unlabeled data using a loss that promotes agreement among the ensemble members. While ensemble coupling in SSL has been explored previ-ously (Sajjadi et al., 2016; Tarvainen & Valpola, 2017; Pla-tanios, 2018), our formulation is theoretically grounded in an ensemble loss ambiguity decomposition, requires only a single training run, yields individual models with ensemble-level performance, and leads to more robust models. Our work makes five core contributions: 1. We provide a theoretical motivation for our approach based on the formal decomposition of ensemble error, which justifies the consensus as a high-quality, better-than-average supervisory signal. 1arXiv:2607.28304v1 [cs.LG] 30 Jul 2026 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 𝑓 !!
+
+𝑓 !"
+
+𝑓 !# 
+
+> ⋮
+> ⋮
+> ⋮
+> Unlabeled
+> Data
+> Labeled
+> Data
+> Consensus Loss
+> Supervised Loss
+
+Ensemble 
+
+Prediction 
+
+> Ensemble
+> Members
+
+# SSL Loop       
+
+> Figure 1. (Left) Schematic of the semi-supervised ensemble training loop. Individual ensemble members fθare trained on labeled data via a standard supervised loss. Simultaneously, the full ensemble’s aggregated prediction on unlabeled data acts as a target for a consensus loss. Since the ensemble aggregate typically outperforms individual members, this creates a self-reinforcing loop where the collective prediction guides individual improvement. (Right) Training with ensemble consensus (provably) makes the model converge to more flat points in the loss landscape. This is shown here on the dataset QM9 target ZPVE as measured here by the trace of the Hessian of the loss on validation data.
+
+2. We demonstrate that our method robustly improves predictive accuracy across a wide range of molecu-lar datasets and architectures for both regression and classification. 3. We observe that the performance gap between indi-vidual members and the full ensemble is effectively eliminated. A single member of our consensus-trained ensemble even consistently outperforms a full baseline ensemble trained with traditional supervision. 4. We show that the ensemble-consensus objective also has a regularising effect, pushing the ensemble mem-bers towards more robust models. 5. We demonstrate that our model generally reduces cal-ibration error compared to other SSL methods and maintains high predictive accuracy on the unlabeled training data. 
+
+## 2. Background 
+
+Semi-Supervised Learning Semi-supervised learning (SSL) is a machine learning paradigm designed for set-tings with a small amount of labeled data and a much larger amount of unlabeled data. The idea is to leverage the un-labeled data to learn about the underlying structure of the data distribution p(x), which in turn improves the model’s ability to learn the mapping from inputs to outputs, p(y|x).Effective SSL methods are typically built upon one or more of the following assumptions: • Smoothness Assumption: If two points x1, x 2 are close in a high-density region of the underlying data manifold, their corresponding labels y1, y 2 should also be close or identical. • Cluster Assumption: The data tends to form distinct clusters, and points within the same cluster are likely to share the same label. This implies that a good decision boundary should lie in the low-density region between clusters. 
+
+Consistency Loss Consistency regularization is currently the most dominant family of SSL methods. The core idea is that the model’s prediction for an unlabeled data point should remain consistent under small perturbations. This directly enforces the smoothness assumption. A successful perturbation or data augmentation is one that explores the local neighborhood of a data point on the manifold without changing its label. The objective is typically formulated as minimizing a distance measure (e.g., Mean Squared Error or KL-Divergence) between the model’s predictions for two different augmentations of the same input: 
+
+Lconsistency = Exu∼Xu [D(fθ (aug 1(xu)) || fθ (aug 2(xu))] .
+
+Different choices of the perturbations give rise to a wide range of methods. Π-models (Sajjadi et al., 2016) enforce that two predictions should be the same under transforma-tions to the data, with dropout, and random pooling provid-ing perturbations to the model. Each unlabeled datapoint is passed through the network twice and penalized for the difference in the predictions between the passes. The benefit of consistency loss is highly linked to the quality of the data augmentation techniques, as shown in (Xie et al., 2020). Temporal ensembling (Laine & Aila, 2017) builds upon this by maintaining an exponential moving average of predic-tions for each unlabeled example to create a more stable consistency target. Instead of applying a temporal averaging over the predictions, the mean-teacher method (Tarvainen & Valpola, 2017) averages the model weights and uses the 2Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+predictions of that model as the consistency target. In the above works, the predictions can be seen as coming from a sort of pseudo-ensemble. As the members of this pseudo-ensemble are based on the trajectory or perturbation of a single network, the diversity of the predictions is reduced and biased, which reduces the prediction accuracy as we later highlight. This problem can be mitigated by introducing multiple dif-ferent initial weightings of the same architecture and train-ing them in parallel to use as consistency targets. (Chen et al., 2021) (cross pseudo supervision) proposes to do this for pixel-wise segmentation, where the prediction of each of the two ensemble members is hard labeled and used as the consistency target. (Filipiak et al., 2021) further extends this for pixel-wise segmentation by using n ensemble models and taking all combinations of hard labeled predictions as the consistency targets. Another paper that explores dif-ferent ensemble predictions is (Platanios, 2018). Here the ensemble members are restarted multiple times during train-ing, and the consensus target is computed from a trainable majority vote or Restricted Boltzmann Machine. All the above methods can be seen as stemming from a broad class of SSL methods that rely on the prediction of an ensemble to guide the training of the individual models to improve predictive accuracy. In many applications, there exist few or no data augmen-tations that preserve the label of a data point. Examples include molecules, where the chemical properties can be changed significantly under small changes to the molecule. This restricts the consistency loss methods to only rely on perturbations to the model and not the data. This makes the class of ensemble-based SSL methods well-suited for the problem. 
+
+Pseudo-labeling Pseudo-labeling (Yarowsky, 1995; Scud-der, 1965; Riloff & Wiebe, 2003), also known as self-training or entropy minimization, is a process where an initial model is trained on the labeled data points and then used to predict labels for a large unlabeled dataset. The pri-mary risk of this method is confirmation bias: if the model generates an incorrect pseudo-label with high confidence, it will reinforce its own mistake during retraining, leading to error propagation. To mitigate this risk, modern SSL meth-ods often integrate more sophisticated frameworks. For example, one uncertainty-aware approach uses a model’s evidential uncertainty to estimate the quality of each pseudo-label. This enables an adaptive weighting scheme where high-uncertainty (low-quality) pseudo-labels are given a smaller weight in the loss function, reducing their biasing effect. While this can be effective, such a strategy requires an initial, full training phase on the labeled data before the episodic pseudo-labeling can begin. It also introduces several additional tunable hyperparameters related to its episodic schedule, which require careful tuning (Huang et al., 2022). 
+
+Knowledge Distillation Knowledge distillation (Bucila et al., 2006; Hinton et al., 2015) was proposed as a way of using a complex "teacher" model to transfer its knowledge to a simpler "student" model. Usually, the teacher model is either a model with more parameters or the same model with multiple predictions averaged over multiple augmenta-tions of the input, but the use of an ensemble as the teacher has also been explored (Hinton et al., 2015; Fukuda et al., 2017; Malinin et al., 2020). The transfer of knowledge can be enforced at different levels, such as feature representa-tions (Heo et al., 2019) or intermediate layers (Zagoruyko & Komodakis, 2017). Approaches that match predictions are most closely related to our work. Aligning student and teacher predictions resembles the use of consistency targets in semi-supervised learning, with the key distinction that distillation is typically applied post-hoc, and thus lacks a bootstrapping effect where the teacher also benefits from the student’s progress. Furthermore, knowledge distillation is often focused on preserving the uncertainty calibration of the teacher or achieving computational efficiency by deploy-ing the smaller student model instead of the larger one. 
+
+## 3. Theoretical Motivation 
+
+The theoretical motivation for our method is grounded in the formal relationship between an ensemble’s performance and that of its individual members. Ensemble performance is governed by a fundamental trade-off between the accuracy of the individual models and the diversity of their predic-tions. This relationship can be expressed through a loss decomposition, which shows that for any convex loss func-tion, the ensemble’s loss is guaranteed to be less than or equal to the average of the individual losses (Wood et al., 2023). This stems from Jensen’s inequality and takes the general form: Ensemble Loss = Average Individual Loss − Ambiguity (1) The ambiguity (or diversity) term is a non-negative quantity measuring disagreement among the members. This decom-position reveals that optimal ensemble performance requires not only accurate individual models but also beneficial di-versity. 
+
+Mean Squared Error This principle is most clearly illus-trated in regression with Mean Squared Error (MSE), where the decomposition is exact and well-established (Krogh & Vedelsby, 1994). For an ensemble of M models {fθm }Mm=1 
+
+with a mean prediction ¯f (x), the decomposition is: 3Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+> Ensemble MSE
+
+z }| {
+
+(y − ¯f (x)) 2 (2) 
+
+= 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+(y − fm(x)) 2
+
+| {z }
+
+> Average Individual MSE
+
+− 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+( ¯f (x) − fm(x)) 2
+
+| {z }
+
+> Ambiguity (Prediction Variance)
+
+.
+
+Here, the ambiguity is simply the variance of the predic-tions around the ensemble mean, providing a clear, label-independent measure of diversity. 
+
+Cross-Entropy The same principle extends to classifi-cation, though the decomposition for Cross-Entropy (CE) loss is more nuanced. Using the geometric mean to aver-age probabilities across the ensemble yields a clean, label-independent decomposition, as in regression (Wood et al., 2023). An exact decomposition is also available for the arithmetic mean: 
+
+> Ensemble CE Loss
+
+z }| {
+
+−y · ln ¯f (3) 
+
+= − 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+y · ln fm
+
+| {z }
+
+> Avg. Individual CE Loss
+
+−
+
+> C
+
+X
+
+> c=1
+
+yc ln 
+
+> 1
+> M
+
+PMm=1 fm,c 
+
+(QMm=1 f 1/M m,c 
+
+| {z }
+
+> Ambiguity (Label-Dependent)
+
+,
+
+although here the ambiguity term is explicitly a function of the true label vector y (where yc is the true probability of class c), making it label-dependent (Wood et al., 2023). Crucially, this ambiguity term is still guaranteed to be non-negative, ensuring that the ensemble loss is always less than or equal to the average individual loss. Because the ensemble consensus is provably superior to the average individual model, using it as a consistency target for unlabeled data is both effective and theoretically well-justified. In addition, the ensemble prediction will be a useful signal as long as the models are better than random. This suggests the ensemble prediction does not need to incorporate a warm-startup to provide a useful predictive signal, as other works have observed (Tarvainen & Valpola, 2017) and used (Filipiak et al., 2021; Platanios, 2018). 
+
+## 4. Method 
+
+4.1. Formal Description 
+
+We address a standard semi-supervised learning problem with a small set of labeled data, DL = {(xi, y i)}NL
+
+> i=1
+
+, and a large set of unlabeled data, DU = {uj }NU
+
+> j=1
+
+. We assume that both datasets are drawn from the same underlying distri-bution. Our method utilizes a deep ensemble of M models, 
+
+¯f = {fθm }Mm=1 , initialized with different random weights. The training objective is defined on each model fθm within the ensemble. At each training step, its parameters θm are updated to minimize a composite loss, Lm. The loss com-bines a standard supervised signal Lsup with an ensemble-driven consistency signal Lconsistency that couple the ensem-ble members together: 
+
+Lm = Lsup (fθm , B L) + γLconsistency (fθm , ¯f , B U ), (4) where BL and BU are mini-batches of labeled and unlabeled data, respectively, and γ is the coupling weight. During training, all models are updated simultaneously by minimiz-ing the sum of their individual losses i.e. L = PMm=1 Lm.The first term, Lsup , is the standard task-specific loss for model fθm on the labeled batch, such as mean squared error (MSE) for regression or cross-entropy (CE) for clas-sification. The second term, Lconsistency , provides the semi-supervised signal. It is calculated for the model fθm but depends on the outputs of the entire ensemble. For each unlabeled sample u ∈ BU , a consensus prediction, ¯f (u), is computed by averaging the predictions of all M models: 
+
+¯f (u) = 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+fθm (u). (5) The consensus prediction serves as the augmentation-free consistency target for model fθm . We penalize the discrep-ancy between model prediction and the ensemble consensus as 
+
+Lconsistency (fθm , ¯f , B U ) = 1
+
+|BU |
+
+X
+
+> u∈BU
+
+D  fθm (u), ¯f (u) .
+
+(6) Here, D is a suitable distance metric, for example, the task-specific supervised loss (e.g., L2 or KL-divergence). In practice, when minimizing the loss we detach the gradient through ¯f (u), as the consensus prediction is observed to at least as accurate as the individual members’ predictions on average (see Section 3), ensuring that the ensemble is not encouraged to match the less accurate individual predictions. Note, not detaching the gradient has been observed to result in failure cases such as learner collusion (Jeffares et al., 2023), but in our experience it does not appear to affect results negatively, see Appendix E.8. 
+
+4.2. Consensus–Diversity Dynamics 
+
+Our proposed SSL training scheme directly manipulates the trade-off between accurate individual models and high diversity among them. The unsupervised loss term, 
+
+Lconsistency (xu) = L(fθi (xu), ¯f (xu)) , creates a pull towards consensus by guiding each model fθi to agree with the more stable ensemble prediction ¯f . This directly reduces the aver-age individual error by providing a high-quality supervisory signal for unlabeled data. 4Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Simultaneously, this pull is counteracted by forces that pre-serve diversity. Each model begins from a unique random initialization and follows a distinct optimization path due to the stochastic nature of mini-batch SGD. This dynamic allows the models to converge to different solutions in pa-rameter space while still agreeing in function space. Therefore, our method does not eliminate diversity but rather regulates it. The hyperparameter γ in the total loss 
+
+L = Ll + γLconsistency serves as a direct control over this balance, allowing us to leverage the unlabeled data to im-prove individual model accuracy without forcing a complete collapse in diversity. See appendix B.5 for details. Another benefit of this continuous learning between models is that the models should be less likely to get stuck on early bad predictions, as can be the case with many forms of pseudo-labeling. This is because the ensemble targets are not frozen but "moves" with the ensemble. This can explain why we observe no benefit to warmup of the coupling loss. 
+
+4.3. Relationship to Bayesian Posteriors 
+
+If we treat one model trained from a classic deep learning as a posterior sample, the ensemble prediction converges to the posterior mean as the number of ensemble members increases towards infinity. This principle guides ensemble distillation to let an individual model approximate the poste-rior mean. In appendix A, we show that consensus training also converges to the posterior mean, but only for an ensem-ble with linear models. Instead, for non-linear models there is an additional term that biases members in the ensemble towards the least parameter-sensitive predictions in the en-semble. This is generally a benevolent effect (Hochreiter & Schmidhuber, 1997; Kaddour et al., 2022; Keskar et al., 2017; Andriushchenko et al., 2023), and we can understand it as the members will learn to prioritize the simplest expla-nation all members can agree on. We hypothesize this is the main reason individual models in the ensemble consensus can outperform a full standard ensemble. 
+
+## 5. Experimental setup 
+
+We evaluate our method in two settings: First, on a quantum chemistry benchmark to demonstrate its relevance for 3D-geometry-based molecular property prediction, and then across a diverse suite of graph-level tasks to assess its broader applicability. All ensemble members were trained on identical mini-batches of supervised data to simplify im-plementation. While this strategy reduces ensemble diver-sity, potentially limiting the ensemble’s predictive power, it allows for a fair direct comparison with single models. The code is available here https://github.com/lauri tsf/semi-supervised-ensemble-training .
+
+Semi-supervised Protocol To simulate the common sce-nario of data scarcity, we restrict the supervised portion of our training to a small fraction for each task (10%). The remaining training data (90%) is treated as unlabeled and is used exclusively for our ensemble consistency loss. Our primary baseline is a standard deep ensemble of the same architecture, trained only on this small labeled data subset. This setup allows us to directly measure the performance gain from leveraging unlabeled data. 
+
+Datasets We test our method on a wide range of different datasets. We perform a prediction of molecular proper-ties in the QM9 dataset (Wu et al., 2018) for the main 12 targets, using the PaiNN architecture (Schütt et al., 2021) and an ensemble of size M = 4 . To investigate how our method scales, we study and compare performance on a single target (internal energy at 0K) for different ensemble sizes ( M ∈ { 1, 2, 3, 4}). We also study the performance on harder data splits in Appendix B.6. For broader validation of our method, we adopt a comprehensive benchmark suite of graph-level tasks. We use three different graph-based architectures: GCN (Kipf & Welling, 2017), GIN (Xu et al., 2019), and GatedGCN (Bresson & Laurent, 2017), adapting the code from (Luo et al., 2025) and following the testing procedure from (Rampásek et al., 2022). We refer to this suite of benchmarks as GNN+ benchmarks. The ensem-ble size is fixed to M = 4 . To demonstrate the general applicability of our method beyond the molecular domain, we perform experiments on a benchmark of non-molecular graph datasets (see Appendix B.3). Further experiments showing broader applicability beyond graphs are included in Appendix B.1. All datasets were split into 80% training data, 10% validation data and 10% test data. The training data was further split into 10% labeled training data and the labels for the remaining 90% where discarded to used as unlabeled (unsupervised) training data. 
+
+Hyperparameter Tuning To ensure well-tuned models for datasets, the training hyperparameters (learning rate and weight decay) were optimized for each target and model based on the validation performance of a single model in the supervised setting on the reduced labeled data. These hyperparameters were kept fixed across different SSL meth-ods tested to ensure fair comparison. The parameters as-sociated with each specific SSL method (coupling weight, mean-teacher decay, etc.) were optimized based on valida-tion accuracy for each target on QM9, and selected for the GNN+ datasets based on the best value of ZINC. Details about the tuning procedures and selected hyperparameters can be found in Appendix C. 
+
+Evaluation We evaluate the predictive performance for a single model, a standard ensemble, an ensemble us-ing SSL via ensemble consensus (ours) and an individual 5Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 1. PaiNN performance (MAE) on QM9 targets. Results are reported as mean ±1.96 standard error of the mean over 5 seeds. Background colors indicate performance relative to the supervised ensemble baseline: green denotes lower error (improvement), while red denotes higher error. 
+
+Individual Member Ensemble (M=4) Target Unit Supervised Supervised + SSL Supervised Supervised + SSL Mean-teacher PSEUD σμ D .0737 ±.0008 .0619 ±.0003 .0680 ±.0006 .0613 ±.0003 .0721 ±.0024 .06487 ±.00088 
+
+α a30 .1622 ±.0011 .1322 ±.0011 .1419 ±.0009 .1303 ±.0011 .1569 ±.0020 .1454 ±.0004 
+
+ϵHOMO meV 80 .6061 ±.5062 73 .9789 ±.4368 76 .4713 ±.5361 73 .0755 ±.4472 80 .6090 ±2.0301 78 .72 ±1.1196 
+
+ϵLUMO meV 62 .0372 ±.4253 57 .7186 ±.2247 59 .3140 ±.4609 57 .2369 ±.2159 61 .9719 ±.8156 59 .74 ±0.6248 
+
+∆ϵ meV 125 .2102 ±.4734 117 .0365 ±.4988 119 .4206 ±.4468 115 .7195 ±.5100 125 .4843 ±2.5836 122 .5±.7501 
+
+⟨R2⟩ a20 .7922 ±.0284 .6100 ±.0206 .6246 ±.0205 .5605 ±.0206 .7987 ±.04019 .9099 ±.0157 
+
+ZPVE meV 2.2197 ±.0055 2.0138 ±.0054 2.0743 ±.0054 1.9907 ±.0055 2.1821 ±.0380 2.141 ±.0123 
+
+U0 meV 24 .8752 ±.1477 19 .9642 ±.1291 20 .9101 ±.1557 19 .3816 ±.1278 24 .7288 ±.8505 24 .00 ±.2929 
+
+U meV 25 .1281 ±.2025 20 .1731 ±.1577 21 .0971 ±.1914 19 .5886 ±.1574 24 .9622 ±.9955 24 .28 ±.4701 
+
+H meV 25 .1240 ±.1981 20 .1407 ±.1268 21 .0892 ±.1946 19 .5509 ±.1328 24 .8495 ±.9604 24 .33 ±.6181 
+
+G meV 25 .3804 ±.1856 20 .3142 ±.1571 21 .4136 ±.1811 19 .7479 ±.1634 25 .1641 ±.7511 24 .33 ±.4412 
+
+Cv cal mol K .0567 ±.0004 .0449 ±.0002 .0489 ±.0004 .0439 ±.0002 .0556 ±.0002 .05408 ±.00027 
+
+member from the latter. In addition, we implement both mean-teacher (Tarvainen & Valpola, 2017), and a strong pseudo-label based approach that have been used on QM9, PSEUD σ (Huang et al., 2022) . All results are reported as the mean along with 1.96 times the standard error of the mean across different seeds. 
+
+## 6. Results 
+
+6.1. Molecular Property Prediction on QM9 
+
+The performance of our method on the 12 regression targets of the QM9 dataset is presented in Table 1. The results indicate that training with the ensemble consistency loss (“Supervised + SSL”) reduces the MAE across all evaluated targets when compared to the supervised-only baseline. This is observed for both the individual PaiNN models and the four-member ensembles. Furthermore, a single individual model from the coupled ensemble consistently outperforms the traditional supervised ensemble on all targets. The results for molecular property prediction on QM9 for different ensemble sizes are shown in Table 2. Our SSL method outperforms a traditional ensemble for all sizes tested. Additionally, using an individual member from an ensemble trained using our proposed SSL method, we not only outperform a standard single model but also perform at a similar level to an ensemble that has only been trained on the supervised data. The results are consistent across all ensemble sizes. Performance increases with more ensemble members. 
+
+6.2. GNN+ Benchmark 
+
+To assess the broader applicability of our method, we evalu-ate it on several molecule-related benchmarks using three 
+
+Table 2. PaiNN performance (MAE) on QM9 internal energy at 0K in eV ( U0) for different ensemble sizes averaged across 5 seeds, with mean ±1.96 standard error of the mean. Individual member Ensemble Size (M) Supervised Supervised + SSL Supervised Supervised + SSL 1 24 .88 ±0.15 – – –2 – 20 .89 ±0.30 22 .18 ±0.44 20 .43 ±0.29 
+
+3 – 20 .44 ±0.16 21 .31 ±0.23 19 .93 ±0.17 
+
+4 – 19 .96 ±0.13 20 .91 ±0.16 19 .38 ±0.13 
+
+different GNN architectures. The results are summarized in Table 3, and are consistent with the performance on QM9, even when the coupling weight is kept the same across datasets. Looking at a single model, the addition of the SSL task consistently improves performance over the supervised-only baseline across all datasets and architectures. This per-formance gain also translates to the full ensembles, which show improvement when trained with the consistency loss. The performance of a single model trained with our SSL method often exceeds that of an entire ensemble trained only on labeled data. 
+
+6.3. Computational Overhead 
+
+Increasing the ensemble size reduces the error but also in-creases the computational overhead. We investigate this relationship for training and inference time on QM9 target ZPVE using the same setup as previous QM9 experiments. One epoch here is defined to mirror our QM9 Experiments, i.e. the full QM9 supervised data, while the SSL models also iterates over an equal amount of unlabeled batches. The results are shown in Figure 2. From the error vs inference, we see how a single model from the SSL ensemble per-6Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 3. Performance on molecule-related benchmarks using different GNN architectures averaged across 5 seeds using the optimal coupling weight found on ZINC with GCN. Pairwise loss is defined in Appendix E.2. Background colors represent the deviation from the supervised ensemble baseline for each architecture: green denotes lower error (improvement), while red denotes higher error. 
+
+GCN GIN GatedGCN Dataset Training Metric Individual Ensemble Individual Ensemble Individual Ensemble ZINC Supervised MAE ↓
+
+.3163 ±.0121 .2934 ±.0094 .2765 ±.0247 .2516 ±.0136 .2920 ±.0113 .2646 ±.0235 
+
+Consensus .2406 ±.0150 .2367 ±.0148 .2519 ±.0246 .2485 ±.0232 .2717 ±.0230 .2658 ±.0177 
+
+Pairwise .2462 ±.0108 .2390 ±.0102 .2500 ±.0083 .2462 ±.0092 .2653 ±.0158 .2597 ±.0171 
+
+Mean teacher .2884 ±.0128 – .2791 ±.0117 – .2830 ±.0159 –Peptides-struct Supervised MAE ↓
+
+.3047 ±.0098 .2932 ±.0084 .2966 ±.0067 .2918 ±.0058 .2994 ±.0105 .2908 ±.0101 
+
+Consensus .2868 ±.0062 .2866 ±.0061 .2944 ±.0072 .2938 ±.0068 .2854 ±.0061 .2848 ±.0068 
+
+Pairwise .2933 ±.0031 .2892 ±.0029 .2916 ±.0030 .2901 ±.0029 .2898 ±.0042 .2870 ±.0041 
+
+Mean teacher .2985 ±.0029 – .2948 ±.0023 – .2953 ±.0034 –Peptides-func Supervised AP ↑
+
+.4931 ±.0346 .5105 ±.0342 .4566 ±.0224 .4765 ±.0327 .4289 ±.0051 .4444 ±.0200 
+
+Consensus .5070 ±.0141 .5160 ±.0141 .4756 ±.0180 .4815 ±.0179 .4509 ±.0144 .4580 ±.0062 
+
+Pairwise .5055 ±.0151 .5163 ±.0150 .4739 ±.0110 .4811 ±.0117 .4463 ±.0067 .4548 ±.0069 
+
+Mean teacher .4893 ±.0169 – .4611 ±.0130 – .4352 ±.0058 –ogbg-molhiv Supervised AUROC ↑
+
+.7216 ±.0193 .7357 ±.0212 .7329 ±.0166 .7346 ±.0165 .7312 ±.0081 .7341 ±.0107 
+
+Consensus .7308 ±.0218 .7357 ±.0212 .7339 ±.0149 .7347 ±.0153 .7361 ±.0069 .7383 ±.0073 
+
+Pairwise .7247 ±.0160 .7336 ±.0146 .7273 ±.0128 .7294 ±.0128 .7375 ±.0052 .7403 ±.0050 
+
+Mean teacher .7213 ±.0161 – .6996 ±.0207 – .7295 ±.0165 –ogbg-molpcba Supervised AP ↑
+
+.1368 ±.0025 .1578 ±.0030 .1421 ±.0026 .1567 ±.0029 .1615 ±.0034 .1779 ±.0043 
+
+Consensus .1476 ±.0023 .1585 ±.0026 .1496 ±.0033 .1567 ±.0039 .1701 ±.0036 .1781 ±.0034 
+
+Pairwise .1471 ±.0027 .1597 ±.0028 .1498 ±.0021 .1574 ±.0024 .1674 ±.0032 .1765 ±.0034 
+
+Mean teacher .1435 ±.0016 – .1479 ±.0037 – .1669 ±.0028 –
+
+forms better than a full normal ensemble at a fraction of the inference time. The hyperparameters used for comput-ing the graph was a batch size of 32 for training and 256 for inference speed with warmup, all on a single NVIDIA RTX A5000, and averaged over 10 epochs or 50 batches respectively. The experiments were performed with Pytorch version 2.7.1 and CUDA 11.8. 
+
+6.4. Variance of the Ensemble 
+
+Intuitively, the strength of coupling impacts the diversity of the ensemble. Using the same setup as previous QM9 experiments on target ZPVE, we investigate this in Figure 3. We see that there still is still diversity in the predictions on validation data even for high coupling strengths, but it decreases with coupling strength. This underlines that the ensemble members are able to distil the generalised behav-ior of the full ensemble during training. Interestingly, the diversity on the training data actually increases initially with coupling strength. We suspect this is due to the reguralising effect that result in more robust models being learned. For completion, we also plot the variance within the ensemble over epochs and for unsupervised data in Appendix B.5 
+
+6.5. Unsupervised Learning 
+
+We also investigate how the coupled ensembles behave with data from another distribution, specifically PCQM4Mv2 (Hu et al., 2021) and unsupervised methods. Specifically, we compare against Frad (Feng et al., 2023), which is an un-supervised model specifically designed for 3D-molecular datasets such as QM9. Frad works by denoising 3D po-sitions of molecules, and can be used two different ways. Firstly to pre-train on a unlabeled dataset, referred to here as pre-trained. Secondly, as a unsupervised objective defined on both labeled and unlabeled data and optimised jointly with the supervised signal, noted here as denoising. The experiments are conducted using the dataset PCQM4Mv2 as the unlabeled data and all labels from the training set of QM9. We reuse the architecture, hyperparameters, and code from the official implementation of Frad. Notably, the architecture of the models is changed from PaiNN to MDNet (Thölke & Fabritiis, 2022). To make comparisons more fair computationally, we set the ensemble size to be 2. After an initial sweep over ensemble consensus coupling weights of (10 −2, 10 −3, 10 −4, 10 −5, 10 −6), we found that 
+
+γ = 10 −5 was optimal. The results of these experiments are shown in Table 4. Each model in the ensemble is initialed from a model that was pre-trained on the unsupervised data using different seeds for each ensemble member. 7Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus                               
+
+> Figure 2. The validation error on QM9 for target ZPVE (target 7) as a function of (Left) inference time and (Right) training time. The results are averaged over 5 seeds, with a 95% error of the mean visualised.
+> Table 4. Error in MAE on target ϵHOMO on QM9, when using PCQM4Mv2 as the unlabeled dataset. Pre-train Denoise Consensus Individual Ensemble
+> ✓19.26 17.38
+> ✓✓17.01 16.75
+> ✓✓16.90 15.56
+> ✓✓✓15.49 14.54
+> ✓20.18 18.10
+> ✓✓19.98 17.01 22.37 21.16
+> ✓20.75 19.87
+
+We generally observe that consensus training reduces the error slightly, but that the 3D-molecular denoising objec-tive from Frad yield larger gains. Interestingly, we do see that using consensus improved upon the pretrained models, suggesting that the coupled ensembles can still extract addi-tional information from the unlabeled data. This shows that a modality-specific objective is still preferred, but ensemble consensus when computational resources allows. Notable, we did observe some training instabilities when the using consensus with pre-trained models. We hypothesize this is due to the consensus forcing the model predictions to be the same initially, which could result in the learned representa-tions from pre-training being lost. 
+
+## 7. Discussion 
+
+Our experiments on QM9 and the more varied GNN+ bench-mark show that our ensemble-based SSL framework consis-tently improves model predictive performance in low-data regimes. The most significant finding is the substantial boost in accuracy for individual models, a direct result of the knowledge transferred from the ensemble’s consensus on unlabeled data. This finding is similar to the idea of ensemble distillation (Hinton et al., 2015), where the knowl-edge of an ensemble is transferred to a single, smaller model. A new effect observed for the dataset (QM9) with a tuned coupling weight, where the individual models obtain a bet-ter predictive accuracy than the entire consensus ensemble. This can be seen as semi-supervised effect where the gradual improvement of a single model results in even better ensem-ble consensus targets for individual models to learn from. A possible explanation is the effect described in appendix A, where the models become more robust in their prediction. Specifically, we find that the Hessian of the validation loss decreases (Figure 1 (right)), and that the sensitivity of the prediction to changes (Appendix A.3) both decreases when increasing the coupling weight. This has a key practical benefit: while the method requires an ensemble during training, a single, improved model can be deployed for inference. This offers a valuable trade-off, where an increased one-time training cost yields a final model that is both highly accurate and computationally ef-ficient at inference time. Chemical property screening is a compelling use-case, as vast databases of molecules need to be screened, resulting in a high inference cost, while the available labeled data and models are small, making training cheap. It is noteworthy that for datasets where the parameter re-lated to SSL ( γ or the mean-teacher decay) was not directly tuned, the improvement in predictive accuracy was notice-ably smaller. This indicates the SSL parameter is highly dependent on the specific dataset. This finding is also sup-ported in Appendix E.4 and E.6, which shows that picking the best (constant) coupling weight is more impactful than exploring more sophisticated coupling strategies such as warm up of the consensus loss. As shown in Table 2, the predictive performance scales with the number of members in the consensus ensemble. Indi-vidual models from the ensemble trained with our method consistently perform at a similar level to an entire tradi-tional ensemble across all ensemble sizes. This finding is further supported in Appendix B.1 for up to 32 ensemble members, with different architectures and datasets. This benefit comes at the cost of roughly 2x slower training time 8Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus  
+
+> Figure 3. The variance within the ensemble across coupling weights on validation data (Left) and data splits versus training epochs (Right) for QM9 target ZPVE.
+
+as detailed in Figure 2 as there simply is the additional un-labeled data to iterate over. Due to the ensemble members only communicating their predictions, the ensemble size can largely be mitigated by distributing the ensemble mem-bers across different devices and collecting predictions with 
+
+> ALL
+
+_GATHER /ALL _REDUCE , for example 1.In Appendix D we see that the calibration of the individual ensemble members on ogbg-molhiv is improved by cou-pling. This indicates that the ensemble members also learns some of the uncertainty captured in the ensemble. This find-ing is further supported in Appendix B.1, where increasing the ensemble size consistently results in improved calibra-tion for both the individual models and the full ensemble. The results for the calibration of the full ensemble is unclear. In ogbg-molhiv the calibration of the full coupled ensem-ble is generally better than the decoupled ensemble, but in Appendix B.1 both the ECE and Brier score suffers from coupling. It is not clear if this difference in findings is due to the different dataset and modality (graph versus image), or due to the coupling in Appendix B.1 not being chosen optimally. We found that ensemble consensus can improve upon mod-els pretrained or jointly trained with modality specific meth-ods such as 3D positional denoising in molecules. While the improvement was small, it illustrates that ensemble consen-sus can be combined with other methods to improve model performance when the computational budget allows. 
+
+Limitations The primary limitation of our approach is the computational overhead associated with training an ensem-ble consensus model. In addition to having to train M iden-tical models, the size of the training mini-batches is doubled, as it now includes both the unlabeled mini-batch in addi-tion to the labeled mini-batch. This means the computation required roughly scales as O(2 M ). Observed timing can 
+
+> 1https://github.com/lauritsf/torch-distr ibuted-ensemble
+
+be found in Appendix F. This overhead can be prohibitive for training large models, such as foundation models. Cou-pled ensembles are more practical in for smaller models or models trained on embeddings or latent representations. 
+
+Future work Our findings suggest several promising av-enues for future research. While this work created a semi-supervised split from a fully labeled dataset, a compelling next step would be to use all available labeled data for super-vision while introducing a separate, truly unlabeled dataset. This would more directly quantify the benefit of leveraging vast, external chemical libraries and be of interest in a prac-tical setting. Using ensembles for semi-supervised learning also opens the direction for improving accuracy in a princi-pled manner by diversifying the ensemble members through existing techniques. Ideally in a way that can reduce the computation required. Furthermore, different strategies for how to couple an ensemble can be investigated. Our ex-periments (Appendix E.4) suggest that a constant coupling weight for ensemble consistency weight loss throughout the whole training yield the best results. Ideally, a more sophis-ticated weighting schedule could allow for coupling only in the later stages of the training to reduce the computational overhead. 
+
+## Impact Statement 
+
+This paper presents work that strives to advance the field of semi-supervised learning for especially molecular data. Machine learning is increasingly becoming a central tool for many chemical tasks. Of especial impact is it’s increasing use in development of new medicine. We hope that the work presented here can help further improve the deep learning models used for such tasks to hopefully reduce the cost of development of medicine. Reducing the development cost should reduce the price of new medicine, making it more accessible. 9Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+## Acknowledgements 
+
+The authors acknowledge support from the Novo Nordisk Foundation under grant no NNF22OC0076658 (Bayesian neural networks for molecular discovery). 
+
+## References 
+
+Andriushchenko, M., Croce, F., Müller, M., Hein, M., and Flammarion, N. A modern look at the relation-ship between sharpness and generalization. In Krause, A., Brunskill, E., Cho, K., Engelhardt, B., Sabato, S., and Scarlett, J. (eds.), International Conference on Ma-chine Learning, ICML 2023, 23-29 July 2023, Honolulu, Hawaii, USA , volume 202 of Proceedings of Machine Learning Research , pp. 840–902. PMLR, 2023. URL 
+
+https://proceedings.mlr.press/v202/a ndriushchenko23a.html .Arazo, E., Ortego, D., Albert, P., O’Connor, N. E., and McGuinness, K. Pseudo-labeling and confirmation bias in deep semi-supervised learning. In 2020 International Joint Conference on Neural Networks, IJCNN 2020, Glas-gow, United Kingdom, July 19-24, 2020 , pp. 1–8. IEEE, 2020. doi: 10.1109/IJCNN48605.2020.9207304. URL 
+
+https://doi.org/10.1109/IJCNN48605.2 020.9207304 .Bai, R., Yao, Y., Lin, Q., Wu, L., Li, Z., Wang, H., Ma, M., Mu, D., Hu, L., Yang, H., Li, W., Zhu, S., Wu, X., Rui, X., and Yu, Y. Preferable single-atom catalysts enabled by natural language processing for high energy density Na-S batteries. Nature Communications , 16(1):5827, 7 2025. ISSN 2041-1723. doi: 10.1038/s41467-025-60931-x. URL https://www.nature.com/articles/ s41467-025-60931-x .Berthelot, D., Carlini, N., Goodfellow, I. J., Papernot, N., Oliver, A., and Raffel, C. Mixmatch: A holistic ap-proach to semi-supervised learning. In Wallach, H. M., Larochelle, H., Beygelzimer, A., d’Alché-Buc, F., Fox, E. B., and Garnett, R. (eds.), Advances in Neural Informa-tion Processing Systems 32: Annual Conference on Neu-ral Information Processing Systems 2019, NeurIPS 2019, December 8-14, 2019, Vancouver, BC, Canada , pp. 5050– 5060, 2019. URL https://proceedings.neur ips.cc/paper/2019/hash/1cd138d0499a6 8f4bb72bee04bbec2d7-Abstract.html .Bresson, X. and Laurent, T. Residual gated graph convnets. 
+
+CoRR , abs/1711.07553, 2017. URL http://arxiv. org/abs/1711.07553 .Bucila, C., Caruana, R., and Niculescu-Mizil, A. Model compression. In Eliassi-Rad, T., Ungar, L. H., Craven, M., and Gunopulos, D. (eds.), Proceedings of the Twelfth ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, Philadelphia, PA, USA, August 20-23, 2006 , pp. 535–541. ACM, 2006. doi: 10.1145/1150402.1150464. URL https://doi. org/10.1145/1150402.1150464 .Butina, D. Unsupervised data base clustering based on daylight’s fingerprint and tanimoto similarity: A fast and automated way to cluster small and large data sets. J. Chem. Inf. Comput. Sci. , 39(4):747–750, 1999. doi: 10.1 021/CI9803381. URL https://doi.org/10.102 1/ci9803381 .Chen, X., Yuan, Y., Zeng, G., and Wang, J. Semi-supervised semantic segmentation with cross pseudo supervision. In IEEE Conference on Computer Vision and Pattern Recognition, CVPR 2021, virtual, June 19-25, 2021 , pp. 2613–2622. Computer Vision Foundation / IEEE, 2021. doi: 10.1109/CVPR46437.2021.00264. URL https: //openaccess.thecvf.com/content/CVPR 2021/html/Chen_Semi-Supervised_Semant ic_Segmentation_With_Cross_Pseudo_Su pervision_CVPR_2021_paper.html .Feng, S., Ni, Y., Lan, Y., Ma, Z., and Ma, W. Frac-tional denoising for 3d molecular pre-training. In Krause, A., Brunskill, E., Cho, K., Engelhardt, B., Sabato, S., and Scarlett, J. (eds.), International Conference on Ma-chine Learning, ICML 2023, 23-29 July 2023, Honolulu, Hawaii, USA , Proceedings of Machine Learning Re-search, pp. 9938–9961. PMLR, 2023. URL https: //proceedings.mlr.press/v202/feng23c .html .Filipiak, D., Tempczyk, P., and Cygan, M. n-cps: Generalising cross pseudo supervision to n networks for semi-supervised semantic segmentation. CoRR ,abs/2112.07528, 2021. URL https://arxiv.or g/abs/2112.07528 .Fukuda, T., Suzuki, M., Kurata, G., Thomas, S., Cui, J., and Ramabhadran, B. Efficient knowledge distillation from an ensemble of teachers. In Lacerda, F. (ed.), 18th Annual Conference of the International Speech Commu-nication Association, Interspeech 2017, Stockholm, Swe-den, August 20-24, 2017 , pp. 3697–3701. ISCA, 2017. doi: 10.21437/INTERSPEECH.2017- 614. URL 
+
+https://doi.org/10.21437/Interspeech .2017-614 .He, K., Zhang, X., Ren, S., and Sun, J. Deep residual learning for image recognition. In 2016 IEEE Conference on Computer Vision and Pattern Recognition, CVPR 2016, Las Vegas, NV, USA, June 27-30, 2016 , pp. 770–778. IEEE Computer Society, 2016. doi: 10.1109/CVPR.201 6.90. URL https://doi.org/10.1109/CVPR.2 016.90 .10 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Heo, B., Lee, M., Yun, S., and Choi, J. Y. Knowledge transfer via distillation of activation boundaries formed by hidden neurons. Proceedings of the AAAI Conference on Artificial Intelligence , 33(01):3779–3787, Jul. 2019. doi: 10.1609/aaai.v33i01.33013779. URL https: //ojs.aaai.org/index.php/AAAI/articl e/view/4264 .Heydari, A. A., Thompson, C. A., and Mehmood, A. Softadapt: Techniques for adaptive loss weighting of neural networks with multi-part loss functions. CoRR ,abs/1912.12355, 2019. URL http://arxiv.org/ abs/1912.12355 .Hinton, G. E., Vinyals, O., and Dean, J. Distilling the knowledge in a neural network. CoRR , abs/1503.02531, 2015. URL http://arxiv.org/abs/1503.025 31 .Hochreiter, S. and Schmidhuber, J. Flat minima. Neural Comput. , 9(1):1–42, 1997. doi: 10.1162/NECO.1997.9.1. 1. URL https://doi.org/10.1162/neco.199 7.9.1.1 .Hu, W., Fey, M., Ren, H., Nakata, M., Dong, Y., and Leskovec, J. OGB-LSC: A large-scale challenge for ma-chine learning on graphs. In Vanschoren, J. and Yeung, S. (eds.), Proceedings of the Neural Information Processing Systems Track on Datasets and Benchmarks 1, NeurIPS Datasets and Benchmarks 2021, December 2021, virtual ,2021. URL https://datasets-benchmarks-p roceedings.neurips.cc/paper/2021/has h/db8e1af0cb3aca1ae2d0018624204529-A bstract-round2.html .Huang, K., Sresht, V., Rai, B., and Bordyuh, M. Uncertainty-aware pseudo-labeling for quantum calculations. In Cussens, J. and Zhang, K. (eds.), Proceedings of the Thirty-Eighth Conference on Uncertainty in Artificial In-telligence , volume 180 of Proceedings of Machine Learn-ing Research , pp. 853–862. PMLR, 01–05 Aug 2022. URL https://proceedings.mlr.press/v1 80/huang22a.html .Hutchinson, M. F. A stochastic estimator of the trace of the influence matrix for laplacian smoothing splines. Com-munications in Statistics-Simulation and Computation ,18(3):1059–1076, 1989. URL https://www.tand fonline.com/doi/abs/10.1080/03610918 908812806 .Irwin, J. J., Sterling, T., Mysinger, M. M., Bolstad, E. S., and Coleman, R. G. ZINC: A free tool to discover chemistry for biology. J. Chem. Inf. Model. , 52(7):1757–1768, 2012. doi: 10.1021/CI3001277. URL https://doi.org/ 10.1021/ci3001277 .Jeffares, A., Liu, T., Crabbé, J., and van der Schaar, M. Joint training of deep ensembles fails due to learner collu-sion. In Oh, A., Naumann, T., Globerson, A., Saenko, K., Hardt, M., and Levine, S. (eds.), Advances in Neural In-formation Processing Systems 36: Annual Conference on Neural Information Processing Systems 2023, NeurIPS 2023, New Orleans, LA, USA, December 10 - 16, 2023 ,2023. URL http://papers.nips.cc/paper_f iles/paper/2023/hash/2bde8fef08f7ebe 42b584266cbcfc909-Abstract-Conference. html .Kaddour, J., Liu, L., Silva, R., and Kusner, M. J. When do flat minima optimizers work? In Koyejo, S., Mohamed, S., Agarwal, A., Belgrave, D., Cho, K., and Oh, A. (eds.), 
+
+Advances in Neural Information Processing Systems 35: Annual Conference on Neural Information Processing Systems 2022, NeurIPS 2022, New Orleans, LA, USA, November 28 - December 9, 2022 , 2022. URL http: //papers.nips.cc/paper_files/paper/2 022/hash/69b5534586d6c035a96b49c86db eece8-Abstract-Conference.html .Kellenberger, E., Springael, J.-Y., Parmentier, M., Hachet-Haas, M., Galzi, J.-L., and Rognan, D. Identification of Nonpeptide CCR5 Receptor Agonists by Structure-based Virtual Screening. Journal of Medicinal Chemistry , 50 (6):1294–1303, 3 2007. ISSN 0022-2623. doi: 10.102 1/jm061389p. URL https://pubs.acs.org/doi /full/10.1021/jm061389p .Keskar, N. S., Mudigere, D., Nocedal, J., Smelyanskiy, M., and Tang, P. T. P. On large-batch training for deep learn-ing: Generalization gap and sharp minima. In 5th Inter-national Conference on Learning Representations, ICLR 2017, Toulon, France, April 24-26, 2017, Conference Track Proceedings . OpenReview.net, 2017. URL https: //openreview.net/forum?id=H1oyRlYgg .Kim, S., Chen, J., Cheng, T., Gindulyte, A., He, J., He, S., Li, Q., Shoemaker, B. A., Thiessen, P. A., Yu, B., Zaslavsky, L., Zhang, J., and Bolton, E. E. Pubchem 2025 update. 
+
+Nucleic Acids Research , 53(D1):D1516–D1525, 11 2024. ISSN 1362-4962. doi: 10.1093/nar/gkae1059. URL 
+
+https://doi.org/10.1093/nar/gkae1059 .Kipf, T. N. and Welling, M. Semi-supervised classification with graph convolutional networks. In 5th International Conference on Learning Representations, ICLR 2017, Toulon, France, April 24-26, 2017, Conference Track Proceedings . OpenReview.net, 2017. URL https:// openreview.net/forum?id=SJU4ayYgl .Krogh, A. and Vedelsby, J. Neural Network Ensembles, Cross Validation, and Active Learning. In Tesauro, G., Touretzky, D., and Leen, T. (eds.), Advances in Neural 
+
+11 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Information Processing Systems , volume 7. MIT Press, 1994. URL https://proceedings.neurips. cc/paper_files/paper/1994/file/b8c37 e33defde51cf91e1e03e51657da-Paper.p df .Laine, S. and Aila, T. Temporal ensembling for semi-supervised learning. In 5th International Conference on Learning Representations, ICLR 2017, Toulon, France, April 24-26, 2017, Conference Track Proceedings . Open-Review.net, 2017. URL https://openreview.n et/forum?id=BJ6oOfqge .Levine, D. S., Shuaibi, M., Spotte-Smith, E. W. C., Tay-lor, M. G., Hasyim, M. R., Michel, K., Batatia, I., Csányi, G., Dzamba, M., Eastman, P., Frey, N. C., Fu, X., Gharakhanyan, V., Krishnapriyan, A. S., Rackers, J. A., Raja, S., Rizvi, A., Rosen, A. S., Ulissi, Z., Vargas, S., Zitnick, C. L., Blau, S. M., and Wood, B. M. The open molecules 2025 (omol25) dataset, evaluations, and mod-els, 2026. URL https://arxiv.org/abs/2505 .08762 .Luo, Y., Shi, L., and Wu, X. Can classic gnns be strong baselines for graph-level tasks? simple architectures meet excellence. In Singh, A., Fazel, M., Hsu, D., Lacoste-Julien, S., Berkenkamp, F., Maharaj, T., Wagstaff, K., and Zhu, J. (eds.), Forty-second International Confer-ence on Machine Learning, ICML 2025, Vancouver, BC, Canada, July 13-19, 2025 , Proceedings of Machine Learning Research. PMLR / OpenReview.net, 2025. URL 
+
+https://proceedings.mlr.press/v267/l uo25h.html .Malinin, A., Mlodozeniec, B., and Gales, M. J. F. Ensemble distribution distillation. In 8th International Conference on Learning Representations, ICLR 2020, Addis Ababa, Ethiopia, April 26-30, 2020 . OpenReview.net, 2020. URL 
+
+https://openreview.net/forum?id=BygS P6Vtvr .Merchant, A., Batzner, S. L., Schoenholz, S. S., Aykol, M., Cheon, G., and Cubuk, E. D. Scaling deep learning for materials discovery. Nat. , 624(7990):80–85, 2023. doi: 10.1038/S41586-023-06735-9. URL https: //doi.org/10.1038/s41586-023-06735-9 .Mishra, S., Murugesan, B., Ayed, I. B., Pedersoli, M., and Dolz, J. Do not trust what you trust: Miscalibration in semisupervised learning. Transactions on Machine Learning Research , 2024. ISSN 2835-8856. URL http s://openreview.net/forum?id=1WqLLYgB Nt .Musaelian, A., Batzner, S., Johansson, A., Sun, L., Owen, C. J., Kornbluth, M., and Kozinsky, B. Learning local equivariant representations for large-scale atomistic dy-namics. Nature Communications , 14(1):579, 2023. URL 
+
+https://www.nature.com/articles/s414 67-023-36329-y .Pillai, H. S., Li, Y., Wang, S.-H., Omidvar, N., Mu, Q., Achenie, L. E. K., Abild-Pedersen, F., Yang, J., Wu, G., and Xin, H. Interpretable design of Ir-free trimetallic electrocatalysts for ammonia oxidation with graph neu-ral networks. Nature Communications , 14(1):792, 2023. ISSN 2041-1723. doi: 10.1038/s41467-023-36322-5. URL https://doi.org/10.1038/s41467-0 23-36322-5 .Platanios, E. A. Agreement-based learning. CoRR ,abs/1806.01258, 2018. URL http://arxiv.org/ abs/1806.01258 .Rampásek, L., Galkin, M., Dwivedi, V. P., Luu, A. T., Wolf, G., and Beaini, D. Recipe for a general, pow-erful, scalable graph transformer. In Koyejo, S., Mo-hamed, S., Agarwal, A., Belgrave, D., Cho, K., and Oh, A. (eds.), Advances in Neural Information Processing Systems 35: Annual Conference on Neural Information Processing Systems 2022, NeurIPS 2022, New Orleans, LA, USA, November 28 - December 9, 2022 , 2022. URL 
+
+http://papers.nips.cc/paper_files/pap er/2022/hash/5d4834a159f1547b267a05a 4e2b7cf5e-Abstract-Conference.html .Ren, F., Ding, X., Zheng, M., Korzinkin, M., Cai, X., Zhu, W., Mantsyzov, A., Aliper, A., Aladinskiy, V., Cao, Z., et al. Alphafold accelerates artificial intelligence powered drug discovery: efficient discovery of a novel cdk20 small molecule inhibitor. Chemical science , 14(6):1443–1452, 2023. URL https://pubs.rsc.org/en/cont ent/articlelanding/2023/sc/d2sc05709c .Riloff, E. and Wiebe, J. Learning extraction patterns for subjective expressions. In Proceedings of the 2003 Con-ference on Empirical Methods in Natural Language Pro-cessing , pp. 105–112, 2003. URL https://aclant hology.org/W03-1014/ .Sajjadi, M., Javanmardi, M., and Tasdizen, T. Regu-larization with stochastic transformations and perturba-tions for deep semi-supervised learning. In Lee, D. D., Sugiyama, M., von Luxburg, U., Guyon, I., and Gar-nett, R. (eds.), Advances in Neural Information Pro-cessing Systems 29: Annual Conference on Neural In-formation Processing Systems 2016, December 5-10, 2016, Barcelona, Spain , pp. 1163–1171, 2016. URL 
+
+https://proceedings.neurips.cc/paper /2016/hash/30ef30b64204a3088a26bc2e6 ecf7602-Abstract.html .12 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Schütt, K., Kindermans, P., Felix, H. E. S., Chmiela, S., Tkatchenko, A., and Müller, K. Schnet: A continuous-filter convolutional neural network for modeling quantum interactions. In Guyon, I., von Luxburg, U., Bengio, S., Wallach, H. M., Fergus, R., Vishwanathan, S. V. N., and Garnett, R. (eds.), Advances in Neural Information Processing Systems 30: Annual Conference on Neural Information Processing Systems 2017, December 4-9, 2017, Long Beach, CA, USA , pp. 991–1001, 2017. URL 
+
+https://proceedings.neurips.cc/paper /2017/hash/303ed4c69846ab36c2904d3ba 8573050-Abstract.html .Schütt, K., Unke, O. T., and Gastegger, M. Equivariant message passing for the prediction of tensorial properties and molecular spectra. In Meila, M. and Zhang, T. (eds.), 
+
+Proceedings of the 38th International Conference on Ma-chine Learning, ICML 2021, 18-24 July 2021, Virtual Event , Proceedings of Machine Learning Research, pp. 9377–9388. PMLR, 2021. URL http://proceedi ngs.mlr.press/v139/schutt21a.html .Scudder, H. Probability of error of some adaptive pattern-recognition machines. IEEE Transactions on Information Theory , 11(3):363–371, 1965. doi: 10.1109/TIT.1965.1 053799. URL https://ieeexplore.ieee.org/ abstract/document/1053799 .Sohn, K., Berthelot, D., Carlini, N., Zhang, Z., Zhang, H., Raffel, C., Cubuk, E. D., Kurakin, A., and Li, C. Fix-match: Simplifying semi-supervised learning with con-sistency and confidence. In Larochelle, H., Ranzato, M., Hadsell, R., Balcan, M., and Lin, H. (eds.), Advances in Neural Information Processing Systems 33: Annual Con-ference on Neural Information Processing Systems 2020, NeurIPS 2020, December 6-12, 2020, virtual , 2020. URL 
+
+https://proceedings.neurips.cc/paper /2020/hash/06964dce9addb1c5cb5d6e3d9 838f733-Abstract.html .Sun, J., Tu, R., Xu, Y., Yang, H., Yu, T., Zhai, D., Ci, X., and Deng, W. Machine learning aided design of single-atom alloy catalysts for methane cracking. Nature Communications , 15(1):6036, 2024. URL https:// www.nature.com/articles/s41467-024-5 0417-7 .Tarvainen, A. and Valpola, H. Mean teachers are better role models: Weight-averaged consistency targets improve semi-supervised deep learning results. In Guyon, I., von Luxburg, U., Bengio, S., Wallach, H. M., Fergus, R., Vishwanathan, S. V. N., and Garnett, R. (eds.), Advances in Neural Information Processing Systems 30: Annual Conference on Neural Information Processing Systems 2017, December 4-9, 2017, Long Beach, CA, USA , pp. 1195–1204, 2017. URL https://proceedings. neurips.cc/paper/2017/hash/68053af29 23e00204c3ca7c6a3150cf7-Abstract.ht ml .Thölke, P. and Fabritiis, G. D. Equivariant transformers for neural network based molecular potentials. In Inter-national Conference on Learning Representations , 2022. URL https://openreview.net/forum?id= zNHzqZ9wrRB .Vidler, L. R., Filippakopoulos, P., Fedorov, O., Picaud, S., Martin, S., Tomsett, M., Woodward, H., Brown, N., Knapp, S., and Hoelder, S. Discovery of Novel Small-Molecule Inhibitors of BRD4 Using Structure-Based Virtual Screening. Journal of Medicinal Chem-istry , 56(20):8073–8088, 10 2013. ISSN 0022-2623. doi: 10.1021/jm4011302. URL https://pubs.acs.o rg/doi/full/10.1021/jm4011302 .Wong, F., Zheng, E. J., Valeri, J. A., Donghia, N. M., Anahtar, M. N., Omori, S., Li, A., Cubillos-Ruiz, A., Krishnan, A., Jin, W., Manson, A. L., Friedrichs, J., Hel-big, R., Hajian, B., Fiejtek, D. K., Wagner, F. F., Soutter, H. H., Earl, A. M., Stokes, J. M., Renner, L. D., and Collins, J. J. Discovery of a structural class of antibiotics with explainable deep learning. Nat. , 626(7997):177–185, 2024. doi: 10.1038/S41586-023-06887-8. URL https: //doi.org/10.1038/s41586-023-06887-8 .Wood, B., Dzamba, M., Fu, X., Gao, M., Shuaibi, M., Barroso-Luque, L., Abdelmaqsoud, K., Gharakhanyan, V., Kitchin, J., Levine, D., Michel, K., Sriram, A., Cohen, T., Das, A., Sahoo, S., Rizvi, A., Ulissi, Z., and Zitnick, L. Uma: A family of universal models for atoms. In Bel-grave, D., Zhang, C., Lin, H., Pascanu, R., Koniusz, P., Ghassemi, M., and Chen, N. (eds.), Advances in Neural Information Processing Systems , volume 38, pp. 129391– 129427. Curran Associates, Inc., 2025. URL https:// proceedings.neurips.cc/paper_files/p aper/2025/hash/bbf23e81b0ad7637fe9a7 31d0b676ca6-Abstract-Conference.html .Wood, D., Mu, T., Webb, A. M., Reeve, H. W. J., Luján, M., and Brown, G. A unified theory of diversity in ensemble learning. J. Mach. Learn. Res. , 24:359:1–359:49, 2023. URL http://jmlr.org/papers/v24/23-004 1.html .Wu, Z., Ramsundar, B., Feinberg, E. N., Gomes, J., Ge-niesse, C., Pappu, A. S., Leswing, K., and Pande, V. Moleculenet: a benchmark for molecular machine learn-ing. Chemical science , 9(2):513–530, 2018. URL 
+
+https://pubs.rsc.org/en/content/arti clehtml/2018/sc/c7sc02664a .Xie, Q., Dai, Z., Hovy, E. H., Luong, T., and Le, Q. Un-supervised data augmentation for consistency training. 13 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+In Larochelle, H., Ranzato, M., Hadsell, R., Balcan, M., and Lin, H. (eds.), Advances in Neural Information Processing Systems 33: Annual Conference on Neural Information Processing Systems 2020, NeurIPS 2020, December 6-12, 2020, virtual , 2020. URL https: //proceedings.neurips.cc/paper/2020/ hash/44feb0096faa8326192570788b38c1d 1-Abstract.html .Xu, K., Hu, W., Leskovec, J., and Jegelka, S. How pow-erful are graph neural networks? In 7th International Conference on Learning Representations, ICLR 2019, New Orleans, LA, USA, May 6-9, 2019 . OpenReview.net, 2019. URL https://openreview.net/forum ?id=ryGs6iA5Km .Yarowsky, D. Unsupervised word sense disambiguation rivaling supervised methods. In 33rd Annual Meet-ing of the Association for Computational Linguistics ,pp. 189–196, Cambridge, Massachusetts, USA, June 1995. Association for Computational Linguistics. doi: 10.3115/981658.981684. URL https://aclantho logy.org/P95-1026/ .Zagoruyko, S. and Komodakis, N. Paying more attention to attention: Improving the performance of convolutional neural networks via attention transfer. In 5th International Conference on Learning Representations, ICLR 2017, Toulon, France, April 24-26, 2017, Conference Track Proceedings . OpenReview.net, 2017. URL https:// openreview.net/forum?id=Sks9_ajex .Zhuang, C., Narayanapillai, S., Zhang, W., Sham, Y. Y., and Xing, C. Rapid Identification of Keap1–Nrf2 Small-Molecule Inhibitors through Structure-Based Virtual Screening and Hit-Based Substructure Search. Jour-nal of Medicinal Chemistry , 57(3):1121–1126, 2 2014. ISSN 0022-2623. doi: 10.1021/jm4017174. URL 
+
+https://pubs.acs.org/doi/full/10.102 1/jm4017174 .14 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+## Supplementary material A. Theoretical Analysis 
+
+A.1. Ensemble Consensus for Linear Models Theorem A.1. Assuming all ensemble members fθm are linear models and the prediction ¯f (x) of the ensemble is the minimizer of the sum of individual consensus losses, then ¯f (x) stays constant during consensus updates. Proof. Let θm be the weights of the individual ensemble members and θ be the combined parameters of the ensemble. Under a consensus update, the change is 
+
+θt+1 = θt − η∇θ L( ¯fθt (x) − fθmt (x)) .
+
+Meaning for some feature vector ϕ(x)
+
+fθt+1 (x) =  θt − η∇θ L( ¯fθt (x) − fθmt (x)) T ϕ(x)= θTt ϕ(x) − η∇θ L( ¯fθt (x) − fθmt (x)) T ϕ(x)= fθt (x) − η∇θ L( ¯fθt (x) − fθmt (x)) T ϕ(x).
+
+Now for the members respectively 
+
+fθmt+1 (x) = fθmt (x) − η∇θm L( ¯fθt (x) − fθmt (x)) T ϕ(x).
+
+Since all the ensemble members are linear, it follows that ∇θm fθmt (x) = ϕ(x). This means: 
+
+¯fθt+1 (x) − ¯fθt (x)= 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+fθmt (x) − η 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+∇θm L( ¯fθt (x) − fθmt (x)) T ϕ(x) − 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+fθmt (x)= −1
+
+M
+
+> M
+
+X
+
+> m=1
+
+η∇θm L( ¯fθt (x) − fθmt (x)) T ϕ(x)= − ηM
+
+> M
+
+X
+
+> m=1
+
+∇L ( ¯fθt (x) − fθmt (x)) T ϕ(x)= − ηM
+
+ MX
+
+> m=1
+
+∇L ( ¯fθt (x) − fθmt (x)) 
+
+T
+
+ϕ(x)= − ηM
+
+ MX
+
+> m=1
+
+∇L ( ¯fθt (x) − fθmt (x)) 
+
+T
+
+| {z }    
+
+> 0= if ¯fθt(x)minimizes the sum of losses
+
+ϕ(x) (7) 
+
+= 0 .
+
+This above derivation relies on L being a proper loss function for the ensemble, i.e. that ¯fθt (x) , as it minimises the loss as by first order optimality conditions 
+
+∇y
+
+h MX
+
+> m=1
+
+L(y − fθmt (x)) 
+
+i 
+
+> y= ¯fθt(x)
+
+= 0 ,
+
+implying that 
+
+> M
+
+X
+
+> m=1
+
+∇ ¯fθt L( ¯fθt (x) − fθmt (x)) = 0 .
+
+15 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Using the chain rule 
+
+∇ ¯fθ L( ¯fθt (x) − fθmt (x)) = −∇ fθm L( ¯fθt (x) − fθmt (x)) ,
+
+we get 
+
+> M
+
+X
+
+> m=1
+
+h
+
+∇y L(y − fθmt (x)) 
+
+i 
+
+> y= ¯fθt(x)
+
+=
+
+> M
+
+X
+
+> m=1
+
+−∇ fθm L( ¯fθt (x) − fθmt ) = 0 .
+
+Note that the choice of loss function dictates what prediction the individual models converge to. The minimizer of MSE loss the arithmetic mean of the ensemble members, while for MAE, the ensemble prediction should be the median or all satisfy this condition. Under these conditions the ensemble prediction remains unchanged under purely consensus updates for linear models as the individual gradient contributions from the members cancels out. 
+
+Lemma A.2. Assume the same conditions as Theorem A.1 and a coupled ensemble of linear models ¯f coupled  
+
+> t
+
+optimised under gradient descent with the a joint consensus objective function i.e. Equation 4. Then the sequence of ensemble models from each step of optimisation are exactly the same for the coupled and a decoupled ensembles, i.e. ¯f decoupled  
+
+> t
+
+= ¯f coupled  
+
+> t
+
+, ∀t.As a result if the decoupled ensemble converge, the coupled ensemble converges to the same model. Proof. We will now prove that optimising the overall loss, i.e. jointly the supervised and unsupervised loss, the coupled ensembles converge to the same same as the decoupled ensembles for linear models. Let { ¯f decoupled  
+
+> t
+
+}nt=1 and { ¯f coupled  
+
+> t
+
+}nt=1 ,be a sequence from a decoupled and coupled ensemble over t gradient steps. We will prove using induction that at each step of the equation that the coupled ensemble predictions { ¯f coupled  
+
+> t
+
+}nt=1 are equal to the decoupled ensemble, i.e. 
+
+¯f decoupled  
+
+> t
+
+= ¯f coupled  
+
+> t
+
+, ∀t. The individual models starts at with the same parameters, so ¯f coupled  
+
+> 0
+
+= ¯f decoupled  
+
+> 0
+
+. Using induction, we can assume for t that ¯f coupled  
+
+> t
+
+= ¯f decoupled  
+
+> t
+
+. Since each member fθm is linear, it follows that ¯fθ is also linear. Hence, the update rule can be written as ¯fθt+1 (x) = ¯fθt (x) − η∇θ L( ¯fθt )T ϕ(x).
+
+We now consider the joint optimization of the supervised and ensemble consensus objective. Since the joint objective is additive, we can split the gradient for update t update as 
+
+∇θ L  ¯fθt ) = ∇θ Lsupervised (fθt ) + γ∇θ Lconsistency (fθt ).
+
+The update rule now becomes 
+
+¯f coupled  
+
+> θt+1
+
+= ¯f coupled  
+
+> θt
+
+− η∇θ L( ¯f coupled  
+
+> θt
+
+)T ϕ(x)= ¯f decoupled  
+
+> θt
+
+− η∇θ L( ¯f decoupled  
+
+> θt
+
+)T ϕ(x)= ¯f decoupled  
+
+> θt
+
+− η ∇θ Lsupervised ( ¯fθt
+
+> decoupled
+
+) + γ∇θ Lconsistency ( ¯f decoupled  
+
+> θt
+
+)T ϕ(x)
+
+| {z } 
+
+> =0 ,using Equation 7
+
+= ¯f decoupled  
+
+> θt
+
+− η(∇θ Lsupervised ( ¯fθt
+
+> decoupled
+
+)) T ϕ(x)= ¯f decoupled  
+
+> θt+1
+
+.
+
+We have now proved for t + 1 that ¯f coupled  
+
+> θt+1
+
+= ¯f decoupled  
+
+> θt+1
+
+, so by induction, we see the two sequences { ¯f decoupled  
+
+> t
+
+}nt=1 and 
+
+{ ¯f coupled  
+
+> t
+
+}nt=1 and must converge (or diverge) identically. Lemma A.2 shows that the coupled linear ensemble converges to the decoupled ensemble. This means that the individual models tend to converge to the ensemble prediction, acting as purely ensemble distilling. This also means that if we interpret the individual models in an ensemble to be sampled from a prior, then the individual models will converge to predicting the posterior mean under training i.e. lim M →∞ 1
+
+> M
+
+PMm=1 fθm (x). Note that it is not always the case that individual models converge to the coupled ensemble prediction. If the coupling weight is too high, the individual models can diverge in an analogous way as too high learning rate under supervised losses in gradient descent. 16 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+A.2. Non-linear Case Theorem A.3. Assuming all ensemble members, fθm , are non-linear models and the prediction ¯f (x) of the ensemble is the minimizer of the sum of individual consensus losses, then ¯f (x) does NOT necessarily stay constant during consensus updates. Proof. Follows directly from the derivation below, we leave it to the reader to find a function where the Taylor-approximation is exact and the second order term is non-zero. In the non-linear case the higher-order interactions change the learning dynamics. Instead of pure knowledge distillation in the linear case, the members learn to have lower variance in the predictions. Much like in a tug-of-war where the heaviest team wins, the members with the most robust predictions will generally dominate. To see this, consider two models fθ1 , f θ2 . The change in the prediction of the ensemble prediction is 
+
+¯fθt+1 − ¯fθt = 12
+
+
+
+fθ1 
+
+> t+1
+
+(x) − fθ1 
+
+> t
+
+(x)
+
+
+
++ 12
+
+
+
+fθ2 
+
+> t+1
+
+(x) − fθ2 
+
+> t
+
+(x)
+
+
+
+. (8) Here θt 
+
+> 1
+
+is the parameters of model 1 after t gradient updates. To calculate the ensemble prediction difference, we can approximate the parameter update fθ1 
+
+> t+1
+
+(x) with a Taylor expansion: 
+
+fθ1 
+
+> t+1
+
+(x) ≈ fθ1 
+
+> t
+
+(x) + δTθ1
+
+> t
+
+∇θ1 fθ1 
+
+> t
+
+(x) + 12 δTθ1
+
+> t
+
+∇2
+
+> θ1
+> t
+
+fθ1 
+
+> t
+
+(x)δθ1 
+
+> t
+
++ O(∇3fθ1 
+
+> t
+
+(x)) .
+
+Calculating the change in prediction for fθ1 , we get 
+
+fθ1 
+
+> t+1
+
+(x) − fθ1 
+
+> t
+
+(x) ≈ fθ1 
+
+> t
+
+(x) + δTθ1
+
+> t
+
+∇θ1 fθ1 
+
+> t
+
+(x) + 12 δTθ1
+
+> t
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)δθ1 
+
+> t
+
+− fθ1 
+
+> t
+
+(x)= δTθ1
+
+> t
+
+∇θ1 fθ1 
+
+> t
+
+(x) + 12 δTθ1
+
+> t
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)δθ1 
+
+> t
+
+.
+
+Here the parameter change δθ1 
+
+> t
+
+= θ1 
+
+> t+1
+
+− θ1 
+
+> t
+
+is given as 
+
+δθ1 
+
+> t
+
+= θ1 
+
+> t+1
+
+− θ1
+
+> t
+
+=  θ1 
+
+> t
+
+− η∇θ1 L(fθ1 
+
+> t
+
+(x) − ¯f (x))  − θ1
+
+> t
+
+= −η∇θ1 L
+
+
+
+fθ1 
+
+> t
+
+(x) − 12
+
+ fθ1 
+
+> t
+
+(x) + fθ2 
+
+> t
+
+(x)
+
+= −η∇θ1 L
+
+ fθ1 
+
+> t
+
+(x) − fθ2 
+
+> t
+
+(x)2
+
+
+
+= − η
+
+2 (∇θ1 fθ1 (x)) ∇L 
+
+ fθ1 (x) − fθ2 (x)2
+
+
+
+= − ηC 
+
+2
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+
+
+, where C = ∇L 
+
+ fθ1 (x) − fθ2 (x)2
+
+
+
+.
+
+Now 
+
+fθ1 
+
+> t+1
+
+(x) − fθ1 
+
+> t
+
+(x)
+
+≈δTθ1
+
+> t
+
+∇θ1 fθ1 
+
+> t
+
+(x) + 12 δTθ1
+
+> t
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)δθ1
+
+> t
+
+= − ηC 
+
+2
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)T ∇θ1 fθ1 
+
+> t
+
+(x)
+
+
+
++ 12 δTθ1
+
+> t
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)δθ1
+
+> t
+
+= − ηC 
+
+2 ||∇ θ1 fθ1 
+
+> t
+
+(x)|| 22 + η2C2
+
+8
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+T
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+
+
+= − ηC 
+
+2
+
+
+
+||∇ θ1 fθ1 
+
+> t
+
+(x)|| 22 − 14 ηC 
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+T
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+  
+
+.
+
+17 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Similar arguments can be made for model fθ2 , by assuming that L is symmetric, such that ∇L (−x) = −C. Now we get 
+
+fθ2 
+
+> t+1
+
+(x) − fθ2 
+
+> t
+
+(x) ≈
+
+ηC 
+
+2
+
+
+
+||∇ θ2 fθ2 
+
+> t
+
+(x)|| 22 + 14 ηC 
+
+
+
+∇θ2 fθ2 
+
+> t
+
+(x)
+
+T
+
+∇2 
+
+> θ2
+
+fθ2 
+
+> t
+
+(x)
+
+
+
+∇θ2 fθ2 
+
+> t
+
+(x)
+
+  
+
+.
+
+Combining this, we can calculate the change in ensemble prediction to be 
+
+¯fθt+1 − ¯fθt = ηC 
+
+4
+
+
+
+||∇ θ2 fθ2 
+
+> t
+
+(x)|| 22 − ||∇ θ1 fθ1 
+
+> t
+
+(x)|| 22
+
+| {z }
+
+> First-order difference in gradient
+
++ 14 ηC 
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+T
+
+∇2 
+
+> θ1
+
+fθ1 
+
+> t
+
+(x)
+
+
+
+∇θ1 fθ1 
+
+> t
+
+(x)
+
+
+
++
+
+
+
+∇θ2 fθ2 
+
+> t
+
+(x)
+
+T
+
+∇2 
+
+> θ2
+
+fθ2 
+
+> t
+
+(x)
+
+
+
+∇θ2 fθ2 
+
+> t
+
+(x)
+
+| {z }
+
+> Second-order curvature
+
++ O(∇3fθt (x)) 
+
+
+
+.
+
+To break down the result of the above derivation consider the example where fθ1 has a more robust prediction i.e. has a lower squared gradient fθ2 and both models have positive curvature. In addition say that fθ1 
+
+> t
+
+(x) > f θ2 
+
+> t
+
+(x), so we get the loss gradient point towards fθ1 
+
+> t
+
+(x) i.e. C > 0. In this case the first order difference in gradients must be positive, and the ensemble prediction moves more towards fθ1 (x).While we do see that increasing the curvature of fθ1 
+
+> t
+
+(x) increases the ensemble prediction, but this effect is scaled by the gradient. This means that, in addition to it be a second order effect, it is also dampened by the gradient size. This means that if an ensemble member has robust predictions, i.e. large parameter spaces with low gradient size and therefore curvature, it will serve as attractors for the ensemble consensus. 
+
+A.3. Experimental Validation 
+
+To investigate the effect of the ensemble consensus inducing more robust models we log the gradient norm and trace of the Hessian for different coupling strengths. We estimate the trace of the Hessian using Hutchinson’s method (Hutchinson, 1989). Both quantities are estimated with 32000 (1000 batches). The results are shown in Figure 4 and the model MAE in Figure 5. 
+
+Figure 4. The gradient norm (left) and Hessian of the prediction (right) of the models of different data for different coupling strengths. Experimental setup follows the PaiNN setup section 6.1 experiments on target ZPVE. 
+
+From the experiments we see that the gradient norm and Hessian trace decreases with the coupling strength as predicted by the theory. This shows the model’s predictions become more robust with the coupling strength, serving as a kind of regularisation. We hypothesise this to be the main reason for the models trained with ensemble consensus can improve over the corresponding deep ensemble. The ensemble consensus converges towards a more stable model instead of converging to a posterior mean. The regularisation from coupling can be too large, as seen in figure 5, where the optimal value is 10 −3.Interestingly, as the models are trained with consensus loss on the unsupervised data, we would expect the gradient norm and Hessian trace to be lower on unsupervised data than the unseen validation data. Instead they are roughly similar, suggesting the effect generalises to unseen data. This is further backed by the prediction error (MAE) being virtually identical for the unsupervised and validation data. 18 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus  
+
+> Figure 5. The MAE of the models for different coupling strengths. Experimental setup follows the PaiNN setup section 6.1 experiments on target ZPVE.
+
+## B. Extended Studies 
+
+B.1. Scaling with Number of Ensemble Members 
+
+We also investigate the predictive accuracy scaling with the number of ensemble members to larger than 4 sizes. Ensembles of these sizes were not feasible to do on any of the graph datasets, so we instead use the original computer vision version of CIFAR-10. This also validates that our method works for other domains than graphs. We use ResNet-18 (He et al., 2016) with 5,000 labeled and 40,000 unlabeled data-points without any data augmentations. We performed an exhaustive hyperparameter sweep using a single seed over learning rate (0.1, 0.075, 0.05, 0.025, 0.01, 0.0075, 0.005, 0.0025, 0.001), and weight decay (0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5) for the purely supervised model. The number of epochs and learning rate annealing was fixed at a number informally found to work. The parameters of best performing model on validation accuracy at the last epoch was selected. The optimal values can be found in 17. The coupling weight was fixed kept at γ = 1 .The hyper-parameters can be found in Appendix C.3. From the accuracy results in Table 5 and calibration scores in section B.2, we see a significant increase in accuracy and calibration scores going from a single model to a coupled ensemble with just two models. Interestingly, the individual prediction accuracy of a model trained in a coupled ensemble of two models outperforms the ensemble prediction from all decoupled ensemble sizes tested. This highlights the semi-supervised effect from using unlabeled data for training. Looking at the calibration metrics in Appendix B.2, we see that the calibration results for the coupled ensemble are worse than the uncoupled one. This is often seen in self-supervised learning, as the "self-validating" training can result in worse calibration from confirmation bias (Arazo et al., 2020; Mishra et al., 2024). Surprisingly, we see the individual calibration improving over the decoupled model (i.e., a single model), and also improving as the number of ensemble members increases.    
+
+> Table 5. Predictive accuracy (%) on CIFAR-10 validation, comparing Decoupled and Coupled models. The values represent mean ±1.96 standard error of the mean.
+
+Individual Accuracy % Ensemble Accuracy (%) Ensemble size Decoupled Coupled Decoupled Coupled 1 59 .08 ±1.35 · · · · · · · · · 
+
+2 ... 66 .36 ±0.45 62 .51 ±0.40 66 .96 ±0.47 
+
+4 ... 67 .24 ±0.40 64 .65 ±0.46 67 .92 ±0.49 
+
+8 ... 67 .64 ±0.35 65 .73 ±0.51 68 .34 ±0.34 
+
+16 ... 67 .75 ±0.32 66 .41 ±0.57 68 .54 ±0.45 
+
+32 ... 67 .75 ±0.30 66 .64 ±0.37 68 .52 ±0.35 
+
+19 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 6. GCN performance (MAE) for different ensemble sizes on peptides-struct. Comparison between Supervised and Supervised + SSL training. Results are reported as mean ± standard error. 
+
+Individual member Ensemble Size (M) Supervised Supervised + SSL Supervised Supervised + SSL 1 0.3005 ±0.0064 . . . . . . . . . 
+
+2 ... 0.2858 ±0.0057 0.2958 ±0.0036 0.2852 ±0.0057 
+
+3 ... 0.2864 ±0.0057 0.2946 ±0.0040 0.2860 ±0.0054 
+
+4 ... 0.2870 ±0.0037 0.2926 ±0.0057 0.2867 ±0.0039 
+
+6 ... 0.2856 ±0.0060 0.2921 ±0.0057 0.2852 ±0.0056 
+
+8 ... 0.2874 ±0.0045 0.2916 ±0.0057 0.2871 ±0.0042 
+
+16 ... 0.2870 ±0.0052 0.2920 ±0.0052 0.2869 ±0.0053 
+
+B.2. Calibration Metrics on CIFAR-10 
+
+Table 7. NLL on CIFAR-10, comparing decoupled and coupled models. The values represent mean ± 1.96 standard error of the mean. 
+
+NLL ↓
+
+Individual member Ensemble Ensemble size Decoupled Coupled Decoupled Coupled 1 1.543 ±0.109 · · · · · · · · · 
+
+2 ... 1.217 ±0.021 1.267 ±0.020 1.161 ±0.021 
+
+4 ... 1.169 ±0.019 1.121 ±0.012 1.096 ±0.019 
+
+8 ... 1.142 ±0.017 1.048 ±0.015 1.064 ±0.016 
+
+16 ... 1.126 ±0.015 1.007 ±0.015 1.047 ±0.014 
+
+32 ... 1.123 ±0.019 0.990 ±0.011 1.042 ±0.018 
+
+Table 8. AUC-ROC on CIFAR-10, comparing decoupled and coupled models. The values represent mean ± 1.96 standard error of the mean. 
+
+AUC-ROC ↑
+
+Individual member Ensemble Ensemble size Decoupled Coupled Decoupled Coupled 1 .8885 ±.0075 · · · · · · · · · 
+
+2 ... .9250 ±.0020 .9125 ±.0021 .9292 ±.0020 
+
+4 ... .9295 ±.0019 .9266 ±.0016 .9349 ±.0019 
+
+8 ... .9316 ±.0019 .9336 ±.0021 .9377 ±.0018 
+
+16 ... .9323 ±.0016 .9384 ±.0019 .9386 ±.0015 
+
+32 ... .9329 ±.0019 .9409 ±.0017 .9394 ±.0019 
+
+20 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 9. ECE on CIFAR-10, comparing decoupled and coupled models. The values represent mean ± 1.96 standard error of the mean. 
+
+ECE ↓
+
+Individual member Ensemble Ensemble size Decoupled Coupled Decoupled Coupled 1 .2210 ±.0357 · · · · · · · · · 
+
+2 ... .1713 ±.0041 .1128 ±.0057 .1512 ±.0049 
+
+4 ... .1609 ±.0034 .0591 ±.0043 .1369 ±.0040 
+
+8 ... .1548 ±.0031 .0320 ±.0043 .1301 ±.0035 
+
+16 ... .1494 ±.0028 .0243 ±.0033 .1235 ±.0030 
+
+32 ... .1485 ±.0044 .0207 ±.0043 .1226 ±.0043 
+
+Table 10. Brier score on CIFAR-10, comparing decoupled and coupled models. The values represent mean ± 1.96 standard error of the mean. 
+
+Brier ↓
+
+Individual member Ensemble Ensemble size Decoupled Coupled Decoupled Coupled 1 .4854 ±.0271 · · · · · · · · · 
+
+2 ... .5594 ±.0042 .4585 ±.0041 .5530 ±.0040 
+
+4 ... .5654 ±.0040 .4422 ±.0047 .5572 ±.0040 
+
+8 ... .5676 ±.0048 .4316 ±.0050 .5588 ±.0047 
+
+16 ... .5652 ±.0044 .4283 ±.0049 .5563 ±.0043 
+
+32 ... .5649 ±.0030 .4263 ±.0033 .5558 ±.0030 
+
+B.3. Non-Chemical GNN+ datasets 
+
+Results for non-chemical GNN+ datasets are shown in Table 11. Note the consensus and mean-teacher run for the GatedGCN models were not computed, as the models were too large to fit in memory. 21 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 11. Performance on non-molecule-related benchmarks, comparing supervised models with those using additional self-supervised learning (SSL). Results are shown for individual models (Individual) and the full ensemble (Ensemble). Results are the mean ±1.96 
+
+standard error of the mean over 5 different seeds. * denotes models that did not fit in our 32GB video-memory. 
+
+GCN GIN GatedGCN Dataset Training Metric Individual Ensemble Individual Ensemble Individual Ensemble CIFAR-10 Supervised Acc (%) ↑
+
+50 .44 ±0.33 55 .38 ±0.49 50 .46 ±0.34 53 .90 ±0.50 57 .69 ±0.34 61 .23 ±0.45 
+
+Consensus 55 .33 ±0.31 57 .11 ±0.42 54 .30 ±0.36 55 .60 ±0.31 *Mean teacher 50 .64 ±0.28 50 .99 ±0.86 - 57 .80 ±0.57 -MNIST Supervised Acc (%) ↑
+
+96 .61 ±0.07 96 .97 ±0.04 96 .26 ±0.10 96 .73 ±0.13 96 .96 ±0.05 97 .38 ±0.11 
+
+Consensus 96 .82 ±0.08 96 .93 ±0.11 96 .68 ±0.09 96 .82 ±0.11 97 .48 ±0.06 97 .57 ±0.07 
+
+Mean teacher 96 .55 ±0.06 - 96 .31 ±0.11 - 96 .84 ±0.13 -CLUSTER Supervised AP ↑
+
+69 .72 ±0.98 72 .17 ±0.12 69 .72 ±0.98 72 .17 ±0.12 69 .72 ±0.98 76 .84 ±0.09 
+
+Consensus 71 .61 ±0.31 72 .44 ±0.19 71 .61 ±0.31 72 .44 ±0.19 *Mean teacher 69 .53 ±4.52 - 69 .10 ±1.50 - 72 .07 ±7.91 -
+
+B.4. Different label amounts 
+
+We also include an investigation into how the ensemble coupling is influenced by different number of labeled versus unlabeled data. Specifically we vary the amount of training data that is labeled of the entire pool. The results on QM9 target ZPVE (target 7) can be seen in Figure 6. We observe a smooth improvement across all fractions without any collapse at low label fractions. Interestingly, at 50% of labeled data, the individual models in coupled ensemble obtains the same error as the an individual model trained on the full data. 
+
+Figure 6. Validation MAE as a function of the amount of data labeled for QM9 target ZPVE (target 7). The results are averaged over 5 seeds. 
+
+B.5. Variance Inside the Ensemble 
+
+We investigate the impact the coupling strength has on the diversity of the ensemble. Increasing the coupling strength should directly reduce the diversity, especially on the unlabeled data, which is also seen in Figure 3 (left) and 7. For completion, we also plot the variance within the ensemble over epochs in Figure 8. 22 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus   
+
+> Figure 7. Error of the individual models (left) and ensemble (right) as a function of the variance within the ensemble across a training run. The data points are coloured based on the coupling strength on QM9 target 7.
+> Figure 8. Variance within the ensemble over epochs for different coupling weights for validation data (left) and unsupervised data (right). The data points are coloured based on the coupling strength on QM9 target 7.
+
+B.6. Distribution Scaffolding 
+
+We also investigate the behavior of ensemble consensus when the unlabeled data is from a different distribution. Specifically, we use scaffold splitting with Butina-clustering (Butina, 1999) for QM9. Specifically, we split QM9 into two distributions for the unsupervised data and one for the rest. We use the same hyperparameters as QM9. The results can be seen in Table 12. For all targets we see an improvement from ensemble consensus, with an individual consensus model outperforming a uncoupled ensemble for all targets except ⟨R2⟩ and G. This suggests ensemble coupling is effective even when the unlabeled distribution is not too far away from the labeled distribution. Note, that the non-consensus runs for target 0 perform poorly, presumably due to the distributional shift being large enough to destabilise the runs. 23 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 12. PaiNN performance (MAE) on QM9 targets with Butina Scaffolding. Results are reported as mean ±1.96 standard error of the mean over 5 seeds. 
+
+Individual Member Ensemble (M=4) Target Unit Supervised Supervised + SSL Supervised Supervised + SSL 
+
+μ D .6168 ±1.1741 .0593 ±.0038 .6106 ±1.1740 .05861 ±.0038 
+
+α a30 .1496 ±.0029 .1244 ±.0026 .1315 ±.0021 .1217 ±.0026 
+
+ϵHOMO meV 79 .635 ±1.294 74 .641 ±1.549 75 .807 ±1.416 73 .612 ±1.537 
+
+ϵLUMO meV 61 .325 ±.563 57 .290 ±.422 58 .771 ±.650 56 .732 ±.431 
+
+∆ϵ meV 126 .920 ±3.936 118 .369 ±2.575 121 .950 ±3.906 116 .746 ±2.229 
+
+⟨R2⟩ a20 .8634 ±.0406 .8337 ±.0197 .6675 ±.0378 .6499 ±.0201 
+
+ZPVE a20 2.327 ±.023 1.960 ±.026 2.018 ±.022 1.902 ±.027 
+
+U0 meV 23 .813 ±.557 19 .524 ±.321 20 .039 ±.499 18 .678 ±.300 
+
+U meV 23 .994 ±.382 19 .787 ±.460 20 .160 ±.366 18 .937 ±.435 
+
+H meV 24 .021 ±.476 19 .777 ±.518 20 .191 ±.457 18 .934 ±.528 
+
+G meV 24 .475 ±0.527 23 .157 ±1.833 20 .748 ±.459 22 .656 ±1.987 
+
+Cv cal mol K .0558 ±.0005 .0464 ±.0006 .0484 ±.0003 .0449 ±.0007 
+
+## C. Hyperparameters 
+
+C.1. QM9 
+
+Our hyperparameter search for QM9 followed a two-step process. First, we started with baseline hyperparameters from a fully supervised setting and tuned the learning rate and weight decay for a single model on the 10% labeled data subset. Second, using these optimized parameters, we then tuned the coupling weight ( γ) for the size-4 ensemble by searching over 
+
+{1.0, 0.1, 0.01 , 0.001 , 0.0001 }. The coupling weight swept for the mean-teacher was {0.9, 0.95 , 0.99 , 0.995 , 0.999 }. Final a architectural and training configurations are detailed in Table 13 and Table 14. C.1.1. PSEUD σ BASELINE IMPLEMENTATION 
+
+We re-implemented the Uncertainty-Aware Pseudo-labeling (PSEUD σ) method (Huang et al., 2022) for the PaiNN architec-ture, as the original study did not evaluate this model. To ensure a direct comparison, we utilized the identical 10% labeled / 90% unlabeled data split. Our implementation features a PaiNN backbone equipped with an evidential head to output the required prior parameters ( γ, v, α, β ). We trained using AdamW (1e-4 LR, 1e-4 WD) with a batch size of 32. The training schedule consisted of a 1000-epoch initial training phase on the labeled data, followed by 15 outer-loop episodes ( M )of 100 inner-loop epochs ( K) each. We adopted the original paper’s recommended low-data hyperparameters, including an evidential regularization coefficient ( λ) of 0.5 and epistemic uncertainty for adaptive weighting. Consistent with the PSEUD σ strategy, our cosine annealing learning rate scheduler was re-initialized at the start of each of the 15 episodes. 
+
+Table 13. Hyperparameter Configuration for QM9. These are fixed across all targets. 
+
+Hyperparameter Value Training 
+
+Batch size 32 Epochs 1000 Optimizer AdamW Scheduler Cosine annealing 
+
+Coupling 
+
+Unsupervised loss criterion L2 24 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus  
+
+> Table 14. Additional hyperparameter Configuration for QM9 for different targets.
+
+Target Learning rate Weight decay Coupling weight Mean teacher decay 
+
+μ 1e-3 1e-3 0.1 0.995 
+
+α 1e-4 1e-3 0.1 0.99 
+
+ϵHOMO 1e-3 0 0.01 0.95 
+
+ϵLUMO 5e-4 1e-6 0.01 0.9 
+
+∆ϵ 1e-3 0 0.01 0.99 
+
+⟨R2⟩ 5e-4 1e-4 0.1 0.99 ZPVE 5e-4 1e-5 0.001 0.99 
+
+U0 1e-4 1e-4 0.01 0.99 
+
+U 1e-4 0 0.01 0.9 
+
+H 1e-4 1e-4 0.01 0.9 
+
+G 1e-4 1e-5 0.01 0.995 
+
+Cv 1e-4 1e-5 0.01 0.995 
+
+C.2. GNN+ Datasets 
+
+We keep the hyperparameters for the different datasets and models the same as in the original paper, except for the number of epochs, weight decay, and learning rate. As we are training with 10% of the original data, we double the number of epochs to mitigate the fewer parameter updates. We then made a two-step hyper-parameter sweep; initially the learning rate using original weight decay values, and afterwards the weight decay using the found best learning rates. The learning rates investigated were (0.25, 0.5, 1.0, 2.0, 4.0) times the original learning rate value for that model and dataset. The weight decays investigated was ( 10 −6, 10 −5, 10 −4, 10 −3, 10 −2, 10 −1, 0). We could not simply multiply the weight decay values by a fixed factor, as some of the original weight decay values were 0. These sweeps were performed for a single uncoupled model following the same tuning procedure as in the original paper. Notably, this means that the predictive accuracy report from each run is the best validation performance seen during any of the epochs. The found learning rates are listed in Table 15, and weight decays Table 16 below. The train, validation, and test splits follow the same procedure as (Luo et al., 2025). Each seed shuffles the labeled and unlabeled part of the training data. The SSL parameters were selected based on the best performing values on the validation score on ZINC. The mean-teacher values investigated was (0 .9, 0.99 , 0.995 , 0.999) , and the coupling weight for the consensus and pair-wise methods were 
+
+(0 .25 , 0.5, 0.75 , 1, 1.25 , 1.5, 1.75 , 2.0) . The optimal value of mean-teacher was found to be 0.999, and coupling weight for the consensus learning was 1.0, and the pairwise loss was tied between 0.5 and 0.75, so we went with 0.5 based on the recommendations in (Filipiak et al., 2021).  
+
+> Table 15. Tuned learning rates for GNN models across datasets.
+
+Dataset GCN GIN GatedGCN CIFAR-10 0.002 0.0005 0.001 CLUSTER 0.0005 0.0005 0.002 ogbg-molhiv 0.0001 0.00005 0.0004 MNIST 0.001 0.002 0.001 ogbg-molpcba 0.000125 0.000125 0.00025 peptides-func 0.0005 0.002 0.002 peptides-struct 0.002 0.0005 0.002 ogbg-ppa 0.0006 0.0012 0.0003 ZINC 0.004 0.001 0.004 25 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus  
+
+> Table 16. Tuned weight decays for GNN models across datasets.
+
+Dataset GCN GIN GatedGCN CIFAR-10 10 −2 10 −1 10 −2
+
+CLUSTER 0 10 −1 10 −6
+
+ogbg-molhiv 10 −3 10 −1 10 −5
+
+MNIST 10 −1 10 −2 10 −5
+
+ogbg-molpcba 10 −1 10 −2 10 −5
+
+peptides-func 0 10 −1 10 −3
+
+peptides-struct 10 −3 10 −5 10 −1
+
+ogbg-ppa 10 −1 10 −1 10 −2
+
+ZINC 10 −1 10 −5 10 −3
+
+C.3. CIFAR-10 
+
+The hyperparameter configurations for CIFAR-10 are shown in Table 17.  
+
+> Table 17. Hyperparameter Configuration for CIFAR-10.
+
+Hyperparameter Value Learning Rate 
+
+Learning rate 0.005 
+
+Annealing method Step Step size 1Learning rate reduction 0.975 
+
+Regularization 
+
+L2 Weight Decay 0.075 
+
+Optimizer 
+
+Optimizer SGD Momentum 0.9 
+
+Training 
+
+Epochs 250 
+
+Loss Function 
+
+Coupled loss weighting 1.0 Ensemble coupled loss KL-divergence Supervised loss Cross-entropy 
+
+## D. Calibration Scores for the ogbg-molhiv 
+
+We also investigate the calibration on the ogbg-molhiv benchmark. We do not investigate the datasets ogbg-pcba and peptides functional due to the to the large skewing of classes and missing values. The results are included in Table 18 and Table 19. We see across different architectures that the coupling of the ensemble improves the calibration scores, especially NLL. One notable exception is the MCE score for the GIN ensemble model, where the coupled ensemble becomes significantly worse. 26 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 18. Individual Performance on the ogbg-molhiv dataset 
+
+GCN GIN GatedGCN Metric Decoupled Coupled Decoupled Coupled Decoupled Coupled Accuracy ↑ 95 .78 ±0.38 96 .18 ±0.48 95 .97 ±0.68 96 .30 ±0.35 95 .66 ±0.72 96 .01 ±0.57 
+
+ROC-AUC ↑ .721 ±.0193 .731 ±.0218 .733 ±.017 .734 ±.015 .731 ±.008 .736 ±.007 
+
+NLL ↓ .375 ±.185 .230 ±.0662 .147 ±.015 .140 ±.012 .200 ±.033 .180 ±.023 
+
+ECE ↓ .0312 ±.0092 .0246 ±.0039 .0113 ±.0045 .0105 ±.0048 .0232 ±.0069 .0201 ±.0049 
+
+MCE ↓ .2041 ±.0994 .2058 ±.0763 .1113 ±.0620 .1058 ±.0246 .1154 ±.0399 .0985 ±.0287 
+
+Table 19. Ensemble Performance on the ogbg-molhiv dataset 
+
+GCN GIN GatedGCN Metric Decoupled Coupled Decoupled Coupled Decoupled Coupled Accuracy ↑ 96 .66 ±0.33 96 .60 ±0.20 96 .11 ±0.66 96 .39 ±0.33 96 .03 ±0.62 96 .12 ±0.56 
+
+ROC-AUC ↑ .7350 ±.0228 .7357 ±.0212 .7346 ±.0165 .7347 ±.0153 .7341 ±.0107 .7383 ±.0073 
+
+NLL ↓ .2437 ±.1051 .1760 ±.0275 .1432 ±.0130 .1383 ±.0108 .1821 ±.0249 .1729 ±.0208 
+
+ECE ↓ .0261 ±.0057 .0224 ±.0046 .0121 ±.0039 .0109 ±.0037 .0201 ±.0051 .0193 ±.0045 
+
+MCE ↓ .2587 ±.0793 .2617 ±.0564 .1585 ±.0760 .1933 ±.0852 .1566 ±.0576 .1533 ±.0251 
+
+## E. Ablation Studies 
+
+E.1. Soft or Hard labels for Classification 
+
+Often semi-supervised methods use some form of "hard-labeling" as the consistency target. Usually, this is implemented as setting the ensemble target for an unlabeled datapoint to be the most likely label, as predicted by the individual model (Filipiak et al., 2021; Tarvainen & Valpola, 2017) or the ensemble (Platanios, 2018). This removes the underlying uncertainty information of the estimates, and risking drastically reducing the calibration of the model by making it overconfident. The motivation for using hard-labeling is the assumption of label smoothness, as it forces the model to pick the same label for data points close together. We investigate this assumption in table 20. The results on accuracy show that hard-labelling slightly benefits the accuracy, it comes at the cost of worse calibration metrics such as ECE and MCE for the individual models. One explanation for the small increase in accuracy is the label-smoothens assumption can be violated for graphs and especially molecules. 
+
+Table 20. Calibration metrics on graph CIFAR-10. 
+
+Individual Ensemble Metric Mean Hard Label Mean Hard Label Accuracy (%) ↑ 56 .0220 ±0.2233 56 .2020 ±0.5595 56 .7640 ±0.2742 57 .1920 ±0.4124 
+
+ROC ↑ .9040 ±.0017 .8936 ±.0025 .7598 ±.0015 .7621 ±.0022 
+
+F1 ↑ .5586 ±.0021 .5607 ±.0051 .5661 ±.0023 .5706 ±.0034 
+
+ECE ↓ .1514 ±.0030 .3034 ±.0052 .4324 ±.0027 .4281 ±.0041 
+
+MCE ↓ .2307 ±.0030 .4252 ±.0141 .4324 ±.0027 .4281 ±.0041 
+
+E.2. Pairwise or Coupled Ensemble 
+
+There is a strong theoretical connection between the pairwise loss between ensemble members used in n-CPS (Filipiak et al., 2021) and the coupled ensemble loss presented in this work. The pairwise loss is defined as 
+
+Lpairwise 
+
+ fθi (x)) = 1
+
+M − 1
+
+> M
+
+X
+
+> m=1
+
+L fθi (x) − fθm (x).
+
+27 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+For a convex loss L that can be written on the form L(x − y), then Jensen’s inequality yields 
+
+L fθi (x) − Em[fθm (x)]  = L Em[fθi (x) − fθm (x)] 
+
+≤ Em[L fθi (x) − fθm (x)
+
+= 1
+
+M
+
+> M
+
+X
+
+> m=1
+
+L fθi (x) − fθm (x)
+
+≤ 1
+
+M − 1
+
+> M
+
+X
+
+> m=1
+
+L fθi (x) − fθm (x).
+
+As fθi (x) − fθm (x) = 0 if i = m this upper bound is exactly the n-CPS loss. In general this upper bound is not tight, but if 
+
+M = 2 and L is of the form (x − y)l, e.g. the l1 or l2-loss we get 
+
+L(fθ1 − Em[fθm (x)]) = 
+
+
+
+fθ1 − fθ1 + fθ2
+
+2
+
+l
+
+= 12l (fθ1 − fθ2 )l.
+
+We see that the two losses are equal up to a scaling factor that disappears if we tune the coupling weight. 
+
+E.3. Robustness of Coupled Weighting 
+
+To investigate the robustness of the coupled weighting γ, we followed the same experimental setup on CIFAR-10 with a Resnet18 model. The results can be seen in Figure 9. From the figure, we see that the validation accuracy is somewhat flat as soon as γ > 1, but there is a small optimum around γ = 6 . This illustrates that at least for CIFAR-10, the choice of γ is robust.  
+
+> Figure 9. Validation accuracy as a function of the weighting of the ensemble consistency loss.
+
+E.4. How to Schedule the coupled loss 
+
+Initially, during training, the members of the ensemble models only have weak prediction strength. This results in the ensemble prediction serving only as a weak signal guiding the models. Intuitively, this suggests that the weighting of the coupled loss should be added or increased as training progresses. We investigate if this is the case in the same CIFAR-10 setting. We let the ensemble coupling weighting be a linear function of the number of epochs, and vary the starting value and slope of the ensemble coupling weighting. The results can be seen in Figure 10, where negative coupling weights are clipped to 0, while Figure 11 shows the un-clipped results (in the relevant area). From Figure 10, we see that for CIFAR-10, there is no large benefit to begin coupling later compared to selecting a good constant coupling value. Note that a delayed start corresponds to a negative start value and a positive increase pr. epoch, as an initial coupling of -1 and a pr. epoch increase of 0.1 means it starts at epoch 10, due to clipping. 28 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Figure 10. Validation accuracy as a function of the initial coupling weight and the increase in coupling weights per epoch for an individual model (left) and a coupled ensemble with two members (right). The results are averaged over 3 seeds. 
+
+Figure 11. Validation accuracy as a function of the weighting of the ensemble consistency loss. 
+
+E.5. Different Losses 
+
+We also investigated the sensitivity to different formulations of the ensemble consistency loss. The results are shown in Table 21. We ran with the same setup for the computer vision CIFAR-10 and two ensemble members. While the best performing loss function was KL-divergence (the same form as the supervised loss), the "regression" functions (L1, L 2, L ∞)
+
+performed about the same. Only the reversed KL-divergence, DKL (E|| I), resulted in lower accuracy, at around the same level as a decoupled model (see Table 5). 
+
+Table 21. Validation accuracy with different ensemble consistency loss functions. Results averaged over 10 seeds. Here, I is the individual prediction and E is the ensemble consensus. 
+
+Ensemble Loss Individual Accuracy 
+
+L∞ 66 .23 ±0.29 
+
+DKL (I|| E) 66 .62 ±0.51 
+
+DKL (E|| I) 59 .37 ±0.78 
+
+L1 66 .01 ±0.51 
+
+L2 66 .12 ±0.45 
+
+E.6. Different coupling strategies 
+
+We investigated different strategies for coupling the unsupervised loss on QM9. This includes various combinations of three parameters: the coupling weight , the coupling start and the coupling schedule .29 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Coupling weight The coupling weight parameter defines how much the unsupervised loss should contribute to the total loss. When set to 0, only the supervised loss will be taken into account. 
+
+Coupling start The coupling start refers to when the unsupervised loss in included during training, i.e. for the first x%of epochs, the model is only trained on the labeled data and only afterwards, the unsupervised loss with be included via coupling. Depending on the dataset and task, it intuitively can make sense to first let the model learn a little bit before evaluating the loss on unlabeled data. Specifically, in regression tasks this can be the case, since the model output is not bounded, as opposed to classification tasks. When set to 0, coupling will be used through the whole training. This parameter is given in percentage, i.e. percentage of total training epochs after which the coupling should start. 
+
+Coupling schedule Three different coupling schedules were tested: constant , increase and bell . Constant refers to the the coupling weight being constant from onset until the end of training. Increase means that the there will be a smooth ramp up until the coupling weight reaches its maximum (i.e. the coupling weight parameter). Bell means that there is a smooth bell curve over the coupling weight, i.e. first in increases, then decreases. Here, it will start and end at 0, and peak at a maximum which is set via the coupling weight parameter. Figure 12 and Figure 13 shows the impact of different coupling strategies on the model performance, here for target 4 and 7 of QM9 respectively. We can see that a good choice of the coupling weight is crucial for our method to result in a significant improvement in MAE compared to the fully supervised baseline. The optimal coupling weight seems to differ per task, as both targets have a different optimum (0.1 for target 4 and 0.01 for target 7). A good value for the coupling start seems to depend on the choice of coupling weight, however a trend can be observed that for the best coupling weight options for each target, the optimal coupling start is 0, i.e. using coupling from the start of training. The optimal choice of coupling schedule seems to depend on both of the other choices, but in the specific case of target 4, the increase schedule led to the best performance. For target 7, the bell schedule resulted in the best ensemble performance, while the constant schedule led to the best individual performance. One interesting finding here is that if we couple too strongly, meaning we are weighing the unsupervised loss to high, the ensemble performance gets worse than the baseline, while at the same time the individual members from the ensemble are outperforming the baseline. This is due to the models collapsing, so while each individual model is better than an individual model that was not coupled, ensembling has no significant benefit anymore.   
+
+> Figure 12. Performance (MAE) of coupled ensembles (left) and individual models from coupled ensembles (right) for different coupling strategies, for QM9 target 4.
+> Figure 13. Performance (MAE) of coupled ensembles (left) and individual models from coupled ensembles (right) for different coupling strategies, for QM9 target 7.
+
+30 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+E.7. Evaluating Overfitting on Unlabeled Data 
+
+To evaluate potential overfitting to the unlabeled data, we compare the final model’s performance on the unlabeled training set against its performance on the unseen test set. For this analysis, we leverage our access to the ground-truth labels of the unlabeled set to compute its MAE. As presented in Table 22, the performance is nearly identical across both datasets for all 12 QM9 targets. This strong correspondence indicates that our method avoids overfitting to the unlabeled data used during training. This has a significant practical benefit, as it means the model’s predictions on the entire unlabeled set can be reliably used for downstream tasks. 
+
+Table 22. PaiNN performance (MAE) on QM9 targets, comparing the held-out test set with the unlabeled dataset used during training. Results are reported for 5 seeds. 
+
+Target Unit Data Individual Member Ensemble (M=4) 
+
+μ D Test .0619 ±.0003 .0613 ±.0003 
+
+Unlabeled .0596 ±.0003 .0596 ±.0003 
+
+α a30
+
+Test .1322 ±.0011 .1303 ±.0011 
+
+Unlabeled .1268 ±.0008 .1261 ±.0008 
+
+ϵHOMO meV Test 73 .9789 ±.4368 73 .0755 ±.4472 
+
+Unlabeled 71 .7113 ±.4012 71 .6826 ±.4018 
+
+ϵLUMO meV Test 57 .7186 ±.2247 57 .2369 ±.2159 
+
+Unlabeled 56 .8810 ±.1844 56 .8676 ±.1839 
+
+∆ϵ meV Test 117 .0365 ±.4988 115 .7195 ±.5100 
+
+Unlabeled 114 .1592 ±.3078 114 .1303 ±.3091 
+
+⟨R2⟩ a20
+
+Test .6100 ±.0206 .5605 ±.0206 
+
+Unlabeled .5918 ±.0205 .5552 ±.0202 
+
+ZPVE meV Test 2.0138 ±.0054 1.9907 ±.0055 
+
+Unlabeled 1.9925 ±.0066 1.9883 ±.0066 
+
+U0 meV Test 19 .9642 ±.1291 19 .3816 ±.1278 
+
+Unlabeled 19 .3096 ±.1434 18 .9715 ±.1416 
+
+U meV Test 20 .1731 ±.1577 19 .5886 ±.1574 
+
+Unlabeled 19 .5288 ±.1248 19 .1908 ±.1234 
+
+H meV Test 20 .1407 ±.1268 19 .5509 ±.1328 
+
+Unlabeled 19 .5028 ±.1370 19 .1620 ±.1355 
+
+G meV Test 20 .3142 ±.1571 19 .7479 ±.1634 
+
+Unlabeled 19 .7490 ±.1384 19 .4296 ±.1400 
+
+Cv cal mol K 
+
+Test .0449 ±.0002 .0439 ±.0002 
+
+Unlabeled .0443 ±.0001 .0439 ±.0001 
+
+E.8. Decoupling of Ensemble Gradient 
+
+Passing the gradient through the ensemble prediction could potentially lead to failure cases such as learner collusion (Jeffares et al., 2023). We investigate this by comparing the error under detaching and not detaching the gradient. The results are shown in Table 23 for the equivariant GNN on QM9 target U0 and for the GNN architectures on peptides-struct in Table 24. We see there is no statistical significant difference between detaching and not detaching, so no major failure case is observed. 31 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Table 23. The validation error on QM9 target U0 with the ensemble prediction detached and attached. The error is reported as 95% 
+
+standard error of the mean using 3 different seeds for each run. Individual Ensemble Detached 0.0197 ±0.0007 0.0191 ±0.0006 
+
+Not Detached 0.0196 ±0.0005 0.0190 ±0.0004 
+
+Table 24. The test error (MAE) on peptides-struct. The error is reported as 95% standard error of the mean using 5 different seeds for each run. Individual Ensemble Architecture Not Detached Detached Not Detached Detached GCN 0.2870 ±0.0037 0.2868 ±0.0062 0.2867 ±0.0038 0.2866 ±0.0061 
+
+GIN 0.2949 ±0.0045 0.2944 ±0.0072 0.2943 ±0.0044 0.2938 ±0.0068 
+
+GatedGCN 0.2853 ±0.0050 0.2854 ±0.0061 0.2846 ±0.0050 0.2848 ±0.0068 
+
+## F. Computational Scaling 
+
+Training larger ensembles and coupling the ensemble increases the computational cost. We document the computational scaling for PaiNN in Table 25. The time pr. epoch was averaged over 10 epochs, and tested with a batch size of 32, on a system with 64GB memory, RTX A5000, and 4 threads of EPYC 9124. 
+
+Table 25. PaiNN training performance (Seconds / Epoch) for different model sizes across supervised and SSL variants. 
+
+Training (Seconds / Epoch) Inference (ms / Batch) Ensemble Size (M) Decoupled Coupled 1 4.69 - 15.60 2 6.00 11.5 28.21 3 7.82 15.42 41.03 4 10.14 19.63 54.29 6 13.95 - 80.83 8 17.84 - 107.13 
+
+## G. Adaptive Ensemble Coupling 
+
+Early during the experimentation, we also investigated methods for adapting the coupling strength automatically. Specifically, we tried using the SoftAdapt (Heydari et al., 2019) on QM9 target ZPVE. The results can be seen in Figure 14. We observed SoftAdapt consistently found a too high coupling weight (around 0.5-2, compared to the optimal 0.01). Another potential direction could have been to use the variance within the ensemble as signal for adapting the coupling weight. The idea being if the coupling weight was too high there would be a visible phase transition in the intra-ensemble variance that could be controlled. However, we instead observed the variance decreasing smoothly (see Figure 8). This led us not to pursue this further. 32 Semi-Supervised Learning for Molecular Graphs via Ensemble Consensus 
+
+Figure 14. The validation error (left) and coupling weights (right) for experiments with running SoftAdapt to control the coupling strength compared against the optimal coupling strength of 0.01. Note that we only train for 700 epochs, as this parameter was not tuned at the time of these runs. The curves are averaged over 3 seeds with 95% of the standard error of the mean reported 
+
+33

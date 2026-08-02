@@ -6,35 +6,43 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-01
-- 运行时间：2026-08-01 21:18:49 UTC
+- 最新运行日期：2026-08-02
+- 运行时间：2026-08-02 21:25:14 UTC
 - 运行状态：成功
-- 本次总论文数：4
-- 精读区：0
-- 速读区：4
+- 本次总论文数：7
+- 精读区：4
+- 速读区：3
 
 ### 今日简报（AI）
-今日共速读4篇论文，暂无精读，覆盖分子动力学软件CP2K、超弹性神经算子学习及电池文献X射线光谱数据挖掘。  
-最值得关注的是CP2K的动力学与光谱响应功能，以及利用数据驱动方法加速有限应变超弹性模拟。  
-建议后续优先精读高评分论文，并尝试将多模态数据挖掘思路拓展到其他材料领域。
-- 详情：[/202608/01/README](/202608/01/README)
+今日整理7篇论文，精读聚焦CP2K电子结构/分子动力学软件与热气候墙体材料筛选。  
+最值得看：CP2K在动力学、输运及光谱响应方面功能全面（9/10）；物理信息神经网络可低成本预测干热地区低造价墙体热性能（8/10）。  
+建议普通读者优先关注PINN加速材料筛选的实际应用，并搭配CP2K官方文档入门计算模拟。
+- 详情：[/202608/02/README](/202608/02/README)
 
 ### 精读区论文标签
-- 本次无精读推荐。
+1. [CP2K: An electronic structure and molecular dynamics software package - Dynamics, Transport, and Spectroscopic Response](/202608/02/2607.22916v1-cp2k-an-electronic-structure-and-molecular-dynamics-software-package---dynamics-transport-and-spectroscopic-response)  
+   标签：评分：9.0/10、query:aimat-mlpot
+   evidence：CP2K集成机器学习势用于原子模拟
+2. [A Physics-Informed Neural Operator for Thermal Ranking of Low-Cost Wall Materials in Hot-Dry Climates](/202608/02/2607.25668v1-a-physics-informed-neural-operator-for-thermal-ranking-of-low-cost-wall-materials-in-hot-dry-climates)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：用物理信息神经算子预测墙体材料热性能，属于机器学习预测材料性能
+3. [Inferring Magnetic Material Parameters from Statistical Measures in Strongly Fluctuating Magnetization Dynamics](/202608/02/2607.26833v1-inferring-magnetic-material-parameters-from-statistical-measures-in-strongly-fluctuating-magnetization-dynamics)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：基于机器学习从磁化动力学推断磁性材料参数
+4. [Recursive transformers for semiconductor thermo-mechanical reliability](/202608/02/2607.27251v1-recursive-transformers-for-semiconductor-thermo-mechanical-reliability)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：用Transformer代理模型预测半导体热机械性能
 
 ### 速读区论文标签
-1. [CP2K: An electronic structure and molecular dynamics software package - Dynamics, Transport, and Spectroscopic Response](/202608/01/2607.22916v1-cp2k-an-electronic-structure-and-molecular-dynamics-software-package---dynamics-transport-and-spectroscopic-response)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：CP2K将机器学习相互作用势纳入电子结构与分子动力学软件包，支持材料模拟
-2. [PI-GINOT: Data-free geometry-informed neural operator learning for finite-strain hyperelasticity on parametric DogBone specimens](/202608/01/2607.23299v1-pi-ginot-data-free-geometry-informed-neural-operator-learning-for-finite-strain-hyperelasticity-on-parametric-dogbone-specimens)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：利用物理信息神经算子预测材料属性（有限应变超弹性响应），无需有限元训练数据
-3. [Harnessing X-ray Absorption Spectroscopy Data through Multimodal Mining of Battery Literature](/202608/01/2607.23886v2-harnessing-x-ray-absorption-spectroscopy-data-through-multimodal-mining-of-battery-literature)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：多模态挖掘电池文献构建AI就绪XAS数据集以支持材料发现
-4. [Physics-Guided Interpretable Machine Learning Framework for Anomalous Transport in Crowded Media with Tunable Flexibility](/202608/01/2607.25827v1-physics-guided-interpretable-machine-learning-framework-for-anomalous-transport-in-crowded-media-with-tunable-flexibility)  
+1. [Fourier Feature Physics-Informed Neural Networks for Elasto-Plastic Analysis of Geomaterials with a Non-Associative Mohr-Coulomb Model](/202608/02/2607.25150v1-fourier-feature-physics-informed-neural-networks-for-elasto-plastic-analysis-of-geomaterials-with-a-non-associative-mohr-coulomb-model)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：利用机器学习代理模型与SHAP预测并解释拥挤介质中的输运性质
+   evidence：物理信息神经网络应用于岩土材料弹塑性分析
+2. [PIKS: Universal Physics-Informed Kernel Methods](/202608/02/2607.27062v1-piks-universal-physics-informed-kernel-methods)  
+   标签：评分：6.0/10、query:aimat-mlpot
+   evidence：物理信息核方法用于科学机器学习
+3. [Topology of Shape and Data in Material Microstructures](/202608/02/2607.27493v1-topology-of-shape-and-data-in-material-microstructures)  
+   标签：评分：6.0/10、query:aimat-mlpot
+   evidence：利用拓扑数据分析和流形学习进行材料微观结构表征
 
 
 <div class="dpr-home-promo-card">

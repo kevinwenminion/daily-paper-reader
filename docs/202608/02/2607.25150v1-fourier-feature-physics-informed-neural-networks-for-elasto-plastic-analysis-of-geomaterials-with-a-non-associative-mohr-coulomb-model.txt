@@ -1,0 +1,3057 @@
+Title: 2607.25150v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.25150v1
+
+Published Time: Thu, 30 Jul 2026 00:20:05 GMT
+
+Number of Pages: 43
+
+Markdown Content:
+1
+
+Fourier Feature Physics -Informed Neural Networks for Elasto -Plastic Analysis of Geomaterials 
+
+with a Non -Associative Mohr -Coulomb Model 
+
+Apisit R ob jan ghv ad and Sompote Youwai *
+
+AI research group, Department of Civil Engineering, Faculty of Engineering, King Mongkut’s 
+
+University of Technology Thonburi, Thailand 
+
+> *
+
+Corresponding author Em ai l: sompote.you@kmutt.ac.th 
+
+Abstract 
+
+Elasto -plastic boundary value problems in geotechnical engineering are conventionally solved by 
+
+the Finite Element Method (FEM), which incurs high computational cost from incremental -
+
+iterative procedures. Physics -Informed Neural Networks (PINNs) offer a mesh -fre e alternative but 
+
+suffer from spectral bias, preferentially fitting low -frequency components and failing to resolve 
+
+the sharp gradients that arise at elastic -plastic boundaries and within localized plastic zones. This 
+
+limitation is particularly consequenti al for the non -associative Mohr -Coulomb model, whose 
+
+pressure -dependent yield surface and dilatant flow rule generate narrower plastic zones and steeper 
+
+stress gradients than pressure -independent criteria. This study proposes a Fourier Feature Physics -
+
+Info rmed Neural Network (FF -PINN) for two -dimensional elasto -plastic problems governed by 
+
+this model. Random Fourier feature mapping is embedded into the input layer to mitigate spectral 
+
+bias, supported by a multi -objective loss function enforcing equilibrium, constitutive relations, and 
+
+Karush -Kuhn -Tucker conditio ns against high -fidelity FEM data, together with a strain -adaptive 
+
+sampling strategy. Benchmarked against the conventional PINN and FEM reference solutions 
+
+across three test cases, FF -PINN achieves superior accuracy across most predicted fields, with 
+
+error reductions of up to approximately 66 percent in displacement and approximately 27 percent 
+
+in stress components, and reproduces the geometry of the plastic failure zones with markedly 
+
+closer fidelity to FEM. Sensitivity analysis confirms robustness across training data size, 
+
+collocation density, loss weighting, and noise levels up to 2.0 percent. FF -PINN converges in half 
+
+the training epochs required by the conventional PINN, halving wall -clock training time while 
+
+achieving greater predictive accuracy. The framework therefore offers a computationally efficient 
+
+and physics -consistent alternative to FEM for elasto -plastic geotechnical analysis. 
+
+Keywords: Physics -Informed Neural Networks; Fourier feature mapping; spectral bias; non -
+
+associative Mohr -Coulomb model; elasto -plasticity 
+
+1. Introduction 
+
+The mechanical behavior of soils is fundamental to design and assessment of geotechnical 
+
+structures, such as foundations, embankments, and slopes. To  represent soil deformation and 2
+
+failure under loading, constitutive models based on elasto -plastic theory are extensively applied 
+
+in geotechnical analyses (Chaboche , 2008) . Among these models, the Mohr -Coulomb model is 
+
+frequently adopted due to its simplicity and ability to represent the fundamental strength 
+
+characteristics of soils (Yin et al., 2001; Zienkiewicz et al., 1975) . Unlike metals, soils exhibit 
+
+frictional and pressure -dependent behavior that causes associative flow rules to overestimate 
+
+volumetric dilation; a non -associative flow rule is therefore required to accurately capture soil 
+
+plastic deformation (Vermeer, 1998) . The numerical solution of boundary value problems  (BVPs )
+
+arising in geotechnical analysis has been predominantly addressed through the Finite Element 
+
+Method  (FEM ) (Potts and Zdravkovi ć, 2001) . FEM provides a robust and well -established 
+
+framework for solving the governing equations of elasto -plastic deformation in complex 
+
+geometries and boundary conditions. However, the inherently non -linear stress -strain behavior of 
+
+soils requires an incremental -iterative solution procedure, such as the Newton -Raphson method, 
+
+to be applied at each load increment , resulting in high computational cost and time consumption. 
+
+In recent years, Artificial Neural Networks (ANNs) have been increasingly applied in 
+
+geotechnical engineering as data -driven surrogate models for predicting soil behavior and 
+
+structural responses (Moayedi et al., 2020; W. Zhang et al., 2021) . These approaches have 
+
+addressed a wide range of problems, including the load -settlement modeling of axially loaded 
+
+steel driven piles (Shahin, 2014) , the bearing capacity of strip footings subjected to inclined 
+
+loading (Kumar et al., 2024) , the intelligent modeling of clay compressibility (P. Zhang et al., 
+
+2021) , the stability analysis of rock and soil slopes (Millán and Galindo, 2025) , and the load -
+
+deformation prediction of bored piles using transformer architectures (Youwai and Thongnoo, 
+
+2025) . However, conventional ANNs operate as black -box models that require large, labeled 
+
+datasets and cannot enforce the underlying physical laws, which limits their reliability and 
+
+generalizability. To address these limitations, Physics -Informed Neural Networks (PINNs) were 
+
+introduced as a framework that embeds governing equations, boundary conditions, and initial 
+
+conditions directly into the loss function (Raissi et al., 2019) . This mesh -free formulation 
+
+bypasses iterative solvers and large datasets while solving the governing PDEs with greater 
+
+flexibility than conventional numerical methods. Building on this framework, PINN s have been 
+
+extended to a broad spectrum of solid mechanics problems spanning linear elasticity, 
+
+hyperelasticity  (Abueidda et al., 2022; Thakolkaran et al., 2022) and rate -independent plasticity 
+
+under various yield criteria.  A detailed review of related work is provided in Section 2 .
+
+Despite this progress, existing PINN s formulations for plasticity, including those 
+
+addressing von Mises and Drucker Prager criteria, rely uniformly on standard fully connected 
+
+architectures. Such architectures are known to exhibit spectral bias, whereby the network 
+
+preferentially fits low fre quency components of the solution and underresolves sharp local 
+
+gradients (Rahaman et al., 2019) . This limitation is particularly consequential for the non -
+
+associative Mohr Coulomb model considered here, since its pressure dependent yield surface and 
+
+non -associative flow rule produces narrower, more sharply localized plastic zones and steeper 
+
+stress gradients across the elastic plastic boundary than are typical of pressure independent 
+
+criteria such as von Mises. Consequently, the very regions where accurate stress and strain 
+
+resolution are most critical for practical geotechnical assessment, namely near yield boundaries 
+
+and within localized plastic zones, are where a standard PINN is structurally least able to 
+
+perform. Although Fourier feature mapping has been shown to mitigate spectral bia s in other 3
+
+physics informed learning contexts (Tancik et al., 2020; Wang et al., 2021) , it has not been 
+
+examined for pressure dependent, non -associative plasticity, leaving open whether this remedy 
+
+transfers to a constitutive setting governed by frictional strength and volumetric dilation rather 
+
+than isotropic yielding. This gap motivates the present study. 
+
+To address this gap, this study proposes a Fourier Feature Physics -Informed Neural 
+
+Network (FF -PINN) for solving elasto -plastic boundary value problems governed by the non -
+
+associative Mohr -Coulomb constitutive model. The main contributions are summarized as 
+
+follows. First, the framework represents the first application of random Fourier feature mapping 
+
+to pressure -dependen t, non -associative plasticity within a PINN s setting. Second, the framework 
+
+is shown to mitigate spectral bias and substantially improve the resolution of high -gradient 
+
+displacement, stress, and plastic strain fields in localized plastic zones, yielding markedly higher 
+
+stress component accuracy relative to the conventional PINN. Third, a multi -objective loss 
+
+function is formulated to simultaneously enforce equilibrium equations, constitutive relations, 
+
+and Karush -Kuhn -Tucker conditions against high -fidelity finite element reference data and is 
+
+combined with a strain -adaptive sampl ing strategy that concentrates collocation points in regions 
+
+of elevated strain to enhance accuracy in critical plastic transition zones. Fourth, the framework 
+
+is rigorously benchmarked against conventional PINN and FEM reference solutions across three 
+
+tes t cases with varying material parameters and loading conditions, and its robustness is 
+
+established through a systematic sensitivity analysis covering training data size, collocation point 
+
+density, loss weighting, and measurement noise; a computational cost analysis further 
+
+demonstrates that FF -PINN achieves superior predictive accuracy across all fields while requiring 
+
+substantially fewer training epochs than the conventional PINN. 
+
+The remainder of this paper is organized as follows. Section 2 reviews related PINN s
+
+studies in solid mechanics and plasticity and identifies the research gap addressed by the present 
+
+work. Section 3 presents the mathematical formulation of the elasto -plastic problem, including 
+
+the governing equations and the non -associative Mohr -Coulomb constitutive model. Section 4 
+
+describes the proposed FF -PINN framework, covering the conventional PINN baseline, the 
+
+Fourier feature mapping, the multi -objective loss function, the strain -adaptive sampling strategy, 
+
+and the error metrics . Section 5 reports three numerical benchmark examples, hyperparameter 
+
+tuning, sensitivity analysis, and computational cost evaluation. Section 6 discusses the 
+
+implications of the results, and Section 7 draws conclusions and outlines directions for future 
+
+work. 
+
+2. Related work 
+
+PINNs, introduced by Raissi et al. (2019), have been progressively extended from linear 
+
+elasticity (Chadha et al., 2023; Liang et al., 2023) to elasto plastic problems under von Mises 
+
+(Chen et al., 2025; Haghighat et al., 2021; Roy and Guha, 2023) and Drucker Prager criteria ( Roy 
+
+et al., 2024), and further to elasto viscoplastic regimes (Eghtesad et al., 2024). Parallel 
+
+developments have addressed related structural and geotechnical settings, including real time full 
+
+field inference from sparse measurements (Go et al., 2025), nonlinear buried pipeline analysis 
+
+under a Menegotto Pinto material mode l (Taraghi et al., 2025), and elasto -plastic analysis 
+
+formulated in both strong and weak forms using multi network and Kolmogorov Arnold based 
+
+architectures (Wang and Thai, 2026). Most recently, this line of work has been extended directly 4
+
+to Mohr Coulomb plasticity (Yuan et al., 2026; Zhang et al., 2026) and to pile soil interaction 
+
+problems (Liu et al., 2026; Wu et al., 2026). Table 1 summarizes these studies with respect to 
+
+yield criterion, network architecture, whether spectral bias miti gation is incorporated, sampling 
+
+strategy, and reported limitations. As shown in Table 1, the sampling strategies adopted across 
+
+these studies range from uniform and grid based sampling to random and adaptive schemes, yet 
+
+this diversity in sampling has bee n pursued largely independently of the network architecture 
+
+itself, with only Chadha et al. (2023) and Liang et al. (2023) for linear elasticity and Wang and 
+
+Thai (2026) for von Mises plasticity incorporating any explicit mitigation of spectral bias 
+
+(Raham an et al., 2019). Neither of the two Mohr Coulomb specific formulations listed in Table 1 
+
+does so. Yuan et al. (2026) employs a multi network architecture with strain adaptive sampling 
+
+yet reports lower precision for strain and difficulty resolving high gradient regions, while Zhang 
+
+et al. (2026) report accuracy limited to homogeneous two -dimensional domains. 
+
+These reported limitations in Table 1 are consistent with the known behavior of spectrally 
+
+biased networks, which preferentially learn low frequency components of a solution while 
+
+underresolving sharp local gradients, and both Mohr Coulomb studies rely on standard 
+
+architectures without any mechanism to address this behavior. This omission is significant for 
+
+pressure dependent, non -associative plasticity in particular, since the frictional yield surface and 
+
+non -associative flow rule of the Mohr Coulomb model generate narrower plastic zones and 
+
+steeper stress gradients across the elastic plastic boundary than are typical of the pressure 
+
+independent criteria for which spectral bias mitigation has so far been explored in Table 1. 
+
+Fourier feature mapping is expected to address this limitation because it alters the spectral 
+
+properties of the network at the level of the input representation rather than relying on training to 
+
+overcome them. Neural tangent kernel analysis shows that a standard coordinate input induces a 
+
+kernel whose eigenvalues decay rapidly with frequency, which is the root cause of spectral bias, 
+
+whereas projecting the input coordinates through a bank of sinusoidal functions with a prescribed 
+
+range of frequencies transforms this kernel into an approximately stationary form whose effe ctive 
+
+bandwidth can be tuned through the frequency scale of the mapping (Tancik et al., 2020). This 
+
+gives the network access to high frequency basis functions from the outset of training rather than 
+
+requiring it to acquire them gradually, and has been shown to improve convergence to functions 
+
+with sharp local variation in other physi cs informed learning contexts (Wang et al., 2021). This 
+
+property is expected to be particularly beneficial for the Mohr Coulomb problem, where the steep 
+
+stress and strain gradients concentrated across the elastic plastic boundary correspond precisely 
+
+to th e high frequency content that a standard architecture is least able to represent. However, this 
+
+expectation has not been examined for pressure dependent, non -associative plasticity, and its 
+
+effectiveness cannot be assumed to transfer directly from isotropic to frictional, dilatant 
+
+constitutive behavior, since the location and sharpness of the high gradient regions are themselves 
+
+governed by the pressure sensitivity and non -associativity of the flow rule rather than fixed a 
+
+priori. This gap, an unmitigated architectural limitation in the two most directly relevant prior 
+
+studies on Mohr Coulomb plasticity, together with an unverified theoretical expectation of how 
+
+Fourier feature mapping w ould perform in this setting, motivates the present study. 5
+
+Table 1 Summary of PINN s in Solid mechanics and Plasticity 
+
+Reference  Yield Criterion  Architecture  Spectral Bias 
+
+Mitigation 
+
+Sampling 
+
+Strategy 
+
+Limitation 
+
+(Haghighat et 
+
+al., 2021) 
+
+von -Mises  Multi -network 
+
+DNNs  ✗ Uniform / 
+
+Random 
+
+Artificially diffuse 
+
+sharp gradients 
+
+(Chadha et 
+
+al., 2023) 
+
+Linear Elastic  DEM (MLP) 
+
+with Two -loop 
+
+optimization 
+
+✓ Uniform (Grid -
+
+based) 
+
+High 
+
+hyperparameter 
+
+sensitivity; load -
+
+dependent accuracy 
+
+(Liang et al., 
+
+2023) 
+
+Linear Elastic  PINNFD 
+
+(FCNN) 
+
+✓ Random  Local errors near 
+
+loading point 
+
+(Roy and 
+
+Guha, 2023) 
+
+von -Mises  Multiple Dense 
+
+ANNs  ✗ Uniform  Computationally 
+
+slower than FEM; 
+
+errors at stress 
+
+concentrations 
+
+(Roy et al., 
+
+2024) 
+
+Drucker -Prager  Independent 
+
+Dense FFNNs  ✗ Uniform (Grid -
+
+based) 
+
+Long training time; 
+
+localized errors near 
+
+sharp features 
+
+(Chen et al., 
+
+2025) 
+
+von -Mises  PiNet (CPM vs. 
+
+DRM) 
+
+✗ Uniform / 
+
+Adaptive 
+
+DRM poor for 
+
+stress/strain; 
+
+sensitive to noise 
+
+(Go et al., 
+
+2025) 
+
+None (Linear elastic)  SA -PINN  ✗ Uniform  Extremely long 
+
+training time; noise 
+
+sensitivity 
+
+(Taraghi et 
+
+al., 2025) 
+
+Menegotto –Pinto  FCNN  ✗ Random (LHS)  Restricted to global 
+
+deformation; cannot 
+
+capture local 
+
+buckling 
+
+(Liu et al., 
+
+2026) 
+
+None  MLP -PINN + 
+
+FEM  ✗ Random  Error accumulation; 
+
+overfitting risk 
+
+(Wang and 
+
+Thai, 2026) 
+
+von -Mises  Independent 
+
+multi -networks 
+
+(MLP/KAN) 
+
+✓ Random  Long training time; 
+
+residual imbalance 
+
+(Wu et al., 
+
+2026) 
+
+None  (Linear elastic ) TLP -mPINNs  ✗ Weighted / 
+
+Random 
+
+1D pile 
+
+simplification; 
+
+hyperparameter 
+
+sensitivity 
+
+(Yuan et al., 
+
+2026) 
+
+Mohr –Coulomb (M –C) 
+
+(Assoc. / Non -assoc.) 
+
+Multi -DNN (6 
+
+nets) 
+
+✗ Uniform / Strain 
+
+Adaptive (SAS) 
+
+Lower precision for 
+
+strain; struggles 
+
+with high gradients 
+
+(Zhang et al., 
+
+2026) 
+
+Mohr –Coulomb (M –C) 
+
+(Associated Flow Rule) 
+
+Adaptive PINN 
+
+(MLP)  ✗ Global Adaptive  Slower than FEM; 
+
+limited to 
+
+homogeneous 2D 
+
+3. Mathematical Modeling for Geotechnical Materials 
+
+3.1. Governing Equations 
+
+In this study, the deformation of the soil mass is assumed to be small. Under the small 
+
+deformation assumption, the equilibrium equation can be written as :6
+
+σ𝑖𝑗 ,𝑗 + 𝑓 𝑖 = 0 (1)
+
+where  𝜎 𝑖𝑗  denotes the Cauchy stress tensor , describing the internal normal and shear stresses 
+
+acting at a point within the medium, while  𝑓 𝑖  represents the body force. Under the assumption of 
+
+small deformations, the strain -displacement relation is defined as follows :
+
+ε𝑖𝑗 = 1 
+
+> 2
+
+(𝑢 𝑖 ,𝑗 + 𝑢 𝑗 ,𝑖 ) (2)
+
+where  𝜀 𝑖𝑗  denotes the strain tensor and  𝑢 𝑖  represents the displacement field. 
+
+For linear elasticity, the Cauchy stress tensor  σ can be calculated by the constitutive relation as 
+
+follows: 
+
+σ𝑖𝑗 = λδ𝑖𝑗 ε𝑘𝑘 + 2με𝑖𝑗  (3)
+
+where  𝜆  and  𝜇  represent the Lamé constants, and  𝛿 𝑖𝑗  represents the Kronecker delta. For an 
+
+elasto -plastic material, the total strain tensor can be expressed as the sum of elastic  𝜀 𝑖𝑗  
+
+> 𝑒
+
+and plastic 
+
+strains  𝜀 𝑖𝑗  
+
+> 𝑝
+
+.
+
+ε𝑖𝑗 = ε𝑖𝑗  
+
+> 𝑒
+
++ ε𝑖𝑗  
+
+> 𝑝
+
+(4)
+
+3.2.  Non -associative Mohr -Coulomb Constitutive Model 
+
+To implement the Mohr -Coulomb model, we adopt the Menétrey –Willam yield function 
+
+(Menétrey and Willam, 1995) to describe the pressure -dependent failure surface. Fig. 1 shows the 
+
+adopted Menétrey -Willam representation of the Mohr -Coulomb yield surface in two 
+
+complementary sections. Panel (a) is the meridional section, plotting modified deviatoric stress 
+
+against mean stress. The yield condition traces a straight line with the cohesion as intercept and 
+
+the friction angle governing the slope, closing at the apex that marks the tensile l imit. States 
+
+below the line are elastic and states on it are yielding. This inclined trace embodies the pressure 
+
+dependence absent from pressure -independent criteria. Panel (b) is the deviatoric section, viewed 
+
+along the hydrostatic axis with the principal stress axes projected radially and position defined by 
+
+the deviatoric polar angle and radius. Four traces are superimposed: the circular von Mises 
+
+surface as outer bo und, the irregular hexagonal classical Mohr -Coulomb surface whose singular 
+
+corners impede numerical implementation, the smooth elliptic Menétrey -Willam surface adopted 
+
+here, which coincides with the hexagon at the compression corners while remaining contin uously 
+
+differentiable between them, and the triangular Rankine limiting case. The eccentricity parameter 
+
+controls the rounding, recovering the circular form in the limit. In this study, the constitutive 
+
+model is developed in total form rather than the commonly used rate form. The yield surface is 
+
+then written as: 
+
+𝐹 = 𝑅 𝑚𝑐 𝑞 − 𝑝 tan 𝜙 − 𝑐 = 0 (5)
+
+where  𝑝  is the mean stress,  𝑞  is the deviatoric stress,  𝜙  is the friction angle, and  𝑐  is the cohesion. 
+
+The term  𝑅 𝑚𝑐 (Θ, 𝜙 ) is the Mohr -Coulomb elliptic function used to describe the shape of the 
+
+yield surface in the deviatoric plane, expressed as: 7
+
+𝑅 𝑚𝑐 (Θ, 𝜙 ) = 1   
+
+> √3cos 𝜙
+
+sin (Θ + 𝜋 
+
+> 3
+
+) + 1 
+
+> 3
+
+cos (Θ + 𝜋 
+
+> 3
+
+) tan 𝜙  (6)
+
+where  Θ is the deviatoric polar angle  (Chen and Han, 2007) defined as 
+
+cos (3Θ) = (𝑟 
+
+> 𝑞
+
+)3
+
+(7)
+
+The stress invariant s 𝑝 , 𝑞 , and  𝑟  are defined in terms of the stress tensor component as follows: 
+
+𝑝 = −1/3(σ11 + σ22 + σ33 ) (8)
+
+𝑞 = √3 
+
+> 2
+
+𝑆 𝑖𝑗 𝑆 𝑖𝑗  (9) 
+
+𝑟 = (9 
+
+> 2
+
+𝑆 𝑖𝑗 𝑆 𝑗𝑘 𝑆 𝑘𝑖 )1/3
+
+(10 )
+
+where  𝑆 𝑖𝑗  is the deviatoric stress tensor, given by  𝑆 𝑖𝑗 = σ𝑖𝑗 + 𝑝 δ𝑖𝑗 .
+
+To accurately model the dilatancy behavior of geomaterials, a non -associative flow rule is 
+
+employed with the plastic potential function G defined independently from the yield function F. 
+
+Following (Menétrey and Willam, 1995) , the plastic potential is expressed as: 
+
+𝐺 = √(ϵ𝑐 |0 tan 𝜓 )2 + (𝑅 𝑚𝑤 𝑞 )2 − 𝑝 tan 𝜓  (11 )
+
+where  𝜓  is the dilatancy angle,  𝑐 |0 is the initial cohesion yield stress , and  𝜖  is a meridional 
+
+eccentricity that determines the rate at which the flow potential approaches its asymptote. The 
+
+elliptic function  𝑅 𝑚𝑤 (Θ, 𝑒 ) ensures smoothness in the deviatoric plane: 
+
+𝑅 𝑚𝑤 (Θ, 𝑒 ) = 4(1−𝑒 2) cos 2 Θ+(2𝑒 −1)2     
+
+> 2(1−𝑒 2)cos Θ+(2𝑒 −1)√4(1−𝑒 2)cos 2Θ+5𝑒 2−4𝑒
+
+𝑅 𝑚𝑐 (π 
+
+> 3
+
+, 𝜙 ) (12 )
+
+where  𝑒  is the eccentricity parameter and  𝑅 𝑚𝑐 (𝜋  
+
+> 3
+
+, 𝜙 ) = 3−𝑠𝑖𝑛 (𝜙 ) 
+
+> 6𝑐𝑜𝑠 (𝜙 )
+
+. For the PINN implementation, 
+
+the total form of the non -associated flow rule is employed to define the plastic strain constraint. 
+
+The plastic strain tensor  𝜖 𝑝  is expressed as: 
+
+ε𝑝 = λ ∂𝐺  
+
+> ∂σ
+
+(13 )
+
+where  𝜆  is the plastic multiplier, which is explicitly calculated to satisfy the Karush -Kuhn -Tucker 
+
+(KKT ) optimality conditions and the consistency requirement, ensuring that the stress state 
+
+remains on or within the yield surface. 
+
+The Karush -Kuhn -Tucker  (KKT ) conditions, which govern the activation of plastic flow (Simo 
+
+and Hughes, 1998) , are expressed as follows: 
+
+λ ≥ 0, 𝐹 (σ) ≤ 0, λ𝐹 (σ) = 0 (14 )8
+
+where  𝐹 (𝝈 ) is the Mohr -Coulomb yield function. These conditions ensure that plastic strain 
+
+occurs only when the stress state lies on the yield surface  (𝐹 = 0), and remains zero during 
+
+elastic loading  (𝐹 < 0).
+
+To complete the elasto -plastic constitutive framework, the total stress tensor  σ is related to the 
+
+total strain tensor  ε through the elastic stiffness matrix  𝐶 𝑒 , accounting for the plastic strain 
+
+defined in Eq.  (13 ):
+
+σ = 𝐶 𝑒 : (ε − ε𝑝 ) (15) 
+
+where  𝐶 𝑒  is the fourth -order isotropic elastic stiffness tensor defined by the Lamé constants 
+
+(𝜆 Lamé ) and  𝜇  as introduced in Eq.  (3). The plastic multiplier  𝜆  is determined explicitly by 
+
+substituting Eq.  (15 ) into the consistency condition  𝐹 (σ) = 0 and solving directly, yielding: 
+
+λ =
+
+> ∂𝐹
+> ∂σ:𝐶 𝑒 :ε
+> ∂𝐹
+> ∂σ:𝐶 𝑒 :∂𝐺
+> ∂σ
+
+(16 )
+
+where  𝜕𝐹  
+
+> 𝜕𝜎
+
+and  𝜕𝐺  
+
+> 𝜕𝜎
+
+denote the gradient of the yield function and plastic potential function with 
+
+respect to the stress tensor, respectively. The value of  𝜆  is subject to the KKT conditions stated in 
+
+Eq.  (14 ), ensuring that plastic flow is activated only when the stress state lies on the yield surface 
+
+(𝐹 = 0), while  𝜆 = 0 during the elastic loading  (𝐹 < 0)
+
+Fig. 1. Schematic of  (a) Mohr -Coulomb yield surface in meridional planes ; and  (b) flow potential 
+
+in the deviatoric plane.  (Redrawn from Dassault Systèmes Simulia , 2016 )
+
+4. PINNs architectures setup 9
+
+4.1  Conventional Physics -Informed Neural Networks (PINNs) 
+
+Physics -Informed Neural Networks  (PINNs ), a class of deep learning frameworks ,
+
+integrate governing equations such as partial differential equations  (PDEs ) and boundary 
+
+conditions directly into the loss function.  This framework was introduced by Raissi et al.  (2019) 
+
+to solve both forward and inverse problems involving nonlinear partial differential equations. In 
+
+the field of solid mechanics, this approach has been specifically extended to solve elasto -plastic 
+
+problems. For instance, Haghighat et al.  (2021 ) and Roy et al.  (2024 ) developed PINNs 
+
+frameworks to model von Mises and Drucker -Prager plasticity, respectively. In these applications, 
+
+a feed -forward neural network  𝑁 (𝑥 ; θ) is employed to simultaneously approximate the 
+
+displacement and stress fields, where  𝑥 = (𝑥 , 𝑦 ) denote s the spatial coordinate and  𝜃  represents 
+
+the set of trainable parameters. The network maps the input coordinate to the output variable as: 
+
+𝒩 : [𝑥 ; 𝑦 ] ↦ [𝑢 (𝑥 , 𝑦 ); 𝑣 (𝑥 , 𝑦 ); σ𝑥𝑥 (𝑥 , 𝑦 ); σ𝑦𝑦 (𝑥 , 𝑦 ); σ𝑧𝑧 (𝑥 , 𝑦 ); σ𝑥𝑦 (𝑥 , 𝑦 )] (17 )
+
+where  𝑢  and  𝑣  are the displacement components in the 
+
+x and 
+
+y direction, respectively, and  𝜎 𝑥𝑥 ,
+
+𝜎 𝑦𝑦 , 𝜎 𝑧𝑧 , and  𝜎 𝑥𝑦  are the in -plane stress components. The networks consist of an input layer, 
+
+L-1
+
+hidden layers, and an output layer. The forward pass through each layer is expressed as: 
+
+𝑧 (0) = 𝑥 = [𝑥 ; 𝑦 ]
+
+𝑧 (𝑘 ) = σ(𝑊 (𝑘 )𝑧 (𝑘 −1) + 𝑏 (𝑘 )), 𝑘 = 1,2, … , 𝐿 − 1 (18) 
+
+𝑢 ̂ = 𝑧 (𝐿 ) = 𝑊 (𝐿 )𝑧 (𝐿 −1) + 𝑏 (𝐿 )
+
+where  𝑊 (𝑘 ) ∈ ℝ𝑛 𝑘 ×𝑛 𝑘 −1 and  𝑏 (𝑘 ) ∈ ℝ𝑛 𝑘  are the weight matrix and bias ve ctor of the 
+
+k-th layer, 
+
+respectively,  𝑛 𝑘  denotes the number of neurons in layer 
+
+k, and  𝜎 (⋅) is the activation function. In 
+
+PINN -based solid mechanics applications, smooth and infinitely differentiable activation 
+
+functions such as tanh (Glorot and Bengio, 2010) and swish are preferred, as the governing 
+
+equation requires higher -order spatial derivatives of the network's output. The full set of trainable 
+
+parameters is defined as  θ = {𝑊 (𝑘 ), 𝑏 (𝑘 )}𝑘 =1 
+
+> 𝐿
+
+, which are optimized by minimizing a composite 
+
+loss function encoding the residuals of the governing PDEs, boundary conditions, and available 
+
+data, as described in the following section. 
+
+Fig. 2 summari zes the conventional PINN architecture and its optimi zation workflow. 
+
+The spatial coordinates enter a fully connected network of hidden layers with tanh activation, 
+
+which outputs the two displacement components and the four in -plane stress components. 
+
+Automatic differentiation of these outputs with respect to the coordinates supplies the 
+
+displacement and stress gradients required to form the strain field and the equilibrium residual. 
+
+These quantities assemble into the total loss, comprising the data misfit against the finite element 
+
+reference across displaceme nt, stress, total strain, and plastic strain, together with the weighted 
+
+physics loss combining the equilibrium, constitutive, Karush -Kuhn -Tucker, and boundary 
+
+residuals. The total loss is tested against a convergence tolerance: while it exceeds the thresh old, 
+
+the network parameters are updated by minimi zation and the cycle repeats; once it falls below, 
+
+training terminates. 10 
+
+Fig. 2. Schematic diagram of the PINN s architecture and the optimization workflow for elasto -
+
+plastic analysis. 
+
+4.2 Fourier Feature Mapping 
+
+Although a conventional FCNN can approxima te continuous functions, it exhibits spectral 
+
+bias , preferentially learning low -frequency component s while fail ing to capture high -frequency 
+
+variations  (Rahaman et al., 2019; Tancik et al., 2020; Xu et al., 2019, 2025) . To address this 
+
+limitation, a Fourier feature mapping applies sine and cosine transformations to the input 
+
+coordinate  (
+
+x,
+
+y) before they are passed into the hidden layers, defined as: 
+
+γ(𝑣 ) = [cos (2π𝐵𝑣 ) , sin (2π𝐵𝑣 )]𝑇  (19)
+
+where  𝒗  = (
+
+x,
+
+y) ∈ ℝ2 denotes the input spatial coordinates,  𝐵  ∈ ℝ(𝑚 ×𝑑 ) contains random 
+
+frequencies ,
+
+m is the number of Fourier features, and 
+
+d = 2 is the input dimension. The entries of 
+
+B are sampled independently from a Gaussian distribution: 
+
+𝐵 𝑖𝑗 ∼ 𝒩 (0, σ2), 𝑖 = 1, … , 𝑚 , 𝑗 = 1, …, (20 )
+
+where σ is a scale hyperparameter controlling the frequency bandwidth. The matrix 
+
+B is sampled 
+
+once prior to training and remains fixed throughout optimization; it is therefore excluded from 
+
+the trainable parameter set θ.11 
+
+The mapped featured vector  γ(𝑣 ) ∈ ℝ2𝑚  replaces the raw coordinate input in Eq.  (18 ), serving as 
+
+the first -layer input to the subsequent hidden layers: 
+
+𝑧 (0) = γ(𝑣 ) ∈ ℝ2𝑚  (21 )
+
+The remaining forward -pass computations follow the same formulation as defined in Eq.  (18 ).
+
+The result of the FF -PINN architecture is illustrated in Fig. 3.
+
+Fig. 3 shows the proposed FF -PINN architecture, which differs from Fig. 2 solely in the 
+
+treatment of the input layer. Rather than passing the spatial coordinates directly to the hidden 
+
+layers, the coordinates are first projected through a random Fourier fe ature mapping, which lifts 
+
+them into a higher -dimensional set of sinusoidal basis functions with frequencies drawn from a 
+
+fixed Gaussian distribution. The mapped vector then serves as the first -layer input to the same 
+
+fully connected network. The frequency matrix is sampled once before training and held fixed, so 
+
+it adds no trainable parameters. All downstream components remain unchanged: the network 
+
+outputs the displacement and in -plane stress components, automatic differentiation supplies the 
+
+required gra dients, and the same composite loss and convergence -tested update loop govern 
+
+training. Isolating the modification to the input representation ensures that any difference in 
+
+performance relative to the conventional PINN is attributable to the spectral prop erties of the 
+
+encoding rather than to network capacity or optimization settings. 
+
+Fig. 3. Schematic diagram of the FF -PINN architecture incorporating a Fourier feature mapping 
+
+to enhance the capture of complex nonlinearities. 
+
+4.3  Multi -objective loss function 12 
+
+The multi -objective loss function presented throughout this section is applicable to both 
+
+the conventional PINN  (Section 4.1 ) and the FF -PINN  (Section 4.2 ) architectures, with all loss 
+
+formulations defined with respect to the network output  𝑢 ̂ = 𝑧 (𝐿 ) as described in Eqs . (17 )-(18 )
+
+and  (21 ). In contrast to conventional purely data -driven neural networks, which operate as black -
+
+box models and predict responses without inherent physical constraints, PINN integrates 
+
+governing equations directly into the learning process. By embedding the underlying physical 
+
+laws , such as equilibrium equations and constitutive relations , into the loss function, PINN 
+
+ensures that the model remains physically consistent, even in regimes where training data is 
+
+sparse or noisy. In elasto -plastic analysis, the network must respect the equilibrium equation, the 
+
+Mohr -Coulomb yield criterion, the Karush -Kuhn -Tucker  (KKT ) conditions, and various 
+
+boundary conditions .
+
+4.3.1 Physics loss 
+
+The physics -based loss function  ℒ𝑝 ℎ𝑦𝑠𝑖𝑐𝑠  enforces the underlying governing equation and 
+
+boundary conditions at a set of collocation points sampled within the problem domain. It is 
+
+composed of four weighted residual terms: 
+
+ℒ𝑝 ℎ𝑦𝑠𝑖𝑐𝑠 = 𝑤 𝑒𝑞 ℒ𝑒𝑞 + 𝑤 𝑐 ℒ𝑐𝑜𝑛 + 𝑤 𝐾𝐾𝑇 ℒ𝐾𝐾𝑇 + 𝑤 𝑏𝑐 ℒ𝑏𝑐  (22)
+
+Following the equilibrium equation in Eq. (1) , the equilibrium residual can be expressed as 
+
+ℒ𝑒𝑞 = 1 
+
+> 𝑁
+
+∑ ||𝜎 𝑖𝑗 ,𝑗 (𝑥 𝑖 ) + 𝑓 𝑖 (𝑥 𝑖 )||2𝑁  
+
+> 𝑖 =1
+
+(23)
+
+where  𝑓 𝑖  = 0 denotes the absence of body forces and  𝑁  represents the total number of collocation 
+
+points distributed within the domain for evaluating the physics residual. The constitutive loss 
+
+ℒ𝑐𝑜𝑛  is introduced to enforce the stress -strain relation defined in Eq.  (15 ), which can be 
+
+formulated as :
+
+ℒ𝑐𝑜𝑛 = 1 
+
+> 𝑁
+
+∑ ||σ𝑖  
+
+> 𝑁𝑁
+
+− 𝐶 𝑒 : (𝜀 − 𝜀 𝑝 )||2𝑁  
+
+> 𝑖 =1
+
+(24)
+
+where  σ𝑖  
+
+> 𝑁𝑁
+
+is the stress tensor predicted by the neural network at the collocation point  𝑖 , 𝐶 𝑒  is the 
+
+elastic stiffness tensor,  𝜀  is the total strain tensor computed from the displacement gradient via 
+
+Eq.  (2), and  𝜀 𝑝  is the plastic strain defined in Eq.  (13 ). While the constitutive loss  ℒ𝑐𝑜𝑛  enforces 
+
+the stress -strain relationship , it does not explicitly constrain the activation of plastic flow. To 
+
+ensure that the predicted stress satisfies the elasto -plastic switching conditions governed by the 
+
+KKT inequalities in Eq.  (14 ), the KKT loss  ℒ𝐾𝐾𝑇  is introduced as: 
+
+ℒ𝐾𝐾𝑇 = 1 
+
+> 𝑁
+
+∑ [⟨−λ𝑖 ⟩2 + ⟨𝐹 𝑖 ⟩2 + (λ𝑖 𝐹 𝑖 )2]𝑁  
+
+> 𝑖 =1
+
+(25)
+
+where ⟨⋅⟩ = max ( ⋅,0) denotes the Macaulay bracket. The first term penalizes any negative values 
+
+of the plastic multiplier, enforcing the  𝜆  ≥ 0. The second term penalizes stress states that violate 
+
+the yield surface, enforcing  𝐹 (σ) ≤ 0. The third term enforces complementary conditions 
+
+𝜆𝐹 (σ) = 0, ensuring that plastic flow is activated only when the stress state lies on the yield 
+
+surface  (F = 0 ), while  𝜆  remains zero during elastic loading  (F < 0 ). The boundary loss  ℒ𝑏𝑐  is 
+
+decomposed into two terms corresponding to the Dirichlet and Neumann boundary conditions: 13 
+
+ℒ𝑏𝑐 = ℒ𝑏𝑐  
+
+> 𝐷
+
++ ℒ𝑏𝑐  
+
+> 𝑁
+
+(26)
+
+The Dirichlet loss term,  ℒ𝑏𝑐  
+
+> 𝐷
+
+, ensures that the neural network predictions satisfy the prescribed 
+
+displacement conditions on the essential boundaries, expressed as: 
+
+ℒ𝑏𝑐  
+
+> 𝐷
+
+= 1
+
+> 𝑁 𝑏
+
+∑ ||𝑢 𝑖  
+
+> 𝑁𝑁
+
+− 𝑢 𝑖 ̇̅ ||2𝑁 𝑏  
+
+> 𝑖 =1
+
+(27)
+
+Similarly, the Neumann loss term,  ℒ𝑏𝑐  
+
+> 𝑁
+
+, enforces the prescribed traction boundary conditions: 
+
+ℒ𝑏𝑐  
+
+> 𝑁
+
+= 1
+
+> 𝑁 𝑏
+
+∑ ||σ𝑖  
+
+> 𝑁𝑁
+
+⋅ 𝑛 𝑖 − 𝑡 𝑖 ̇̅ ||2𝑁 𝑏  
+
+> 𝑖 =1
+
+(28)
+
+In these formulations,  𝑁 𝑏  denotes the number of collocation points along the boundaries. The 
+
+variables  𝑢 𝑖  
+
+> 𝑁𝑁
+
+and  𝑢 𝑖 ̇̅ represent the predicted and prescribed displacement vectors, respectively. 
+
+Furthermore,  σ𝑖 
+
+> 𝑁𝑁
+
+, 𝑛 𝑖 , and  𝑡 𝑖 ̇̅ correspond to the predicted stress tensor, the outward unit normal 
+
+vector, and the prescribed traction vector at each boundary point  𝑖 .
+
+4.3.2 Data -driven loss 
+
+To further guide the network training with reference solutions obtained from high -fidelity 
+
+FEM solutions or experimental data, the data -driven loss  ℒ𝑑𝑎𝑡𝑎  is introduced to penalize the 
+
+discrepancy between the network and the reference data , across displacement, stress , strain fields ,
+
+and plastic strain: 
+
+ℒ𝑑𝑎𝑡𝑎 = ℒ𝑢 + ℒ𝜎 + ℒ𝜀 + ℒε𝑝  (29) 
+
+ℒ𝑢 = 1
+
+> 𝑁 𝑑
+
+∑ ||𝑢 𝑖  
+
+> 𝑁𝑁
+
+− 𝑢 𝑖 
+
+> 𝑟𝑒𝑓
+
+||2𝑁 𝑑  
+
+> 𝑖 =1
+
+(30 )
+
+ℒσ = 1
+
+> 𝑁 𝑑
+
+∑ ||σ𝑖  
+
+> 𝑁𝑁
+
+− σ𝑖  
+
+> 𝑟𝑒𝑓
+
+||2𝑁 𝑑  
+
+> 𝑖 =1
+
+(31 )
+
+ℒε = 1
+
+> 𝑁 𝑑
+
+∑ ||ε𝑖  
+
+> 𝑁𝑁
+
+− ε𝑖  
+
+> 𝑟𝑒𝑓
+
+||2𝑁 𝑑  
+
+> 𝑖 =1
+
+(32 )
+
+ℒε𝑝 = 1
+
+> 𝑁 𝑑
+
+∑ ||ε𝑝  
+
+> 𝑖
+> 𝑁𝑁
+
+− ε𝑝 𝑖  
+
+> 𝑟𝑒𝑓
+
+||2𝑁 𝑑  
+
+> 𝑖 =1
+
+(33)
+
+where  𝑢 𝑖  
+
+> 𝑁𝑁
+
+and  σ𝑖  
+
+> 𝑁𝑁
+
+denote the network -predicted displacement and stress tensor at data point  𝑖 ,
+
+ε𝑖  
+
+> 𝑁𝑁
+
+= ∇𝑢 𝑖 𝑁𝑁  denotes the predicted strain tensor derived from the network -predicted displacement 
+
+via automatic differentiation, and  𝑢 𝑖  
+
+> 𝑟𝑒𝑓
+
+, σ𝑖  
+
+> 𝑟𝑒𝑓
+
+, and  ε𝑖  
+
+> 𝑟𝑒𝑓
+
+denote the corresponding reference 
+
+solutions obtained from high -fidelity FEM, evaluated over  𝑁 𝑑  data points. In contrast to the 
+
+preceding fields, the predicted plastic strain  ε𝑝 𝑖  
+
+> 𝑁𝑁
+
+is not a direct network output but is derived 
+
+from the network -predicted stress  σ𝑖  
+
+> 𝑁𝑁
+
+through the non -associated flow rule and plastic multiplier 
+
+defined in Eqs.  (13 ) and  (16 ), respectively. The loss  ℒε𝑝  is evaluated only at data points where 
+
+|ε𝑝 𝑖 
+
+> 𝑟𝑒𝑓
+
+| > 𝛿 , to avoid bias from the dominant elastic region where  ε𝑝 𝑖  
+
+> 𝑟𝑒𝑓
+
+= 0. 
+
+4.3.3 Combined Physics and Data -Driven Loss 14 
+
+We formulate t he total loss function as a weighted combination of the physics -based loss 
+
+defined in Section 4.3.1 and the data -driven loss introduced in Section 4.3.2 , enabling the 
+
+network to simultaneously satisfy the governing physical laws and conform to reference solutions 
+
+obtained from high -fidelity FEM simulations: 
+
+ℒ𝑡𝑜𝑡𝑎𝑙 = 𝑤 𝑝 ℎ𝑦𝑠𝑖𝑐𝑠 ℒ𝑝 ℎ𝑦𝑠𝑖𝑐𝑠 + 𝑤 𝑑𝑎𝑡𝑎 ℒ𝑑𝑎𝑡𝑎 
+
+ℒ𝑡𝑜𝑡𝑎𝑙 = 𝑤 𝑝 ℎ𝑦𝑠𝑖𝑐𝑠 (𝑤 𝑒𝑞 ℒ𝑒𝑞 + 𝑤 𝑐 ℒ𝑐𝑜𝑛 + 𝑤 𝐾𝐾𝑇 ℒ𝐾𝐾𝑇 + 𝑤 𝑏𝑐 ℒ𝑏𝑐 ) (34)
+
++𝑤 𝑑𝑎𝑡𝑎 (ℒ𝓊 + ℒσ + ℒε + ℒ𝜀 𝑝 )
+
+where  𝑤 𝑝 ℎ𝑦𝑠𝑖𝑐𝑠  and  𝑤 𝑑𝑎𝑡𝑎  are the global weighting coefficients governing the relative 
+
+contribution of each loss component during training. The individual sub -weight s 𝑤 𝑒𝑞  , 𝑤 𝑐  , 𝑤 𝐾𝐾𝑇  ,
+
+and  𝑤 𝑏𝑐  are defined as introduced in Eq.  (22). In this study, the global loss weights are set to 
+
+𝑤 𝑝 ℎ𝑦𝑠𝑖𝑐𝑠  = 1 and  𝑤 𝑑𝑎𝑡𝑎  = 15. The relatively high weight assigned to the data -driven loss reflects 
+
+the importance of anchoring the network predictions to high -fidelity FEM reference solutions, 
+
+particularly in the localized plastic zone where the physics residuals alone are insuf ficient to 
+
+achieve convergence. 
+
+4.4 Sampling technique 
+
+In this study, we employ two sampling techniques to generate training data points within 
+
+the domain, as illustrated in Fig. 4. Grid sampling provides a uniform distribution of points across 
+
+the domain , whereas Strain Adaptive Sampling  (Yuan et al., 2026) yields a higher density of data 
+
+points in regions of elevated strain magnitudes . The strain component s 𝜀 𝑥𝑥  
+
+> 𝑖
+
+, 𝜀 𝑦𝑦  
+
+> 𝑖
+
+and  𝜀 𝑥𝑦  
+
+> 𝑖
+
+are 
+
+extracted from high -fidelity FEM simulations at each sampling point  𝑖 , and the local strain 
+
+magnitude  𝑆 𝑖  is defined as: 
+
+𝑆 𝑖 = √(ε𝑥𝑥  
+
+> 𝑖
+
+)2 + (ε𝑦𝑦  
+
+> 𝑖
+
+)2 + (ε𝑥𝑦  
+
+> 𝑖
+
+)2 (35)
+
+The selection probability of each candidate point is then proportional to the strain magnitude, 
+
+given by 
+
+𝑃 𝑖 = 𝑆 𝑖  
+
+> ∑𝑆 𝑖 𝑖
+
+(36)
+
+where the summation is taken over all candidate points in the domain, ensuring that regions with 
+
+higher strain are sampled more frequently. 
+
+Fig. 4 contrasts the spatial distribution of training data points produced by the two 
+
+strategies. In panel (a), grid sampling places points on a regular lattice, so density is independent 
+
+of the solution field and the sharp elastic -plastic transition benea th the loaded strip receives no 
+
+more representation than the smooth far field. In panel (b), strain -adaptive sampling yields a 
+
+strongly heterogeneous distribution, with points clustering beneath and adjacent to the loaded 
+
+strip where the plastic zone develops, and thinning toward the lower -right of the domain, which 15 
+
+remains elastic. At fixed total point count, this reallocates training effort from regions the 
+
+network already resolves easily to those where the solution varies most rapidly. 
+
+Fig. 4. Spatial distribution of training data points: (a) structured grid sampling and (b) strain -
+
+adaptive sampling. 
+
+4.5 Error Analysis 
+
+To assess the accuracy of the model, the point -wise relative error is calculated for each 
+
+field variable  (displacement, stress, and strain ) for the predictions , which is defined as: 
+
+𝜖 𝑟𝑒𝑙 = |𝑦 𝑖  
+
+> 𝑟𝑒𝑓 −𝑦 𝑖
+> 𝑁𝑁 |
+> |𝑚𝑎𝑥 (𝑦 𝑖
+> 𝑟𝑒𝑓 )|
+
+(3 7)
+
+where  𝑦 𝑖 
+
+> 𝑟𝑒𝑓
+
+denotes the reference FEM solution and  𝑦 𝑖 
+
+> 𝑁𝑁
+
+denotes the prediction from the PINN 
+
+model at point 
+
+i. Furthermore, to evaluate the overall performance and global accuracy of the 
+
+model across the entire computational domain , formulated as: 
+
+Relative 𝐿 2 Error = √∑ (𝑦 𝑖  
+
+> 𝑁𝑁 −𝑦 𝑖
+> 𝑟𝑒𝑓 )2
+> 𝑁
+> 𝑖 =1
+> √∑(𝑦 𝑖
+> 𝑟𝑒𝑓 )2
+> 𝑁
+> 𝑖 =1
+
+(38)
+
+Where 
+
+N is the total number of evaluation data points distributed within the domain. 
+
+5. Numerical Examples 
+
+5.1 Problem Definition 16 
+
+Fig. 5. Problem definition of the 2D domain under partial uniform loading with specified 
+
+displacement constraints. 
+
+In this study, a two -dimensional plane strain rectangular domain representing a 
+
+homogeneous and isotropic soil mass is considered . Body forces are neglected to simplify the 
+
+numerical formulation. As illustrated in Fig . 5, a partial uniform load of magnitude P is applied 
+
+over a 1 m wide strip at the top -left surface. To represent the boundary conditions, the lateral 
+
+sides are modeled as a smooth roller  (𝑢 𝑥  = 0 ), while the bottom boundary is fully fixed, imposing 
+
+zero displacement in both horizontal and vertical directions  (𝑢 𝑥  = 0,  𝑢 𝑦  = 0). 
+
+This configuration is selected as the benchmark problem for several reasons. First, the 
+
+strip -loading arrangement constitutes a canonical bearing -capacity problem in geotechnical 
+
+engineering, directly analogous to a shallow foundation resting on a soil mas s, which makes the 
+
+resulting stress and deformation fields physically interpretable and engineering -relevant. Second, 
+
+the partial loading over a narrow strip induces a strongly non -uniform stress field with a localized 
+
+plastic zone and a sharp elastic -plas tic transition beneath and adjacent to the loaded edge. This is 
+
+precisely the high -gradient regime in which spectral bias most severely degrades conventional 
+
+PINN predictions, and it therefore provides a stringent test of the proposed Fourier feature 
+
+mappi ng. Third, the asymmetry introduced by applying the load to only one portion of the surface 
+
+produces a spatially heterogeneous response that prevents trivial symmetric solutions and 
+
+demands accurate resolution of both displacement and plastic strain across the domain. Finally, 
+
+the simple rectangular geometry with well -defined boundary conditions admits a reliable high -
+
+fidelity FEM reference solution, enabling an unambiguous quantitative comparison between the 
+
+conventional PINN, the proposed FF -PINN, and the reference fields while isolating the effect of 
+
+the constitutive nonlinearity from geometric complexity. 
+
+Table 2 lists the material properties for the three test cases. Young's modulus, Poisson's 
+
+ratio, and the dilatancy angle are held constant so that differences in model performance are 
+
+attributable to plastic yielding parameters alone. Case 1 serves as the baseline. Case 2 halves the 17 
+
+cohesion and reduces the applied load, while Case 3 raises the friction angle at the baseline 
+
+cohesion. The zero dilatancy angle throughout enforces a non -associative flow rule with no 
+
+plastic volume change, which is representative of soils at critical sta te and gives the maximum 
+
+departure between the yield function and the plastic potential. 
+
+Table 2. Material properties used in numerical examples 
+
+Parameter  Symbol  Unit  Case 1  Case 2  Case 3 
+
+Young ’s modulus 
+
+E kPa  15,000  15,000  15,000 
+
+Poisson ’s ratio 
+
+v - 0.333  0.333  0.333 
+
+Cohesion 
+
+c kPa  20  10  20 
+
+Friction angle  φ ° 20  20  25 
+
+Dilatancy angle  ψ ° 0 0 0
+
+Applied load 
+
+P kPa  120  50  110 
+
+Note: 
+
+E and 
+
+v are kept constant across all cases to isolate the effect of plastic yielding parameters 
+
+on model performance. 
+
+5.2 Hyper -parameter Tuning and Sampling Strategies 
+
+5.2.1 Sampling Strategies 
+
+Table 3. Relative 
+
+L2 Error of PINN and FF -PINN under  Grid and Strain Adaptive Sampling 
+
+(SAS )
+
+Variable  Relative 
+
+L2 Error 
+
+PINN (Grid)  PINN (SAS)  FF -PINN (Grid)  FF -PINN (SAS) 
+
+𝑢 𝑥  0.2000  0.4315  0.1930  0.1457 
+
+𝑢 𝑦  0.0883  0.1673  0.0534  0.0422 
+
+𝜎 𝑥𝑥  0.2582  0.3777  0.2179  0.1888 
+
+𝜎 𝑦𝑦  0.0749  0.0783  0.0630  0.0518 
+
+𝜎 𝑧𝑧  0.0981  0.1026  0.0952  0.0861 
+
+𝜎 𝑥𝑦  0.2190  0.4060  0.2036  0.2145 
+
+To achieve optimal performance during training, an evaluation of sampling strategies was 
+
+conducted before the architectural assessment. This study included an analysis of key 
+
+hyperparameters, including the depth and width of the network, as well as the Fourier scaling 
+
+parameters . A preliminary hyperparameter sweep was conducted across varying mapping sizes 
+
+and scale parameters  (𝜎 ∈ {0.01 , 0.05 , 0.10 }). To isolate the effect of network depth and width, 
+
+an intermediate value of  𝜎 = 0.05  was fixed as a provisional baseline for the architecture 
+
+evaluation in this section; the scale parameter is optimized separately once the optimal 
+
+architecture is established. All hyperparameter tuning used 10,000 training epochs, 1,237 training 
+
+data points, and 5,000 collocation points.  From Table 3, the FF -PINN with Strain Adaptive 
+
+Sampling  (SAS ) consistently achieves the lowest relative 
+
+L2 errors across nearly all predicted 
+
+fields, outperforming the conventional PINN under both sampling strategies. A minor exception 18 
+
+is observed for  𝜎 𝑥𝑦 , where FF -PINN  (Grid ) marginally outperformed FF -PINN  (SAS ), which 
+
+may be attributed to the stochastic nature of adaptive sampling in a shear -dominated region. 
+
+These results indicate that SAS consistently benefits FF -PINN more than the conventional PINN, 
+
+suggesting that Fourier feature mapping provides sufficient representational capacity to 
+
+effectively exploit adaptive sampling. Consequently, SAS is adopted as the fi xed sampling 
+
+strategy for all subsequent experiments. For this evaluation, a network of 5 hidden layers , 64 
+
+neurons per layer and the tanh activation function was used as the initial configuration, with a 
+
+Fourier mapping size of 64 and  𝜎 = 0.05. All experiments were performed on a workstation 
+
+equipped with an NVIDIA GeForce RTX 5090 GPU  (32 GB VRAM ), an Intel 12 th Generation 
+
+Core processor  (12 vCPUs ), and 64GB of system RAM. The effect of network depth and width 
+
+on model accuracy was evaluated using FF -PINN with SAS. The Fourier mapping and scale 
+
+parameters were fixed at 64 and  𝜎  = 0.05, respectively, while the number of hidden layers = 
+
+{3,4,5} and neurons per layer = {32,64,128,256} were varied systematically. 
+
+Figs. 6 and 7 together isolate the source of the improvement. Fig. 6 compares the 
+
+evolution of the total loss for the conventional PINN and FF -PINN under the two sampling 
+
+strategies. Under grid sampling in panel (a), the two architectures follow closely si milar 
+
+trajectories through most of training, separating only in the later epochs. Under strain -adaptive 
+
+sampling in panel (b), the separation appears early and persists, with FF -PINN reaching a lower 
+
+plateau throughout. Adaptive sampling alone therefore co nfers limited benefit on the conventional 
+
+architecture; the representational capacity supplied by the Fourier feature mapping is what allows 
+
+the concentrated points to be exploited, consistent with the error trends in Table 3. Fig. 7 shows 
+
+where in the domain this advantage is realized , presenting the predicted displacement and stress 
+
+fields for Case 1 with the corresponding pointwise relative error maps. Each row corresponds to 
+
+one field variable, with the FEM reference, the two predictions, and the two error maps arranged 
+
+across the c olumns. Both models reproduce the overall field patterns, but the conventional PINN 
+
+accumulates elevated error along the upper -left region beneath the loaded strip, most visibly in 
+
+the horizontal displacement and shear stress, whereas FF -PINN leaves this r egion largely clear. 
+
+The improvement is thus concentrated precisely in the high -gradient zone toward which adaptive 
+
+sampling directs the training points, and which spectral bias otherwise prevents the standard 
+
+architecture from resolving. 19 
+
+Fig. 6. Evolution of the total loss function during the training a ) Grid Sampling, b ) Strain 
+
+Adaptive Sampling  (SAS )
+
+Fig. 7. Comparison of predicted contour plots and  𝜖 𝑟𝑒𝑙  for displacement and stress  using strain -
+
+adaptive sampling: Conventional PINN and FF -PINN against FEM reference solutions (Case 1). 20 
+
+5.2.2 Network Architecture Size 
+
+Table 4. Relative 
+
+L2 Error for Displacements and Stresses 
+
+[Layers, 
+
+Neurons] 
+
+𝑢 𝑥  𝑢 𝑦  𝜎 𝑥𝑥  𝜎 𝑦𝑦  𝜎 𝑧𝑧  𝜎 𝑥𝑦 
+
+[3,32]  0.8585  0.3580  0.3830  0.0923  0.1410  0.4545 
+
+[3,64 ] 0.8641  0.3512  0.4509  0.0998  0.1370  0.4724 
+
+[3,128 ] 0.7721  0.3624  0.3780  0.0906  0.1471  0.5030 
+
+[3,256 ] 0.7911  0.3395  0.3675  0.0836  0.1212  0.4762 
+
+[4, 32 ] 0.4560  0.1539  0.3431  0.0781  0.1081  0.3302 
+
+[4,64 ] 0.7819  0.3421  0.3845  0.0895  0.1338  0.4676 
+
+[4,128 ] 0.7893  0.3037  0.3834  0.0866  0.1186  0.4642 
+
+[4, 256 ] 0.1926  0.0418  0.2061  0.0592  0.0840  0.1911 
+
+[5, 32 ] 0.2539  0.0946  0.2661  0.0671  0.0952  0.2757 
+
+[5,64 ] 0.1702  0.0596  0.2039  0.0583  0.0905  0.2316 
+
+[5,128 ] 0.2085  0.0554  0.1991  0.0539  0.0847  0.2026 
+
+[5,256 ] 0.1677  0.0336  0.1918  0.0423  0.0796  0.1662 
+
+Fig. 8. Evolution of total loss over training epochs for FF -PINN with varying numbers of hidden 
+
+layers and neurons per layer:  (a) 3 hidden layers,  (b) 4 hidden layers, and  (c) 5 hidden layers. 
+
+Table 4 reports the relative L2 errors across a systematic sweep of network depths and 
+
+widths, and Fig. 8 shows the corresponding total loss histories grouped by depth. The two are 21 
+
+consistent in indicating that depth exerts a stronger influence than width on the capacity to 
+
+capture the nonlinear elastic -plastic response. Shallow architectures exhibit persistently elevated 
+
+errors regardless of neuron count, and the loss curves for thr ee hidden layers in Fig. 8(a) collapse 
+
+onto a common plateau irrespective of width, showing that additional neurons alone cannot 
+
+compensate for inadequate depth. At four hidden layers in Fig. 8(b), the widest configuration 
+
+separates from the remainder and converges to a markedly lower loss, while the intermediate 
+
+widths remain clustered near the shallow result. This non -monotonic behavior is mirrored in 
+
+Table 4, where some wider shallow configurations yield marginally higher errors than their 
+
+narrower counterparts, indicating susceptibility to optimization difficulties rather than 
+
+expressivity limitations. Increasing the depth to five hidden layers produces a marked and 
+
+consistent reduction in error across all widths, with the loss trajectories in Fig. 8(c) descending 
+
+further and faster than at either shall ower depth, and the largest configuration achieving the 
+
+lowest errors across all predicted fields. Across every configuration, normal stress components 
+
+yield lower errors than lateral and shear stress fields, reflecting their smoother spatial gradient 
+
+under the prescribe d plane -strain boundary conditions. The deepest and widest configuration is 
+
+therefore adopted as the fixed architecture for all subsequent experiments. 
+
+5.2.3 Fourier encoding layer 
+
+Table 5. Relative 
+
+L2 Error for Different Mapping Sizes and Scale Parameters 
+
+[Mapping,  𝜎 ] 𝑢 𝑥  𝑢 𝑦  𝜎 𝑥𝑥  𝜎 𝑦𝑦  𝜎 𝑧𝑧  𝜎 𝑥𝑦 
+
+[64,0.01]  0.2774  0.0998  0.3013  0.0608  0.0921  0.2494 
+
+[64,0.05]  0.1677  0.0336  0.1918  0.0423  0.0796  0.1662 
+
+[64,0.10]  0.0881  0.0261  0.1522  0.0366  0.0695  0.1422 
+
+[128,0.01]  0.2931  0.0807  0.2886  0.0705  0.0953  0.2223 
+
+[128,0.05]  0.1493  0.0373  0.1882  0.0412  0.0750  0.1594 
+
+[128,0.10]  0.1381  0.0605  0.1745  0.0480  0.0806  0.1577 
+
+[256,0.01]  0.1862  0.0592  0.2598  0.0462  0.0871  0.2049 
+
+[256,0.05]  0.1381  0.0338  0.1854  0.0568  0.0825  0.1784 
+
+[256,0.10]  0.0771  0.0267  0.1499  0.0350  0.0652  0.1289 
+
+[512,0.01]  0.1573  0.0563  0.2032  0.0455  0.0813  0.1666 
+
+[512,0.05]  0.0750  0.0289  0.1454  0.0351  0.0680  0.1435 
+
+[512,0.10]  0.0578  0.0208  0.1171  0.0330  0.0680  0.1186 22 
+
+Fig. 9. Evolution of total loss over training epochs for FF -PINN with varying numbers of 
+
+mapping size and scale parameters:  (a) 𝜎 = 0.01  , (b) 𝜎 = 0.05 , and  (c) 𝜎 = 0.10 
+
+Table 5 summarizes the relative 
+
+L2 errors for varying Fourier mapping sizes  =
+
+{64,128,256,512 } and scale parameters  𝜎  = {0.01, 0.05, 0.10 } with the optimal architecture fixed 
+
+from Section 5.2.2. The results demonstrate that the scale parameter  𝜎  exerts a more dominant 
+
+influence on model performance than the mapping size alone. Increasing  𝜎  consistently reduces 
+
+errors across all field variables and mapping size s, reflecting its role in controlling the frequency 
+
+bandwidth of the random Fourier features: a larger  𝜎  enables the network to represent higher -
+
+frequency spatial variations inherent in the elasto -plastic fields. Although increasing the mapping 
+
+size yields marginal improvements in accuracy, its effect is subordinate to that of  𝜎 , with 
+
+diminishing returns observed at higher values, particularly for the smoother stress component .
+
+The best -performing configuration combines the largest mapping size with the highest scale 
+
+parameter, achieving the lowest errors across nearly all fields. These results suggest a synergistic 
+
+interaction between these two hyperparameters: a denser set of random frequencies drawn from a 
+
+wider distribution provides more comprehensive spectral coverage of the target fields. It is, 
+
+however, acknowledged that larger mapping size increases the input dimensionality to the first 
+
+hidden layer, introducing addition al computational cost that warrants practical considerations. 
+
+Based on these findings, the optimal Fourier configuration is adopted for all subsequent model 
+
+evaluations. 
+
+Fig. 9 shows the total loss histories for the Fourier mapping sweep, grouped by scale 
+
+parameter, and complements the errors reported in Table 5. At the smallest scale in panel (a), all 
+
+mapping sizes descend slowly and remain closely bunched, with the encod ing supplying to 23 
+
+narrow a frequency bandwidth for any mapping size to resolve the localized plastic features. At 
+
+the intermediate scale in panel (b), the curves separate and reach lower plateaus, with the largest 
+
+mapping size descending furthest. At the largest scale in panel (c), the descent is both faster and 
+
+deeper across all mapping sizes, a nd the widest mapping settles nearly an order of magnitude 
+
+below the narrowest. The progression across panels is larger than the spread within any single 
+
+panel, confirming the conclusion drawn from Table 5 that the scale parameter dominates the 
+
+mapping siz e: bandwidth determines what the network can represent, while mapping density 
+
+refines the spectral coverage within that bandwidth. 
+
+Table 6. Neural Network Configuration 
+
+Category  Hyper -parameter  PINN  FF -PINN 
+
+Network Architecture  Hidden layers  5 5
+
+Neurons per layer  256  256 
+
+Activation function  Tanh  Tanh 
+
+Fourier Feature  Mapping size  - 512 
+
+Scale parameter  (𝜎 ) - 0.10 
+
+Training  Optimizer  Adam  Adam 
+
+Initial learning rate  1e -3 1e -3
+
+LR Scheduler  Cosine Annealing  Cosine Annealing 
+
+Min. learning rate  1e -4 1e -4
+
+Batch -size  Full -batch  Full -batch 
+
+Sampling  Collocation strategy  SAS  SAS 
+
+Table 6 summarizes the training configuration adopted for both models. The two share an 
+
+identical backbone of five hidden layers with 256 neurons per layer and tanh activation, the 
+
+configuration established in Section 5.2.2, and differ only in the Fourier feature mapping ap plied 
+
+at the input, for which FF -PINN uses a mapping size of 512 and a scale parameter of 0.10 as 
+
+identified in Section 5.2.3. Holding the backbone, optimizer , learning rate schedule, batch 
+
+strategy, and sampling scheme fixed across both models ensures that any difference in 
+
+performance is attributable to the input encoding alone rather than to network capacity or 
+
+optimization settings. Both models were trained with the Adam optimizer (Kingma and Ba, 2014) 
+
+at an initial learning rate of 1e -3, annealed to a minimum of 1e -4 under a cosine schedule 
+
+(Loshchilov and Hutter, 2016), in full -batch mode with strain -adaptive collocation sampling. The 
+
+cosine schedule permits rapid early descent w hile progressively reducing the step size, which 
+
+stabilizes the later stages of training where the sharp gradients at the elastic -plastic boundary 
+
+dominate the residual loss. 24 
+
+5.3 PINN and FF -PINN Results 
+
+Table 7. Comparison of relative 
+
+L2 errors between PINN and FF -PINN across different test cases. 
+
+Field  PINN  FF -PINN  PINN  FF -PINN  PINN  FF -PINN 
+
+Case 1  Case 2  Case 3 
+
+𝑢 𝑥 (𝑚 ) 0.0793  0.0388  0.0657  0.0257  0.0333  0.0375 
+
+𝑢 𝑦 (𝑚 ) 0.0231  0.0143  0.0235  0.0080  0.0099  0.00 67 
+
+𝜎 𝑥𝑥 (𝑘𝑃𝑎 ) 0.1566  0.1172  0.0330  0.0285  0.0413  0.0380 
+
+𝜎 𝑦𝑦 (𝑘𝑃𝑎 ) 0.0370  0.0280  0.0138  0.0101  0.0162  0.0124 
+
+𝜎 𝑧𝑧 (𝑘𝑃𝑎 ) 0.0667  0.0630  0.0162  0.0167  0.0197  0.0175 
+
+𝜎 𝑥𝑦 (𝑘𝑃𝑎 ) 0.1428  0.1060  0.0443  0.0418  0.0503  0.0464 
+
+𝜀 𝑥𝑥  0.3523  0.2779  0.1867  0.1744  0.1714  0.1491 
+
+𝜀 𝑦𝑦  0.1525  0.1113  0.0599  0.0545  0.0480  0.0397 
+
+𝜀 𝑥𝑦  0.2150  0.1497  0.0818  0.0680  0.0602  0.0513 
+
+𝜀 𝑥𝑥  
+
+> 𝑝
+
+0.1241  0.1254  0.4097  0.2996  0.3153  0.3501 
+
+𝜀 𝑦𝑦  
+
+> 𝑝
+
+0.1314  0.0839  0.2735  0.1786  0.3291  0.2312 
+
+𝜀 𝑧𝑧  
+
+> 𝑝
+
+0.6521  0.6130  0.4000  0.2774  0.6098  0.6378 
+
+𝜀 𝑥𝑦  
+
+> 𝑝
+
+0.0939  0.0897  0.3471  0.4258  1.0680  0.8689 
+
+Note: All test cases were trained until convergence was achieved. 25 
+
+Fig . 10. Comparison of predicted contour plots and normalized relative errors  𝜖 𝑟𝑒𝑙  for 
+
+displacement and stress fields using strain -adaptive sampling  (SAS ): FEM  (ABAQUS ),
+
+Conventional PINN, and FF -PINN predictions for Case 1. 
+
+Fig . 11. Comparison of predicted contour plots and normalized relative errors  𝜖 𝑟𝑒𝑙  for total strain 
+
+and plastic strain fields using strain -adaptive sampling  (SAS ): FEM  (ABAQUS ), Conventional 
+
+PINN, and FF -PINN predictions for Case 1. 26 
+
+Fig . 12. Comparison of predicted contour plots and normalized relative errors  𝜖 𝑟𝑒𝑙  for 
+
+displacement and stress fields using strain -adaptive sampling  (SAS ): FEM  (ABAQUS ),
+
+Conventional PINN, and FF -PINN predictions for Case 2. 
+
+Fig . 13. Comparison of predicted contour plots and normalized relative errors  𝜖 𝑟𝑒𝑙  for total strain 
+
+and plastic strain fields using strain -adaptive sampling  (SAS ): FEM  (ABAQUS ), Conventional 
+
+PINN, and FF -PINN predictions for Case 2. 27 
+
+Fig . 14. Comparison of predicted contour plots and normalized relative errors  𝜖 𝑟𝑒𝑙  for 
+
+displacement and stress fields using strain -adaptive sampling  (SAS ): FEM  (ABAQUS ),
+
+Conventional PINN, and FF -PINN predictions for Case 3. 
+
+Fig . 15. Comparison of predicted contour plots and normalized relative errors  𝜖 𝑟𝑒𝑙  for total strain 
+
+and plastic strain fields using strain -adaptive sampling  (SAS ): FEM  (ABAQUS ), Conventional 
+
+PINN, and FF -PINN predictions for Case 3. 
+
+Figures 10 to 15 present the predicted contour plots and normalized relative errors for the 
+
+displacement, stress, total strain, and plastic strain fields across all three test cases, comparing the 
+
+conventional PINN, FF -PINN, and the FEM reference solutions, with the corresponding 
+
+quantitative comparison summarized in Table 7. Overall, FF -PINN outperforms the conventional 
+
+PINN across most field variables and test cases, with marginally higher errors confined to a small 
+
+number of fields. For the displacement fields, FF -PINN reduces the error in  𝑢 𝑥  by approximately 
+
+51% and 61% in Case 1 and Case 2, respectively, and in  𝑢 𝑦  by approximately 38%, 66%, and 32% 
+
+in Cases 1, 2, and 3, respectively. A minor exception occurs for  𝑢 𝑥  in Case 3, where FF -PINN 
+
+yields a slightly higher error than the conventional PINN (0.0375 versus 0.0333). Among the stress 
+
+components, the largest reduction occurs for  𝜎 𝑦𝑦  in Case 2 (approximately 27%), followed by  𝜎 𝑥𝑦 
+
+in Case 1 (approximately 26%) and  𝜎 𝑥𝑥  in Case 1 (approximately 25%), with  𝜎 𝑧𝑧  in Case 2 again 
+
+a notable exception where FF -PINN yields a slightly higher error than the conventional PINN. The 
+
+normal stress component  𝜎 𝑦𝑦  consistently yields the lowest relative  𝐿 2 errors across all cases for 
+
+both models, likely reflecting its smoother and more dominant spatial distribution under the 
+
+applied partial uniform vertical loading. 
+
+The improvement of FF -PINN becomes more evident in the strain and plastic strain fields. 
+
+While both models produce comparable predictions in elastic dominant regions, the conventional 
+
+PINN exhibits substantially higher errors in localized plastic zones where sharp spatial trans itions 
+
+occur. FF -PINN effectively captures these high gradient features in most cases, as reflected in the 28 
+
+reduced relative  𝐿 2errors for  𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, 𝜀 𝑧𝑧  
+
+> 𝑝
+
+, and  𝜀 𝑥𝑦  
+
+> 𝑝
+
+and in the improved agreement with the FEM 
+
+solutions in Figures 11, 13, and 15. Minor exceptions occur for  𝜀 𝑥𝑥  
+
+> 𝑝
+
+in Cases 1 and 3 and for  𝜀 𝑧𝑧  
+
+> 𝑝
+
+in 
+
+Case 3, where FF -PINN yields slightly higher errors than the conventional PINN, reflecting the 
+
+inherent difficulty of resolving these highly localized plastic strain components. This overall 
+
+enhancement is attributed to the Fourier feature mapping, which mitigates the spec tral bias 
+
+inherent in standard fully connected networks and endows the model with greater capacity to 
+
+resolve the higher frequency spatial variations characteristic of localized plastic flow. 
+
+Among all predicted field variables, the plastic shear strain  𝜀 𝑥𝑦  
+
+> 𝑝
+
+presents the greatest 
+
+challenge for both architectures, with the conventional PINN yielding relative  𝐿 2 errors of 0.3471 
+
+and 1.0680 in Cases 2 and 3, respectively. FF -PINN reduces the Case 3 error to 0.8689 
+
+(approximately 19%) but yields a higher error than the conventional PINN in Case 2. Similarly, 
+
+𝜀 𝑧𝑧  
+
+> 𝑝
+
+exhibits persistently elevated errors across all cases for both models, representing a shared 
+
+approximation challenge associated with the out of plane plastic strain component. Under plane 
+
+strain conditions, although the total out of plane strain vanishes, the plastic strain component  𝜀 𝑧𝑧 
+
+> 𝑝
+
+remains nonzero to satisfy volumetric compatibility, producing a spatially complex distribution 
+
+that both architectures struggle to capture accurately. This behavior is consistent with the findings 
+
+of Haghighat et al. (2021), who reported elevated relative errors in the out of plane plastic strain 
+
+component  𝜀 𝑧𝑧  
+
+> 𝑝
+
+when applying PINN to von Mises elastoplasticity, attributing the degraded 
+
+accuracy to the spectral bias of standard neural network architectures in capturing highly localized, 
+
+high gradient plastic deformation fields. 
+
+Figure 16 compares the predicted failure zones, defined by the boundary separating the 
+
+plastic and elastic domains, obtained from FEM, the conventional PINN, and FF -PINN for the 
+
+three test cases. The conventional PINN reproduces the overall extent of the plastic domain but 
+
+tends to smooth its boundary, blurring the sharper lobes and localized extensions present in the 
+
+FEM reference, an effect that is most apparent in Case 2 and Case 3, where the plastic zone 
+
+develops a more irregular, multilobed geometry. FF -PINN reproduces these boundary features 
+
+with markedly closer fidelity to FEM in all three cases, consistent with the lower plastic strain 
+
+errors reported in Table 7 and discussed above. This closer geometric agreement indicates that the 
+
+improvement conferr ed by the Fourier feature mapping is not confined to a reduction in aggregate 
+
+error but extends to a more faithful recovery of the physically meaningful shape of the yielded 
+
+region. 
+
+Figure 17 presents the training histories of the physics based (PDE), boundary condition 
+
+(BC), and data loss components for FF -PINN and the conventional PINN across the three cases, 
+
+plotted on a logarithmic scale. In all three cases, FF -PINN (solid lines) converges to lower final 
+
+loss values than the conventional PINN (dashed lines) for every loss component, with the largest 
+
+gap occurring in the PDE loss, which enforces the governing elastoplastic equilibrium and 
+
+constitutive equations at the collocation points. The conventional PINN also displays more 
+
+pronounced oscillation during training, particularly in Case 3, whereas FF -PINN follows a 
+
+smoother trajectory and reaches a stable plateau within roughly half the training epochs required 
+
+by the conventional PINN, consistent with the approximately 50 percent reduction in training time 
+
+reported for the framework overall. These tra ining dynamics indicate that the Fourier feature 
+
+mapping improves not only the final accuracy of the predicted fields but also the stability and 29 
+
+efficiency of the optimization process, likely because it alleviates the spectral bias that otherwise 
+
+slows convergence of the high frequency loss components associated with localized plastic flow. 
+
+Fig. 16. Predicted failure zones obtained from FEM, PINN, and FF -PINN for three cases. Red 
+
+and blue regions denote plastic and elastic domains, respectively. 30 
+
+Fig. 17. Training history of FF -PINN vs. standard PINN for Case 1, 2, and 3. The curves 
+
+represent the Physics -based (PDE), Boundary Condition (BC), and Data loss components on a 
+
+logarithmic scale. Solid lines denote FF -PINN, while dashed lines represent the PINN. 
+
+5.4 Sensitivity analysis 
+
+In this section, the robustness and generalizability of the proposed FF -PINN framework 
+
+are evaluated by examining the influence of key training parameters on model performance. The 
+
+analysis focuses on four aspects: the number of training data points, the n umber of collocation 
+
+points, the loss weighting coefficients, and the effect of noise in the training data. All experiments 
+
+are performed using Case 1 as the reference configuration, with the optimal hyperparameter 
+
+settings established in Table 6 unless otherwise stated. 
+
+5.4.1 Influence of dataset size 
+
+Figure 18 illustrates the effect of dataset size on the  %Relative 
+
+L2 errors across all 
+
+predicted field variables , evaluated over a range from 64 to 12,500 training data points. The 
+
+results demonstrate a consistent convergence pattern: % Relative 
+
+L2 errors decrease rapidly as the 
+
+dataset grows from 64 to 1,237 data points, after which further increase yields only marginal 
+
+improvement, indicating that the FF -PINN model reaches effective convergence at a moderate 
+
+data volume. 
+
+For displacement fields in Fig.18 (a), 𝑢 𝑥  begins at approximately 10.5% error at 64 data 
+
+points, decreasing rapidly before stabilizing around 4 -5% for dataset sizes beyond 1,237 points 
+
+with minor oscillations. The vertical displacement  𝑢 𝑦  demonstrates faster convergence, dropping 
+
+from approximately 4% to near 1.5 -2% and remaining stable throughout, reflecting its smooth 
+
+spatial distribution under the applied vertical loading. Among stress components in Fig.18 (b), 𝜎 𝑧𝑧 
+
+and  𝜎 𝑥𝑥  exhibit the highest initial errors at approximately 23% and 19% at 64 data points, 
+
+respectively, before converging to near 7% and 10% beyond 1,237 points. Meanwhile,  𝜎 𝑦𝑦 
+
+consistently achieves the lowest errors across all dataset sizes, stabilizing near 3%, reflecting its 
+
+smoother spatial gradient under the prescribed plane -strain boundary conditions.  𝜎 𝑥𝑥  and  𝜎 𝑥𝑦 
+
+stabilize at approximately 10%. Total strain fields in Fig. 18 (c) exhibit higher absolute errors 
+
+compared to  displacement and stress fields.  𝜀 𝑥𝑥  begins at approximately 33% and stabilizes 
+
+around 26 -28% for larger dataset s, while  𝜀 𝑦𝑦  and  𝜀 𝑥𝑦  converge more favorably to approximately 
+
+12% and 15%, respectively, reflecting the greater spatial complexity of strain fields in the plastic 
+
+transition zone. 
+
+The plastic strain component s in Fig.18 (d), present the most contrasting behavior. While 
+
+𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, and  𝜀 𝑥𝑦  
+
+> 𝑝
+
+converge rapidly from approximately 45 -51% at 64 points to near 10 -15% 
+
+beyond 1,237 data points,  𝜀 𝑧𝑧  
+
+> 𝑝
+
+exhibits persistently elevated errors ranging from 60 -80% across 
+
+the entire dataset range with no consistent downward trend, confirming that this component poses 
+
+a fundamental approximation challenge regardless of data volume, as d iscuss ed in Section 5.3. 31 
+
+Fig. 18. Effect of training dataset size on the percentage relative 
+
+L2 errors of FF -PINN predictions 
+
+for  (a) displacement fields  (𝑢 𝑥 , 𝑢 𝑦 ); (b) stress fields  (𝜎 𝑥𝑥 , 𝜎 𝑦𝑦 , 𝜎 𝑧𝑧 , 𝜎 𝑥𝑦 ); (c) total strain fields 
+
+(𝜀 𝑥𝑥 , 𝜀 𝑦𝑦 , 𝜀 𝑥𝑦 ); and  (d) plastic strain fields  (𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, 𝜀 𝑧𝑧  
+
+> 𝑝
+
+, 𝜀 𝑥𝑦  
+
+> 𝑝
+
+) under Case 1 configuration with 
+
+strain -adaptive sampling. 
+
+5.4.2 Influence of Number of Collocation Points 
+
+Figure 19 illustrates the effect of the number of collocation points 
+
+Nc on the % Relative 
+
+L2 error 
+
+across all predicted field variables, evaluated over the range 
+
+Nc = 100 to 12,000. For displacement 
+
+fields in Fig 19. (a), 𝑢 𝑥  exhibits the strongest sensitivity, with the error decreasing sharply from 
+
+8.6%  at 
+
+Nc = 100 to approximately 4.0% at 
+
+Nc = 1,000, after which the error stabilizes with only 
+
+minor fluctuations. The vertical displacement  𝑢 𝑦  remains consistently low  (≈1-2% ) throughout, 
+
+reflecting its smooth spatial distribution under the applied vertical loading. Stress components in 32 
+
+Fig.  19 (b) remain largely insensitive to 
+
+Nc across the full range, suggesting that physics residuals 
+
+governing stress equilibrium are adequately enforced even at low collocation densities. The total 
+
+strain fields in Fig.  19 (c) show a gradual improvement with increasing 
+
+Nc, particularly for  𝜀 𝑥𝑥 
+
+and  𝜀 𝑥𝑦 , reflecting the greater spatial complexity of strain fields in plastic transition zone. For 
+
+plastic strain fields Fig.  19 (d), 𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, and  𝜀 𝑥𝑦  
+
+> 𝑝
+
+remain stable near 10% across all 
+
+Nc values, 
+
+while  𝜀 𝑧𝑧  
+
+> 𝑝
+
+exhibits persistently elevated errors across all 
+
+Nc values, reflecting the fundamental 
+
+approximation challenge shared by both models in capturing the out -of -plane plastic strain 
+
+component, as discussed in Section 5.3. These results indicate that FF -PINN achieves stable 
+
+predictions across most field variables with 
+
+Nc ≥ 1,000, demonstrating that the strain -adaptive 
+
+sampling strategy effectively reduces the minimum collocation points requirement. The baseline 
+
+of 
+
+Nc = 5,000 adopted in this study therefore provides a conservative and well -justified 
+
+configuration. 
+
+Fig. 19. Effect of number of collocation points 
+
+Nc on the % Relative 
+
+L2 error of FF -PINN 
+
+prediction for  (a) displacement fields  (𝑢 𝑥 , 𝑢 𝑦 ); (b) stress fields  (𝜎 𝑥𝑥 , 𝜎 𝑦𝑦 , 𝜎 𝑧𝑧 , 𝜎 𝑥𝑦 ); (c) total strain 
+
+fields  (𝜀 𝑥𝑥 , 𝜀 𝑦𝑦 , 𝜀 𝑥𝑦 ); and  (d) plastic strain fields  (𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, 𝜀 𝑧𝑧  
+
+> 𝑝
+
+, 𝜀 𝑥𝑦  
+
+> 𝑝
+
+) under Case 1 configuration 
+
+with strain -adaptive sampling. 33 
+
+5.4.3  Influence of Loss Weighting Coefficients 
+
+In this section Fig. 20 presents the effect of the loss weight ratio  (𝑤 𝑝 ℎ𝑦𝑠𝑖𝑐𝑠 : 𝑤 𝑑𝑎𝑡𝑎 ) on the % 
+
+Relative 
+
+L2 error across all predicted field variables, evaluated over five configurations ranging 
+
+from 1:1 to 1:30. Displacement fields in Fig. 20 (a) show the clearest response to the weight ratio. 
+
+The error in  𝑢 𝑥  drops from 11.6% at 1:1 down to 3.9% at 1:15, then rises slightly at 1:30, 
+
+suggesting that pushing  𝑤 𝑑𝑎𝑡𝑎  too high eventually becomes counterproductive. The vertical 
+
+displacement  𝑢 𝑦  follows a similar but milder trend, remaining below 3% for most configurations. 
+
+Stress components in Fig. 20 (b) are most sensitive at the low -end ; errors drop sharply between 
+
+1:1 and 1:5 but become largely insensitive beyond that point, with  𝜎 𝑦𝑦  staying consistently near 
+
+2-3% across the upper range. Total strain fields in Fig. 20 (c) respond more gradually, with  𝜀 𝑦𝑦 
+
+and  𝜀 𝑥𝑦  showing little variation while  𝜀 𝑥𝑥  fluctuates moderately around 24 -29% without a clear 
+
+directional trend. Plastic strain fields in Fig.20 (d) present a similar picture:  𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, 𝑎𝑛𝑑 𝜀 𝑥𝑦 
+
+> 𝑝
+
+remain stable near 10% regardless of the weight ratio, while  𝜀 𝑧𝑧  
+
+> 𝑝
+
+stay s persistently high at 49 -62% 
+
+for reasons discussed in Section 5.3. Overall, the ratio 1:15 consistently produces the lowest or 
+
+near -lowest errors across most field variables, confirming that the chosen baseline is well -
+
+justified. Configurations below 1:5 underweight the data loss and lead to noticeably degraded 
+
+accuracy, while ratios beyond 1:15 offer no meaningful benefit. 
+
+Fig. 20. Effect of loss weight ratio  (𝑤 𝑝 ℎ𝑦𝑠𝑖𝑐𝑠 : 𝑤 𝑑𝑎𝑡𝑎 ) 𝑜𝑛  the % Relative 
+
+L2 error of FF -PINN 
+
+prediction for  (a) displacement fields  (𝑢 𝑥 , 𝑢 𝑦 ); (b) stress fields  (𝜎 𝑥𝑥 , 𝜎 𝑦𝑦 , 𝜎 𝑧𝑧 , 𝜎 𝑥𝑦 ); (c) total strain 34 
+
+fields  (𝜀 𝑥𝑥 , 𝜀 𝑦𝑦 , 𝜀 𝑥𝑦 ); and  (d) plastic strain fields  (𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, 𝜀 𝑧𝑧  
+
+> 𝑝
+
+, 𝜀 𝑥𝑦  
+
+> 𝑝
+
+) under Case 1 configuration 
+
+with strain -adaptive sampling. 
+
+5.4.4  Influence of Noise 
+
+To evaluate the robustness of the FF -PINN model to noisy training data,  Gaussian noise was 
+
+introduced into reference FEM solutions, simulating measurement uncertainties commonly 
+
+encountered in practical geotechnical engineering applications such as sensor noise and field 
+
+instrumentation errors. The noise is applied proportiona lly to the standard deviation of each field 
+
+variable, defined as: 
+
+𝑢 noisy = 𝑢 clean + η σ𝑢 clean 𝒩 (0,1) (39 )
+
+where  𝑢 clean  denotes the clean reference FEM solutions,  𝜎 𝑢 clean  is the standard deviation of the 
+
+corresponding field variable,  𝒩 (0,1) is the standard normal distribution, and  𝜂  is the noise -level 
+
+parameter, selected as 0.5%, 1.0%, 1.5% and 2.0% respectively. Fig .21 illustrates the % Relative 
+
+L2 error of both PINN and FF -PINN as a function of noise level  η from 0.5% to 2.0%. Overall, 
+
+neither model exhibits a systematic increase in mean error with increasing noise, indicating that 
+
+both architectures are largely insensitive to the noise levels examined. However, a notable 
+
+difference emerges in prediction stabi lity . For total strain fields, the conventional PINN exhibits 
+
+a pronounced error spike and substantially widened uncertainty band at  η =1.5%, particularly for 
+
+𝜀 𝑥𝑥  and  𝜀 𝑥𝑦 , reflecting localized training instability at this noise level. FF -PINN, by contrast, 
+
+maintains a consistently flat error profile and narrow uncertainty band throughout the full noise 
+
+range. A similar pattern is observed for displacement fields, where PIN N shows broader variance 
+
+in  𝑢 𝑥  that fluctuates with noise level, while FF -PINN remains stable. 35 
+
+Fig. 21. Effect of noise level on the % Relative 
+
+L2 error of PINN  (left column ) and FF -PINN 
+
+(right column ) predictions for displacement fields  (𝑢 𝑥 , 𝑢 𝑦 ), stress fields  (𝜎 𝑥𝑥 , 𝜎 𝑦𝑦 , 𝜎 𝑧𝑧 , 𝜎 𝑥𝑦 ), total 
+
+strain fields  (𝜀 𝑥𝑥 , 𝜀 𝑦𝑦 , 𝜀 𝑥𝑦 ), and plastic strain fields  (𝜀 𝑥𝑥  
+
+> 𝑝
+
+, 𝜀 𝑦𝑦  
+
+> 𝑝
+
+, 𝜀 𝑧𝑧  
+
+> 𝑝
+
+, 𝜀 𝑥𝑦  
+
+> 𝑝
+
+) under Case 1 configuration. 
+
+Shaded regions represent one standard deviation across 5 independent training runs. 
+
+5.5. Computational cost analysis 
+
+Beyond predictive accuracy, computational cost is a decisive consideration for practical 
+
+deployment. This section evaluates the training cost of the conventional PINN and FF -PINN in 
+
+terms of epochs to convergence, wall -clock training time, and parameter co unt, using Case 2 as a 
+
+representative configuration. Table 8 summarizes the comparison. FF -PINN reaches convergence 36 
+
+at 17,500 epochs against 35,000 for the conventional PINN, halving the wall -clock training time 
+
+from 1,366 s to 683 s, and does so while attaining a lower final total loss. This acceleration is 
+
+obtained despite a larger trainable parameter count, 330,502 a gainst 265,478, the increase arising 
+
+from the higher input dimensionality that the Fourier mapping presents to the first hidden layer. 
+
+The per -epoch cost of the two models is therefore comparable, and the saving derives from the 
+
+reduced number of epochs re quired rather than from cheaper individual epochs. Expanding the 
+
+parameter count while shortening the time to convergence indicates that the benefit lies in the 
+
+optimization trajectory rather than in model size. 
+
+Fig. 22 traces the total loss histories underlying these figures and isolates the effect on 
+
+convergence behavior . FF -PINN descends more rapidly from the outset and reaches a stable 
+
+plateau near epoch 17,500, whereas the conventional PINN continues to oscillate through a further 
+
+17,500 epochs before settling at a comparable level. The insets make the practical conseq uence 
+
+explicit by showing the predicted plastic shear strain contour at three points. At the matched wall -
+
+clock budget of 683 s, FF -PINN has already resolved a coherent localized plastic band, while the 
+
+conventional PINN at the same elapsed time has not; only after the full 1,366 s does the 
+
+conventional model recover a comparable field. The comparison at equal computational 
+
+expenditure, rather than at equal epoch count, is the ope rative one for deployment. 
+
+This reduction in training cost does not come at the expense of accuracy. FF -PINN 
+
+converges at half the epochs yet achieves substantially lower errors across most field variables in 
+
+Case 2, with reductions of up to 66 percent in the vertical displacement r elative to the fully trained 
+
+conventional PINN (Table 7), although the out -of -plane stress and plastic shear strain components 
+
+show marginally higher errors, consistent with the exceptions noted in Section 5.3. Fourier feature 
+
+mapping therefore accelerates convergence while maintaining or improving accuracy, a
+
+combination that is practically significant for applications requiring repeated model evaluation, 
+
+such as parametric studies or reliability analyses, where the saving compounds across runs. 
+
+Table 8 Computational cost comparison 
+
+Metric  PINN  FF -PINN 
+
+Epochs to convergence  35,000  17,500 
+
+Training time  (s) 1,366  683 
+
+Trainable parameters  265,478  330,502 
+
+Final total loss ( ×10 ⁻⁵ ) 5.16  4.68 37 
+
+Fig. 22. Training loss history of PINN and FF -PINN for Case 2. Insets show the predicted  𝜀 𝑥𝑦 
+
+> 𝑝
+
+contour at epoch 17,500  (FF -PINN convergence ) and epoch 35,000  (PINN Convergence )
+
+6. Discussion 
+
+The numerical results establish that embedding random Fourier feature mapping into the 
+
+PINN input layer provides a consistent and substantial improvement over the conventional fully -
+
+connected architecture across most predicted field variables and test cases, with a small number 
+
+of exceptions as detailed in Table 7. The most pronounced gains occur in the displacement and 
+
+plastic strain fields, with relative error reductions reaching approximately 66 percent in 
+
+displacement fields. This pattern directly supports the central hypothesis of the study: spectral 
+
+bias is the dominant source of inaccuracy in standard PINNs applied to elasto -plastic problems, 
+
+and high -frequency input encoding is an effective mechanism for resolving the sharp transitions 
+
+that develop at elastic -plastic boundaries and within localized plastic zones. The faithful 
+
+reproduction of the predicted plastic failure zones further confirms that the improvement is not 
+
+merely a reduction in aggregate error but a genuine recovery of the physically meaningful 
+
+yielding pattern. 
+
+The architectural analysis offers practical guidance for configuring the surrogate model. 
+
+Network depth is shown to exert a stronger influence on accuracy than width, consistent with the 
+
+view that deeper representations are required to capture the composit ional nonlinearity introduced 
+
+by the non -associative flow rule and the KKT activation conditions. The Fourier scale parameter 
+
+emerges as a more decisive factor than the mapping size, indicating that the spectral content of 
+
+the encoding, rather than its dim ensionality, governs the network's ability to represent the 
+
+solution. As demonstrated in Appendix A, an excessively large -scale parameter introduces 
+
+spurious high -frequency content and produces spatially incoherent stress fields, which delineates 38 
+
+a practical upper bound on this hyper -parameter and underscores the need to balance high -
+
+frequency expressivity against training stability. 
+
+The sensitivity analysis clarifies the data and sampling requirements of the framework. 
+
+The relative errors converge rapidly as the dataset grows toward approximately 1,237 points and 
+
+the collocation counts toward 5,000, beyond which further increases yield only marginal 
+
+improvement. This convergence behavior implies that the proposed framework attains reliable 
+
+accuracy at a moderate data volume, which is significant for geotechnical applications where 
+
+high -fidelity reference data are costly to obtain. The loss -weight study identifies a physics -to -
+
+data ratio of 1:15 as optimal, with accuracy degrading when the physics weight is pushed too 
+
+high. This finding indicates that anchoring the network to high -fidelity reference data is critical 
+
+for convergence in the strongly nonlinear plastic regime, where the physics residual alone 
+
+provides an insufficiently constrained optimization landscape. 
+
+The robustness assessment provides additional support for practical deployment. Neither 
+
+the conventional PINN nor the FF -PINN exhibits a systematic increase in mean error as the noise 
+
+level rises to 2.0 percent, demonstrating that the data -driven component does not compromise 
+
+stability under the measurement uncertainties typical of field instrumentation. This insensitivity 
+
+to noise is attributable to the regularizing effect of the embedded physics constraints, which 
+
+suppress the propagation of stochastic pe rturbations into the predicted fields. 
+
+In addition to predictive accuracy, the computational cost analysis presented in Section 
+
+5.5 reveals that FF -PINN converges in approximately half the training epochs required by the 
+
+conventional PINN  (17,500 versus 35,000 epochs ), reducing wall -clock training time from 1,366 
+
+s to 683 s despite a modest increase in trainable parameters  (330,502 versus 265,478 ). This 
+
+acceleration indicates that Fourier feature mapping not only improves solution accuracy but also 
+
+guides the optimizer toward more accurate minima more efficiently, yielding simultaneous gains 
+
+in both predictive performance and training economy. The result is practically significant: for 
+
+problems in which repeated evaluations are required , such as parametric studies or reliability 
+
+analyses , the reduced training cost compounds into substantial overall saving s without any 
+
+sacrifice in accuracy. 
+
+A notable limitation concerns the persistently elevated error in one plastic strain 
+
+component, which remains in the range of 60 to 80 percent across the entire dataset range with no 
+
+consistent downward trend. This behavior identifies a fundamental approxim ation challenge 
+
+associated with that component rather than a deficiency that additional data can resolve, and it 
+
+represents the principal avenue for further methodological refinement. Beyond this, the present 
+
+study is restricted to a two -dimensional plane -strain domain under monotonic loading with 
+
+constant elastic parameters. Extension to three -dimensional geometries, more complex 
+
+constitutive models, cyclic and path -dependent loading, and inverse identification of material 
+
+properties therefore constitutes the natural direction for future work, alongside the integration of 
+
+adaptive loss -weighting strategies and transfer learning to enhance generalizability across varying 
+
+material conditions. 
+
+7. Conclusion 39 
+
+This study presented a Fourier Feature Physics -Informed Neural Network (FF -PINN) 
+
+framework for solving elasto -plastic boundary value problems governed by the non -associative 
+
+Mohr -Coulomb constitutive model. The framework embeds random Fourier feature mapping into 
+
+the network input layer, combined with a multi -objective loss enforcing equilibrium, constitutive 
+
+rel ations, and Karush -Kuhn -Tucker conditions against high -fidelity FEM reference data, and a 
+
+strain -adaptive sampling strategy. The modification is confined to the input representation, so the 
+
+resulting gains are attributable to the spectral properties of the encoding rather than to network 
+
+capacity or optimization settings. 
+
+Numerical benchmarking across three test cases demonstrated that FF -PINN outperforms 
+
+the conventional PINN across most predicted field variables, with a small number of exceptions 
+
+detailed in Table 7, achieving error reductions of up to approximately 66 pe rcent. The 
+
+improvement is concentrated in the high -gradient regions beneath the loaded strip rather than 
+
+distributed uniformly and extends beyond aggregate error to the geometry of the predicted failure 
+
+zone, which FF -PINN reproduces with markedly closer fidelity to FEM than the conventional 
+
+architecture, whose smoothing of the plastic boundary is the signature of spectral bias. 
+
+The architectural analysis revealed that network depth governs the representation of 
+
+elasto -plastic nonlinearity more strongly than width, and that the Fourier scale parameter exerts a 
+
+more decisive influence on accuracy than the mapping size, indicating that the spectral bandwidth 
+
+of the encoding rather than its dimensionality is the controllin g factor. An excessively large -scale 
+
+parameter introduces spurious high -frequency content and degrades stability, which establishes a 
+
+practical upper bound on this hyper -parameter. 
+
+The sensitivity analysis confirmed that reliable predictions are attained with 
+
+approximately 1,237 training data points and 5,000 collocation points, beyond which 
+
+improvements are marginal, and that the framework remains stable for noise levels up to 2.0 
+
+percent, with FF -PINN maintaining a narrower uncertainty band than the conventional PINN. 
+
+The loss -weighting study identified a physics -to -data ratio of 1:15 as optimal, confirming that 
+
+anchoring the network to reference data is critical for convergence in the strongly nonlinear 
+
+plastic regime, where the physics residual alone provides an insufficiently constrained 
+
+optimization landscape. The computational cost analysis further showed that FF -PINN converges 
+
+in half the training epochs of the conventional PINN, halving wall -clock training time despite a 
+
+modest increase in trainable parameters and therefore delivers higher accuracy at lower cost 
+
+rather than trading one against the other. 
+
+A persistently elevated error in the out -of -plane plastic strain component was identified as 
+
+a fundamental approximation challenge that additional data cannot resolve and represents the 
+
+principal target for further methodological refinement. Beyond this, the present study is restricted 
+
+to a two -dimensional plane -strain domain under monotonic loading with constant elastic 40 
+
+parameters. Future work will extend the framework to three -dimensional geometries, more 
+
+complex constitutive models, and cyclic loading, and will explore inverse identification of 
+
+material properties, adaptive loss -weighting strategies, and transfer learni ng to enhance 
+
+generalizability across varying material conditions. 
+
+Acknowledgments 
+
+This research was supported by the “Petchra Pra Jom Klao Master’s Degree  from King 
+
+Mongkut’s University of Technology Thonburi ”
+
+Data availability 
+
+Data will be made available on request. 
+
+Appendix A. Effect of Fourier Scale Parameter on Predicted  𝜎 𝑥𝑦  Field 
+
+Fig A.1. Predicted shear stress fields from FF -PINN with varying Fourier scale parameters  ( 𝜎  =
+
+0.01, 0.10, 1.0, and 10.0 ). Models with  𝜎 < 1.0 yield consistent and physically meaningful 
+
+results, whereas  𝜎  = 10.0 produces a spatially incoherent field, indicating training instability from 
+
+excessive high -frequency feature mapping. 
+
+To illustrate the effect of the Fourier scale parameter on prediction quality, Fig. A.1 presents the 
+
+predicted shear stress fields  𝜎 𝑥𝑦  under each configuration. Models with  𝜎  ≤ 0.10 produce 
+
+spatially coherent and physically consistent fields, whereas  𝜎  = 1.0 begins to exhibit minor 
+
+oscillatory artifacts and σ = 10.0 produces a spatially incoherent field indicative of training 
+
+instability from excessive high -frequency feature encoding. These results confirm that σ = 0.10 
+
+represents a practical upper boun d that balances high -frequency expressivity with training 
+
+stability. 
+
+Reference s
+
+Abueidda, D.W., Koric, S., Guleryuz, E., Sobh, N.A., 2022. Enhanced physics -informed neural 
+
+networks for hyperelasticity. Int. J. Numer . Methods Eng. 124, 1585 –1601. 
+
+https://doi.org/10.1002/nme.7176 
+
+Chaboche, J.L., 2008. A review of some plasticity and viscoplasticity constitutive theories. Int. J. 
+
+Plast. 24, 1642 –1693. https://doi.org/10.1016/j.ijplas.2008.03.009 41 
+
+Chadha, C., He, J., Abueidda, D., Koric, S., Guleryuz, E., Jasiuk, I., 2023. Improving the 
+
+accuracy of the deep energy method. Acta Mech. 234, 5975 –5998. 
+
+https://doi.org/10.1007/s00707 -023 -03691 -3
+
+Chen, W. -F., Han, D. -J., 2007. Plasticity for Structural Engineers. J. Ross Publishing. 
+
+Chen, X. -X., Zhang, P., Yin, Z. -Y., 2025. A Comprehensive Investigation of Physics -Informed 
+
+Learning in Forward and Inverse Analysis of Elastic and Elastoplastic Footing. Comput. 
+
+Geotech. 181, 107110. https://doi.org/10.1016/j.compgeo.2025.107110 
+
+Dassault Systèmes Simulia, 2016. Abaqus 2016 Analysis User’s Manual. Simulia, Providence, 
+
+RI. 
+
+Eghtesad, A., Tan, J., Fuhg, J.N., Bouklas , N., 2024. NN -EVP: A physics informed neural 
+
+network -based elasto -viscoplastic framework for predictions of grain size -aware flow 
+
+response. Int. J. Plast. 181, 104072. https://doi.org/10.1016/j.ijplas.2024.104072 
+
+Glorot , X., Bengio, Y., 2010. Understanding the dif fi culty of training deep feedforward neural 
+
+networks, in: Proceedings of the Thirteenth International Conference on Artificial 
+
+Intelligence and Statistics, Proceedings of Machine Learning Research. Presented at t he 
+
+Artificial Intelligence and Statistics (AISTATS 2010), PMLR, Chia Laguna Resort, 
+
+Sardinia, Italy, pp. 249 –256. 
+
+Go, M. -S., Noh, H. -K., Hyuk Lim, J., 2025. Real -time full -field inference of displacement and 
+
+stress from sparse local measurements using physics -informed neural networks. Mech. 
+
+Syst. Signal Process. 224, 112009. https://doi.org/10.1016/j.ymssp.2024.112009 
+
+Haghighat, E., Raissi, M., Moure, A., Gomez, H., Juanes, R., 2021. A physics -informed deep 
+
+learning framework for inversion and surrogate modeling in solid mechanics. Comput. 
+
+Methods Appl. Mech. Eng. 379, 113741. https://doi.org/10.1016/j.cma.2021.113741 
+
+Kingma, D.P., Ba, J., 2014. Adam: A Method for Stochastic Optimization. 
+
+https://doi.org/10.48550/arXiv.1412.6980 
+
+Kumar, D.R., Wipulanusat, W., Kumar, M., Keawsawasvong, S., Samui, P., 2024. Optimized 
+
+neural network -based state -of -the -art soft computing models for the bearing capacity of 
+
+strip footings subjected to inclined loading. Intell. Syst. Appl. 21, 200314. 
+
+htt ps://doi.org/10.1016/j.iswa.2023.200314 
+
+Liang, R., Liu, W., Xu, L., Qu, X., Kaewunruen, S., 2023. Solving elastodynamics via physics -
+
+informed neural network frequency domain method. Int. J. Mech. Sci. 258, 108575. 
+
+https://doi.org/10.1016/j.ijmecsci.2023.108575 
+
+Liu, M., Zhang, Q., Fuentes, R., 2026. A FEM -PINN approach to modelling elastoplastic soil 
+
+behaviour in boundary value problems. Comput. Geotech. 190, 107761. 
+
+https://doi.org/10.1016/j.compgeo.2025.107761 
+
+Loshchilov, I., Hutter, F., 2016. SGDR: Stochastic Gradient Descent with Warm Restarts. 
+
+https://doi.org/10.48550/arXiv.1608.03983 
+
+Menétrey, P., Willam, K.J., 1995. Triaxial Failure Criterion for Concrete and Its Generalization. 
+
+ACI Struct. J. 92, 311 –318. 
+
+Millán, M.A., Galindo, R., 2025. Stability analysis of a homogeneous rock slope under steady -
+
+state seepage using artificial neural networks. Eng. Appl. Artif. Intell. 159, 111556. 
+
+https://doi.org/10.1016/j.engappai.2025.111556 
+
+Moayedi, H., Mosallanezhad , M., Rashid, A.S.A., Jusoh, W.A.W., Muazu, M.A., 2020. A 
+
+systematic review and meta -analysis of artificial neural network application in 
+
+geotechnical engineering: theory and applications. Neural Comput. Appl. 32, 495 –518. 
+
+https://doi.org/10.1007/s00521 -01 9-04109 -942 
+
+Potts, D.M., Zdravkovi ć, L., 2001. Finite element analysis in geotechnical engineering. 2: 
+
+Application. Telford, London. 
+
+Rahaman, N., Baratin, A., Arpit, D., Draxler, F., Lin, M., Hamprecht , F.A., Bengio, Y., 
+
+Courville, A., 2019. On the Spectral Bias of Neural Networks. 
+
+https://doi.org/10.48550/arXiv.1806.08734 
+
+Raissi, M., Perdikaris, P., Karniadakis, G.E., 2019. Physics -informed neural networks: A deep 
+
+learning framework for solving forward and inverse problems involving nonlinear partial 
+
+differential equations. J. Comput. Phys. 378, 686 –707. 
+
+https://doi.org/10. 1016/j.jcp.2018.10.045 
+
+Roy, A.M., Guha, S., 2023. A data -driven physics -constrained deep learning computational 
+
+framework for solving von Mises plasticity. Eng. Appl. Artif. Intell. 122, 106049. 
+
+https://doi.org/10.1016/j.engappai.2023.106049 
+
+Roy, A.M., Guha, S., Sundararaghavan, V., Arróyave, R., 2024. Physics -infused deep neural 
+
+network for solution of non -associative Drucker –Prager elastoplastic constitutive model. 
+
+J. Mech. Phys. Solids 185, 105570. https://doi.org/10.1016/j.jmps.2024.105570 
+
+Shahin, M.A., 2014. Load –settlement modeling of axially loaded steel driven piles using CPT -
+
+based recurrent neural networks. Soils Found. 54, 515 –522. 
+
+https://doi.org/10.1016/j.sandf.2014.04.015 
+
+Simo, J.C., Hughes, T.J.R., 1998. Computational Inelasticity, Interdisciplinary Applied 
+
+Mathematics. Springer, New York. 
+
+Tancik, M., Srinivasan, P.P., Mildenhall, B., Fridovich -Keil, S., Raghavan, N., Singhal, U., 
+
+Ramamoorthi, R., Barron, J.T., Ng, R., 2020. Fourier Features Let Networks Learn High 
+
+Frequency Functions in Low Dimensional Domains. 
+
+https://doi.org/10.48550/arXiv.2006.10739 
+
+Taraghi, P., Li, Y., Adeeb, S., 2025. Application of physics -informed neural networks for 
+
+nonlinear analysis of buried steel pipelines to support pipe reinforcement against ground 
+
+movement. Comput. Geotech. 186, 107389. 
+
+https://doi.org/10.1016/j.compgeo.20 25.107389 
+
+Thakolkaran , P., Joshi, A., Zheng, Y., Flaschel, M., De Lorenzis, L., Kumar, S., 2022. NN -
+
+EUCLID: Deep -learning hyperelasticity without stress data. J. Mech. Phys. Solids 169, 
+
+105076. https://doi.org/10.1016/j.jmps.2022.105076 
+
+Vermeer, P.A., 1998. Non -Associated Plasticity for Soils, Concrete and Rock, in: Herrmann, 
+
+H.J., Hovi, J. -P., Luding, S. (Eds.), Physics of Dry Granular Media. Springer 
+
+Netherlands, Dordrecht, pp. 163 –196. https://doi.org/10.1007/978 -94 -017 -2653 -5_10 
+
+Wang, S., Wang, H., Perdikaris , P., 2021. On the eigenvector bias of Fourier feature networks: 
+
+From regression to solving multi -scale PDEs with physics -informed neural networks. 
+
+Comput. Methods Appl. Mech. Eng. 384, 113938. 
+
+https://doi.org/10.1016/j.cma.2021.113938 
+
+Wang, W., Thai, H. -T., 2026. Physics -informed neural network frameworks in strong and weak 
+
+forms for elastoplastic analysis. Appl. Math. Model. 158, 116968. 
+
+https://doi.org/10.1016/j.apm.2026.116968 
+
+Wu, J., Zhao, W., Wang, K., Hesham El Naggar, M., 2026. Physics -informed neural networks 
+
+(PINNs) for dynamic pile -soil interaction problems. Comput. Geotech. 193, 107941. 
+
+https://doi.org/10.1016/j.compgeo.2026.107941 43 
+
+Xu, Z. -Q.J., Zhang, L., Cai, W., 2025. On understanding and overcoming spectral biases of deep 
+
+neural network learning methods for solving PDEs. J. Comput. Phys. 530, 113905. 
+
+https://doi.org/10.1016/j.jcp.2025.113905 
+
+Xu, Z. -Q.J., Zhang, Y., Luo, T., Xiao, Y., Ma, Z., 2019. Frequency Principle: Fourier Analysis 
+
+Sheds Light on Deep Neural Networks. Commun. Comput. Phys. 28, 1746 –1767. 
+
+https://doi.org/10.4208/cicp.OA -2020 -0085 
+
+Yin, J. -H., Wang, Y. -J., Selvadurai, A.P.S., 2001. Influence of Nonassociativity on the Bearing 
+
+Capacity of a Strip Footing. J. Geotech. Geoenvironmental Eng. 127, 985 –989. 
+
+https://doi.org/10.1061/(ASCE)1090 -0241(2001)127:11(985) 
+
+Youwai, S., Thongnoo , C., 2025. Load -deformation prediction of bored piles using sequential 
+
+soil profile encoding with transformer architecture: A study of Bangkok subsoil. Expert 
+
+Syst. Appl. 275, 127085. https://doi.org/10.1016/j.eswa.2025.127085 
+
+Yuan, R., Huang, X. -L., Fang, Y., Kasama, K., Cheng, Y., He, Y., 2026. A physics -informed 
+
+machine learning computational framework for solving Mohr -Coulomb plasticity in 
+
+geomechanics. Adv. Eng. Softw. 212, 104061. 
+
+https://doi.org/10.1016/j.advengsoft.2025. 104061 
+
+Zhang, P., Yin, Z. -Y., Jin, Y. -F., Chan, T.H.T., Gao, F. -P., 2021. Intelligent modelling of clay 
+
+compressibility using hybrid meta -heuristic and machine learning algorithms. Geosci. 
+
+Front. 12, 441 –452. https://doi.org/10.1016/j.gsf.2020.02.014 
+
+Zhang, W., Li, H., Li, Y., Liu, H., Chen, Y., Ding, X., 2021. Application of deep learning 
+
+algorithms in geotechnical engineering: a short critical review. Artif. Intell. Rev. 54, 
+
+5633 –5673. https://doi.org/10.1007/s10462 -021 -09967 -1
+
+Zhang, Z., Dias, D., Anitescu , C., Pan, Q., Rabczuk, T., 2026. Physics -informed neural network 
+
+for elastic –plastic mesh -free modelling of tunnelling -induced deformation. Acta Geotech. 
+
+21, 349 –370. https://doi.org/10.1007/s11440 -025 -02788 -4
+
+Zienkiewicz, O.C., Humpheson, C., Lewis, R.W., 1975. Associated and non -associated visco -
+
+plasticity and plasticity in soil mechanics. Géotechnique 25, 671 –689. 
+
+https://doi.org/10.1680/geot.1975.25.4.671

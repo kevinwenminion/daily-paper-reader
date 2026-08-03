@@ -6,43 +6,47 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-02
-- 运行时间：2026-08-02 21:25:14 UTC
+- 最新运行日期：2026-08-03
+- 运行时间：2026-08-03 20:32:35 UTC
 - 运行状态：成功
-- 本次总论文数：7
-- 精读区：4
+- 本次总论文数：9
+- 精读区：6
 - 速读区：3
 
 ### 今日简报（AI）
-今日整理7篇论文，精读聚焦CP2K电子结构/分子动力学软件与热气候墙体材料筛选。  
-最值得看：CP2K在动力学、输运及光谱响应方面功能全面（9/10）；物理信息神经网络可低成本预测干热地区低造价墙体热性能（8/10）。  
-建议普通读者优先关注PINN加速材料筛选的实际应用，并搭配CP2K官方文档入门计算模拟。
-- 详情：[/202608/02/README](/202608/02/README)
+今日精读6篇、速读3篇，核心聚焦机器学习力场与第一性原理计算交叉方向。最值得关注两篇满分工作：一是利用深度神经网络势模拟揭示α-SiO₂电子激发下的超快非热晶格失稳与极化光学散射抑制；二是提出隐式机器学习力场以显著加速分子动力学模拟。建议普通读者优先了解隐式ML力场方法，其为材料模拟提供了兼顾精度与效率的实用新路径。
+- 详情：[/202608/03/README](/202608/03/README)
 
 ### 精读区论文标签
-1. [CP2K: An electronic structure and molecular dynamics software package - Dynamics, Transport, and Spectroscopic Response](/202608/02/2607.22916v1-cp2k-an-electronic-structure-and-molecular-dynamics-software-package---dynamics-transport-and-spectroscopic-response)  
+1. [Ultrafast Nonthermal Lattice Destabilization and Suppression of Polar Optical Scattering in Electronically Excited $α$-SiO$_2$ from First-Principles and Deep Neural Network Potential Modeling](/202608/03/2607.28838v1-ultrafast-nonthermal-lattice-destabilization-and-suppression-of-polar-optical-scattering-in-electronically-excited--sio2-from-first-principles-and-deep-neural-network-potential-modeling)  
+   标签：评分：10.0/10、query:aimat-mlpot
+   evidence：用于电子激发alpha-SiO2的深度神经网络势
+2. [Implicit Machine Learning Force Fields Accelerate Molecular Dynamics Simulations](/202608/03/2607.29158v1-implicit-machine-learning-force-fields-accelerate-molecular-dynamics-simulations)  
+   标签：评分：10.0/10、query:aimat-mlpot
+   evidence：隐式机器学习力场加速分子动力学模拟
+3. [Representations from Pretrained Machine-Learning Interatomic Potentials as Coarse Coordinates for Material Generation and Evaluation](/202608/03/2607.28776v1-representations-from-pretrained-machine-learning-interatomic-potentials-as-coarse-coordinates-for-material-generation-and-evaluation)  
    标签：评分：9.0/10、query:aimat-mlpot
-   evidence：CP2K集成机器学习势用于原子模拟
-2. [A Physics-Informed Neural Operator for Thermal Ranking of Low-Cost Wall Materials in Hot-Dry Climates](/202608/02/2607.25668v1-a-physics-informed-neural-operator-for-thermal-ranking-of-low-cost-wall-materials-in-hot-dry-climates)  
+   evidence：预训练MLIP表征用于材料生成评估
+4. [Ordered-to-disordered transfer learning with graph neural networks for formation-energy and HOMO-LUMO gap prediction in high-entropy perovskite oxides](/202608/03/2607.29510v1-ordered-to-disordered-transfer-learning-with-graph-neural-networks-for-formation-energy-and-homo-lumo-gap-prediction-in-high-entropy-perovskite-oxides)  
+   标签：评分：9.0/10、query:aimat-mlpot
+   evidence：基于图神经网络的迁移学习用于高熵钙钛矿氧化物的形成能与带隙预测
+5. [Decoding the Micromagnetic Hamiltonian from Magnetic Fingerprints](/202608/03/2607.27430v1-decoding-the-micromagnetic-hamiltonian-from-magnetic-fingerprints)  
    标签：评分：8.0/10、query:aimat-mlpot
-   evidence：用物理信息神经算子预测墙体材料热性能，属于机器学习预测材料性能
-3. [Inferring Magnetic Material Parameters from Statistical Measures in Strongly Fluctuating Magnetization Dynamics](/202608/02/2607.26833v1-inferring-magnetic-material-parameters-from-statistical-measures-in-strongly-fluctuating-magnetization-dynamics)  
+   evidence：利用深度卷积神经网络从磁测量指纹中提取微磁哈密顿量，属于机器学习用于材料表征
+6. [Beyond Stoner-Wohlfarth: Machine-Learning Models and Symbolic Regression of Hard-Magnet Properties](/202608/03/2607.29249v1-beyond-stoner-wohlfarth-machine-learning-models-and-symbolic-regression-of-hard-magnet-properties)  
    标签：评分：8.0/10、query:aimat-mlpot
-   evidence：基于机器学习从磁化动力学推断磁性材料参数
-4. [Recursive transformers for semiconductor thermo-mechanical reliability](/202608/02/2607.27251v1-recursive-transformers-for-semiconductor-thermo-mechanical-reliability)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：用Transformer代理模型预测半导体热机械性能
+   evidence：用机器学习在微磁模拟数据上预测矫顽力和剩磁等硬磁性质
 
 ### 速读区论文标签
-1. [Fourier Feature Physics-Informed Neural Networks for Elasto-Plastic Analysis of Geomaterials with a Non-Associative Mohr-Coulomb Model](/202608/02/2607.25150v1-fourier-feature-physics-informed-neural-networks-for-elasto-plastic-analysis-of-geomaterials-with-a-non-associative-mohr-coulomb-model)  
+1. [Frugal Bayesian Optimization: Scalable Surrogates for Data- and Resource-Limited Discovery](/202608/03/2607.29225v1-frugal-bayesian-optimization-scalable-surrogates-for-data--and-resource-limited-discovery)  
+   标签：评分：7.0/10、query:aimat-mlpot
+   evidence：面向材料等发现问题的贝叶斯优化代理模型计算感知基准
+2. [Scaling universal Fermi network toward ground states: A diffusion-Monte-Carlo assessment](/202608/03/2607.25872v1-scaling-universal-fermi-network-toward-ground-states-a-diffusion-monte-carlo-assessment)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：物理信息神经网络应用于岩土材料弹塑性分析
-2. [PIKS: Universal Physics-Informed Kernel Methods](/202608/02/2607.27062v1-piks-universal-physics-informed-kernel-methods)  
+   evidence：神经网络费米波函数与扩散蒙特卡洛用于相互作用电子体系，关联材料电子结构AI方法
+3. [ICDAR 2026 Competition on Information Extraction from Atomic Layer Deposition/Etching (ALD/E) Scientific Figures](/202608/03/2607.26848v1-icdar-2026-competition-on-information-extraction-from-atomic-layer-depositionetching-alde-scientific-figures)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：物理信息核方法用于科学机器学习
-3. [Topology of Shape and Data in Material Microstructures](/202608/02/2607.27493v1-topology-of-shape-and-data-in-material-microstructures)  
-   标签：评分：6.0/10、query:aimat-mlpot
-   evidence：利用拓扑数据分析和流形学习进行材料微观结构表征
+   evidence：面向材料科学图形信息抽取的多模态AI基准
 
 
 <div class="dpr-home-promo-card">

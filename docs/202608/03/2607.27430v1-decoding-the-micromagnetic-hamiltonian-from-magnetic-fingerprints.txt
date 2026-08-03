@@ -1,0 +1,334 @@
+Title: Decoding the Micromagnetic Hamiltonian from Magnetic Fingerprints
+
+URL Source: https://arxiv.org/pdf/2607.27430v1
+
+Published Time: Fri, 31 Jul 2026 00:15:39 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# Decoding the Micromagnetic Hamiltonian from Magnetic Fingerprints 
+
+Bradley J. Fugetta, 1 Anqi Liu, 2 Kai Liu, 1 Amy Y. Liu, 1 and Gen Yin 1, ∗ 
+
+> 1Department of Physics, Georgetown University, Washington, D.C. 20057, USA
+> 2Department of Computer Science, The Johns Hopkins University, Baltimore, Maryland 21218, USA
+> Extracting intrinsic magnetic Hamiltonians directly from magnetometry is challenging due to the high di-mensionality of the parameter space and the degeneracy induced by ensemble averaging. Here, we introduce a collection of deep convolutional neural networks (CNNs) to extract the full phenomenological micromagnetic Hamiltonian directly from the magnetic fingerprints encoded within First-Order Reversal Curves (FORCs). We validate this approach via closed-loop verification, re-creating the input magnetometry for both simulated and experimental FORCs. To mitigate false positives, we deploy an ‘Alice–Bob’ parallel network that quantifies pre-diction uncertainty based on solely the information in FORCs without any additional ground-truth knowledge. This framework provides a robust, machine-learning-assisted approach to unravel the underlying spin behaviors in complex magnetic systems
+> I. INTRODUCTION
+
+A central challenge in the study of magnetism and its diverse applications is quantitatively linking macroscopic magnetic behaviors to their underlying physical interactions. While magnetism is inherently a quantum phenomenon, clas-sical micromagnetic Hamiltonians have demonstrated success in capturing key magnetic behaviors[1, 2], including mag-netization dynamics, spin waves, magnetic switching, and the behaviors of complex spin textures such as bubbles, vor-tices, and magnetic skyrmions[3–5]. However, the predic-tive power of these micromagnetic models relies on quanti-tatively knowing the complete set of parameters within the Hamiltonian, including the Heisenberg exchange, magneto-crystalline anisotropy, magnetic dipolar interaction, and the Dzyaloshinskii-Moriya interaction (DMI), among others[6, 7]. In addition to these intrinsic material properties, ex-trinsic details such as microsctuctures, defects and impuri-ties can also strongly a ff ect magnetic behavior[8, 9]. The experimental, quantitative extraction of these parameters is challenging, typically requiring a series of comprehensive, resource-intensive techniques coupled with iterative theoret-ical modeling[10–12]. Certain interactions, such as the DMI, are particularly challenging to isolate and require specialized equipment and measurements to determine[11, 13–21]. It is therefore highly desirable to develop methodologies capa-ble of extracting the complete set of Hamiltonian parameters directly from readily accessible macroscopic measurements, such as spatial- and thermal-averaged magnetometry. However, unlike the straightforward simulation of magne-tometry from a known Hamiltonian, the inverse problem of extracting the Hamiltonian from magnetometry is notoriously di ffi cult. Since magnetometry measures the spatial average of all magnetic moments in a sample, it inevitably obscures the microscopic details of the spin textures, resulting in a highly degenerate parameter space. Furthermore, inherent sample disorder and morphological variations drastically alter mag-netic switching paths even in the adiabatic limit, further in-creasing the complexity.  
+
+> ∗gen.yin@georgetown.edu
+
+Here we present a machine-learning driven solution to this complex inverse problem. In previous work, we demonstrated that DMI could be extracted from magnetometry data format-ted as First-Order Reversal Curves (FORCs)[22–26], suggest-ing that the signatures of underlying spin-spin interactions are not completely obscured by ensemble averaging[27]. In fact, analysis based on the distribution of FORCs has demon-strated its success in many complex magnetic systems[24– 26, 28–31]. Here we elevate our approach to a new scale, capable of extracting the full magnetic Hamiltonian directly from FORCs. This approach establishes a closed-loop verifi-cation, where the network’s outputs are forward-simulated to confirm their agreement with the magnetometry inputs. Ad-ditionally, we introduce an ‘Alice-Bob’ parallel network ca-pable of assessing the confidence of the predictions based solely on the intrinsic features of the FORC data, without requiring any ground-truth knowledge. Our trained models are also validated by reproducing experimental FORCs using the predicted Hamiltonian parameters. This framework o ff ers a reliable, data-driven workflow, providing significant lever-age over traditional trial-and-error approaches when modeling various magnetic systems.   
+
+> II. METHODS AND RESULTS A. FORCs and Their Simulation
+
+The FORCs used in this work are obtained by micromag-netic simulations implemented by mumax 3[6]. Due to the non-ergodic nature of classical spin models, the simulation time to arrive at the ground state of the spin texture is usu-ally not reasonable for high-throughput data generation. Since the materials of our interest usually have high Curie temper-atures ( TC ≫ 300 K), zero-temperature dynamics is enough to capture the spin-texture evolution measured at room tem-perature. This removes the thermalization term in the e ff ec-tive field, avoiding the known scaling artifacts associated with finite-temperature micromagnetics [32, 33]. To precisely cap-ture the FORCs with fast simulations, we need to identify the maximum time step ∆t that does not modify the instantaneous susceptibility dm z(t) 
+
+> dH z(t)
+
+. Here mz = Mz 
+
+> MS
+
+is the normalized perpen-20       
+
+> 32
+> 64
+> 032 64
+> Steps
+> Steps
+> –0.5 0.0 0.5
+> –1
+> 0
+> 1
+> μ0H (T)
+> Mz/M s
+> (a) (b)
+> FIG. 1. FORCs simulation and 2D rearrangement. (a) A typical family of FORCs in our dataset. One minor loop is highlighted by the red curve. The full hysteresis loop is denoted by the solid blue curve. The FORCs are illustrated by the dark dashed lines. (b) The rearrangement of FORCs into a 2D image, with each pixel denoting one discrete point during the field scan. The white-dark color scale denotes the normalized magnetization quantized to a single-byte in-teger.
+
+dicular magnetization and Hz(t) is a time-dependent applied magnetic field normal to the thin film. The slew rate dH z 
+
+> dt
+
+is adaptively chosen based on the maximum torque ( τz) to re-duce the simulation time. To estimate τz,max for each simulation, we use the Landau-Lifshitz-Gilbert (LLG) equation under the assumption that 
+
+Heff lies predominantly along the z-axis on average, yielding 
+
+τz = −γLL 
+
+α′
+
+1 + α′2 μ0 Heff ,z (1 − m2 
+
+> z
+
+). (1) This assumes a single, averaged classical magnetization 
+
+m(t) = M(t) 
+
+> MS
+
+, where γLL is the Landau-Lifshitz gyromag-netic ratio and M(t) denotes position-averaged magnetization at time t. Since the magnetization is an averaged value, we replace the Gilbert damping factor α with an e ff ective value 
+
+α′. Specifically, we first saturate the simulation at −1 T, in-stantaneously apply a constant field of +1 T, and then take 
+
+τz,max = τz(mz = 0). The value of α′ is then determined by solving Eq. 1 at mz = 0. When scanning Hz(t), we periodically examine and update the slew rate ∂Hz 
+
+> ∂t
+
+based on the current and recent state of the system. Each update is performed if μ0 Hz changes by 0 .02 T or mz changes by 0.05, whichever comes first. Each update pe-riod is roughly 10 3 times larger than the integrator time step. At the end of each update period, the present point on the hysteresis curve ( Hz, Mz) is recorded together with the two previous periods. We then estimate the di ff erential suscepti-bility χzz = ∂Mz 
+
+> ∂Hz
+
+. This is then combined with τz,max , providing a safe slew rate for the next section: ∂Hz 
+
+> ∂t
+
+= ∂mz 
+
+> ∂t
+> ∂Hz
+> ∂mz
+
+= τz,max  
+
+> χzz
+
+.
+
+In practice, we used an extra safety factor ∂Hz 
+
+> ∂t
+
+→ 0.05 ∂Hz 
+
+> ∂t
+
+to make sure the scan is within a reasonable adiabatic limit. We also imposed hard upper and lower bounds on the slew rate to avoid numerical noise in the derivative. One example of the simulated FORCs is illustrated in Fig. 1(a). The simulation result is then discretized and re-arranged into a 64 × 64 image as the standard input format of our predicting CNNs, as shown in Fig. 1(b).  
+
+> B. Generating the Dataset
+
+Our dataset was constructed from micromagnetic simula-tions using a 256 × 256 × 2 spin lattice with a cell size of 2 nm × 2 nm × 4 nm. The base material parameters defin-ing the Hamiltonian, including the saturation magnetization (MS ), the exchange sti ff ness ( Aex ), the uniaxial anisotropy en-ergy density ( Ku), and the DMI ( D), were sampled to broadly cover the phase space of technologically relevant magnetic materials, informed by the open-access Novomag database [34, 35]. Specifically, MS was drawn uniformly from 200 to 1400 kA /m, and ln( Ku) was drawn from a triangular distri-bution peaking at its maximum of ln(1 .5 × 10 6 J/m3) with a minimum of ln(10 3 J/m3). To mimic large thin films, we im-posed a periodic boundary condition with 256 repetitions in the x-y plane. To compensate for the absence of thermal fluctuations, which naturally nucleate domains and impede domain wall motion, we introduced two explicit models of structural disor-der. First, we incorporated Npin localized defects, chosen uni-formly from 0 ≤ Npin ≤ 255. Each pinning site was modeled as a single cell with a randomized initial spin orientation and an artificially high out-of-plane anisotropy of Ku = 50 MJ /m3.These sites act as nucleation centers and domain wall pinning centers, replicating the stochastic, jerky reversal dynamics ob-served in experimental FORC diagrams [36]. Several di ff erent stages of an example domain evolution are shown in Figs. 2(a-c). To emulate the inherent randomness of a polycrystalline sample, the grid was further partitioned into 255 distinct regions where the anisotropy magnitude followed Ku =
+
+Ku,sample (1 + ∆ ). Here, ∆ is drawn from a normal distribu-tion N(0 , σ K ) with a mean of zero and standard deviation σK .Similarly, the easy-axis orientation ˆ n was dispersed by assign-ing each region a random azimuthal angle ϕ ∈ [0 , 2π] and a polar angle θ drawn from a normal distribution N(0 , σ θ). Because Aex and MS jointly determine the exchange length, 
+
+lex =√︂ 2Aex /μ 0 M2 
+
+> S
+
+, we employed a constrained sampling al-gorithm to ensure numerical stability and guarantee the for-mation of multi-domain states within our 512 nm simulation box. We required lex > 5 nm and targeted a mean lex of 10 nm. In this procedure, MS was first drawn from its uniform distri-bution and a target lex was drawn from a normal distribution 
+
+N(10 nm , 1 nm). Within these constraints, Aex was then calcu-lated and fed to the simulation. If the resulting Aex fell outside the physical bounds of 1 to 35 pJ /m, it was instead drawn uni-formly within those bounds and then lex was recalculated to verify the 5 nm minimum threshold. To maximize the density of high-quality data and avoid wasting computational resources, each initialized sample un-derwent preliminary screening. Samples were required to achieve full saturation at +1.0 T, and demonstrate su ffi cient hysteretic area evaluated by simulating half of the major loop. Only those parameter sets meeting these criteria (success rate 364 62      
+
+> 60
+> 3
+> 816
+> 625
+> 57600 4096 11
+> Ms
+> Direct injection
+> mx
+> my
+> -1
+> +1
+> mz
+> pinning
+> nucleation
+> (a) (b) (c)
+> (d)
+> Input FORCs
+> Convolutional layers
+> Fully connected layers
+> Npin , A, K u, D
+> Flatten
+> 100 nm
+
+FIG. 2. Data generation and the CNN structure. (a) One example of the beginning stage of a FORC. The orange arrow denotes the nucleation of a magnetic domain. The faint colored dots correspond to the pinning sites stuck with positive magnetization. (b) The development of domains propagating through pinning sites. The local azimuthal angle of the magnetization is denoted by the color wheel. (c) The final stage of magnetic reversal after (a) and (b). (d) The structure of our predicting CNNs. Each micromagnetic Hamiltonian parameter is predicted by its own CNN trained independently. 
+
+of ∼ 20%) were fully simulated to produce the final dataset. The absolute bounds for all sampled parameters are summa-rized in Table I. 
+
+TABLE I. The bounds of simulation parameters 
+
+Ms Npin Aex Ku D σθ σK
+
+A/m # J/m J/m3 J/m2 ◦ %Min 2 × 10 5 0 1 × 10 −12 1000 0 0 0Max 14 × 10 5 255 35 × 10 −12 1.5 × 10 6 0.005 10 20 
+
+C. Training the CNNs 
+
+We implemented and trained convolutional neural networks (CNNs) [37–40] using the PyTorch machine learning frame-work. Our CNN contains two convolutional layers followed by two fully connected (dense) layers. The structure is illus-trated in Fig. 2(d). The input FORC images are processed by the first convolutional layer to produce 8 feature maps with spatial dimensions of 62 × 62. A subsequent convolu-tional layer extracts higher-order spatial features, resulting in 16 feature maps of 60 × 60. These feature maps are then flat-tened into a one-dimensional tensor of 57 , 600 nodes. Cru-cially, because MS is a macroscopic quantity readily accessi-ble via magnetometry, we explicitly inject it into the network to constrain the parameter search space. We concatenate the flattened convolutional features with an array of 625 nodes carrying the normalized MS value, yielding a combined in-put of 58 , 225 nodes for the dense block. This concatenated array is then fed into the first fully connected layer, which compresses the representation down to 4,096 nodes. These latent activations are then passed to the 11 nodes in the final fully connected layer, from which a single prediction of one Hamiltonian parameter is made using a ‘distribution match-ing’ method[27]. A dropout probability of 0 .5 was applied to all layers except the first convolutional layer. A series of CNNs of the same structure were constructed and trained independently to predict each Hamiltonian param-eter. The network weights and the CNN kernels were opti-mized using the ADADELTA adaptive learning rate algorithm [41]. We used a base learning rate of γ = 0.01, a momentum of ρ = 0.9, and weight decay of λ = 0. The generated dataset was partitioned into an 80 /20 train-validation split. The 20% validation set was strictly withheld from the gradient updates 4Amin Amax         
+
+> Amin
+> Amax
+> Aex targets
+> Aex  predictions
+> Nmin Nmax
+> Nmin
+> Nmax
+> Npin targets
+> Npin  predictions
+> Kmin Kmax
+> Kmin
+> Kmax
+> Kutargets
+> Ku predictions
+> Dmin Dmax
+> Dmin
+> Dmax
+> DMI targets
+> DMI predictions
+> (a) (b)
+> (c) (d)
+
+FIG. 3. CNN Predictive Performance among the validation set. 
+
+The four panels illustrate the predicted values versus the targets: (a) 
+
+Aex , (b) Npin , (c) Ku, and (d) DMI. Red lines mark a 15% error thresh-old. Each point is illustrated with 20% opacity. 
+
+and used exclusively to evaluate the performance and monitor for overfitting at the conclusion of each training epoch. 
+
+III. DISCUSSION 
+
+Predictions for Npin , Aex , Ku, and D given by our trained CNNs significantly outperformed random guessing. The vali-dation results are illustrated in Fig. 3(a-d), where the horizon-tal axes correspond to the target values x′ 
+
+> i
+
+, whereas the verti-cal ones represent the predicted values xi. Although errors do exist in all four cases, the vast majority of predictions success-fully fall within our error threshold of 0.15 (red lines) of the full range. Quantitatively, we can measure the accuracy using the mean absolute error, ⟨| ∆x|⟩ = ⟨| xi − x′ 
+
+> i
+
+|⟩ , and the Pearson correlation coe ffi cient, r:
+
+r =∑︁ 
+
+> ni=1
+
+(xi − ⟨ x⟩)( x′ 
+
+> i
+
+− ⟨ x′⟩)√︂∑︁ 
+
+> ni=1
+
+(xi − ⟨ x⟩)2∑︁ ni=1(x′ 
+
+> i
+
+− ⟨ x′⟩)2
+
+(2) where i runs through all the data points, and ⟨· · · ⟩ denotes the mean. Since the parameters are normalized to [0 , 1], 
+
+⟨| ∆x|⟩ represents the dimensionless fractional uncertainty. For these four parameters, the statistics are: ⟨| ∆Npin |⟩ = 0.11 (rN = 0.84), ⟨| ∆Aex |⟩ = 0.07 ( rA = 0.92), ⟨| ∆Ku|⟩ = 0.04 (rK = 0.97), and ⟨| ∆D|⟩ = 0.07 ( rD = 0.90), respectively. 
+
+A. Simulation Validation 
+
+Relying exclusively on scalar error metrics (e.g., ⟨| ∆x|⟩ 
+
+and r) to evaluate CNN performance implicitly assumes that all Hamiltonian parameters uniformly influence the magne-tization reversal process. Physically, however, the details of the FORCs are governed by a complex, non-linear interplay of these parameters. For example, in a strongly exchange-coupled regime (large Aex ), the macroscopic micromagnetic state becomes largely insensitive to the DMI ( D). In such cases, a significant prediction error in D may translate to a physically negligible di ff erence in the resulting FORCs. To robustly evaluate whether our CNNs have learned the underlying physics, we established a qualitative ‘closed-loop’ validation metric. We define the micromagnetic simulation (via mumax 3) as the forward function ⃗ Fsim (⃗ x) =⃗ y, mapping the Hamiltonian parameters ( ⃗ x) to a FORC image ( ⃗ y). Train-ing the CNN approximates the inverse: ⃗ FCNN ≈⃗ F −1sim . In the previous section we have evaluated the parameter-space error, ⟨| ∆x|⟩ = ⟨| ⃗FCNN (⃗Fsim (⃗ x)) −⃗ x|⟩ . Here, we further as-sess the fidelity of the observation-space by comparing the re-constructed output ⃗ Fsim (⃗ FCNN (⃗y)) directly against the ground-truth target ⃗ y. For this analysis, ten samples were randomly selected from the validation set. We passed their simulated FORCs through the CNNs to extract the full suite of pre-dictions ( Npin , Aex , Ku, D). These predictions, along with the known MS , were re-injected into mumax 3 to reconstruct the input FORCs. As illustrated in Fig. 4, reconstructed curves using the predicted Hamiltonian parameters successfully re-produce key magnetic signatures in most cases, including the coercive field distribution, the steepness of the reversal and the overall shapes of the minor loops. More significant disagree-ments can be seen in cases with featureless FORCs where al-most all FORCs are coinciding with the major loop (IDs: 768, 1503 and 2529) due to the abrupt switching. This observation suggests that the Hamiltonian information is mainly hidden in those FORCs that are deviating from the major loop, forming feature-full minor loops. These FORCs are typically induced by the domain developments during switching, containing the information of both the intrinsic Hamiltonian and the extrinsic disorder. This successful closed-loop validation also highlights the robustness of our decoupled parameter prediction . Because each Hamiltonian parameter is extracted by a strictly inde-pendent CNN, the networks cannot rely on internal cross-correlations to optimize their outputs. This further suggests that the fingerprints of all Hamiltonian terms are indepen-dently hidden in the FORCs. 
+
+B. Uncertainty Quantification 
+
+In application scenarios, it is often useful to have reliable accuracy assessment for all Hamiltonian parameters imme-diately after the predictions are made. As demonstrated in Figs. 4, accurate predictions of the Hamiltonian typically re-quire rich details in the FORCs. This suggests that informa-5–1 0 1                                 
+
+> –1 01
+> –1
+> 0
+> 1
+> –1 01
+> –1
+> 0
+> 1
+> μ0Hz(T)
+> MZ/M S
+> ID: 768
+> Original
+> Recreated
+> ID: 1503
+> –1 01
+> ID: 1799
+> –1 01
+> ID: 2104
+> –1 01
+> ID: 2529
+> MZ/M S
+> ID: 4966
+> –1 01
+> ID: 5123
+> –1 01
+> ID: 5783
+> –1 01
+> ID: 7286
+> –1 01
+> ID: 8865
+> μ0Hz(T) μ0Hz(T) μ0Hz(T)
+> μ0Hz(T)
+> μ0Hz(T)
+> μ0Hz(T) μ0Hz(T) μ0Hz(T) μ0Hz(T)
+
+FIG. 4. Close-loop validation using simulations. Ten randomly chosen samples ⃗ y from the original validation set (red) are compared to the FORCs recreated by new simulations using the predicted micromagnetic Hamiltonians ⃗ Fsim (⃗ FCNN (⃗ y)). 
+
+tion hidden in the FORCs can be used as indicators of the prediction performance even without any ground-truth knowl-edge. It is thus compelling to establish another model to flag those FORCs that are particularly di ffi cult for predicting CNNs to handle. To achieve this, we established a parallel dual-network architecture, which we refer to as the ‘Alice-Bob’ network, as illustrated in Fig. 5a. The predicting net-work, ‘Alice’, extracts the Hamiltonian parameters from the input FORCs and the corresponding MS . Simultaneously, a secondary network, ‘Bob’, is tasked with mapping the exact same input to Alice’s prediction error. Directly training Bob using Alice’s quantitative errors is challenging, since most of the predictions made by Alice are accurate. To prevent Bob from mindlessly predicting low er-ror, we trained Bob to predict the normalized quantile of Al-ice’s errors rather than directly using the error values. This forces Bob to distinguish features across the entire error spec-trum, instead of focusing on the quantitative error of each prediction. Once the normalized quantile of error is accu-rately captured by Bob, it is then straightforward to recover the quantitative uncertainty ⟨| ϵ|⟩ using Alice’s error distribu-tion within the validation set. This workflow is illustrated in Fig. 5(a). We first examine the distribution of Bob’s error prediction 
+
+⟨| ϵ|⟩ within the full parameter range. Taking DMI as an ex-ample, we show the distribution of the predicted continuous values of D by Alice and the predicted error by Bob using 15 discrete bins. To ensure statistical clarity and suppress noise, bins containing fewer than five data points have been masked out. The statistics is illustrated in Fig. 5(b). According to Bob’s prediction, the vast majority of Alice’s predictions form a dense, vertical ‘main branch’ centering at ⟨| ϵ|⟩ < 0.05 (peaks denoted by dark arrows). A small number of DMI predictions near the mid-range values of D are recognized to be inaccurate by Bob, forming a horizontal ‘uncertain branch’ highlighted by the oval. However, the total number of samples falling into this region is relatively small, consistent with the good overall performance of Alice. To demonstrate Bob’s performance, we check if those pre-dictions of DMI flagged by Bob are indeed inaccurate. This is demonstrated in Fig. 5(c), where the color of each pixel is replaced by the average of the true error made by Alice within each bin. The horizontal color gradient demonstrates that Bob’s predicted error ⟨| ϵ|⟩ tightly correlates with Alice’s true error across the entire parameter domain. The separa-tion between the branches is clear: the heavily populated ‘ac-curate branch’ reliably exhibits errors well below 0 .1, while the sparsely populated uncertain branch decisively isolates the high-error outliers. 
+
+C. Experimental Validation 
+
+Beyond the closed-loop validation within the micro-magnetic theory, we further validated the CNN pre-dictions using experimental data. We characterized a Co /Pd multilayer thin film with the stacking of Si /Pd(20) /[Co(0.4) /Pd(0.6)] 59 /Co(0.4) /Pd(5). The numbers in parentheses denote the thickness in nanometers. This thin film is known to have a robust perpendicular magnetic anisotropy and a tunable hysteresis behavior modulated by the deposi-tion pressure[28, 42, 43]. The magnetometry was performed in a Vibrating Sample Magnetometer (VSM), and the mea-sured FORCs were discretized and then mapped into a CNN-compatible image. Due to the setting of our modeling Hamiltonian and the de-sign of our CNNs, an averaged MS is needed for this multi-layer thin film containing both the magnetic and non-magnetic layers. Assuming sharp interfaces, the MS value correspond-ing to the total Co volume yields MS = 1430 kA /m, which is consistent with bulk Co. Normalizing the net magnetization by the total Co /Pd superlattice volume reduces this value to 6Alice Predicted DMI          
+
+> 0
+> 60
+> 120
+> Dmin
+> Dmax
+> 00.16
+> Counts
+> 0.0
+> 0.1
+> 0.2
+> Dmin
+> Dmax
+> 00.16 –1 01
+> –1
+> 0
+> 1
+> μ0H (T)
+> MZ/M S
+> Experiment
+> Simulation
+> True DMI
+> True Error Quantile
+> Predicted DMI
+> DMI Error
+> Predicted Error Quantile
+> Validation Set Distribution
+> Alice
+> Bob FORCs & M S
+> (a)
+> (b) (c) (d)
+> uncertain uncertain
+> Alice Predicted DMI
+> Bob predicted Bob predicted
+> Alice’s actual error
+
+FIG. 5. Alice-Bob network and the experimental validation. (a) The structure of the parallel workflow of the Alice-Bob network predicting the uncertainty without ground truth. (b) The distribution of Bob’s prediction within the full range of DMI values predicted by Alice. The blue-green-red color scale illustrates the count of points within each bin. (c) The average of the actual error of Alice illustrated for all the bins shown in (b). The color scale illustrates the normalized quantitative error between 0 and 1. (d) The experimentally measured FORCs (red) compared to the simulated FORCs (dark) using the predicted Hamiltonian parameters and the MS .
+
+approximately 560 kA /m. To account for this ambiguity, we swept MS across the range of [470 , 1400] kA /m, generating a distinct set of CNN parameter predictions for each MS input. To suppress the extra degree of freedom introduced by the distribution of the pinning sites, we averaged the simulated FORCs over 20 di ff erent profiles of pinning sites within the fixed value of Npin predicted by the CNN. The optimal agree-ment occurs at MS = 1307 kA /m, as illustrated in Fig. 5(d). While the reconstruction (red) is not a perfect match to the experimental measurement (dark), it captures the primary macroscopic magnetic signatures such as the coercivity, the susceptibility and the overall squareness of the full hysteresis loop. We note that our reconstruction of the FORCs in Fig. 5 has lower agreement with the experimental input compared to the best-performing cases in the close-loop validations shown in Fig. 4. This suggests that the size of our training set and the complexity of the CNNs are already su ffi cient to capture the modeling Hamiltonian within its approximations. To further enhance this agreement, the Hamiltonian must include higher-order terms and intricate microstructural variations, suggest-ing rich research opportunities in the future. 
+
+IV. CONCLUSION 
+
+In conclusion, our work demonstrates that the spatial-averaged nature of magnetometry does not completely ob-scure the microscopic physics of the spin system. Because the minor hysteresis loops in FORCs contain rich structural fea-tures arising from domain wall pinning and the competition among distinct energy terms, it is possible to extract the full micromagnetic Hamiltonian including the exchange sti ff ness (A), the uniaxial anisotropy ( Ku), the pinning center density (Npin ), and the Dzyaloshinskii-Moriya interaction ( D). When attempting to model complex magnetic behaviors, these data-driven predictions o ff er a crucial advantage over traditional, time-consuming trial-and-error fitting methods. By extract-ing the full Hamiltonian, we can now ‘close the loop’ by re-simulating the system using the CNN-predicted parameters to directly verify that they successfully reproduce the original magnetometry data. Our addition of experimental verifica-tion confirms that this framework can translate from simu-lated datasets to real-world physical systems. Crucially, we have shown that the physical features within the magnetome-try data itself encode intrinsic indicators of prediction reliabil-ity. Using our Alice-Bob network, we can systematically esti-7mate the uncertainty of these predictions without reliance on ground-truth knowledge. This proof-of-concept work strongly motivates the expansion toward more sophisticated, realistic micromagnetic models including both the intrinsic magnetic Hamiltonian and the extrinsic, microscopic morphological de-tails. This foundation is a critical step toward fully decoding the micromagnetic physics hidden within macroscopic mag-netic fingerprints. 
+
+ACKNOWLEDGMENTS 
+
+This work is supported in part by the National Science Foundation (US) under Grant # DMR-2440337 and by the De-fense Advanced Research Projects Agency (DARPA) under Contract No. D26AP50003. The material does not necessar-ily reflect the position or the policy of the government and no offi cial endorsement should be inferred. The computations in this work are performed on Bridges-2 at Pittsburgh Supercom-puting Center through allocation PHY230018 from the Ad-vanced Cyber infrastructure Coordination Ecosystem Services & Support (ACCESS) program, which is supported by Na-tional Science Foundation (US) grants #2138259, #2138286, #2138307, #2137603, and #2138296. 
+
+[1] L. D. Landau and E. M. Lifshitz, On the theory of the dispersion of magnetic permeability in ferromagnetic bodies, in Perspec-tives in Theoretical Physics , edited by L. P. Pitaevskii (Perga-mon, 1992) pp. 51–65. [2] W. F. Brown, Jr., Micromagnetics, Domains, and Resonance, Journal of Applied Physics 30 , S62 (1959). [3] C. Abert, Micromagnetics and spintronics: models and numer-ical methods, The European Physical Journal B 92 , 120 (2019). [4] N. Nagaosa and Y. Tokura, Topological properties and dy-namics of magnetic skyrmions, Nature Nanotechnology 8, 899 (2013). [5] G. Finocchio, F. B¨ uttner, R. Tomasello, M. Carpentieri, and M. Kl¨ aui, Magnetic skyrmions: from fundamental to applica-tions, Journal of Physics D: Applied Physics 49 , 423001 (2016). [6] A. Vansteenkiste, J. Leliaert, M. Dvornik, M. Helsen, F. Garcia-Sanchez, and B. V. Waeyenberge, The design and verification of MuMax3, AIP Advances 4, 107133 (2014). [7] C. Abert, F. Bruckner, A. Voronov, M. Lang, S. A. Pathak, S. Holt, R. Kraft, R. Allayarov, P. Flauger, S. Koraltan, T. Schrefl, A. Chumak, H. Fangohr, and D. Suess, NeuralMag: an open-source nodal finite-di ff erence code for inverse micro-magnetics, npj Computational Materials 11 , 193 (2025). [8] H. Kronm¨ uller, R. Fischer, M. Seeger, and A. Zern, Micromag-netism and microstructure of hard magnetic materials, Journal of Physics D: Applied Physics 29 , 2274 (1996). [9] J. Zhu and H. N. Bertram, Micromagnetic studies of thin metal-lic films (invited), Journal of Applied Physics 63 , 3248 (1988). [10] S. Woo, K. Litzius, B. Kr¨ uger, M.-Y. Im, L. Caretta, K. Richter, M. Mann, A. Krone, R. M. Reeve, M. Weigand, P. Agrawal, I. Lemesh, M.-A. Mawass, P. Fischer, M. Kl¨ aui, and G. S. D. Beach, Observation of room-temperature magnetic skyrmions and their current-driven dynamics in ultrathin metallic ferro-magnets, Nature Materials 15 , 501 (2016). [11] R. Soucaille, M. Belmeguenai, J. Torrejon, J.-V. Kim, T. De-volder, Y. Roussign´ e, S.-M. Ch´ erif, A. A. Stashkevich, M. Hayashi, and J.-P. Adam, Probing the Dzyaloshinskii-Moriya interaction in CoFeB ultrathin films using domain wall creep and Brillouin light spectroscopy, Physical Review B 94 ,104431 (2016). [12] T. Burkert, L. Nordstr¨ om, O. Eriksson, and O. Heinonen, Gi-ant Magnetic Anisotropy in Tetragonal FeCo Alloys, Physical Review Letters 93 , 027203 (2004). [13] M. Bode, M. Heide, K. v. Bergmann, P. Ferriani, S. Heinze, G. Bihlmayer, A. Kubetzka, O. Pietzsch, S. Bl¨ ugel, and R. Wiesendanger, Chiral magnetic order at surfaces driven by inversion asymmetry, Nature 447 , 190 (2007). [14] P. Ferriani, K. v. Bergmann, E. Y. Vedmedenko, S. Heinze, M. Bode, M. Heide, G. Bihlmayer, S. Bl¨ ugel, and R. Wiesen-danger, Atomic-Scale Spin Spiral with a Unique Rotational Sense: Mn Monolayer on W(001), Physical Review Letters 
+
+101 , 027201 (2008). [15] M. Heide, G. Bihlmayer, and S. Bl¨ ugel, Dzyaloshinskii-Moriya interaction accounting for the orientation of magnetic domains in ultrathin films: Fe /W(110), Physical Review B 78 , 140403 (2008). [16] J. Torrejon, J. Kim, J. Sinha, S. Mitani, M. Hayashi, M. Ya-manouchi, and H. Ohno, Interface control of the magnetic chi-rality in CoFeB /MgO heterostructures with heavy-metal under-layers, Nature Communications 5, 4655 (2014). [17] K. Zakeri, Y. Zhang, J. Prokop, T.-H. Chuang, N. Sakr, W. X. Tang, and J. Kirschner, Asymmetric Spin-Wave Dispersion on Fe(110): Direct Evidence of the Dzyaloshinskii-Moriya Inter-action, Physical Review Letters 104 , 137203 (2010). [18] X. Ma, G. Yu, S. A. Razavi, S. S. Sasaki, X. Li, K. Hao, S. H. Tolbert, K. L. Wang, and X. Li, Dzyaloshinskii-Moriya Inter-action across an Antiferromagnet-Ferromagnet Interface, Phys-ical Review Letters 119 , 027202 (2017). [19] M. Kuepferling, A. Casiraghi, G. Soares, G. Durin, F. Garcia-Sanchez, L. Chen, C. Back, C. Marrows, S. Tacchi, and G. Car-lotti, Measuring interfacial Dzyaloshinskii-Moriya interaction in ultrathin magnetic films, Reviews of Modern Physics 95 ,015003 (2023). [20] A. Hrabec, N. A. Porter, A. Wells, M. J. Benitez, G. Burnell, S. McVitie, D. McGrouther, T. A. Moore, and C. H. Marrows, Measuring and tailoring the Dzyaloshinskii-Moriya interaction in perpendicularly magnetized thin films, Physical Review B 
+
+90 , 020402 (2014). [21] D. Pinna, G. Bouriano ff , and K. Everschor-Sitte, Reservoir Computing with Random Skyrmion Textures, Physical Review Applied 14 , 054020 (2020). [22] C. R. Pike, A. P. Roberts, and K. L. Verosub, Characterizing interactions in fine magnetic particle systems using first order reversal curves, Journal of Applied Physics 85 , 6660 (1999). [23] I. D. Mayergoyz, Mathematical Models of Hysteresis (Springer New York, 1991). [24] J. E. Davies, O. Hellwig, E. E. Fullerton, G. Denbeaux, J. B. Kortright, and K. Liu, Magnetization reversal of Co /Pt: Micro-scopic origin of high-field magnetic irreversibility, Physical Re-8
+
+view B 70 , 224434 (2004). [25] R. K. Dumas, C.-P. Li, I. V. Roshchin, I. K. Schuller, and K. Liu, Magnetic fingerprints of sub-100 nm Fe dots, Physical Review B 75 , 134405 (2007). [26] D. A. Gilbert, G. T. Zimanyi, R. K. Dumas, M. Winklhofer, A. Gomez, N. Eibagi, J. L. Vicent, and K. Liu, Quantitative Decoding of Interactions in Tunable Nanomagnet Arrays Using First Order Reversal Curves, Scientific Reports 4, 4204 (2014). [27] B. J. Fugetta, Z. Chen, D. Bhattacharya, K. Yue, K. Liu, A. Y. Liu, and G. Yin, Machine-learning recognition of Dzyaloshinskii-Moriya interaction from magnetometry, Phys-ical Review Research 5, 043012 (2023). [28] B. J. Kirby, S. M. Watson, J. E. Davies, G. T. Zimanyi, K. Liu, R. D. Shull, and J. A. Borchers, Direct observation of magnetic gradient in Co /Pd pressure-graded media, Journal of Applied Physics 105 , 07C929 (2009). [29] M. T. Rahman, R. K. Dumas, N. Eibagi, N. N. Shams, Y.-C. Wu, K. Liu, and C.-H. Lai, Controlling magnetization reversal in Co /Pt nanostructures with perpendicular anisotropy, Applied Physics Letters 94 , 042507 (2009). [30] D. A. Gilbert, B. B. Maranville, A. L. Balk, B. J. Kirby, P. Fis-cher, D. T. Pierce, J. Unguris, J. A. Borchers, and K. Liu, Real-ization of ground-state artificial skyrmion lattices at room tem-perature, Nature Communications 6, 8462 (2015). [31] E. C. Burks, D. A. Gilbert, P. D. Murray, C. Flores, T. E. Felter, S. Charnvanichborikarn, S. O. Kucheyev, J. D. Colvin, G. Yin, and K. Liu, 3D Nanomagnetism in Low Density Interconnected Nanowire Networks, Nano Letters 21 , 716 (2021). [32] G. Grinstein and R. H. Koch, Coarse Graining in Micromagnet-ics, Physical Review Letters 90 , 207201 (2003). [33] M. B. Hahn, Temperature in micromagnetism: cell size and scaling e ff ects of the stochastic Landau–Lifshitz equation, Jour-nal of Physics Communications 3, 075009 (2019). [34] M. Sakurai, R. Wang, T. Liao, C. Zhang, H. Sun, Y. Sun, H. Wang, X. Zhao, S. Wang, B. Balasubramanian, X. Xu, D. J. Sellmyer, V. Antropov, J. Zhang, C.-Z. Wang, K.-M. Ho, and J. R. Chelikowsky, Discovering rare-earth-free magnetic mate-rials through the development of a database, Physical Review Materials 4, 114408 (2020). [35] B. Balasubramanian, M. Sakurai, C.-Z. Wang, X. Xu, K.-M. Ho, J. R. Chelikowsky, and D. J. Sellmyer, Synergistic compu-tational and experimental discovery of novel magnetic materi-als, Molecular Systems Design & Engineering 5, 1098 (2020). [36] V. Jeudy, R. D´ ıaz Pardo, W. Savero Torres, S. Bustingorry, and A. B. Kolton, Pinning of domain walls in thin ferromagnetic films, Physical Review B 98 , 054406 (2018). [37] M. Kawaguchi, K. Tanabe, K. Yamada, T. Sawa, S. Hasegawa, M. Hayashi, and Y. Nakatani, Determination of the Dzyaloshinskii-Moriya interaction using pattern recogni-tion and machine learning, npj Computational Materials 7, 20 (2021). [38] V. K. Singh and J. H. Han, Application of machine learning to two-dimensional Dzyaloshinskii-Moriya ferromagnets, Physi-cal Review B 99 , 174426 (2019). [39] H. Y. Kwon, H. G. Yoon, C. Lee, G. Chen, K. Liu, A. K. Schmid, Y. Z. Wu, J. W. Choi, and C. Won, Magnetic Hamilto-nian parameter estimation using deep learning techniques, Sci-ence Advances 6, eabb0872 (2020). [40] D. Wang, S. Wei, A. Yuan, F. Tian, K. Cao, Q. Zhao, Y. Zhang, C. Zhou, X. Song, D. Xue, and S. Yang, Machine Learning Magnetic Parameters from Spin Configurations, Advanced Sci-ence 7, 2000566 (2020). [41] M. D. Zeiler, ADADELTA: An Adaptive Learning Rate Method (2012), arXiv:1212.5701 [cs]. [42] B. J. Kirby, J. E. Davies, K. Liu, S. M. Watson, G. T. Zimanyi, R. D. Shull, P. A. Kienzle, and J. A. Borchers, Vertically graded anisotropy in Co /Pd multilayers, Physical Review B 81 , 100405 (2010). [43] P. K. Greene, B. J. Kirby, J. W. Lau, J. A. Borchers, M. R. Fitzsimmons, and K. Liu, Deposition order dependent magneti-zation reversal in pressure graded Co /Pd films, Applied Physics Letters 104 , 152401 (2014).

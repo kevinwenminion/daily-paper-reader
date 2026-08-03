@@ -1,0 +1,921 @@
+Title: Representations from Pretrained Machine-Learning Interatomic Potentials as Coarse Coordinates for Material Generation and Evaluation
+
+URL Source: https://arxiv.org/pdf/2607.28776v1
+
+Published Time: Mon, 03 Aug 2026 00:10:41 GMT
+
+Number of Pages: 32
+
+Markdown Content:
+# Representations from Pretrained Machine-Learning Interatomic Potentials as Coarse Coordinates for Material Generation and Evaluation 
+
+Paul Hagemann 
+
+paul.hagemann@bam.de 
+
+Katharina Ueltzen 
+
+katharina.ueltzen@bam.de 
+
+Simon M ¨ uller 
+
+simon.mueller@bam.de 
+
+Janine George 
+
+janine.george@bam.de 
+
+Philipp Benner 
+
+philipp.benner@bam.de 
+
+# Abstract 
+
+Generative machine learning is increasingly used for inorganic crystal structure generation. Most models and the corresponding evaluation approaches rely on simple forms of crystal structure representation. In this paper, we showcase the power of atom-averaged features from pretrained Machine-Learning Interatomic Potentials (MLIPs), such as MACE, for such tasks. We first introduce a distance measure that assesses the output of material generative models by capturing both quality and novelty in a single distribution-based evaluation framework. In partic-ular, we introduce the Coarse-Fine Transport Distance (CFTD) using two differ-ent featurizers, where the quality component is based on coarse MACE features. We showcase CFTD’s versatility in capturing crystal-structure quality while also detecting memorization, and compare it with the recently introduced continuous SUN metrics. We further show that coarse MACE features can be used as guid-ance for a material generative model. 
+
+# 1 Introduction 
+
+Materials are an important foundation of technological progress, and finding new materials with de-sired properties is crucial for future developments in many different fields. Inorganic crystals under-pin many devices and applications, but because the space of possible crystal structures is extremely vast, suitable candidates are difficult to identify and this process is time-consuming and expensive. With recent advancements in generative machine learning, various models have emerged as promis-ing tools for creating inorganic crystal structures from scratch [1]. Multiple publications [2, 3, 4, 5] have demonstrated strong potential to generate realistic materials not present in the training data, and new models are published frequently. Conversely, synthesized crystals originating from generative models remain rare, and the novelty of such discoveries has been heavily debated [2, 6]. Additionally, and perhaps related to this, metric development for evaluating materials generative models seems harder than in other domains: in particular, novelty and stability are crucial for model design and evaluation. Determining these two characteristics is not straightforward, and, lacking alternatives, most material generators are evaluated based on their SUN-metrics, as for instance done in MatterGen [2]. This now-established evaluation criterion measures stability, uniqueness, and novelty at the instance level (i.e., structure-by-structure), which would allow an e.g. highly collapsed generative model to still produces novel and stable materials. Since generative models are usually trained to match the training data distribution, distributional metrics might offer a more natural approach to evaluation. 
+
+> Preprint. arXiv:2607.28776v1 [cs.LG] 30 Jul 2026
+
+Other evaluation criteria, as used in [3, 7], target specific properties such as atom or space-group diversity or the volume of the generated crystals. These are more distributional but yield a reliable picture of performance only when combined. This inspired us to consider a more Fr´ echet Incep-tion Distance (FID)-like approach [8] for metric design. In their paper, the authors argued that a classifier for images also has a good feature representation of images. One possible analog for ma-terials is provided by the hidden features of pre-trained Machine-Learning Interatomic Potentials (MLIPs), such as MACE [9], which learn energetic representations of materials based on atomic environments. However, classical distributional metrics are minimized when we copy the exact training distribution (i.e., we do not create any novel samples and their novelty is, accordingly, very low). We will therefore focus on our recently introduced Transport Novelty Distance (TNovD) [10], which unifies quality and novelty within a single framework. It is inspired by optimal transport [11] with a distributional flavor. The initial TNovD used a contrastive GNN featurizer to evaluate both quality and novelty. However, we decided to extend the metric because, by using only a single featurizer, every improvement in quality necessarily decreases novelty, and vice versa. To overcome this drawback, we established a Goldilocks zone, which lies between a memorization and a quality regime and includes structures not considered for evaluation at all. The two separated regimes are established through two different featurizers: a MACE featurizer for quality, and a contrastive GNN featurizer for novelty evaluation. Since each featurizer contains either coarse or fine information of the investigated structure, we call the new metric Coarse-Fine Transport distance (CFTD), borrow-ing the terminology from vision community, where coarse and fine features capture different levels of visual detail. We discuss how the classical coverage-novelty tradeoff relates to our metric, and, by replicating toy experiments from [10], we show that the new approach including an additional MLIP featurizer is chemically more sensible and captures stability much better than [10]. To investigate differences relative to more instance-based metrics, such as continuous SUN [12], we added experiments that resemble mode-collapsing generative models. In such cases, our newly introduced Coarse-Fine Transport Distance (CFTD) behaves more reasonably than instance-based metrics. We further an-alyze the geometries of the fine contrastive featurizer and the coarse MACE featurizer (Appendix E.2) and additionally show, which informational content the MACE features possess (Appendix E). We then benchmark sets of 10,000 generated crystal structures, each created with a different materi-als generative model [2, 13, 14, 3, 15, 16, 17]. Benchmarking is done before and after relaxation of the resulting crystal structures with a pre-trained MLIP, and the qualitative behavior is discussed as opposed to [12]. In particular, we observe that relaxing the generated structures generally improves the model’s quality but often increases its memorization. This suggests that, to some extent, genera-tive models push existing materials slightly away from their energy minima, rather than generating truly novel and stable structures. The results from CFTD indicate that the hidden MACE features carry structural, chemical, and physical information, even if they are used in a compressed form. To further investigate possible applications of the hidden MACE features, we created an MLIP-conditional material generative model and trained it by including empirically sampled hidden MACE features from the training set as an additional conditioning signal. The model overfits when trained on only a small subset of the training set, a behavior that is detected by the CFTD. We then trained our generative model again on the full training set, this time with and without MACE feature conditioning. The results demonstrate that the architecture indeed benefits from MACE conditioning by showing that the generated materials obey the relation to their condition. The MACE-conditional model exhibits a very different stability-novelty profile, confirming our thesis. We evaluated both models on the recently introduced LeMat-GenBench benchmark [7]. 
+
+1.1 Related Work Evaluation of generative models In imaging, early work used precision-recall [18, 19] or nearest-neighbor checks. Then, feature-based metrics like LPIPS [20] for single images or Frechet Inception Distance (FID) [8] became more popular, as they better aligned with human visual judgments. In terms of materials generative model evaluation, the most common methods are the SUN-metrics, to the best of our knowledge first introduced in [2]. These have been refined recently in [21], which treats stability, uniqueness, and novelty not as binary objectives but as continuous ones. Further, Kelvinius et al. [5] proposes a FID-style evaluation in the activation space of a GNN, which is 2Figure 1: Overview of the CFTD metric and the generative pipeline. We propose using mean-pooled, invariant h features from the message passing step of a pretrained MACE model in both the evaluation and generation procedures, a practice vital for material design. close in spirit but does not capture novelty nor stability. In this paper, we follow up on [10], where we introduced a quality-novelty metric. First, we establish the connection to existing metrics, then refine it within a dual-featurizer framework. We do this to avoid the otherwise opposing behavior of novelty and quality. We then show that these changes enable the new metric to capture stability much better than [10] and to capture mode collapse much better than [21]. When evaluating materials generative models, particular focus is given to novelty. The general problem is that there is no easy way to distinguish whether something is just another representation of an existing material, in part because there is debate about the definition of what actually counts as the same material [22]. Recently, there has been some controversy over whether some of the materials discovered by generative models were already known [6]. Additionally, Negishi et al. [23] showed that a large majority of chemically valid and metastable crystals created by current generative models are either training duplicates or can be reproduced by substitutions of training samples with chemically similar elements. In our new metric, we mainly treat novelty with respect to the featurizer used for detecting memorization. In similar spirit to [23], this featurizer is trained to treat substitutions with chemically similar elements as the same sample, since those structures can be generated using more classical generative approaches. This featurizer can be easily modified to fit new or other definitions of novel. 
+
+MLIP-conditional generation Recently, there has been some work using MLIP features for ma-terials generation. This development is consistent with a recent commentary in ref. [24], which advocates using feature-based representations for generative modeling, as is common in the vision community [25, 26]. For crystal structures, this translates to using the understanding of pretrained foundation models (in the form of their hidden feature space), instead of generating or classifying in the raw materials space. Le et al. [27] trained an encoder-decoder framework to conditionally generate ligands in structure-based drug design, and their encoder is partly obtained by learned training representations. In ref. [28], they learn a conditional/hierarchical model for generating organic molecules based on the Uni-Mol representation. This is very similar to what we do in practice, with both approaches introducing a two-stage training process. However, their conditioning is focused on the semantic meaning, whereas ours is based on hidden features from the MACE foundation model. It thereby captures many more physical and chemical properties, as MACE is focused on predicting energies, forces and stresses. In ref. [29], a strong case for using hidden MLIP-features for conditioning generative models is made: they show that different MLIPs seem to converge to the same representation, once anchored. Li et al. [30] use MLIP force fields in a reinforcement learning-style guidance procedure, 3highlighting their effectiveness for generating molecular structures. Pinede et al. [31] also use MLIP representations by regularizing the Boltzmann generators’ hidden states to be close to a pretrained MACE model. Recently, also Hessmann el al. [32] draw the analogy between the denoising be-havior of diffusion [33] and relaxation by learning a pseudo force fields. By perturbing equilibrium molecules and learning a suitable denoiser, they overcome the need for calculating DFT and get a generative model for trajectory data. 
+
+1.2 Contributions 
+
+Overall, our approach is inspired by hierarchical image generation, where a coarse-to-fine approach is often pursued; see, e.g., [34, 35]. The first thesis of our paper is that a metric that captures both memorization and quality requires a dual-featurizer geometry, in which each component (coarse or fine) captures distinct properties. For the coarse (or quality) component, we introduce a specific kind of MACE feature that is useful both for evaluation and for guiding a material generator. Our contributions are as followed: • We introduce the Coarse-Fine Transport Distance (CFTD), which improves upon TNovD [10]. It resolves the quality-novelty trade-off intrinsic to metrics that capture both with a single featurizer, and we relate it to classical coverage and novelty. • For the coarse (or quality) component, we take random projections of pooled hidden MACE features. We also investigate what information these features capture. For the fine (or novelty) component, we build upon the contrastive GNN from [10] and refine it using substitutions with chemically similar elements [36]. • We show that, in contrast to cSUN [21], the CFTD reliably tracks stability and mode col-lapse, respectively. Using toy experiments, we verify that it detects quality errors and memorization, and show that it provides a better representation of stability and chemical composition than [10]. • We benchmark different material generators using CFTD, and show that it captures mem-orization in an overfitted material generator. • We also show that a material generative model benefits from integrating MACE features and that these features can serve as a guidance signal. 
+
+# 2 Resolving the Coverage-Novelty tradeoff for Materials Generation with the Coarse-Fine Transport Distance 
+
+In this section, we review established methods for measuring the performance of generative models and motivate our proposed Coarse-Fine Transport Distance (CFTD). We first discuss more classical, instance-level coverage and novelty scores and how they relate to quality and novelty of structures. 
+
+The classical Coverage-Novelty tradeoff and its implications for material generation One of the main issues in generative modeling is that we want a generative model that captures statistics of the data distribution, i.e., reproduces similar behavior to the data, while not overfitting on the specific training examples. In essence, we want to generate novel samples that still resemble the features from the data distribution. Classically, this is often summed up in the terms coverage 
+
+and novelty , which we define in Appendix B. In the general case, coverage describes the amount of training data for which a close generated sample can be found, while novelty describes the amount of generated samples for which no close training sample exists. These two points are generally at odds with one another when measured under the same notion of closeness. In materials generation, high coverage is specifically wanted for the quality parameters of a generated structure, while, novelty here refers to structural and compositional resemblance of a generated structure to the training data. These two things do not necessarily need to be measured in the same reference space (i.e. under the same notion of closeness), and we resolve the classical tradeoff by introducing two featurizers that decouple quality coverage from novelty, allowing us to evaluate both at the same time. In the following, we will use the term quality coverage to refer to how well the quality aspects of the generated structures is covered by the training data, while the term novelty will refer to structure memorization. 4Coarse-Fine Transport Novelty Distance The CFTD is an extension of the recently proposed Transport Novelty Distance (TNovD) [10], see Appendix B for a concise summary and the relation to coverage and novelty. However, by using only a single featurizer, the TNovD has the above-mentioned quality coverage-novelty tradeoff problem. More specifically, any generated structure either counts towards the nov-elty or the quality regime of the metric. By penalizing all structures, the ones with good novelty (i.e., no memorization) necessarily reduce the quality coverage. As written above, we argue that 
+
+novelty and quality coverage are distinct tasks that require different featurizers. In particular, judg-ing whether two materials are the same requires close consideration and detailed verification of whether they have the same atom types at similar positions. On the other hand, judging how good quality is covered involves other factors, such as the structure’s stability. To account for this, we in-troduce a second featurizer extending the TNovD [10] to better respect stability and evaluate quality coverage individually. Note that when talking about stability in this work, we refer to implicit sta-bility: stability-related information encoded in the hidden MACE features introduced below, rather than an explicit thermodynamic quantity such as energy above hull. Our perturbation experiments and correlations with polymorph formation energies in Appendix E.1 indeed suggest that they are a useful proxy. Direct stability measures, such as energy above hull, are complementary but often prohibitively costly. 
+
+The ”Fine” in CFTD: The Identity Featurizer In ref. [10], the featurizer Fid is a GNN trained with an InfoNCE loss for contrastive learning. This is suitable for novelty detection, but does not necessarily encode a good means of quality coverage. More precisely, we used the InfoNCE loss [37], which maximizes the similarity between pairs 
+
+(z1 
+
+> i
+
+, z 2 
+
+> i
+
+) = ( Fid (x1 
+
+> i
+
+), F id (x2 
+
+> i
+
+)) by minimizing the loss 
+
+L(θ) = −
+
+> n
+
+X
+
+> i=1
+
+log exp( z1 
+
+> i
+
+z2 
+
+> i
+
+)
+
+P 
+
+> j∈Ni
+
+exp( z1 
+
+> i
+
+z2 
+
+> j
+
+)
+
+!
+
+,
+
+where Ni is the set of indices without z1 
+
+> i
+
+. We provide some justification for using the InfoNCE loss in section C. For the similarity calculation, we augment a structure and treat the original structure and its aug-mentation as a pair. We thereby need to specify the augment -function, which returns these positive 
+
+pairs for the contrastive procedure. In [10], we used rotation and translation. However, to make the identity featurizer Fid more chemically aware and more robust towards noise, we now added a small amount of random zero-mean Gaussian noise with a standard deviation of 0.01 to the fractional coordinates, so that small differences in atomic positions between generated samples and training materials are not penalized as heavily. Additionally, we expanded the augmentation by substitution with similar elements, replacing each site of an element with either its nearest or its next-nearest neighbors on the modified Pettifor scale with a certain probability (0.1 and 0.05, respectively)[36]. Pettifor neighbors are often chemically similar atom types that have a high probability of substituting for one another in a crystal structure. We therefore expect similar bonding properties and consider the adapted structure to be a comparable material, or at least a material for which we do not require a generative artificial intelligence model to discover it. This is also relevant for the consideration of substitutional disorder in crystal structures [38], which is often neglected in generative models for crystals. The modification will therefore penalize generative models that mostly create new crys-tal structures by substituting supercells of well-known crystal structures with low concentrations of chemically similar elements. We note that the augmentation can be flexibly adapted to the specific definition of identical materials, or based on the materials discovery use case. 
+
+The ”Coarse” in CFTD: The MACE Featurizer The featurizer in TNovD [10] is trained with a contrastive loss function determining whether two structures are identical. However, there is no reason to expect it to directly capture a structure’s quality parameters. For this, we implemented a second featurizer Fmace , which is directly derived from MACE-MP-0b3, a machine learning interatomic potential (MLIP) foundation model [39, 40, 9] that captures stability information. To be more specific: Fmace does not consider the final output of MACE, i.e., forces or energy, but rather statistics of its layers, in a similar fashion to FID [8]. Technically speaking, we consider the in-5Algorithm 1 Coarse-Fine Transport Distance 
+
+Input: Empirical measures μ = 1
+
+> n
+
+Pni=1 δxi and ν = 1
+
+> m
+
+Pmj=1 δgj , train and validation calibration sets, featurizers Fid , F mace , parameter β.
+
+Step 1: Calibration. 
+
+1. Compute the optimal coupling (i.e. the optimal transport plan) between the train and validation sets. 2. Choose τmem and τqual so that 1−β 
+
+> 2
+
+of the coupled mass lies in the memorization and low-quality regimes, respectively. Choose M so that both error terms are balanced; see Appendix D. 
+
+Step 2: Evaluation. 
+
+Cid i,j = ∥Fid (xi) − Fid (gj )∥, Cmace i,j = ∥Fmace (xi) − Fmace (gj )∥, Ci,j = 12 Cid i,j + 12 Cmace i,j .
+
+Calculate the optimal transport plan π(μ, ν ) for train and generated samples with respect to the pairwise dis-tances Ci,j . Define 
+
+CFTD( μ, ν ) = 
+
+> n
+
+X
+
+> i=1
+> m
+
+X
+
+> j=1
+
+πi,j (μ, ν )M ReLU( τmem − Cid i,j )+ ReLU( Cmace i,j − τqual ).
+
+variant part of the pooled ”node features” of MACE-MP-0b3 ”medium”: Let hk = ( hk 
+
+> 1
+
+, ..., h knatoms )
+
+be the hidden states of its k-th interaction block, which are of size (natoms , h dim ). Within MACE, the invariant part of these hidden features is used to predict a hierarchical decomposition of site energies within the read-out phase. We apply mean pooling to obtain features of the same size, re-gardless of the number of atoms in a structure, and then concatenate the resulting layers. This yields 
+
+H = (mean( h1), ..., mean( hL)) .To create the final feature space, we use a random projection by considering a fixed set of projec-tions (ξ1, ..., ξ nproj ) with ∥ξi∥ = 1 and Gaussian initialization. From this, we then obtain the map 
+
+Fmace (x) = ξH (x), where x is the material and ξ ∈ Rnproj ,dim (H). This operation allows us to reduce the dimensionality of the pooled MACE features, while keeping all information intact. The result is an nproj -dimensional representation for the coarse feature space, which encodes quality information of the structure. We verify its coarse character and the contained information in Ap-pendix E and F by reconstructing the space-group, lattice, and composition of the test set, as well as the formation energies of polymorphs from it. None of those parameters can be reconstructed perfectly, underlining the coarse nature of the final MACE feature space. Composition is recovered best, while lattice and space-group type are captured less accurately. We further find that MACE fea-ture distances are highly correlated with polymorph energy distances. Separately, on random pairs from the training set, MACE cosine similarities differ systematically between pairs of (meta)stable structures and pairs of structures, for which the fractional coordinates where altered by inducing random mean Gaussian noise. This finding shows sensitivity to local structural perturbations. Both findings demonstrate that MACE features carry implicit stability information. We also discuss the geometries of the feature spaces invoked by the coarse MACE-featurizer (for quality coverage) and the fine GNN-based featurizer (for novelty) in Appendix E.2 and show that both geometries differ from each other. 
+
+Coarse-Fine Transport Distance Given training samples (xi)ni=1 and generated samples (gi)mi=1 ,we developed an algorithm similar to the Transport Novelty Distance. In particular, we implement a ”Goldilocks” zone separating novelty and quality coverage into two distinct regimes. This zone defines the percentage of structures that are not penalized in a reasonable train split. We call this proportion β. We then proceed with the following steps. We describe the algorithm in 1, where we first determine the two thresholds for which we penalize memorized or low quality data, τmem and 
+
+τqual and choose a scale M that acts as a tuning knob balancing the two parts. We then calculate the optimal transport plan for a weighted average of both featurizers and use it to penalize coupled generated and training set pairs by assigning a cost to generated samples that are either too close in the identity feature space (below τmem ) or too far away in the MACE feature space (above τqual ). This procedure allows us to use different criteria to detect memorization (fine) and low quality (coarse) in the generated samples, resolving the novelty-quality coverage tradeoff. At heart, the metric remains distributional, but the optimal transport coupling now accounts for two distinct featurizers: novelty and quality coverage. Informally, quality coverage ( Cov ) and novelty 6(Nov ) approach 1 as the CFTD vanishes. We state this here informally, with the full statement in the Appendix B.2. This means that CFTD penalizes mass outside the Goldilocks zone. 
+
+Proposition 2.1. For suitable radii rqual > τ qual and rmem < τ mem , we have in the feature space that Nov rmem → 1 and Cov rqual → 1 as the CFTD → 0.
+
+# 3 CFTD experiments 
+
+Quality Coverage-Novelty Checks As a first sanity check for the new metric, we repeat some experiments from [10]. In particular, we want to show that the CFTD can indeed detect issues of generative models with regard to novelty and quality coverage. Our experiments in [10] revealed that unstable materials were not that heavily penalized by the contrastive GNN, since even heavy structural distortions only resulted in small increases of the final TNovD. To test this for the new metric, we strain the lattice, add noise to the fractional coordinates, substitute atomic sites with neighbors on the modified Pettifor scale, elements of the same group, and random elements, and iteratively replace an increasing number of test-set data points with training data.   
+
+> (a) Lattice strain. (b) Gaussian noise.
+> (c) Substitutions. (d) Train leakage.
+
+Figure 2: CFTD behavior of the MP20 train and test set across different perturbation settings of the test set. The behavior of these tests is shown in Fig.2. We observe that Gaussian noise and lattice strain both increase the CFTD heavily. This reflects the necessary behavior of our metric, since both experi-ments create structures with increasingly poorer quality. Fig.2 (d) shows the results for iteratively replacing more and more test set structures with structures from the train set, displaying a monotone increase in the CFTD. Since this experiment simulates the memorization of structures, this is the expected result. Interestingly, the metric is very sensitive to atom substitutions (Fig.2 (c)). Ran-dom substitutions are penalized more strongly than in-group substitutions, which, in turn, are more strongly penalized than modified Pettifor substitutions. This is reasonable, as structures created with Pettifor substitutions are expected to be higher in quality compared to structures created with in-group or random substitutions. This gain in quality compensates the effect of increased memo-rization in structures with Pettifor substitution, which comes from the inclusion of modified Pettifor neighbors in the augment function of the contrastive GNN. The Pettifor substitutions are penalized more strongly in the memorization component, which is not seen in the final CFTD value of Fig.2 (c), due to the higher quality of the structures. This shows that with this change, the CFTD is able 7to detect chemical similarity very well. We also remark that, in contrast to TNovD (see the same Figure in [10]), our metric is able to capture chemical differences in a distinctive way. Further, our approach seems to penalize Gaussian noise and lattice strain more heavily than TNovD, indicating a better treatment of stability. Although the experiments yield highly divergent CFTD values that prevent a straightforward inter-pretation, the results in Fig.2 prove that problematic structures and data leakage are indeed punished by our metric. We also repeat the same experiment with the Perov-5 dataset [41, 42, 3] in the Appendix G, where similar conclusions are drawn. 
+
+Comparison with continuous SUN Since our CFTD bears similarities to the continuous SUN metrics [12], we propose a small toy experiment to showcase their differences. We use their im-plementation in xtalmet [21] and create three subsets of 1,000 structures each. Two subsets were created by randomly drawing 1000 structures from the MP20 train and validation set, respectively. For the third subset, only structures from the validation set with fewer than ten atoms were con-sidered. In the toy experiment, the first subset was treated as the training set, while the other two simulated the generated structures. With this, CFTD and cSUN were calculated for the second and the third subset. This experiment simulates a strong distributional shift, since the third subset cov-ers only a specific part of the full distribution of structures (only those with at most ten atoms). As shown in Fig. 3 (a), cSUN values barely differ between subsets two and three. This is not surprising, since, at an instance level, there is no reason to assume that materials with fewer than ten atoms are less unique or novel than those with more atoms. Nevertheless, if a model trained on the complete dataset generates only structures with fewer than 10 atoms, it would be considered mode-collapsed. The CFTD penalizes memorization and quality by optimizing the transport plan between the train-ing and generated distributions. It is therefore primed to detect the artificially induced distributional shift, and, as indicated by the higher CFTD values in Fig. 3 (a), it indeed does so. This shows that CFTD complements existing metrics by clearly detecting distributional shifts between training and generated samples. Since the training objective of generative models is to create samples that fit the training distribution without exactly mirroring it, this helps to identify potentially problematic mod-els that score well in other metrics. To simulate a different kind of distributional shift, we perform a second toy experiment by creating a subset of 1,000 randomly drawn structures from the validation set that do not contain oxygen. As shown by the results in Fig. 3 (b), we observe the same behavior. 
+
+> (a) Comparison of a reference set versus a subset with less than 10 atoms.
+> (b) Comparison of a reference set versus a subset without Oxygen.
+
+Figure 3: Comparison of continuous SUN versus CFTD. 
+
+3.1 Evaluation of current material generators 
+
+We also evaluate current material generators with samples provided in [12]. This comes in handy, because our proposed CFTD bears many similarities with these continuous stability, uniqueness, and novelty metrics. Additionally, the same MP20 dataset was used to train the generators and our contrastive GNN, enabling us to use the generated structures directly without retraining the identity featurizer. We follow our proposed hyperparameter fitting procedure on the MP20 train and validation sets and provide evaluations of the materials generative models MatterGen [2], ADiT [15], Chemeleon [16], Chemeleon2 [17], CdVAE [3], DiffCSP [13], DiffCSP++ [14], Crystalite [43], as well as the MP20 test set. 8(a) CFTD for unrelaxed structures from different generative models. 
+
+> (b) CFTD for relaxed structures from different generative models.
+
+Figure 4: Comparison of common material generative models: relaxed and unrelaxed. To investigate the influence of relaxation (i.e., a structural optimization of the atomic positions and unit cell parameters), we relaxed all generated structures with the MACE-MP-0b3 foundation model (model: ”medium”) for 100 steps and 0.02 ˚ A. In general, the relaxed structures from the generative models achieve lower CFTD values (i.e., can be considered better) but also exhibit higher memo-rization. As shown in Fig. 4, our metric consistently ranks the MP20 test set structures as the best, with MatterGen following. The Chemeleon and Crystalite models also perform well, albeit with a higher memorization term than MatterGen. In particular, Crystalite and MatterGen are very close in the relaxed case and mainly differ in their novelty-quality coverage trade-off. The biggest difference from [12] seems to be the performance of Chemeleon2. It is ranked highest in [12] but scores the lowest on our metric. As a reinforcement-learning-based model, it delib-erately overweights rare events, thereby shifting the generated distribution away from the training distribution. This is consistent with analysis in [12], where they write that Chemeleon2 employs ”re-ward hacking” under their CSUN. We hypothesize that this is caused by overconcentration, which is penalized by a distributional metric like CFTD, but mostly ignored by an instance-level one. 
+
+# 4 Guiding a material generator using MLIP features 
+
+In addition to evaluating generative models, we wanted to test whether the coarse MACE features carry a usable signal for generation itself and therefore designed a MACE-conditional generator. The aim of this section is not to propose a SOTA generator, but to verify two things: that a generator can use the MACE features, and that it faithfully obeys them as a condition, i.e., generates materials that respect the conditional input. Both of these are necessary conditions for a hierarchical generator, which we briefly describe in Appendix L. In the following, we describe a material as a tuple (n, (ai)ni=1 , L, (xi)ni=1 , h ), where n describes the number of atoms, ai describes the (categorical) atom types, L the lattice, and (xi) the fractional coordinates of atom positions. Compared with existing generative models, we include an additional parameter h, which corresponds to our coarse mace features. We choose the factorization 
+
+p(n, h, L, a, x ) = p(n, h )p(a|n, h )p(L|n, h, a )p(x|a, n, h, L ),
+
+which says that based on the MACE features and the number of atoms, we generate the atom types, then the lattice, and then the positions. In particular, we learn all the conditional probabilities 
+
+p(a|n, h ), p(L|a, n, h ) and p(x|L, a, n, h ) using the means of flow matching [44, 45, 46, 47]. Given the variable type, we use continuous-flow matching for the position and lattice, and discrete-flow matching for the atom types. For simplicity, we choose p(n, h ) = 1
+
+> N
+
+PNi=1 δ(ni,h i), i.e., the empirical distribution. The other components are learned as follows: • Atom types: We use a transformer trained with a log-likelihood objective. By applying a discrete flow matching-style approach [47], we model each atom type as a categorical value with a masking path. We sample using the substitution-based parameterization (SUBS) approach from [48], which discretizes unmasking based on the learned probabilities. 9• Lattice: We follow the parametrization used in [14], where they essentially choose a basis of the set of symmetric matrices, and use Euclidean flow matching in the space of this basis. • Atom positions : We adopt an adapted version of an equivariant GNN [49] and modify it into a non-equivariant architecture. We do this by adding directional and moment informa-tion [50] that is passed through a multilayer perceptron (MLPs) and FiLM-style condition-ing [51]. The geometry chosen is flow matching on fractional spaces, similar to [4, 52]. A detailed description can be found in Appendix K. Our modeling ideas build upon recent works of material generators. 
+
+4.1 Evaluation Overfitting on a small subset To judge both CFTD and the consistency of our generator, we first train our model on a small subset of 2,000 materials from the MP20 dataset [3]. With so few samples for training, we expect our model to memorize to some degree. We train it for 16,000 epochs and validate the generated structures, both relaxed and unrelaxed, every 2,000 steps using the CFTD metric. The CFTD allows an insightful comparison of quality coverage and novelty, which we visualize in Fig. 5. We see that both unrelaxed (Fig. 5 (a)) and relaxed (Fig. 5 (b)) runs have a minimal CFTD at epoch 2000. Memorization increases much faster for relaxed structures, which we trace back to imperfections in the positional generator. The generated fractional coordinates are sometimes close to, but not at the exact equilibrium positions. These small positional offsets can prevent generated structures that are identical copies of structures in the train set from being identified as such. By applying the MACE relaxation, the atoms are moved to equilibrium positions and, as a result, the affected structures are then correctly identified as memorized. These results show a vital advantage of CFTD for evaluating the training of material generative models: it can be easily combined with relaxation procedures, unlike, e.g., the validation loss. Increased memorization is a clear indicator of overfitting, and since this might only be visible after relaxation (as seen by comparing Fig. 5 (a) and (b)), CFTD can identify such behavior more easily than other metrics.  
+
+> (a) CFTD over epochs (unrelaxed). (b) CFTD over epochs (relaxed).
+
+Figure 5: Comparison of our proposed material generator trained on an MP20 subset of 2,000 ma-terials only. 
+
+Full Training To investigate whether coarse MACE features can be a useful guide for a mate-rial generative model, we tested whether adding empirical MACE features improves performance on LeMat-GenBench [7], i.e., whether the guidance provides a useful downstream signal. More precisely, we compare the MACE-conditional model from above against an otherwise identical model that does not use MACE features. In the MACE-conditional model, generation is initial-ized by sampling the pair ((n,h)), where (n) is the number of atoms in the unit cell and (h) is the corresponding pooled MACE feature vector projection. In the empirical variant considered here, we use the empirical distribution of the MP20 train set as the prior over these conditions, i.e., 
+
+(p(n, h ) = 1
+
+> N
+
+P 
+
+> i
+
+δ(ni,h i)). The remaining components of the generator then sample atom types, lattice, and fractional coordinates conditional on this sampled pair. Since the conditions are taken directly from the empirical distribution of the training set, one may expect increased memoriza-tion. This can potentially be improved by generating the MACE feature conditions as well, and we discuss possible updates of the generator in Appendix L. At the same time, because MACE features encode structural, chemical, and physical information, they may guide the generator to-ward improved (meta)stability. To investigate such potential upsides, we compare the conditional 10 (a) CFTD for the final models (empirical and none), raw and relaxed. 
+
+> (b) Cosine similarity for the empirical distribu-tion between generated materials and condition.
+
+Figure 6: CFTD of models. Cosine similarities are for materials generated conditioned on empirical features, and they are tested to verify that they satisfy the condition. and unconditional models using both CFTD and LeMat-GenBench metrics. Furthermore, we check whether the generated materials indeed comply with the MACE feature conditioning. This means that when applying the MACE featurizer on the generated samples, we check whether the resulting features matches the condition we fed to the model. The results are shown in Fig. 6. In Fig. 6 (a), we see that the empirical MACE-conditional model exhibits higher memorization but better quality coverage (i.e., a lower quality value). The cosine distances in Fig. 6 (b) indicate a very high degree of agreement between the features of the generated materials and the conditions, as they barely change after relaxing the structures to their energetic ground state with MACE-MP-0b3. We trained both models for 1,000 epochs and saved the model with the lowest validation loss. On LeMat-GenBench, the empirical MACE-conditioned model improved validity and stability over the No-MACE baseline ( V = 98 .5 vs. 97 .2, S = 11 .7 vs. 7.7, M = 51 .6 vs. 44 .4), while the No-MACE model attains slightly higher novelty ( N = 61 .0 vs. 51 .2). Both models have similar SUN and MSUN profiles; the empirical MACE-conditioned model has SUN 0.8, No-MACE has 0.5.For MSUN, the empirical MACE-conditioned model reaches 16 .7, No-MACE reaches 18 .0. This shows that the empirical MACE-conditioned model does precisely what it should: guide the models towards more stable but less novel samples (since we fed in exact train MACE features). This shows high potential for learning a novel MACE feature space that combines stability improvements with greater novelty. Note that while the CFTD evaluation of the MACE-conditioned model shares the same underlying MACE representation, the pre-relaxation and evaluation procedure of LeMat-GenBench does use a more thorough relaxation procedure with 3 different MLIPs. 
+
+# 5 Conclusions 
+
+In this paper, we introduced a dual featurizer framework for evaluating material generative models, extending the existing TNovD. We related our featurizers to the more classical terms of coverage and novelty in the respective featurizer geometries. We showed that our resulting CFTD exhibits consistent behavior compared to TNovD and can detect mode collapse, indicating a more distribu-tional flavor than the cSUN metrics. We also showed that our metric detects overfitting, making it desirable as a model checkpointer. However, it needs to be investigated more closely how our CFTD compares to other possible checkpoint strategies, such as the validation loss or MSUN, as taken in [43]. We further investigated the utility of the MACE features beyond generative model evaluation. We show that they inform both composition and structure and can be used to guide a conditional material generative model. This opens up a very interesting line of research for a hierarchical model that first generates coarse MACE features and then builds a generative model for structure creation on top of them. A further benefit of conditioning a generative model on MACE features is that it opens a route to property-conditional materials generation: a MACE feature generator could be steered towards 11 regions in the MACE feature space corresponding to structures with the desired property, thereby obtaining a property-conditional generator without retraining a separate conditional model for each target. For the hierarchical model, one needs to investigate the learnability-identifiability tradeoff, i.e., investigate how well the choices we make can inform the generator and how easy it is to learn the MACE feature space. Other summary statistics might be viable, such as taking atom-level features or the max or standard deviation instead of pooling. This provides a new way of designing material generators, which we believe is a fruitful area for future research. We discuss potential extensions to conditional generation in Appendix L. 
+
+# Code Availability 
+
+The code for the CFTD evaluation metric is published at https://github.com/BAMeScience/cftd. It includes a pre-trained Identity featurizer (a contrastive GNN) that was trained on MP20 data, which allows users to easily score their own generative model, if also trained on this dataset. It also includes the code to retrain the Identity featurizer on new data, if that is necessary. 
+
+# References 
+
+[1] Pierre-Paul De Breuck, Hai-Chen Wang, Gian-Marco Rignanese, Silvana Botti, and Miguel A. L. Marques. Generative AI for crystal structures: A review. npj Computational Materials ,11(1):370, December 2025. [2] Claudio Zeni, Robert Pinsler, Daniel Z¨ ugner, Andrew Fowler, Matthew Horton, Xiang Fu, Zilong Wang, Aliaksandra Shysheya, Jonathan Crabb´ e, Shoko Ueda, Roberto Sordillo, Lixin Sun, Jake Smith, Bichlien Nguyen, Hannes Schulz, Sarah Lewis, Chin-Wei Huang, Ziheng Lu, Yichi Zhou, Han Yang, Hongxia Hao, Jielan Li, Chunlei Yang, Wenjie Li, Ryota Tomioka, and Tian Xie. A generative model for inorganic materials design. Nature , 2025. [3] Tian Xie, Xiang Fu, Octavian-Eugen Ganea, Regina Barzilay, and Tommi S. Jaakkola. Crystal diffusion variational autoencoder for periodic material generation. In International Conference on Learning Representations , 2022. [4] Liming Wu, Qi Li, Mingze Li, Songyou Li, Shifeng Jin, and Wenbing Huang. DMFlow: Disordered materials generation by flow matching. 2026. [5] Filip Ekstr¨ om Kelvinius, Oskar B. Andersson, Abhijith S Parackal, Dong Qian, Rickard Armiento, and Fredrik Lindsten. WyckoffDiff – a generative diffusion model for crystal sym-metry. In Aarti Singh, Maryam Fazel, Daniel Hsu, Simon Lacoste-Julien, Felix Berkenkamp, Tegan Maharaj, Kiri Wagstaff, and Jerry Zhu, editors, Proceedings of the 42nd International Conference on Machine Learning , volume 267 of Proceedings of Machine Learning Research ,pages 15130–15147. PMLR, 13–19 Jul 2025. [6] Mikkel Juelsholt. Continued challenges in high-throughput materials predictions: MatterGen predicts compounds from the training dataset. Mater. Horiz. , 13(11):5672–5679, June 2026. [7] Siddharth Betala, Samuel P. Gleason, Ali Ramlaoui, Andy Xu, Georgia Channing, Daniel Levy, Cl´ ementine Fourrier, Nikita Kazeev, Chaitanya K. Joshi, S´ ekou-Oumar Kaba, F´ elix Therrien, Alex Hernandez-Garcia, Roc´ ıo Mercado, N. M. Anoop Krishnan, and Alexandre Duval. Lemat-genbench: A unified evaluation framework for crystal generative models. arXiv preprint arXiv:2512.04562 , 2026. [8] Martin Heusel, Hubert Ramsauer, Thomas Unterthiner, Bernhard Nessler, and Sepp Hochre-iter. Gans trained by a two time-scale update rule converge to a local nash equilibrium. In I. Guyon, U. Von Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett, editors, Advances in Neural Information Processing Systems , volume 30. Curran Associates, Inc., 2017. [9] Ilyes Batatia, Philipp Benner, Yuan Chiang, Alin M. Elena, D´ avid P. Kov´ acs, Janosh Riebe-sell, Xavier R. Advincula, Mark Asta, Matthew Avaylon, William J. Baldwin, Fabian Berger, Noam Bernstein, Arghya Bhowmik, Filippo Bigi, Samuel M. Blau, Vlad C˘ arare, Michele Ce-riotti, Sanggyu Chong, James P. Darby, Sandip De, Flaviano Della Pia, Volker L. Deringer, 12 Rokas Elijoˇ sius, Zakariya El-Machachi, Edvin Fako, Fabio Falcioni, Andrea C. Ferrari, John L. A. Gardner, Mikołaj J. Gawkowski, Annalena Genreith-Schriever, Janine George, Rhys E. A. Goodall, Jonas Grandel, Clare P. Grey, Petr Grigorev, Shuang Han, Will Handley, Hen-drik H. Heenen, Kersti Hermansson, Cheuk Hin Ho, Stephan Hofmann, Christian Holm, Jad Jaafar, Konstantin S. Jakob, Hyunwook Jung, Venkat Kapil, Aaron D. Kaplan, Nima Karimi-tari, James R. Kermode, Panagiotis Kourtis, Namu Kroupa, Jolla Kullgren, Matthew C. Kuner, Domantas Kuryla, Guoda Liepuoniute, Chen Lin, Johannes T. Margraf, Ioan-Bogdan Magd˘ au, Angelos Michaelides, J. Harry Moore, Aakash A. Naik, Samuel P. Niblett, Sam Walton Nor-wood, Niamh O’Neill, Christoph Ortner, Kristin A. Persson, Karsten Reuter, Andrew S. Rosen, Louise A. M. Rosset, Lars L. Schaaf, Christoph Schran, Benjamin X. Shi, Eric Sivonxay, Tam´ as K. Stenczel, Christopher Sutton, Viktor Svahn, Thomas D. Swinburne, Jules Tilly, Cas Van Der Oord, Santiago Vargas, Eszter Varga-Umbrich, Tejs Vegge, Martin Vondr´ ak, Yang-shuai Wang, William C. Witt, Thomas Wolf, Fabian Zills, and G´ abor Cs´ anyi. A foundation model for atomistic materials chemistry. The Journal of Chemical Physics , 163(18):184110, November 2025. [10] Paul Hagemann, Simon M¨ uller, Janine George, and Philipp Benner. Transport novelty dis-tance: A distributional metric for evaluating material generative models. arXiv preprint arXiv:2512.09514 , 2025. [11] Gabriel Peyr´ e and Marco Cuturi. Computational optimal transport. arXiv preprint arXiv:1803.00567 , 2020. [12] Masahiro Negishi, Hyunsoo Park, Kinga Oliwia Mastej, and Aron Walsh. Continuous SUN (stable, unique, and novel) metric for generative modeling of inorganic crystals. Machine Learning: Science and Technology , 7(3):035064, June 2026. [13] Rui Jiao, Wenbing Huang, Peijia Lin, Jiaqi Han, Pin Chen, Yutong Lu, and Yang Liu. Crystal structure prediction by joint equivariant diffusion. In Thirty-seventh Conference on Neural Information Processing Systems , 2023. [14] Rui Jiao, Wenbing Huang, Yu Liu, Deli Zhao, and Yang Liu. Space group constrained crystal generation. In The Twelfth International Conference on Learning Representations , 2024. [15] Chaitanya K. Joshi, Xiang Fu, Yi-Lun Liao, Vahe Gharakhanyan, Benjamin Kurt Miller, Anuroop Sriram, and Zachary Ward Ulissi. All-atom diffusion transformers: Unified gen-erative modelling of molecules and materials. In Aarti Singh, Maryam Fazel, Daniel Hsu, Simon Lacoste-Julien, Felix Berkenkamp, Tegan Maharaj, Kiri Wagstaff, and Jerry Zhu, edi-tors, Proceedings of the 42nd International Conference on Machine Learning , volume 267 of 
+
+Proceedings of Machine Learning Research , pages 28393–28417. PMLR, 13–19 Jul 2025. [16] Hyunsoo Park, Anthony Onwuli, and Aron Walsh. Exploration of crystal chemical space using text-guided generative artificial intelligence. Nat Commun , 16, 2025. [17] Hyunsoo Park and Aron Walsh. Guiding generative models to uncover diverse and novel crystals via reinforcement learning. arXiv preprint arXiv:2511.07158 , 2025. [18] Loic Simon, Ryan Webster, and Julien Rabin. Revisiting precision recall definition for genera-tive modeling. In Kamalika Chaudhuri and Ruslan Salakhutdinov, editors, Proceedings of the 36th International Conference on Machine Learning , volume 97 of Proceedings of Machine Learning Research , pages 5799–5808. PMLR, 09–15 Jun 2019. [19] Fasil Cheema and Ruth Urner. Precision recall cover: A method for assessing generative models. In Francisco Ruiz, Jennifer Dy, and Jan-Willem van de Meent, editors, Proceedings of The 26th International Conference on Artificial Intelligence and Statistics , volume 206 of 
+
+Proceedings of Machine Learning Research , pages 6571–6594. PMLR, 25–27 Apr 2023. [20] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shechtman, and Oliver Wang. The unreason-able effectiveness of deep features as a perceptual metric. In CVPR , 2018. [21] Masahiro Negishi, Hyunsoo Park, Kinga O. Mastej, and Aron Walsh. Continuous unique-ness and novelty metrics for generative modeling of inorganic crystals. In AI for Accelerated Materials Design - NeurIPS 2025 , 2025. 13 [22] Daniel Widdowson and Vitaliy Kurlin. Resolving the data ambiguity for periodic crystals. In S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, and A. Oh, editors, Advances in Neural Information Processing Systems , volume 35, pages 24625–24638. Curran Associates, Inc., 2022. [23] Masahiro Negishi and Aron Walsh. Substitution-Based Analysis of Structural Novelty for Generative Models of Materials. arXiv preprint arXiv:2606.23166 , (arXiv:2606.23166), June 2026. [24] Kieran Didi. The unification of representation learning and generative modelling, 2025. [25] Maxime Oquab, Timoth´ ee Darcet, Th´ eo Moutakanni, Huy V. Vo, Marc Szafraniec, Vasil Khali-dov, Pierre Fernandez, Daniel HAZIZA, Francisco Massa, Alaaeldin El-Nouby, Mido Assran, Nicolas Ballas, Wojciech Galuba, Russell Howes, Po-Yao Huang, Shang-Wen Li, Ishan Misra, Michael Rabbat, Vasu Sharma, Gabriel Synnaeve, Hu Xu, Herve Jegou, Julien Mairal, Patrick Labatut, Armand Joulin, and Piotr Bojanowski. DINOv2: Learning robust visual features with-out supervision. Transactions on Machine Learning Research , 2024. Featured Certification. [26] Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Bj¨ orn Ommer. High-resolution image synthesis with latent diffusion models. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 10684–10695, 2022. [27] Tuan Le, Julian Cremer, Djork-Arne Clevert, and Kristof T Sch¨ utt. Equivariant diffusion for structure-based de novo ligand generation with latent-conditioning. Journal of Cheminformat-ics , 17(1):90, 2025. [28] Zian Li, Cai Zhou, Xiyuan Wang, Xingang Peng, and Muhan Zhang. Geometric representation condition improves equivariant molecule generation. In Forty-second International Conference on Machine Learning , 2025. [29] Zhenzhu Li and Aron Walsh. Platonic representation of foundation machine learning inter-atomic potentials. arXiv preprint arXiv:2512.05349 , 2025. [30] Yunyang Li, Lin Huang, Luojia Xia, Wenhe Zhang, and Mark Gerstein. Elign: Equivariant diffusion model alignment from foundational machine learning force fields. arXiv preprint arXiv:2601.21985 , 2026. [31] Lucas Pinede, Soojung Yang, Juno Nam, and Rafael Gomez-Bombarelli. Unifying force pre-diction and molecular conformation generation through representation alignment. In ICML 2025 Generative AI and Biology (GenBio) Workshop , 2025. [32] Stefaan Simon Pierre Hessmann, Khaled Kahouli, Stefan Gugler, Michael Plainer, Frank No´ e, Klaus-Robert M¨ uller, and Niklas Wolf Andreas Gebauer. Generative pseudo-force fields for molecular generation. arXiv preprint arXiv:2605.19050 , 2026. [33] Yang Song, Jascha Sohl-Dickstein, Diederik P Kingma, Abhishek Kumar, Stefano Ermon, and Ben Poole. Score-based generative modeling through stochastic differential equations. In 
+
+International Conference on Learning Representations , 2021. [34] Zahra Kadkhodaie, Florentin Guth, St´ ephane Mallat, and Eero P Simoncelli. Learning multi-scale local conditional probability models of images. In The Eleventh International Conference on Learning Representations , 2023. [35] Keyu Tian, Yi Jiang, Zehuan Yuan, BINGYUE PENG, and Liwei Wang. Visual autoregressive modeling: Scalable image generation via next-scale prediction. In The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024. [36] Henning Glawe, Antonio Sanna, E K U Gross, and Miguel A L Marques. The optimal one dimensional periodic table: a modified pettifor chemical scale from data mining. New Journal of Physics , 18(9):093011, sep 2016. [37] Aaron van den Oord, Yazhe Li, and Oriol Vinyals. Representation learning with contrastive predictive coding. arXiv preprint arXiv:1807.03748 , 2018. 14 [38] Konstantin S. Jakob, Aron Walsh, Karsten Reuter, and Johannes T. Margraf. Learning Crys-tallographic Disorder: Bridging Prediction and Experiment in Materials Discovery. Advanced Materials , 38(5):e14226, January 2026. [39] Ilyes Batatia, David Peter Kovacs, Gregor N. C. Simm, Christoph Ortner, and Gabor Csanyi. MACE: Higher order equivariant message passing neural networks for fast and accurate force fields. In Alice H. Oh, Alekh Agarwal, Danielle Belgrave, and Kyunghyun Cho, editors, 
+
+Advances in Neural Information Processing Systems , 2022. [40] Ilyes Batatia, Simon Batzner, D´ avid P´ eter Kov´ acs, Albert Musaelian, Gregor N. C. Simm, Ralf Drautz, Christoph Ortner, Boris Kozinsky, and G´ abor Cs´ anyi. The design space of e(3)-equivariant atom-centered interatomic potentials. arXiv preprint arXiv:2205.06643 , 2022. [41] Ivano E. Castelli, David D. Landis, Kristian S. Thygesen, Søren Dahl, Ib Chorkendorff, Thomas F. Jaramillo, and Karsten W. Jacobsen. New cubic perovskites for one- and two-photon water splitting using the computational materials repository. Energy Environ. Sci. ,5:9034–9043, 2012. [42] Ivano E. Castelli, Thomas Olsen, Soumendu Datta, David D. Landis, Søren Dahl, Kristian S. Thygesen, and Karsten W. Jacobsen. Computational screening of perovskite metal oxides for optimal solar light capture. Energy Environ. Sci. , 5:5814–5819, 2012. [43] Tin Hadˇ zi Veljkovi´ c, Joshua Rosenthal, Ivor Lonˇ cari´ c, and Jan-Willem van de Meent. Crystal-ite: A lightweight transformer for efficient crystal modeling. arXiv preprint arXiv:2604.02270 ,2026. [44] Michael Samuel Albergo and Eric Vanden-Eijnden. Building normalizing flows with stochastic interpolants. In The Eleventh International Conference on Learning Representations , 2023. [45] Yaron Lipman, Ricky T. Q. Chen, Heli Ben-Hamu, Maximilian Nickel, and Matthew Le. Flow matching for generative modeling. In The Eleventh International Conference on Learning Representations , 2023. [46] Xingchao Liu, Chengyue Gong, and qiang liu. Flow straight and fast: Learning to generate and transfer data with rectified flow. In The Eleventh International Conference on Learning Representations , 2023. [47] Itai Gat, Tal Remez, Neta Shaul, Felix Kreuk, Ricky T. Q. Chen, Gabriel Synnaeve, Yossi Adi, and Yaron Lipman. Discrete flow matching. In The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024. [48] Subham Sekhar Sahoo, Marianne Arriola, Aaron Gokaslan, Edgar Mariano Marroquin, Alexander M Rush, Yair Schiff, Justin T Chiu, and Volodymyr Kuleshov. Simple and ef-fective masked diffusion language models. In The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024. [49] V´ ıctor Garcia Satorras, Emiel Hoogeboom, and Max Welling. E(n) equivariant graph neural networks. In Marina Meila and Tong Zhang, editors, Proceedings of the 38th International Conference on Machine Learning , volume 139 of Proceedings of Machine Learning Research ,pages 9323–9332. PMLR, 18–24 Jul 2021. [50] Ivan S Novikov, Konstantin Gubaev, Evgeny V Podryabinkin, and Alexander V Shapeev. The mlip package: moment tensor potentials with mpi and active learning. Machine Learning: Science and Technology , 2(2):025002, dec 2020. [51] Ethan Perez, Florian Strub, Harm de Vries, Vincent Dumoulin, and Aaron C. Courville. Film: Visual reasoning with a general conditioning layer. In AAAI , 2018. [52] Anuroop Sriram, Benjamin Kurt Miller, Ricky T. Q. Chen, and Brandon M Wood. FlowLLM: Flow matching for material generation with large language models as base distributions. In 
+
+The Thirty-eighth Annual Conference on Neural Information Processing Systems , 2024. [53] C´ edric Villani. Optimal transport – Old and new , volume 338, pages xxii+973. 01 2008. 15 [54] H. W. Kuhn. The hungarian method for the assignment problem. Naval Research Logistics Quarterly , 2(1-2):83–97, 1955. [55] R´ emi Flamary, Nicolas Courty, Alexandre Gramfort, Mokhtar Z. Alaya, Aur´ elie Boisbunon, Stanislas Chambon, Laetitia Chapel, Adrien Corenflos, Kilian Fatras, Nemo Fournier, L´ eo Gautheron, Nathalie T.H. Gayraud, Hicham Janati, Alain Rakotomamonjy, Ievgen Redko, An-toine Rolet, Antony Schutz, Vivien Seguy, Danica J. Sutherland, Romain Tavenard, Alexander Tong, and Titouan Vayer. Pot: Python optimal transport. Journal of Machine Learning Re-search , 22(78):1–8, 2021. [56] Marco Cuturi. Sinkhorn distances: Lightspeed computation of optimal transport. In C.J. Burges, L. Bottou, M. Welling, Z. Ghahramani, and K.Q. Weinberger, editors, Advances in Neural Information Processing Systems , volume 26. Curran Associates, Inc., 2013. [57] Aram-Alexandre Pooladian, Heli Ben-Hamu, Carles Domingo-Enrich, Brandon Amos, Yaron Lipman, and Ricky T. Q. Chen. Multisample flow matching: Straightening flows with mini-batch couplings. In Andreas Krause, Emma Brunskill, Kyunghyun Cho, Barbara Engelhardt, Sivan Sabato, and Jonathan Scarlett, editors, Proceedings of the 40th International Confer-ence on Machine Learning , volume 202 of Proceedings of Machine Learning Research , pages 28100–28127. PMLR, 23–29 Jul 2023. [58] Xinran Liu, Rocio Diaz Martin, Yikun Bai, Ashkan Shahbazi, Matthew Thorpe, Akram Al-droubi, and Soheil Kolouri. Expected sliced transport plans. In The Thirteenth International Conference on Learning Representations , 2025. [59] Samuel Gerber and Mauro Maggioni. Multiscale strategies for computing optimal transport. 
+
+Journal of Machine Learning Research , 18(72):1–32, 2017. [60] Tuomas Kynk¨ a¨ anniemi, Tero Karras, Samuli Laine, Jaakko Lehtinen, and Timo Aila. Improved precision and recall metric for assessing generative models. In H. Wallach, H. Larochelle, A. Beygelzimer, F. d'Alch´ e-Buc, E. Fox, and R. Garnett, editors, Advances in Neural Informa-tion Processing Systems , volume 32. Curran Associates, Inc., 2019. [61] Muhammad Ferjad Naeem, Seong Joon Oh, Youngjung Uh, Yunjey Choi, and Jaejun Yoo. Reliable fidelity and diversity metrics for generative models. In Hal Daum´ e III and Aarti Singh, editors, Proceedings of the 37th International Conference on Machine Learning , volume 119 of Proceedings of Machine Learning Research , pages 7176–7185. PMLR, 13–18 Jul 2020. [62] Kento Nozawa, Pascal Germain, and Benjamin Guedj. Pac-bayesian contrastive unsupervised representation learning. In Jonas Peters and David Sontag, editors, Proceedings of the 36th Conference on Uncertainty in Artificial Intelligence (UAI) , volume 124 of Proceedings of Ma-chine Learning Research , pages 21–30. PMLR, 03–06 Aug 2020. [63] Chris J. Pickard. Airss data for carbon at 10gpa and the c+n+h+o system at 1gpa, 2020. [64] Anubhav Jain, Shyue Ping Ong, Geoffroy Hautier, Wei Chen, William Davidson Richards, Stephen Dacek, Shreyas Cholia, Dan Gunter, David Skinner, Gerbrand Ceder, and Kristin A. Persson. Commentary: The materials project: A materials genome approach to accelerating materials innovation. APL Materials , 1(1):011002, 07 2013. [65] Ricky T. Q. Chen and Yaron Lipman. Flow matching on general geometries. In The Twelfth International Conference on Learning Representations , 2024. [66] Jannis Chemseddine, Paul Hagemann, Gabriele Steidl, and Christian Wald. Conditional wasserstein distances with applications in bayesian ot flow matching, 2025. 16 A Primer on Optimal Transport 
+
+We will briefly recall the basics of Optimal Transport (OT), following [11]; for a more theoretical, abstract overview, see [53]. Optimal Transport is concerned with the task of how to efficiently transport mass from one prob-ability measure μ to another one ν. Specifically, it tries to find a coupling π ∈ Π( μ, ν ) such that 
+
+π = argmin π∈Π( μ,ν )
+
+R ∥x − y∥dπ (x, y ), where Π( μ, ν ) is the set of probability measures with marginals μ and ν.In the case of empirical, disjoint measures of the same size, this reduces to finding the optimal permutation π, i.e., which point xi should be transported to which other one yj , which can be solved using the Hungarian algorithm [54]. In practice, we use the POT package [55] with the standard ot.emd function. Note that OT is also available when the two probability measures have different numbers of samples. However, we then need to split the mass. For instance, consider μ = δ0 and ν = 12 δ0 + 12 δ−2, then ”half” of the mass of δ0 gets mapped to 0, whereas the other half gets mapped to -2. This also explains how OT penalizes mode collapse. If a point is overrepresented in one (like the 0) but not in the other measure, it manifests as a transportation error. This is also the reason why TNovD and CFTD penalize distributional shifts, see [10] for an illustration. Regarding runtime, Hungarian matching (or the LP solver we use) scales as n3 in the number of particles [11] and is therefore more expensive than the Sinkhorn algorithm [56]. However, for a larger number of particles, our method could utilize similar heuristical couplings as done in OT flow matching [57]. To scale to more particles, we outline two potential ways. 
+
+Expected Slice Transport To overcome poor scaling, we propose using expected slice transport, introduced in [58]. The main idea is to use slicing to reduce dimensionality when calculating the optimal transport plan. Assume we want to find a transport between the measure μ = 1
+
+> n
+
+P 
+
+> i
+
+δxi
+
+and ν = 1
+
+> m
+
+P 
+
+> i
+
+δyj , then we define the sliced probability measure with respect to a vector ∥θ∥ = 1 
+
+as θ#μ = 1
+
+> n
+
+P 
+
+> i
+
+δθT xi and similarly for ν. Now for each θ, find an optimal transport plan ˜γθ ∈
+
+Π( θ#μ, θ #ν). Since this trick makes it a one dimensional problem, it can now easily be calculated via sorting, before being lifted to a genuine transport between the original points xi and yj , which we call γθ (note that this is easiest to understand in the case n = m but also works in n̸ = m). All transport plans are averaged to find the so-called Expected Sliced Transport (EST) 
+
+γ = Eθ∼Sd−1 [γθ ].
+
+Note that in [58] they have a more general construction, which we can disregard when working with empirical measures and assuming no projection clashes. 
+
+Multiscale Optimal Transport In [59], another strategy is outlined that reduces scaling to n log n.There we find a multiscale partition of training and generated features, i.e., we denote the data by 
+
+Xj at scales j = 0 , ..., J , with 0 being the coarsest scale and J the full data. Each scale is indexed further by a number of clusters, i.e., Xj = {(Xj )k}Kj
+
+> k=1
+
+. Each cluster has a representative point (the center of mass), and we solve an OT problem between each scale represented by this point. We now solve OT between training points (Xj )k at scale j and generated points (Gj )k. Since each finer scale cluster (Xj+1 )k′ is contained in one coarse scale cluster, we can propagate that we only solve at scale j + 1 with the clusters that were supported at scale j. Depending on the internal structure, this reduces run time to n log n in the case of a genuine tree partitioning. These two directions could support scaling our transport distance to much larger sample sizes. How-ever, neither yields OT couplings and the implications for novelty detection remain to be investi-gated, as they could match suboptimally or smear mass. 
+
+# B Transport Novelty Distance and Coverage-Novelty Bounds 
+
+We discuss here the recently introduced Transport Novelty Distance and firstly introduce the math-ematical notions of coverage and novelty. 17 Coverage and Novelty In early generative modeling, people proposed precision and recall, as well as continuous versions thereof, to evaluate generative models [60, 18, 19]. Following [19], precision is defined as the fraction of the generated distribution Q that is in the support of the true data distribution P . More specifically, these are generated samples that lie within the support of the training samples. Conversely, all samples from the true data distribution P that are contained in the generated distribution Q yield the recall. This precision–recall viewpoint motivates the two quantities used in our analysis. It provides the conceptual starting point for our analysis, because it separates two complementary failure modes of generative models: generating samples outside the true data distribution and failing to cover parts of the true data distribution. To connect this view-point to our transport-based metric, we use the closely related radius-based notions of coverage and novelty. Coverage measures whether each data sample is approximated by at least one generated sample, and is therefore aligned with recall. Novelty measures whether generated samples remain outside a prescribed neighborhood of the training data, allowing us to distinguish genuinely new samples from memorized ones. Thus, coverage and novelty provide the concrete quantities that CFTD is designed to control. More specifically, we want high coverage regarding the quality of the generated structures (the quality parameters of the generated samples are supposed cover the train-ing data distribution), while we also want high novelty regarding the structural and compositional aspects (the generated structures are supposed to not exactly memorize structures from the training set). We define the coverage [61] of the measure μ = 1
+
+> n
+
+Pni=1 δxi and ν = 1
+
+> m
+
+Pmi=1 δgi of radius r as 
+
+Cov r (μ, ν ) = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+1∃j:∥xi−gj ∥≤ r .
+
+If the distance of at least one generated sample gj to the investigated sample xi is smaller than or equal to r, the respective sample xi is counted as covered by the generated distribution. Coverage 
+
+therefore indicates, how much of the true data distribution μ is covered by the generated distribution 
+
+ν.Similarly, we define the novelty [12] with radius r as 
+
+Nov r (μ, ν ) = 1
+
+m
+
+> m
+
+X
+
+> j=1
+
+1∀i:∥xi−gj ∥>r .
+
+If all samples xi from the true data distribution have a distance larger than r to the investigated generated sample gj , the respective sample gj is counted as novel. For the final novelty , we sum over all samples gj , for which we cannot find any xi from the true data distribution up to a distance of r. As such, novelty controls how much of the generated distribution ν is not included in the training distribution μ.Note that [61] defines the error using the distances between k-nearest-neighbors, which is precisely due to the fact that the threshold needs to be chosen data-adaptively. 
+
+Transport Novelty Distance Here we quickly recall the main definition of TNovD [10], where we aimed to find a quality-novelty metric for unconditional generative models that jointly penalized generated distributions that are either unrealistic or copies of the training set. With available training samples (xi)ni=1 and generated samples (gi)mi=1 , the TNovD follows two steps: 1. Step 1: Calculate the pairwise distance matrix Ci,j = ∥xi − gj ∥ and the OT plan 
+
+π(μ, ν ) ∈ Rn,m between μ = 1
+
+> n
+
+Pni=1 δxi and ν = 1
+
+> m
+
+Pmi=1 δgi . This is realized as a doubly stochastic matrix. 2. Step 2: Calculate the actual TNovD metric as 
+
+TNovD( μ, ν ) = 
+
+> n
+
+X
+
+> i=1
+> m
+
+X
+
+> j=1
+
+πi,j (μ, ν )(ReLU( Ci,j − τ ) + M ReLU( τ − Ci,j )) .
+
+During step 2, τ serves as a threshold that splits Ci,j into a memorization and a quality regime, which are supposed to reflect the above introduced novelty and quality coverage, respectively. Since 18 the memorization values are below the threshold τ , they are naturally lower than those of the quality regime. To adapt to this, a hyperparameter M is tuned to scale the memorization values. The two hyperparameter τ and M are therefore crucial for the success of this algorithm. We will now show that we can bound the quality coverage and novelty using the TNovD, i.e. a low TNovD translates to a high quality coverage and a high novelty. While the coverage bound is natural and trivial to formulate, the novelty requires a non-degeneracy condition that ensures that whenever a generated sample is close to a training sample, the OT plan also assigns mass to it. In the following simple lemma, we highlight the connections between TNovD and the established metrics coverage and novelty. 
+
+Lemma B.1. Let μ = 1
+
+> n
+
+Pni=1 δxi and ν = 1
+
+> m
+
+Pmj=1 δgj be as above and assume that r > τ . Then, 
+
+1 − Cov r (μ, ν ) ≤ TNovD( μ, ν )
+
+r − τ .
+
+Now assume r < τ , and assume that there exists α > 0, min i Ci,j ≤ r =⇒ P  
+
+> i:Ci,j ≤r
+
+πi,j ≥ αm .Then we obtain that 
+
+1 − Nov r (μ, ν ) ≤ TNovD( μ, ν )
+
+α M (τ − r) .
+
+This is a positive statement for TNovD: It shows that we can indeed control both novelty and cov-erage. On the other hand, to increase both novelty and quality coverage, we would need to choose 
+
+r > τ and r < τ simultaneously. 
+
+Proof. Fix the coupling π(μ, ν ). We now rewrite 
+
+TNovD( μ, ν ) = 
+
+> n
+
+X
+
+> i=1
+> m
+
+X
+
+> j=1
+
+πi,j (Ci,j − τ )1 Ci,j >τ + M (τ − Ci,j )1 Ci,j ≤τ .
+
+We can drop the second part, then this implies 
+
+TNovD( μ, ν ) ≥
+
+> n
+
+X
+
+> i=1
+> m
+
+X
+
+> j=1
+
+πi,j (Ci,j − τ )1 Ci,j >τ .
+
+Hence, for r > τ that 
+
+TNovD( μ, ν ) ≥
+
+> n
+
+X
+
+> i=1
+> m
+
+X
+
+> j=1
+
+πi,j (r − τ )1 Ci,j >r .
+
+Using this, we directly get X
+
+> i,j
+
+πi,j 1Ci,j >r ≤ TNovD 
+
+r − τ .
+
+By properties of the OT plan, namely that Pmj=1 πi,j = 1 
+
+> n
+
+we get 
+
+X
+
+> i,j
+
+πi,j 1Ci,j >r ≥
+
+> n
+
+X
+
+> i=1
+
+1∀j:∥xi−gj ∥>r 
+
+1
+
+n = 1 − Cov r (μ, ν ).
+
+For the second part, we define the set of non-novel points, i.e., S = {j : min i Ci,j ≤ r}. These are the generated points that are r-close to a training point. In the same manner, we bound 
+
+TNovD( μ, ν ) ≥ X
+
+> j∈S
+
+X 
+
+> i:Ci,j ≤r
+
+M π i,j (τ − r) ≥ |S|αm M (τ − r).
+
+19 Since S is precisely the set of generated points that are r-close to training samples, we can redefine novelty via 
+
+Nov( μ, ν ) = 1
+
+m
+
+> m
+
+X
+
+> j=1
+
+1j∈Sc = 1
+
+m |Sc|.
+
+Using |S| + |Sc| = m, we have 1 − |S| 
+
+> m
+
+= Nov r .This overall implies the claim by rearranging that 
+
+1 − Nov( μ, ν ) ≤ TNovD( μ, ν )
+
+αM (τ − r) .
+
+Note that for the CFTD, we now redefine 
+
+Cov r (μ, ν ) = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+1∃j:∥F mace (xi)−F mace (gj )∥≤ r , Nov r (μ, ν ) = 1
+
+m
+
+> m
+
+X
+
+> j=1
+
+1∀i:∥F id (xi)−F id (gj )∥>r .
+
+Theorem B.2. Define the cost functions Cid i,j = ∥Fid (xi) − Fid (gj )∥ and Cmace i,j = ∥Fmace (xi) −
+
+Fmace (gj )∥ for the empirical measures μ = 1
+
+> n
+
+Pni=1 δxi and ν = 1
+
+> m
+
+Pmj=1 δgj .Further, denote π an optimal coupling associated to the cost C = 12 Cid + 12 Cmace .Denote rmem < τ mem and similarly rqual > τ qual (Goldilocks Zone). We then have the coverage (quality) as 
+
+1 − Cov rqual (μ, ν ) ≤ CFTD( μ, ν )
+
+rqual − τqual 
+
+Assume that there exists α > 0 such that for every j min i Cid i,j ≤ rmem =⇒ P  
+
+> i:Cid i,j ≤rmem
+
+πi,j ≥ 
+
+> αm
+
+, then we have novelty as 
+
+1 − Nov rmem (μ, ν ) ≤ CFTD( μ, ν )
+
+α M (τmem − rmem ) .
+
+This shows that we can indeed control both novelty and quality coverage independently, which allows us to explicitly look at the coverage of structural quality and structural memorization detached from one another. It also shows that both parameters are bound by the CFTD. 
+
+Proof. Denote the CFTD in its probabilistic form via 
+
+CFTD( μ, ν ) = Eπ [M ReLU(( τmem − Cid )) + ReLU( Cmace − τqual )] .
+
+Note that here Cid and Cmace denote the random variables which are obtained from sampling 
+
+(i, j ) ∼ π and evaluating the costs. Eπ is the expectation value with respect to π
+
+On the event {Cid ≤ rmem }, we have 
+
+CFTD( μ, ν ) ≥ M (τmem − rmem )π(Cid ≤ rmem ),
+
+and similarly, 
+
+CFTD( μ, ν ) ≥ (rqual − τqual )π(Cmace ≥ rqual ).
+
+We can proceed as in the case of the proof of Lemma B.1 and show that 
+
+π(Cmace ≥ rqual ) = X
+
+> i,j
+
+πi,j 1Cmace i,j ≥rqual ≥ 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+1∀j:Cmace i,j ≥rqual = 1 − Cov rqual (μ, ν ).
+
+For the novelty we proceed similarly by defining S = {j : min i Cid i,j ≤ rmem }.20 By assumption we have that P  
+
+> i:Cid i,j ≤rmem
+
+πi,j ≥ αm , hence 
+
+π(Cid ≤ rmem ) = X
+
+> j∈S
+
+X 
+
+> i:Cid i,j ≤rmem
+
+πi,j ≥ |S|αm ,
+
+from which we can infer the claim in the same way as before. 
+
+# C On the fineness of the Identity features 
+
+In this section, we provide a brief mathematical argument explaining why a contrastive loss [37] is a good choice for the fine featurizer (i.e., to detect novelty). We want to show that if the InfoNCE loss is small, the probability that materials are mapped to the same features vanishes. This is by no means a new technical argument, but helpful for our story. A similar result, albeit in a much different language, has been shown in [62]. It basically says that a small InfoNCE loss yields good separation between distinct materials, thereby preventing false positives. 
+
+Proposition C.1. Let x be a material, with positive augment x+ (should be close) and neg-ative augments x1, ..., x K (should not be close) with feature versions z = Fid (x), z + =
+
+Fid (x+), z 1, ..., z K = Fid (x1), ..., F id (xK ) Further denote the InfoNCE loss for x by lnce =
+
+− log 
+
+ exp( zT z+)exp( zT z+)+ PKk=1 exp( zT zk )
+
+
+
+. Then the probability of the event Aγ = {∃ j : zT zj ≥
+
+zT z+ − γ} can be bounded by 
+
+P(Aγ ) ≤ E(lnce )log(1 + exp( −γ)) .
+
+Proof. On the event Aγ , we have that by definition for some fixed j that 
+
+exp( zT z+)exp( zT z+) + PKk=1 exp( zT zk) ≤ exp( zT z+)exp( zT z+) + exp( zT zj ) ≤ 11 + exp( −γ) .
+
+Taking logs yields that 
+
+lnce ≥ log(1 + exp( −γ)) .
+
+Hence, by Markov, we have 
+
+P(Aγ ) ≤ P(lnce ≥ log(1 + exp( −γ))) ≤ E(lnce )log(1 + exp( −γ)) .
+
+This exemplifies the role of the fine featurizer: it defines an augmentation-dependent identity geom-etry in which structures related by the chosen augmentations are kept close, while other materials are encouraged to be separated. One could also take more classical approaches, such as the novelty ”featurizers” employed in [12]; however, they need to be adapted to have a fixed length to fit the OT framework. 
+
+# D Hyperparameter Selection 
+
+Here, we provide a precise description of how the hyperparameters are chosen in our framework. The input to the hyperparameter selection is as follows: 1. The training data set 2. The validation data set 3. The β-Goldilocks percentage, i.e., the relative number of points that are categorized into the Goldilocks zone. 21 From there on, we calculate the featurized versions of the training and the validation samples with respect to the two featurizers F id , F mace , and find the optimal coupling with respect to the coupling 
+
+C = 12 Cid + 12 Cmace . Then, we assign that 1−β 
+
+> 2
+
+mass should belong to the ”memorized” and 1−β
+
+> 2
+
+belongs to the ”low quality” zone. This allows us to enumerate the coupled cost. Now, we set τmem = Quantile 1−β
+
+> 2
+
+(Cid ) and τqual =Quantile 1− 1−β
+
+> 2
+
+(Cmace ) with respect to the OT plan π between train and validation, which just says that the thresholds are chosen such that only 1−β 
+
+> 2
+
+of the mass are categorized below τmem or above 
+
+τqual . Further, during the calculation of CFTD , we choose these regions to be mutually exclusive, favoring a categorization as memorized via setting the ”low quality ones” as the ones with Cmace 
+
+above τqual that are not categorized as memorized .Now, we can calculate the memorized value P 
+
+> i,j
+
+πi,j (τmem − Cid i,j ) as well as the ”low quality” value P 
+
+> i,j
+
+πi,j (Cmace i,j −τqual ) and choose M as the fraction of ”low quality” value over memorized, i.e., scaling the values to match on the validation set. We remark that this is purely heuristic and intended to retain interpretability. It is a great future direction to improve this with concrete data labeling or explicit data perturbation procedures. 
+
+Fine Featurizer Parameters The fine featurizer (to detect memorization) was trained for 10 epochs using an equivariant GNN with batch size 128, a contrastive InfoNCE loss and an aug-mentation function with modified Pettifor nearest-neighbor and next-nearest-neighbor substitution probabilities of 0.3 and 0.01 , respectively, and Gaussian coordinate noise applied with probability 
+
+0.5 and scale 0.02 .
+
+# E On the coarseness of MACE features 
+
+We investigate here the nature of the coarseness of the chosen MACE features, i.e. their ability to represent the quality of a structure. First, we will discuss what information the MACE features actually contain, particularly whether we can reconstruct space groups, lattice, and compositional information. Then, we will contrast the fine (for novelty) and coarse (for quality) features by probing how they treat augmentations, whether they separate them, and by comparing their cosine similarities. 
+
+E.1 What information is contained in the MACE features? 
+
+To further elucidate the role of the MACE features, we examine whether we can reconstruct space groups, composition, and lattice parameters, by simply learning a standard feedforward neural net-work from the MACE feature space to the respective structural parameters. We perform compo-sition, lattice, and space-group analyses on the MP20-dataset. As it turns out, composition is the best-controlled part of a material, i.e., the easiest one to reconstruct from the MACE features. To check whether the reconstruction of space groups is inferred by the good prediction of the compo-sition, we repeat the space group prediction on the Carbon24 data set [63, 3]. This is interesting, since each material in this dataset consists solely of carbon, and the results tackles the hypothesis that MACE features encode only composition and no structural information. Given the architecture and success of pre-trained MACE models, this was, to a certain extent, already expected. However, since we apply mean pooling to the features and restrict ourselves to a certain number of random projections to create the feature space, we needed to assess the influence of these changes on the final features. Further, we test four different projection lengths of the mean-pooled invariant MACE features (32, 64, 128, and 256), with larger projections generally conveying more information. For the composition, we measure the L1-Distance between the predicted probability (i.e., the frac-tion of atoms in the generated structures relative to the full set) and the true frequency in the val-idation set. For the lattice, we compute the MAE between predicted and true lattice vectors and angles. The results can be seen in Fig.7 and show that the composition is quite predictable, whereas an accurate prediction of the lattice is harder. Generally, both improve as the number of projections increases. 22 (a) Composition curve. (b) Lattice curve. 
+
+Figure 7: Composition and lattice reconstruction curves on MP20.  
+
+> (a) Space group accuracy for MP20. (b) Space group curve for Carbon24.
+
+Figure 8: Space group reconstruction curves. Regarding the space group reconstruction, we report the accuracy of the predicted top space group for the two datasets in Fig.8. The space group accuracy is around 0.35-0.40 on the MP20 and 0.55-0.58 on the Carbon24 dataset. These experiments show that the projections of the mean-pooled MACE features capture both chem-ical and geometric information. However, they do not suffice to perfectly reconstruct any parameter. The closest one is chemical composition. This underlines the coarse character of the MACE features. Generally, information improves as we add more projections. 
+
+E.2 What makes the Identity featurizer fine? 
+
+The role of the Identity featurizer is to provide a different kind of ”geometry” differentiating between positive (those structures that should be close) and negative pairs (those structures that should not be close) as indicated by Proposition C.1. Therefore, we investigate whether the contrastive GNN indeed separates positive and negative pairs differently than the MACE featurizer. To test this, we randomly select 5000 samples from MP20 train set and sweep over γ as in the Proposition. We measure the number of negative pairs that exceed the threshold. More specifically, we generate for each material a positive augment and check whether there exists a different material that exceeds the augment cosine similarity with a subtracted γ. Hence, as γ increases, the probability of hitting a negative pair (a different material) instead of the augment increases. We do this for both the MACE and the Identity featurizer, for which the results can be seen in Fig.9. Generally, the contrastive GNN provides a much better separation, as indicated by the much lower probability of margin violation. This explains the role of the fine Identity featurizer, which induces a completely different geometry than the coarse MACE featurizer. 
+
+E.3 A cosine investigation 
+
+To further understand the different featurizers, we randomly drew two times 5000 samples from the MP20 train set and formed random pairs between the two created subsets. These samples were then transformed into the two feature spaces, using the MACE (coarse) and Identity (fine) featurizers. The features were not only calculated on ”clean” structures directly drawn from the MP20 train set, but also on ”noisy” structures. We induced this noise by altering the fractional coordinates with 23 Figure 9: Separation between the MACE featurizer and the Identity featurizer. 
+
+Figure 10: Joint histograms of cosine similarities between random pairs of clean or noisy data for the two featurizers. Gaussian noise and applied a relatively high standard deviation of 0.05. Fig. 10 compares the cosine similarity for each featurizer, i.e., Identity or MACE, and randomly selected feature pairs of, in total, four different sets. The sets cover feature pairs for clean vs. clean, clean vs. noisy, noisy vs. clean, and noisy vs. noisy structures. For the Identity featuzier, cosine similarity values are mainly focused around 0 and high similarities are the absolute exception for all four sets. The low similarity values indicate that the contrastive GNN is indeed trained to achieve separation of the different samples, even when noise is present. For the MACE featurizer, we see a different behavior: for the clean-clean pairs, we observe that relatively few have a cosine similarity below 0.5. The MACE tail, however, changes for clean vs. noisy or noisy vs clean feature pairs. This indicates that the MACE feature space also accounts for perturbations, as it is trained not only on ”clean” and stable data. The histograms in Fig. 10 thereby further underline the different geometries learned by both featurizers. 
+
+# F On the implicit stability of MACE features 
+
+A natural question that arises is what notion of stability the MACE features really encode. We call this implicit stability. Of course, due to mean pooling and the random projections, exact node-level 24 Figure 11: MAE of formation energy per atom over epochs for different lengths of mean pooled MACE feature projections. information is lost. Since MACE predicts energies and forces, it is still reasonable to expect that it captures these even in a condensed feature space. We test this with the following experiments on formation energies. 
+
+MP20 Sweep: We test how well we can predict formation energies of MP20 from the mean pooled MACE feature projections and trained a simple multilayer perceptron (MLP) to predict the formation energies using the MAE as the loss function. The results are shown in Fig.11 for a varying number of projections of the mean pooled invariant MACE features as input for the MLP. We can see that all of the variants capture some notion of stability and greatly improve with training. More projections also improve the information encoded. Therefore, Fig.11 shows that mean pooled MACE feature projections are a reasonable proxy for estimating formation energy, and possibly also local stability. 
+
+Experiments on Polymorphs: We continue our investigation by analyzing the formation energies of polymorphs (i.e., compositions where different crystal structures exist). With this test, we want to check whether the differences in their energy above the hull (essentially, their differences are equivalent to the formation energy differences for the polymorphs) can be sufficiently separated by the MACE featurizer. We check all polymorphs of SiO2 and ZnS in the MP dataset [64]. We specifically choose polymorphs because they have the same composition, which we can therefore exclude this as a confounder. In the results shown in Fig.12, both investigated polymorphs exhibit a near linear correlation between their energy above hull differences with the distance between their respective MACE feature projections and although several outliers are visible in the plots, a general trend persists. This trend is likely unsurprising, as the readout phase for the invariant features in the first layers of the MACE models uses a linear readout. The experiment underscores our general thesis that pooled MACE feature projections are still a useful proxy for precise stability information. Nevertheless, there may be several outliers, as shown in the figure. 25 (a) Hull-energy difference versus MACE feature L2 difference for SiO 2 polymorphs. 
+
+(b) Hull-energy difference versus MACE feature L2 difference for ZnS polymorphs. 
+
+Figure 12: Polymorph plots showing hull-energy differences as a function of MACE feature L2 differences. 26 G Toy Experiment on Perov-5   
+
+> (a) CFTD over lattice strains. (b) CFTD over Gaussian noise.
+> (c) CFTD over substitutions. (d) CFTD over train leakage.
+
+Figure 13: CFTD behavior across different perturbation settings on Perov-5. To show that the toy experiments from Fig. 2 in extend to larger training sets and different structures, we repeat them for the Perov-5 dataset [41, 42, 3]. It contains more materials that share a similar structure but different compositions (over 18,000 in total), making it structurally different from MP20. We repeat the same deformations as before and also test for data leakage. Note that we reused the Identity featurizer that was trained on MP20, as well as the same MACE featurizer. The results can be seen in Fig. 13. Note that for this experiment, we chose modified Pettifor nearest neighbors from the MP20 set, not only from the atoms contained in Perov-5. A close investigation reveals that for the first addition of Gaussian noise (0.022) to the atomic positions, the CFTD dips slightly, which indicates that for such low numbers of noise, memorization decreases more quickly than quality penalization kicks in. As for MP20, the plots of the individual experiments reveal large differences in the absolute values of the new metric. Artificial crystal degeneration is penalized more strongly than data leakage, and it responds particularly sensitively to lattice strain and changes in atomic positions. This is again different from the behavior observed in TNovD. We argue that this result comes from the inclusion of the coarse MACE featurizer, which enables the new CFTD to now accurately capture the quality of a crystal structure. The much lower values observed in the data leakage experiment result from our implementation of tuning the hyperparameter M . The optimal value of M is determined by aligning the naturally lower values of the memorization regime with the values of the quality regime on the same scale. This adjustment is performed on a split of MP20 train and validation set and, since the quality regime in this scenario has lower CFTD values, M will scale the memorization regime accordingly. 
+
+# H Ablation study on Goldilocks zone β
+
+Here, we ablate how much influence the size of the Goldilocks zone has. This is controlled by the parameter β. The higher β is, the less quality and memorization errors are penalized. Hence, we need to ablate whether our conclusions, i.e., the internal rankings of the models, stay consistent with 27 (a) CFTD for unrelaxed models β = 0 .4. (b) CFTD for relaxed models β = 0 .4.          
+
+> (c) CFTD for unrelaxed models β= 0 .6.(d) CFTD for relaxed models β= 0 .6.
+> (e) CFTD for unrelaxed models β= 0 .8.(f) CFTD for relaxed models β= 0 .8.
+
+Figure 14: Comparison of common material generative models: relaxed and unrelaxed for varying 
+
+β.varying β. For this, we run model ablation and comparison experiments for β ∈ { 0.4, 0.6, 0.8} on the raw and relaxed versions of the generated materials. In Fig. 14, we can see that the general trend of the performance persists very well across different β, indicating that the results by our CFTD are highly robust. In particular, the strongest and weakest models remain clearly separated, and only minor ranking changes occur among models with similar CFTD values. 
+
+# I Ablation on the balance factor M
+
+Similarly, we ablate the results with respect to the factor M . Usually, it is chosen that, on a calibra-tion set (e.g., the validation set), both the quality and memorization penalties are balanced. However, this can be changed according to the type of model that is supposed to be favored. For instance, one could weigh memorization less than quality, favoring more conservative, training-like models, or penalize it more heavily. Therefore, we ablate on calibrating M such that both terms are balanced, and then set Mnew ∈ { 0.5M, M, 1.5M }.The results on the models rankings are shown in Fig.15, where the relative ranking does not change for unrelaxed models, but it does for relaxed ones. In particular, Crystalite benefits strongly from a lower memorization penalty. For Mnew = 0 .5M , it becomes the best generated model after relaxation. Also ADiT’s ranking benefits from a lower memorization penalty. Generally, M is a tuning knob for the quality-novelty profile, and hence rankings are not expected to be stable. 28 (a) CFTD for unrelaxed models Mnew = 0 .5M . (b) CFTD for relaxed models Mnew = 0 .5M .              
+
+> (c) CFTD for unrelaxed models Mnew = 1 M.(d) CFTD for relaxed models Mnew = 1 M.
+> (e) CFTD for unrelaxed models Mnew = 1 .5M.(f) CFTD for relaxed models Mnew = 1 .5M.
+
+Figure 15: Comparison of common material generative models: relaxed and unrelaxed for varying 
+
+M .
+
+# J Model ranking 
+
+Here, we comment in more detail on the rankings of the models and how they compare to the rankings implied by continuous SUN[12]. For this comparison, we dismiss Crystalite as it was not available in their study. Also, they ran their results only on unrelaxed models and we therefore compare the rankings only for those. Table 1 shows that our method largely agrees, with only minor differences between Mat-terGen and the test set, and DiffCSP++. The only major disagreement is the ranking of Chemeleon2. Note that their ranking changes significantly depending on the choice of the tunable weight hyper-parameters for stability ( wS ), uniqueness ( wU ), and novelty ( wN ). In their study, they show results for varying stability weights wS . For instance, with wS = 0 , CDVAE is ranked 2nd, since novelty is overvalued and it is very novel by generating low-quality structures. 
+
+# K Model Description 
+
+Atom type sampling We model the sequence of atom types as (a1, .., a n) with n as the number of atoms in a unit cell. Each atom type takes a value in the discrete set ai ∈ { 1, ..., K }, where 
+
+K is the number of distinct atom types we wish to model (i.e., atom types present in the dataset). Sequence modeling is therefore hard, since we have Kn different possible sequences. As the atom 29 Model cSUN Rank CFTD Rank 
+
+MP20 Test Set 3 1MatterGen 2 2Chemeleon 4 3DiffCSP 5 4CDVAE 6 5DiffCSP++ 7 6ADiT 8 7Chemeleon2 1 8Table 1: Rankings taken from the cSUN study [21] with wS = 1 (SUN with elm+am) and our CFTD ranking for β = 0 .6 and calibrated M , so that quality and memorization are balanced. types are categorical, we use the framework of discrete flow matching [47]. Within this framework, we are given training samples A1 ∼ P (A|n, h ), where A = ( a1, ..., a n) is a random variable drawn according to the law (or dataset). We start with a fully masked atom-type assignment A0 =(m, ..., m ), where m is a mask token. Then, we interpolate between the fully masked A0 and the unmasked vector A1 of atom types, by setting At = (1 − B) A0 + B A 1, where B is a vector of independent Bernoulli random variables, where an entry is one with the probability t ∈ [0 , 1] . Then, similar to flow matching, we learn a conditional probability on the categorical simplex ∆K−1, i.e., probabilities on the atom types for each atom given the partially unmasked structure, which we denote by qθ (A1|At, t ). We train this via forward KL, i.e., maximize the cross entropy 
+
+Ea1∼p,t ∈U ([0 ,1]) [− log qθ (a1|at, t )] .
+
+Here, in practice, we condition on all relevant variables, i.e., the number of atoms and the pooled MACE feature projections as additional conditioning. After training our categorical distribution on {1, ..., K }n, we sample following the masked diffusion procedure from [48]. From the definition, it follows for each component of the path at time t that 
+
+p(Ait = m) = 1 − t and correspondingly p(At̸ = m) = t. Then, for sampling, the probability that a previously masked token At1 is unmasked at a later time At2 is given by p(As = m|At = m) =  
+
+> 1−s
+> 1−t
+
+, and hence p(As̸ = m|At = m) = s−t 
+
+> 1−t
+
+. Following this, we start with s0 = ( m, ..., m ) and then for each time step of T = ( t1, ..., t T ) steps, then for each position in st we do nothing if it is already unmasked or we unmask with probability tk+1 −tk 
+
+> 1−tk
+
+. This matches the conditional formulas given by the path. Furthermore, as t approaches 1, all tokens become unmasked. 
+
+Lattice sampling For lattice and position sampling, we mainly use continuous-flow matching. In contrast to discrete-flow matching, we here interpolate continuously in the space of random vectors, not in the space of measures. We follow mainly the presentation in [46]. Assume we already drew the positions X1. Flow matching interpolates between an auxiliary latent X0 ∼ N (0 , I )
+
+and Xt = t X 1 + (1 − t)X0 to learn its velocity vt(Xt) ≈ X1 − X0. It can be shown that considering the Ordinary Differential Equation (ODE) dX t = vt(Xt) with initial X0 ∼ N (0 , I )
+
+yields (approximate) samples from the positions. For lattice generation, we follow [14] and its proposed polar decomposition. We apply this decom-position to the lattice matrix L, which is given by the lattice vectors. With real volume, this is invertible, and we can find a decomposition L = Q exp( S) with an orthogonal Q and symmetric 
+
+S. By utilizing the space of symmetric matrices as a vector space, we can find a basis and decom-pose S = P6 
+
+> i=1
+
+kiBi, where Bi is the basis and ki are the coefficients. The basis matrices are taken from [14]. Since the space of 3 × 3 symmetric matrices are six-dimensional, we choose the following basis: 
+
+B1 =
+
+0 1 01 0 00 0 0
+
+!
+
+, B2 =
+
+0 0 10 0 01 0 0
+
+!
+
+, B3 =
+
+0 0 00 0 10 1 0
+
+!
+
+,B4 =
+
+1 0 00 −1 00 0 0
+
+!
+
+, B5 =
+
+1 0 00 1 00 0 −2
+
+!
+
+, B6 =
+
+1 0 00 1 00 0 1
+
+!
+
+.
+
+30 For the flow matching onto the lattice coefficients ki, we need to convert the lattice representation 
+
+(a, b, c, α, β, γ ) into the spaces of the ki. From the (a, b, c, α, β, γ ) we can compute the metric matrix G = LL T . From this, we can find an eigendecomposition, G = V ΛV T , where Λ is the diagonal matrix of eigenvalues and V are the eigenvectors. Now the matrix S = V log(Λ 1/2)V T
+
+satisfies exp( S) exp( S)T = G, since S is symmetric itself. Now we convert these matrix entries into the representation with respect to the k-coefficients. It is easy to see that k1 = S0,1, k2 = S0,2
+
+and k3 = S1,2, since B1 is the only basis matrix with non zero entry at (0 , 1) (and similar for the other two). For the remaining k, we need to solve a linear system. For (0 , 0) we have S0,0 =
+
+k4 + k5 + k6, and further S1,1 = −k4 + k5 + k6 and S2,2 = −2k5 + k6. It is simple to check that k4 = 12 (S0,0 − S1,1), k5 = 16 (S0,0 + S1,1 − 2S2,2) and k6 = 13 (S0,0 + S1,1 + S2,2) solve this. Now we can get from (a, b, c, α, β, γ ) to the coefficients, and use flow matching with a latent 
+
+Z ∼ N (0 , I ) to the ki, from which we can build a representation of the lattice matrix S.
+
+Position sampling For the positions, we also employ continuous-flow matching conditioned on the pooled MACE features projections, the lattice, and atom types. The main technical difficulty is that material generation introduces a periodic structure, so we cannot naively use flow matching in the Euclidean space. Let T3 
+
+> n
+
+denote n atoms (points) living each in the 3-dimensional torus space with the periodic structure. Further, we make the assumption that [x+δ] = [ x1 +δ, ..., x n +δ] = [ x],i.e., we have translational invariance for x ∈ Rn, 3 and δ ∈ R3. We perform flow matching on the fractional coordinates. Assume we have X0 ∈ T3 
+
+> n
+
+as a latent random vector, and X1 ∈ T3
+
+> n
+
+.The general idea of flow matching is now to regress onto the velocity X1 − X0. However, X1 − X0
+
+is in general not in [0 , 1] n, 3 due to the periodic boundary conditions, so we need to be careful there. For an element in T3 
+
+> n
+
+, there are many different elements representing [X1 − X0], namely 
+
+X1 − X0 + l + δ with l ∈ Zn, 3 and δ ∈ R3. In particular, since flow matching is defined to live on the tangent space [4, 52], we use the representative given by P (wrap( X1 − X0)) , where 
+
+wrap( x) = ( x + 0 .5 mod 1) − 0.5 and (P (x)) i = xi − Pnk=1 1 
+
+> n
+
+xk. This can be seen by either Riemannian geometry [65] or by choosing the representative ∆ = argmin l,δ ∥x1 − x0 + l + δ∥2.Similarly, we choose the congruent path representative frac( X0 + t∆) , which has derivative (up to the discontinuity points of frac ) ∆.Then we regress our velocity onto 
+
+Lpos (vθ ) = Ex0,x 1,t [∥vθ (t, x t) − ∆∥2].
+
+This also has neat differential-geometric interpretations [65]. 
+
+# L Possible Extensions 
+
+L.1 Hierarchical Generation 
+
+One of the motivating pillars of this work is to strip away complexity from generating composition via LLM ideas or positions via GNNs. The first one seems particularly prone to overfitting, whereas the latter often struggles with finding stable or space group diverse structures, as indicated by the results in [7] (see also their leaderboard). Conveniently, the pooled MACE features projections now live in a fixed-dimensional continuous space, where we can apply ideas from standard generative modeling in Euclidean space. In particular, this enables us to learn p(n, h ) via a generative model, for instance, a transformer using the flow matching framework. Then, we could pursue precisely like in our material generator, and conditionally sample atom types, lattice and positions, therefore being a full ”hierarchical” MACE conditional generative model. In particular, this allows us to sample ”new” MACE features, therefore bypassing the composition-overfitting problem. However, a priori, the MACE feature space does not seem to have any particular structure. Many choices we made, such as mean-pooling, are arbitrary. This suggests a deeper analysis of how to compress the information in the MACE features while making it as ”learnable” as possible by a generative model. We leave this for future work, but preliminary results suggest that we can achieve a high novelty generator with a similar MSUN rate. Further, another direction to explore is using atom-level features of the MACE embeddings. We did not pursue this since OT deliberately requires a fixed dimension. However, for material generation, finer-grained information might be helpful. 31 L.2 Conditional Generation 
+
+In this paper, we were mainly concerned with unconditional material generative models, but both the metric idea and the generative model can be extended for conditional generators, albeit extending the metric is not trivial and might need ideas like conditional Wasserstein-like couplings [66]. We want to focus on extending a MACE generator to a conditional one. Indeed, we could subsample or steer a MACE generator (say a generative model in the MACE feature space) to sample only from 
+
+p(h|c). This is possible as soon as we have paired data (hi, c i) and would avoid training another conditional generative model that takes the condition as input for a factorization. This might provide a significant speed-up as soon as the condition is identifiable enough using the MACE features. The experiments in Appendix E.1 suggest that MACE features indeed encode important material aspects. 32

@@ -1,0 +1,391 @@
+Title: ICDAR 2026 Competition on Information Extraction from Atomic Layer Deposition/Etching (ALD/E) Scientific Figures
+
+URL Source: https://arxiv.org/pdf/2607.26848v1
+
+Published Time: Thu, 30 Jul 2026 00:52:25 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# ICDAR 2026 Competition on Information Extraction from Atomic Layer Deposition/Etching (ALD/E) Scientific Figures 
+
+Fahad Ahmed 1[0000 −0001 −9201 −1580] , Sören Auer 1,2[0000 −0002 −0698 −2864] , and Jennifer D’Souza 1[0000 −0002 −6616 −9509]  
+
+> 1
+
+TIB - Leibniz Information Centre for Science and Technology, Hannover, Germany 
+
+{Fahad.Ahmed,Auer,Jennifer.DSouza}@tib.eu  
+
+> 2
+
+L3S Research Center, Leibniz University, Hannover, Germany 
+
+auer@l3s.de 
+
+Abstract. Scientific figure comprehension and reasoning using multi-modal AI requires integrating visual perception with domain-specific rea-soning to extract meaningful knowledge, often not presented in the text of a research publication. The Sci-ImageMiner benchmark dataset, ac-companied by a community-driven competition, raises the bar over prior scientific competitions by curating a comprehensive, expert-annotated dataset across four end-to-end complementary tasks. The competition attracted 68 active participants and 1,263 public/private submissions from 9th January 2026 to 8th April 2026. Our results show that state-of-the-art multimodal models perform well on classification and sum-marization tasks but struggle with data extraction and scientific rea-soning, particularly in visual question-answering. These findings reveal key limitations and highlight challenges and opportunities for improv-ing domain-aware multimodal AI systems. Overall, the Sci-ImageMiner benchmark and competition establish a rigorous platform for advancing research in scientific figure comprehension and reasoning and demon-strate the potential of state-of-the-art approaches for a challenging and complex research area. 
+
+Keywords: Scientific Figure Comprehension · Scientific Reasoning ·
+
+Classification · Data Table Extraction · Summarization · Visual Question Answering 
+
+## 1 Introduction 
+
+Scientific figure comprehension and reasoning using multimodal AI is the ability to interpret, analyze, and derive meaningful scientific knowledge from figures in research publications. In particular, figures such as charts or plots, not only require visual perception, but also domain-specific knowledge, e.g., interpreting trends, relationships, etc., for reasoning. This helps to capture a deeper level of scientific comprehension in an end-to-end workflow which enables the transfor-mation of visual evidence into structured knowledge and actionable insights [18]. arXiv:2607.26848v1 [cs.CV] 29 Jul 2026 2 F. Ahmed et al. 
+
+Moreover, in semiconductor manufacturing, Atomic layer deposition (ALD) and Atomic layer etching (ALE) are foundational technologies in materials science for advanced electronic and functional materials applications. and next generation nanoelectronics at atomic-scale [5,7]. Recent research using multimodal AI shows outstanding performance on nat-ural images while struggling with complex semantics and abstract representa-tion of scientific figures, essentially due to the lack of domain-specific datasets and a need for domain-specific reasoning capabilities [9,6]. Previous ICDAR competitions [2,19] on scientific figure understanding despite significant con-tributions, lack the ability to fully capture the complexity and necessity of end-to-end real-world scientific figure comprehension and reasoning. General-purpose chart datasets either focus on real-world [10] or synthetic [11] data, while datasets [1,20] in material science remain limited in scope, range of quan-titative figures, and task formulations. These limitations underscore a critical gap, in particular, there remains a lack of a large-scale, expert-curated dataset that supports end-to-end multimodal reasoning on authentic, domain-grounded scientific figures. To address these limitations, we introduced Sci-ImageMiner, the first com-prehensive, expert-annotated, domain-specific dataset of ALD/E scientific fig-ures. Through this competition, we hope to address several key questions: RQ1: 
+
+How well do current multimodal models understand and reason over domain-specific scientific figures? RQ2: Which of the approaches significantly improve the capabilities of multimodal models? RQ3: Which of the competition tasks are most challenging even for state-of-the-art multimodal models? By engaging the research community through this competition, we aim to investigate effective strategies and analyze which aspects of scientific figure comprehension remain most challenging, via a rigorous and realistic platform, fostering the development of robust, domain-aware multimodal AI systems capable of advancing scientific knowledge comprehension and reasoning. The competition dataset and evalua-tion scripts are available under a CC BY 4.0 license 3.The remainder of this paper is organized as follows. Section 2 introduces the dataset curation and annotation process. Section 3 presents the competition organization, timeline, tasks, and evaluation protocols. Section 4 reports baseline and competition results, summarizing participant approaches and a comparative analysis. Finally, Section 5 concludes the paper with key findings, limitations, future research directions, and acknowledgments. 
+
+## 2 Sci-ImageMiner Benchmark Dataset 
+
+2.1 Data Collection & Preparation 
+
+We collected 205 research publications in ALD/E materials science, encompass-ing both experimental and simulation-based studies. A 49-figures taxonomy was developed with a visualization and descriptions shared in the Github repository 3  
+
+> 3https://github.com/sciknoworg/sci-imageminer/ ICDAR 2026 Sci-ImageMiner Competition 3
+
+Fig. 1: Overview of the Sci-ImageMiner benchmark end-to-end curation work-flow. MinerU [16] is utilized for the extraction of textual content in structured JSON format along with high-resolution figures in JPEG format. This workflow ensures the preservation of both the semantic structure and visual fidelity of the source documents for downstream multimodal analysis as illustrated in Figure 1. 
+
+2.2 Dataset Organization 
+
+The dataset is organized into two primary categories: (i) ALD and (ii) ALE; which are further divided into: (i) experimental and (ii) simulation-based studies. The dataset is partitioned into standard train/dev/test splits with the statistics shown in Table 1 and the organization as illustrated in Figure 2. 
+
+Fig. 2: Illustration describing the Sci-ImageMiner dataset organization hierarchy. Research papers are numerically indexed, containing the PDF, a "content.json" (sections and figure captions), along with figures and annotation JSON files inside the "images" directory. 4 F. Ahmed et al. 
+
+Table 1: Overview of the Sci-ImageMiner Dataset Statistics, showing distribution by each dataset split, ALD/ALE, and Experimental/Simulation studies.                                                        
+
+> Split Name ALD ALE Total Experimental Simulation Experimental Simulation
+> Papers Figures Papers Figures Papers Figures Papers Figures Papers Figures
+> Train 42 330 36 350 28 257 22 243 128 1,180
+> Dev 650 659 555 337 20 201
+> Test 18 172 16 148 13 129 10 121 57 570
+> Total 66 552 58 557 46 441 35 401 205 1,951
+
+2.3 Annotations 
+
+We observed that Sci-ImageMiner is a large-scale, inherently complex dataset that requires coordinated annotation across four progressive tasks of scientific comprehension and reasoning. Existing annotation tools proved insufficient to support the domain-specific, end-to-end workflow. To address this limitation, we developed a custom web-based, multi-user annotation platform 4, hosted on our institutional infrastructure, that unifies the entire annotation workflow en-abling fine-grained labeling at the subfigure level with bounding-box coordinates and a unified JSON schema. We leveraged Qwen2.5-VL-7B-Instruct [13] for au-tomated pre-annotation for classification, data extraction, and summarization tasks, while the VQA task was intentionally reserved for manual expert annota-tions to ensure high-quality grounded reasoning. We recruited 10 domain experts, having postgraduate to postdoctoral qualifications, for the annotation process following a screening phase. Each annotator was assigned 25 papers, sharing a subset of 5 papers used to evaluate inter-annotator agreement (IAA). We mea-sured IAA using Fleiss’ Kappa, yielding a score of 0.46 (moderate agreement) on a small 5 paper shared sample. Finally, all annotations underwent bi-weekly validations using automated scripts, before being consolidated into a structured, distributable dataset. Inconsistencies in annotations were reported to each an-notator following the periodic automated validations to align with the annotator guidelines. In particular, for the VQA, the annotators assigned four question-answer pairs per figure, labeled at the subfigure level as shown in Figure 3. Ques-tion Types are guided by Bloom’s [8] revised taxonomy to progressively as-sess deeper levels of understanding. Process–Oriented reaction mechanisms, experimental workflows. Comparative/Trend quantitative relationships, cor-relations. Structure–Property connects chemical composition, structures to resulting material properties. Application/Performance experimental obser-vations to device-level or application-oriented insights. Answer Types follow four standardized formats, Yes/No : exclusive disjunction. Factoid : brief factual answer. List : comma-separated order-insensitive list of answers. Paragraph : ex-planatory answer providing detailed insights.  
+
+> 4
+
+https://github.com/sciknoworg/sci-imageminer/tree/main/annotation-tool ICDAR 2026 Sci-ImageMiner Competition 5
+
+Table 2: Top-20 annotated figures in Sci-ImageMiner benchmark dataset (count and percentage).                                         
+
+> Type multiple line chart molecular structure diagram line chart unknown spectra chart
+> Num 716 (15.31%) 644 (13.77%) 522 (11.16%) 374 (8%) 343 (7.33%)
+> Type image panel conceptual diagram scatter plot stacked spectra chart reaction scheme
+> Num 324 (6.93%) 320 (6.84%) 274 (5.86%) 266 (5.69%) 202 (4.32%)
+> Type multi spectra chart multi-axis chart heatmap apparatus diagram bar chart
+> Num 199 (4.25%) 140 (2.99%) 73 (1.56%) 64 (1.37%) 47 (1%)
+> Type contour heatmap process flow diagram band diagram process timing diagram grouped bar chart
+> Num 32 (0.68%) 28 (0.6%) 22 (0.47%) 19 (0.41%) 13 (0.28%)
+
+## 3 Competition 
+
+3.1 Timeline Schedule 
+
+The competition website was launched on 28 November 2025, the development phase commenced on 9 January 2026, accompanied by progressive releases of the training dataset in batches, subsequently, the complete train/dev and blind test datasets were released on 6 March 2026. The evaluation phase began on 16 March 2026 and continued until 8 April 2026. 
+
+3.2 Competition Organization 
+
+A dedicated competition website 5 was established, providing comprehensive information and supporting resources. To ensure effective communication with participants, a dedicated Google Group 6 was established for periodic announce-ments and Q&A. The CodaBench platform was utilized by organizing separate competition tracks for each task, to allow scalable and well-structured man-agement of submissions and evaluations without manual intervention using our evaluation scripts. The competition was conducted in two phases: (i) development phase 
+
+allowed participants to design, train, and validate their approaches, while (ii) 
+
+evaluation phase allowed assessments of final submissions and rankings on the official leaderboards. Following the competition, the winning teams were invited to submit system papers to the proceedings 7 via TIB Open Conference Publishing 8 free of charge. 
+
+3.3 Tasks 
+
+The competition is organized as such to collectively evaluate end-to-end com-prehensive scientific figure understanding and reasoning capabilities.  
+
+> 5
+
+https://sites.google.com/view/sci-imageminer/home  
+
+> 6
+
+https://groups.google.com/g/sci-imageminer  
+
+> 7
+
+https://doi.org/10.52825/ocp.v10i  
+
+> 8
+
+https://www.tib-op.org/ojs/ 6 F. Ahmed et al. 
+
+(a) Band Diagram. Question-type: Structure-property. Answer-type: Paragraph. Q: How is the conduc-tion band expected to shift with Ge content? Answer: Ideally, the result-ing ternary Zn 1−xGe xOy (ZGO ) and 
+
+Sn 1−xGe xOy (T GO ) compounds should have Ec positions that shift to higher energies as the Ge content of the com-pounds increases. 
+
+(b) Chromaticity Diagram. Question-type: Structure-property. Answer-type: Factoid. Q: Is the ALD/MLD thin film point closer in color to the incandescent bulb point or to the LED lamp point? Answer: It is closer to the incandescent bulb point. 
+
+(c) Phase Diagram. Question-type: Comparative/trend. Answer-type: Paragraph. Q: How does the required temperature for the modification step compare to that for the etching step in this process? Answer: In thermal isotropic ALE, both steps must occur at the same constant temperature. The process window is the single tempera-ture where modification is complete and etching is spontaneous, making control more challenging than in processes with separate temperature steps. 
+
+(d) Multi-Spectra Chart. Question-type: Structure-property. Answer-type: Para-graph. Q: How does the Ti-O-Si peak intensity relate to the number of ALD cycles, and what does this signify about film growth? Answer: The Ti-O-Si peak grows with increasing cycles, confirming the formation of a chemically bonded 
+
+T iO 2 film on the SiO 2/Si substrate. This indicates successful nucleation and steady, layer-by-layer film growth. 
+
+Fig. 3: Examples of some challenging scientific figures with domain-grounded VQA in Sci-ImageMiner. 
+
+Task 1: Classification 
+
+Task Description: To classify each figure into one of the 49 predefined categories defined in the taxonomy. ICDAR 2026 Sci-ImageMiner Competition 7
+
+Evaluation Protocol: Performance is evaluated using Accuracy, Precision, Recall, and F1-score. The F1-score serves as the primary metric for ranking teams on the leaderboard. 
+
+Task 2: Data Extraction 
+
+Task Description: To reconstruct the underlying data represented in a chart by extracting it into a structured Markdown table format. 
+
+Evaluation Protocol: The evaluation is based on Relative Mapping Similarity (RMS) and Tree Edit Distance-based Similarity (TEDS). The final ranking score is computed as a weighted combination of these metrics, defined as 12 (RMS ) +  
+
+> 12
+
+(TEDS ).
+
+Task 3: Summarization 
+
+Task Description: To generate concise and factually accurate summaries that capture the key insights. 
+
+Evaluation Protocol: Evaluation is conducted using ROUGE-1/2/L , and BERTScore-F1 . The final score is computed as a weighted combination of these metrics, defined as 12 ( R1+ R2+ RL  
+
+> 3
+
+) + 12 (BERTScore-F1 ).
+
+Task 4: Visual Question Answering 
+
+Task Description: Domain-specific reasoning over expert-annotated question-answer pairs. 
+
+Evaluation Protocol: Evaluation is conducted individually for each answer type. Paragraph: assessed using ROUGE-1/2/L and BERTScore-F1. Factoid: evalu-ated using the ROUGE-1/2/L and Exact Match. List: evaluated using set-based F1 scores with case-insensitive matching. Yes/No: evaluated using Accuracy and F1-score. The final ranking score is computed as a weighted score, defined as  
+
+> 14
+
+(Paragraph ) + 14 (Factoid ) + 14 (List ) + 14 (Yes/No ).
+
+## 4 Results and Discussion 
+
+4.1 Overview 
+
+The ICDAR Sci-ImageMiner attracted substantial engagement from around the globe, with a total of 68 active participants contributing 1,263 public and private submissions as shown in Table 3. The full leaderboards are available on our competition website. 
+
+4.2 Baseline Results 
+
+We established baselines by evaluating a range of LVLMs, including Gemma 4 E4B 8b, Qwen3-VL-8B-Instruct [14], GLM-4.6V-Flash [15], Intern VL 3.5 8b [17], while leveraging the prompts 9 to ensure consistency across tasks and   
+
+> 9https://github.com/sciknoworg/sci-imageminer/tree/main/baseline/prompts 8F. Ahmed et al.
+
+Table 3: The statistics of the competition participants with all private and public submissions           
+
+> Task Participants Submissions
+> Classification 81 501 Data Extraction 53 335 Summarization 43 212 Visual Question-Answering 47 215 TOTAL 1,263
+
+baselines. Experimental results indicate that no single baseline performed well across all tasks, highlighting the intrinsic difficulty of scientific figure comprehen-sion and the need for more advanced multimodal reasoning capabilities tailored to domain-specific complexities. 
+
+4.3 Competition Results 
+
+In this section, we summarize the methodologies proposed by the top-5 leader-board teams, based on the availability of corresponding method reports. An overview of all the top-performing team approaches is shown in Table 6. 
+
+Task 1: Classification Results The approaches used by the top-5 submissions are presented below, and the Table 4 shows the task leaderboard. 1. Ricoh_SRCB 
+
+The team employs a hierarchical fine-tuning strategy, initially training a coarse-grained 6-class model followed by a refined 49-class model, comple-mented by auxiliary binary and 4-class classifiers to address particularly challenging categories. Final predictions are obtained by fusing results from these models. At inference time, performance is further enhanced by incor-porating both global and locally cropped image inputs, enabling the model to capture complementary contextual and fine-grained visual features. 2. IIT_PATNA_CV_1 
+
+This team reformulates figure panel classification as a generative task by fine-tuning the vision-language model Qwen2.5-VL-7B-Instruct [13] using Low-Rank Adaptation (LoRA). The model is prompted with both the input image and a taxonomy-aware textual description, enabling direct generation of class labels without an explicit classification head. Robustness is improved through class-aware oversampling and parameter-efficient training, while in-ference leverages test-time augmentation and majority voting to enhance prediction stability. A post-hoc label mapping ensures alignment with the predefined taxonomy. 3. DocMiner 
+
+The team’s proposed approach emphasizes enriched contextual modeling by augmenting inputs with category-specific sample documents, image captions, ICDAR 2026 Sci-ImageMiner Competition 9
+
+and source text to improve semantic understanding. An iterative prompt optimization process, guided by development set feedback, refines category descriptions with particular focus on resolving ambiguities between visu-ally similar classes. Additionally, a multi-agent inference framework is intro-duced, in which independent predictions are reconciled through consensus or re-evaluation mechanisms to mitigate individual-model bias. 4. VLMinators 
+
+This team’s approach adopts a systematic experimental framework, bench-marking multiple vision-language models and CNN architectures before iden-tifying QLoRA-based [4] fine-tuning of models such as Qwen2.5-VL-7B-Instruct [13] and LLaMA-based vision models as the most effective configura-tion. A key innovation is the use of selective label hints-targeted textual dis-ambiguation cues embedded in prompts, to improve differentiation between confusable classes. Additional gains are achieved through post-processing pipelines for label normalization and limited manual correction of uncertain predictions. Notably, ensemble methods across heterogeneous architectures proved ineffective due to high inter-model disagreement. Table 4: Task 1 Classification scores for the best baseline and top-5 teams                    
+
+> # Team Accuracy F1-score
+> 1Ricoh_SRCB 0.79 0.81 2BOE AI+ 0.76 0.77 3IIT_PATNA_CV_1 0.76 0.77 4DocMiner 0.75 0.76 5VLMinators 0.74 0.75 6Gemma 4 E4B 8b (baseline) 0.67 0.68
+
+Task 2: Data Extraction Results The approaches used by the top-5 submis-sions are presented below and Table 5 shows the task leaderboard. 1. TeleOCR-VL 
+
+The team proposes a comprehensive framework for chart-to-structure extrac-tion that integrates structure-aware training, large-scale synthetic data gen-eration, and ensemble-based inference. By explicitly decoupling structural learning from content recognition via separate training on structure-only and full-content samples, the method improves both layout understanding and semantic extraction. The use of synthetic data mitigates annotation scarcity and enhances generalization, while an iterative pseudo-label refine-ment loop further reduces noise. At inference time, a heterogeneous ensemble balances structural fidelity and numerical accuracy, resulting in consistent and significant performance improvements. 10 F. Ahmed et al. 
+
+2. VLMinators 
+
+The team adopts a parameter-efficient fine-tuning strategy on Qwen2.5-VL-7B-Instruct [13] using QLoRA [4], focusing on structured table generation from chart images. The approach relies heavily on prompt engineering, en-forcing explicit formatting constraints and leveraging semantic cues such as axis labels and legends for column construction. A key contribution is the use of context injection, where chart-type metadata is prepended during inference to guide structural predictions. This enables improved alignment between chart semantics and table schema, effectively reducing structural ambiguities with minimal architectural modification. 3. Ricoh_SRCB 
+
+The team’s approach emphasizes input representation and data balancing by incorporating multi-image prompts that combine full charts with their corresponding cropped subgraphs. Such a design enhances the model’s ability to capture both global and local visual patterns. Additionally, category-wise data augmentation is employed to address class imbalance, ensuring more uniform training coverage across chart types and improving generalization. 4. Vassilis Sioros 
+
+The team utilizes Qwen3.5-9B with advanced architectural components, in-cluding early vision-language fusion, Gated Delta Networks, and sparse Mixture-of-Experts. It incorporates enriched contextual inputs by combining cropped subfigures with the surrounding text from the source document. The model generates dense string representations of tables, which are then parsed into structured Markdown. 5. DocMiner 
+
+The team explicitly integrated auxiliary textual information, such as cap-tions and surrounding document text, into the input to enhance semantic grounding. Furthermore, it introduces a multi-agent architecture in which specialized agents are assigned to distinct question types, with dynamic rout-ing enabling task-specific processing.                         
+
+> # Team RMS TEDS Weighted
+> 1TeleOCR-VL 17.23 66.39 41.81 2VLMinators 17.29 64.31 40.80 3Ricoh_SRCB 16.23 61.12 38.67 4Vassilis Sioros 14.94 55.20 35.07 5DocMiner 12.67 53.72 33.19 6Qwen 3 VL 8b [14] (baseline) 14.08 57.86 35.97
+
+Table 5: Task 2 Data Extraction scores for the best baseline and top-5 teams ICDAR 2026 Sci-ImageMiner Competition 11 
+
+Table 6: Overview of top teams, methods, LVLMs used, and rankings from across all competition tasks leaderboards. The full leaderboards are released on our competition website. 
+
+Team Method TLDR; LVLMs Used Rankings 
+
+DeepVitminC Task3: RAG-based context extraction with alignment-driven multimodal fine-tuning for consistent VQA and summa-rization. 
+
+Task4: Rule-based context extraction with RAG-augmented prompting and alignment-focused VLM fine-tuning for semantically grounded outputs. 
+
+Task3,4: 
+
+Qwen3.5-4B; Qwen3.5-35B 
+
+Task3: 1st; 
+
+Task4: 1st DocMiner Task1: Context-enriched prompting with iterative refinement and multi-agent consensus for robust classification. 
+
+Task2: Context-augmented multi-agent VLM framework with task-specific rout-ing for robust semantic extraction. 
+
+Task4: Iterative multi-agent VQA framework with task specialization and dev-driven prompt refinement for improved robustness. 
+
+Task1,2,4: 
+
+Qwen3.5-plus ;Gemini 3.1 Pro Task1: 4th; 
+
+Task2: 5th; 
+
+Task4: 3rd IIT_PATNA_CV_1 Task1: Generative VLM-based classi-fication with LoRA, taxonomy-aware prompting, class-balanced training, and TTA-based ensembling. 
+
+Task1: 
+
+Qwen2.5-VL-7B-Instruct 
+
+Task1: 3rd Ricoh_SRCB Task1: Multi-stage fine-tuning with hier-archical classifiers and dual-image input augmentation for improved classification accuracy. 
+
+Task2: Multi-image prompting with category-balanced augmentation for en-hanced chart representation and general-ization. 
+
+Task3: LoRA + DPO-based [12] VLM fine-tuning with hard negative sampling and structured prompting for improved alignment. 
+
+Task4: Two-stage SFT + GRPO align-ment with limited gains due to data and initialization constraints in prefer-ence optimization. 
+
+Task1,2,3: 
+
+Qwen3.5-9B ; 
+
+Task4: 
+
+Qwen2.5-VL-7B-Instruct 
+
+Task1: 1st; 
+
+Task2: 3rd; 
+
+Task3: 2nd; Task4: 2nd TeleOCR-VL Task:2: Structure-aware chart-to-structure extraction with synthetic data generation, pseudo-label refinement, and ensemble-based inference. 
+
+Task3: Vision-context dual-stream summarization with chart priors and consensus-based re-ranking for factual consistency. 
+
+Task2,3: 
+
+TeleOCR-VL 
+
+Task2: 1st; 
+
+Task3: 3rd Vassilis Sioros Task2: Advanced VLM architecture with early fusion, MoE, and context-enriched inputs for end-to-end chart-to-table ex-traction. 
+
+Task3: Scalable early-fusion VLM with MoE, sliding-window context retrieval, and data-normalized fine-tuning for ro-bust summarization. 
+
+Task4: Unified multimodal VLM fine-tuning with hierarchical evidence gener-ation and format-aware preprocessing for enhanced VQA reasoning. 
+
+Task2,3,4: 
+
+Qwen3.5-9B Task2: 4th; 
+
+Task3: 5th; 
+
+Task4: 4th VLMinators Task1: QLoRA-tuned [4] VLMs with se-lective label hints and post-processing outperform baselines, while ensembling is hindered by inter-model disagreement. 
+
+Task2: QLoRA-based [4] VLM fine-tuning with prompt engineering and con-text injection for structured table gener-ation. 
+
+Task4: QLoRA-based [4] VLM fine-tuning with answer-type-aware prompt-ing and sequential context chaining for cross-task enhanced VQA. 
+
+Task1,2,4: 
+
+Qwen2.5-VL-7B-Instruct ;
+
+Task1: Llama-3.2-11B-Vision-Instruct 
+
+Task1: 5th; 
+
+Task2: 2nd; 
+
+Task4: 5th 12 F. Ahmed et al. 
+
+Task 3: Summarization Results The approaches used by the top-5 submis-sions are presented below and Table 7 shows the task leaderboard. 1. DeepVitminC 
+
+The team introduces a modular framework composed of a Context Ex-traction Module and a Consistent Alignment Module to support summa-rization and visual question answering. Contextual information is derived from the source document, primarily via figure captions using retrieval-augmented generation and injected into the model input. The alignment module then jointly processes visual and contextual signals to produce out-puts that conform to task-specific response formats, learned through super-vised fine-tuning. 2. Ricoh_SRCB 
+
+This team’s approach builds on Qwen2.5-VL-7B-Instruct [13], using LoRA-based fine-tuning followed by Direct Preference Optimization (DPO) [12] to enhance alignment with ground-truth answers. A key contribution lies in the construction of hard negative samples through stochastic corruption of correct answers, which proved more effective than weaker model-generated outputs for preference learning. Additionally, prompt design incorporates captions, explicit subgraph enumeration, and strict formatting constraints, collectively improving structured reasoning. 3. TeleOCR-VL 
+
+The team’s approach targets chart summarization by integrating visual in-puts with rich contextual information, including captions and surrounding manuscript text, within a dual-stream "vision + context" paradigm. Chart-type priors are further embedded to guide domain-specific language gener-ation. During inference, multiple candidate summaries are generated and re-ranked based on semantic similarity, consensus scoring, and cross-modal validation against structured data, with inconsistent outputs filtered through conflict resolution. 4. Vassilis Sioros 
+
+This team’s approach leverages Qwen3.5-9B with an early-fusion multimodal architecture augmented by Gated Delta Networks and sparse Mixture-of-Experts. It combines cropped subfigure inputs with localized textual context retrieved via a sliding window over the document. Training data is carefully normalized and filtered under strict token-budget constraints to ensure con-sistent format and efficiency. 
+
+Tasks 4: Visual Question-Answering Results The approaches used by the top-5 submissions are presented below and the Table 8 shows the task leader-board. 1. DeepVitminC 
+
+This team employs a rule-based strategy to extract figure captions and sur-rounding document text, which are incorporated as complementary contex-ICDAR 2026 Sci-ImageMiner Competition 13                            
+
+> # Team R1 R2 RL BERT-F1 Weighted
+> 1DeepVitminC 0.37 0.17 0.30 0.84 0.56 2Ricoh_SRCB 0.37 0.16 0.29 0.83 0.55 3TeleOCR-VL 0.35 0.15 0.28 0.82 0.54 4BOE AI+ 0.35 0.15 0.28 0.82 0.54 5Vassilis Sioros 0.34 0.14 0.27 0.82 0.53 6Intern VL 3.5 8b [17] (baseline) 0.26 0.09 0.2 0.79 0.48
+
+Table 7: Task 3 Summarization scores for the best baseline and top-5 teams tual signals via retrieval-augmented generation. Both caption-based and full-text contexts are used to construct enriched prompts, thereby improving se-mantic grounding. The resulting multimodal inputs are then used to train a vision-language model through supervised fine-tuning, yielding a Consistent Alignment Module that ensures outputs adhere to task-specific formats and semantic expectations. 2. Ricoh_SRCB 
+
+The team adopts a straightforward two-stage training pipeline consisting of supervised fine-tuning followed by GRPO-based alignment. However, lim-ited gains are observed due to suboptimal initialization and insufficiently robust data distribution during the second stage. While SFT leverages the full dataset, the GRPO phase operates on less diverse samples, resulting in marginal improvements. 3. DocMiner 
+
+This team’s approach focuses on iterative refinement within a multi-agent framework, where each agent specializes in a specific question type. Perfor-mance is progressively improved through systematic error analysis of de-velopment data, guiding adjustments to prompt design, context structur-ing, and response-generation logic. This continuous optimization process en-hances both the accuracy and robustness of the overall VQA system by improving the competence of individual specialized components. 4. Vassilis Sioros 
+
+This team fine-tunes Qwen3.5-9B across multiple answer types within a unified multimodal framework, incorporating cropped visual inputs, local-ized textual context, and precomputed intermediate representations such as summaries and tables. It employs answer-type-specific token budgets and extensive preprocessing, including normalization and format-aware post-processing, to ensure output consistency. The pipeline is structured hierar-chically, treating earlier tasks (e.g., table extraction and summarization) as evidence generation stages that support downstream VQA, thereby improv-ing reasoning accuracy and contextual grounding. 5. VLMinators 
+
+The team utilizes parameter-efficient fine-tuning of Qwen2.5-VL-7B-Instruct [13] with QLoRA [4] on a diverse set of question-answer pairs spanning multiple answer types. Prompt design explicitly encodes answer-type constraints to 14 F. Ahmed et al. 
+
+control output structure and length, with adaptive decoding limits. A key contribution is the sequential context chaining mechanism, which integrates outputs from upstream tasks, such as figure classification, table extraction, and summarization, into the VQA prompt. This cross-task information flow significantly enhances numerical precision and contextual reasoning, partic-ularly for factoid and paragraph-based queries.                                                                                        
+
+> #Team Factoid Yes/No Paragraph List Weighted R1 R2 RL EM F1 R1 R2 RL BERT-F1 Set-based-F1
+> 1DeepVitminC 0.49 0.29 0.46 0.09 0.92 0.42 0.19 0.32 0.85 0.09 0.31 2Ricoh_SRCB 0.44 0.21 0.41 0.07 0.87 0.35 0.12 0.25 0.83 0.08 0.27 3DocMiner 0.43 0.24 0.41 0.09 0.89 0.33 0.11 0.23 0.78 0.08 0.27 4Vassilis Sioros 0.44 0.24 0.40 0.06 0.86 0.35 0.14 0.26 0.77 0.07 0.26 5VLMinators 0.40 0.18 0.37 0.04 0.85 0.33 0.10 0.23 0.82 0.05 0.25 6Molmo2 8b [3] (baseline) 0.2 0.08 0.19 0.03 0.78 0.26 0.08 0.18 0.73 0.05 0.2
+
+Table 8: Task 3 VQA scores for the best baseline and top-5 teams 
+
+4.4 Discussion 
+
+In this section, we present a comparative analysis of the approaches adopted by participating teams across all competition tasks, highlighting key insights and methodological trends. We further identify the models and strategies that demonstrate consistently strong performance across tasks, providing an overview of the most effective approaches. 
+
+Task 1: Classification The leading approach by Ricoh_SRCB adopts a multi-stage, multi-granularity framework that decomposes the classification problem into hierarchical subtasks, complemented by dual-image inference (global and cropped views), yielding the strongest performance. In contrast, IIT_Patna_CV_1 reformulates classification as a generative task using Qwen2.5-VL-7B-Instruct [13], leveraging prompt design and test-time augmentation for robustness. DocMiner and VLMinators emphasize prompt engineering, contextual enrichment, and se-lective label hints, achieving competitive results. Overall, explicit problem de-composition and handling of class ambiguity emerge as key factors for high performance. 
+
+Task 2: Data Extraction TeleOCR-VL demonstrates the strongest perfor-mance through a comprehensive pipeline integrating structure-aware training, synthetic data augmentation, and ensemble-based inference, highlighting the ef-fectiveness of data-centric and system-level optimization. VLMinators achieves competitive results via lightweight fine-tuning and prompt-based context injec-tion, underscoring the strength of pretrained models. Ricoh_SRCB and Vas-silis Sioros focus on input representation and architectural enhancements, while ICDAR 2026 Sci-ImageMiner Competition 15 
+
+DocMiner explores modular reasoning. The results indicate that combining data design, contextual input engineering, and model ensembling yields the most ro-bust performance. 
+
+Task 3: Summarization Top approaches reveal a transition from modular pipelines to advanced training and inference strategies. DeepVitminC employs a structured pipeline with retrieval-augmented context and alignment modules, en-suring coherent outputs. Ricoh_SRCB enhances performance through alignment techniques such as DPO [12] with hard negative sampling, while TeleOCR-VL fo-cuses on inference-time robustness via multi-candidate generation and consensus-based re-ranking. Vassilis Sioros demonstrates that strong base models with efficient preprocessing and normalization can remain highly competitive. Key insights highlight the importance of contextual grounding, alignment strategies, and inference-time validation. 
+
+Task 4: Visual Question-Answering The VQA task exhibits a balance be-tween pipeline engineering and training optimization. DeepVitminC leverages structured context extraction with retrieval mechanisms for strong grounding, while Ricoh_SRCB shows limited gains from purely training-based improve-ments. DocMiner emphasizes iterative prompt refinement and agent-based rea-soning, improving adaptability. Vassilis Sioros and VLMinators achieve strong results through sophisticated pipeline design, including answer-type-aware opti-mization and sequential context chaining. The findings indicate that structured context integration and task-specific optimization are critical for VQA perfor-mance. 
+
+Comparative Analysis and Key Takeaways Across all tasks, a consis-tent pattern emerges: top-performing approaches combine strong vision-language backbones (predominantly Qwen-based models such as Qwen2.5-VL-7B-Instruct and Qwen3.5-9B with carefully designed pipelines that integrate context, struc-ture, and task-specific constraints. Task 1 favors explicit decomposition and am-biguity handling, while Task 2 highlights the importance of data-centric design and ensembling. Task 3 demonstrates the effectiveness of combining contextual grounding with alignment and inference-time validation, whereas Task 4 un-derscores the necessity of structured reasoning pipelines and context chaining. Overall, the most successful strategies are holistic—integrating data engineering, prompt design, model adaptation, and inference-time optimization, suggesting that future improvements will likely arise from unified frameworks that jointly optimize these components rather than relying on isolated advancements. 
+
+## 5 Conclusions 
+
+The ICDAR Sci-ImageMiner competition represents the first benchmark dataset and competition dedicated to scientific comprehension and reasoning over ALD/E 16 F. Ahmed et al. 
+
+figures. The dataset is annotated by domain experts to reflect the complexity and specificity of ALD/E scientific content. The competition attracted substan-tial global participation across all four task categories, indicating strong interest from both academia and industry. Notably, participating teams proposed novel methodologies and approaches. Despite these advances, the results reveal that significant challenges remain, particularly in data extraction and visual question-answering, which require robust multimodal reasoning and precise scientific un-derstanding. These findings underscore the inherent difficulty of reliable compre-hension in specialized scientific documents and highlight important directions for future research. 
+
+## 6 Acknowledgments 
+
+We would like to thank all participants for their contributions and the compe-tition chairs for the opportunity to host this competition in ICDAR 2026. We would also like to thank the co-organizing team, Eleni Poupaki (TUE, NL), Alex Watkins (UOW, UK), Bora Karasulu (UOW, UK), and Erwin Kessels (TUE, NL). Sci-ImageMiner benchmark dataset is funded by the NFDI4DataScience initiative (DFG, Grant ID: 460234259). 
+
+## References 
+
+1. Alampara, N., Mandal, I., Khetarpal, P., Grover, H.S., Schilling-Wilhelmi, M., Krishnan, N.A., Jablonka, K.M.: Macbench: a multimodal chemistry and materials science benchmark. In: Proceedings of the 38th Conference on Neural Information Processing Systems (NeurIPS 2024) (2024) 2. Chen, M., Wu, H., Chang, Q., Cheng, H., Ma, J., Hu, P., Zhang, Z., Liu, C., Pi, C., Hu, J., et al.: Icdar 2024 competition on recognition of chemical structures. In: International Conference on Document Analysis and Recognition. pp. 397–409. Springer (2024) 3. Clark, C., Zhang, J., Ma, Z., Park, J.S., Tripathi, R., Lee, S., Salehi, M., Ren, J., Kim, C.D., Yang, Y., et al.: Molmo2: Open weights and data for vision-language models with video understanding and grounding. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp. 28652–28668 (2026) 4. Dettmers, T., Pagnoni, A., Holtzman, A., Zettlemoyer, L.: Qlora: Efficient fine-tuning of quantized llms. Advances in neural information processing systems 36 ,10088–10115 (2023) 5. George, S.M.: Atomic layer deposition: an overview. Chemical reviews 110 (1), 111–131 (2010) 6. Jablonka, K., Krishnan, N.: Vision language models excel at perception but strug-gles with scientific reasoning (2025) 7. Kanarik, K.J., Lill, T., Hudson, E.A., Sriraman, S., Tan, S., Marks, J., Vahedi, V., Gottscho, R.A.: Overview of atomic layer etching in the semiconductor industry. Journal of Vacuum Science & Technology A 33 (2) (2015) 8. Krathwohl, D.R.: A revision of bloom’s taxonomy: An overview. Theory Into Practice 41 (4), 212–218 (2002). https://doi.org/10.1207/s15430421tip4104_2 ,
+
+https://doi.org/10.1207/s15430421tip4104_2 ICDAR 2026 Sci-ImageMiner Competition 17 9. Li, L., Wang, Y., Xu, R., Wang, P., Feng, X., Kong, L., Liu, Q.: Multimodal arxiv: A dataset for improving scientific comprehension of large vision-language models. In: Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers). pp. 14369–14387 (2024) 10. Masry, A., Long, D.X., Tan, J.Q., Joty, S., Hoque, E.: ChartQA: A benchmark for question answering about charts with visual and logical reasoning. In: Mure-san, S., Nakov, P., Villavicencio, A. (eds.) Findings of the Association for Com-putational Linguistics: ACL 2022. pp. 2263–2279. Association for Computational Linguistics, Dublin, Ireland (May 2022). https://doi.org/10.18653/v1/2022. findings-acl.177 , https://aclanthology.org/2022.findings-acl.177/ 
+
+11. Methani, N., Ganguly, P., Khapra, M.M., Kumar, P.: Plotqa: Reasoning over sci-entific plots. In: Proceedings of the ieee/cvf winter conference on applications of computer vision. pp. 1527–1536 (2020) 12. Rafailov, R., Sharma, A., Mitchell, E., Manning, C.D., Ermon, S., Finn, C.: Direct Preference Optimization: Your Language Model is Secretly a Re-ward Model. Advances in Neural Information Processing Systems 36 , 53728– 53741 (Dec 2023), https://papers.nips.cc/paper_files/paper/2023/hash/ a85b405ed65c6477a4fe8302b5e06ce7-Abstract-Conference.html 
+
+13. Team, Q.: Qwen2.5-vl (January 2025), https://qwenlm.github.io/blog/qwen2. 5-vl/ 
+
+14. Team, Q.: Qwen3 technical report (2025), https://arxiv.org/abs/2505.09388 
+
+15. Team, V., Hong, W., Yu, W., Gu, X., Wang, G., Gan, G., Tang, H., Cheng, J., Qi, J., Ji, J., Pan, L., Duan, S., Wang, W., Wang, Y., Cheng, Y., He, Z., Su, Z., Yang, Z., Pan, Z., Zeng, A., Wang, B., Chen, B., Shi, B., Pang, C., Zhang, C., Yin, D., Yang, F., Chen, G., Xu, J., Zhu, J., Chen, J., Chen, J., Chen, J., Lin, J., Wang, J., Chen, J., Lei, L., Gong, L., Pan, L., Liu, M., Xu, M., Zhang, M., Zheng, Q., Yang, S., Zhong, S., Huang, S., Zhao, S., Xue, S., Tu, S., Meng, S., Zhang, T., Luo, T., Hao, T., Tong, T., Li, W., Jia, W., Liu, X., Zhang, X., Lyu, X., Fan, X., Huang, X., Wang, Y., Xue, Y., Wang, Y., Wang, Y., An, Y., Du, Y., Shi, Y., Huang, Y., Niu, Y., Wang, Y., Yue, Y., Li, Y., Zhang, Y., Wang, Y., Wang, Y., Zhang, Y., Xue, Z., Hou, Z., Du, Z., Wang, Z., Zhang, P., Liu, D., Xu, B., Li, J., Huang, M., Dong, Y., Tang, J.: Glm-4.5v and glm-4.1v-thinking: Towards versatile multimodal reasoning with scalable reinforcement learning (2025), https://arxiv.org/abs/2507.01006 
+
+16. Wang, B., Xu, C., Zhao, X., Ouyang, L., Wu, F., Zhao, Z., Xu, R., Liu, K., Qu, Y., Shang, F., et al.: Mineru: An open-source solution for precise document content extraction. arXiv preprint arXiv:2409.18839 (2024) 17. Wang, W., Gao, Z., Gu, L., Pu, H., Cui, L., Wei, X., Liu, Z., Jing, L., Ye, S., Shao, J., et al.: Internvl3.5: Advancing open-source multimodal models in versatility, reasoning, and efficiency. arXiv preprint arXiv:2508.18265 (2025) 18. Wanselin, H., Danielsson, K., Wikman, S.: Analysing multimodal texts in sci-ence—a social semiotic perspective. Research in science education 52 (3), 891–907 (2022) 19. Yang, C., Yin, X.C., Yu, H., Karatzas, D., Cao, Y.: Icdar2017 robust reading chal-lenge on text extraction from biomedical literature figures (detext). In: 2017 14th IAPR International Conference on Document Analysis and Recognition (ICDAR). vol. 1, pp. 1444–1447. IEEE (2017) 20. Zhang, J., Gan, J., Wang, X., Jia, Z., Gu, C., Chen, J., Zhu, Y., Ma, M.D., Zhou, D., Li, L., et al.: Matscibench: Benchmarking the reasoning ability of large language models in materials science. arXiv preprint arXiv:2510.12171 (2025)

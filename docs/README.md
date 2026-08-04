@@ -6,47 +6,50 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-03
-- 运行时间：2026-08-03 20:32:35 UTC
+- 最新运行日期：2026-08-04
+- 运行时间：2026-08-04 20:28:44 UTC
 - 运行状态：成功
-- 本次总论文数：9
+- 本次总论文数：10
 - 精读区：6
-- 速读区：3
+- 速读区：4
 
 ### 今日简报（AI）
-今日精读6篇、速读3篇，核心聚焦机器学习力场与第一性原理计算交叉方向。最值得关注两篇满分工作：一是利用深度神经网络势模拟揭示α-SiO₂电子激发下的超快非热晶格失稳与极化光学散射抑制；二是提出隐式机器学习力场以显著加速分子动力学模拟。建议普通读者优先了解隐式ML力场方法，其为材料模拟提供了兼顾精度与效率的实用新路径。
-- 详情：[/202608/03/README](/202608/03/README)
+今日机器学习驱动材料研究：10篇推荐中聚焦合金设计、薄膜沉积与性能预测。最值得关注的是10分工作用高通量夹层建模加速金属烯稳定化，以及9分工作用物理信息深度学习从显微图预测钢疲劳寿命。普通读者可留意“微观结构—性能”关联的智能预测工具，未来或加速新合金筛选。
+- 详情：[/202608/04/README](/202608/04/README)
 
 ### 精读区论文标签
-1. [Ultrafast Nonthermal Lattice Destabilization and Suppression of Polar Optical Scattering in Electronically Excited $α$-SiO$_2$ from First-Principles and Deep Neural Network Potential Modeling](/202608/03/2607.28838v1-ultrafast-nonthermal-lattice-destabilization-and-suppression-of-polar-optical-scattering-in-electronically-excited--sio2-from-first-principles-and-deep-neural-network-potential-modeling)  
+1. [Machine-Learning-Accelerated Metallene Stabilization from High-Throughput Sandwich Modeling](/202608/04/2608.01779v1-machine-learning-accelerated-metallene-stabilization-from-high-throughput-sandwich-modeling)  
    标签：评分：10.0/10、query:aimat-mlpot
-   evidence：用于电子激发alpha-SiO2的深度神经网络势
-2. [Implicit Machine Learning Force Fields Accelerate Molecular Dynamics Simulations](/202608/03/2607.29158v1-implicit-machine-learning-force-fields-accelerate-molecular-dynamics-simulations)  
-   标签：评分：10.0/10、query:aimat-mlpot
-   evidence：隐式机器学习力场加速分子动力学模拟
-3. [Representations from Pretrained Machine-Learning Interatomic Potentials as Coarse Coordinates for Material Generation and Evaluation](/202608/03/2607.28776v1-representations-from-pretrained-machine-learning-interatomic-potentials-as-coarse-coordinates-for-material-generation-and-evaluation)  
+   evidence：通用机器学习原子间势用于高通量筛选金属烯材料
+2. [Predicting Steel Fatigue Life from Micrographs Using Physics-Informed Deep Learning](/202608/04/2607.28695v1-predicting-steel-fatigue-life-from-micrographs-using-physics-informed-deep-learning)  
    标签：评分：9.0/10、query:aimat-mlpot
-   evidence：预训练MLIP表征用于材料生成评估
-4. [Ordered-to-disordered transfer learning with graph neural networks for formation-energy and HOMO-LUMO gap prediction in high-entropy perovskite oxides](/202608/03/2607.29510v1-ordered-to-disordered-transfer-learning-with-graph-neural-networks-for-formation-energy-and-homo-lumo-gap-prediction-in-high-entropy-perovskite-oxides)  
+   evidence：用物理信息深度学习从显微图像预测材料疲劳寿命
+3. [From oligomers to entangled polymers: How to train a transferable machine learning interatomic potential](/202608/04/2608.01162v1-from-oligomers-to-entangled-polymers-how-to-train-a-transferable-machine-learning-interatomic-potential)  
    标签：评分：9.0/10、query:aimat-mlpot
-   evidence：基于图神经网络的迁移学习用于高熵钙钛矿氧化物的形成能与带隙预测
-5. [Decoding the Micromagnetic Hamiltonian from Magnetic Fingerprints](/202608/03/2607.27430v1-decoding-the-micromagnetic-hamiltonian-from-magnetic-fingerprints)  
+   evidence：训练可迁移的聚合物机器学习原子间势
+4. [Cost-Aware Recovery-Pathway Identification and Bayesian Optimization for Autonomous Materials Discovery](/202608/04/2607.23896v1-cost-aware-recovery-pathway-identification-and-bayesian-optimization-for-autonomous-materials-discovery)  
    标签：评分：8.0/10、query:aimat-mlpot
-   evidence：利用深度卷积神经网络从磁测量指纹中提取微磁哈密顿量，属于机器学习用于材料表征
-6. [Beyond Stoner-Wohlfarth: Machine-Learning Models and Symbolic Regression of Hard-Magnet Properties](/202608/03/2607.29249v1-beyond-stoner-wohlfarth-machine-learning-models-and-symbolic-regression-of-hard-magnet-properties)  
+   evidence：通过成本感知的恢复路径识别和贝叶斯优化支持自主材料发现
+5. [A Synthetically-accessible Universe of Chemically Recyclable Polymers](/202608/04/2608.00149v1-a-synthetically-accessible-universe-of-chemically-recyclable-polymers)  
    标签：评分：8.0/10、query:aimat-mlpot
-   evidence：用机器学习在微磁模拟数据上预测矫顽力和剩磁等硬磁性质
+   evidence：利用AI生成百万级可回收聚合物结构用于材料发现
+6. [PolymerGPT: Multi-property Optimization with a Decoder-Based GPT Model for Generative Polymer Design](/202608/04/2608.01431v1-polymergpt-multi-property-optimization-with-a-decoder-based-gpt-model-for-generative-polymer-design)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：基于GPT的生成模型实现聚合物多性质优化设计
 
 ### 速读区论文标签
-1. [Frugal Bayesian Optimization: Scalable Surrogates for Data- and Resource-Limited Discovery](/202608/03/2607.29225v1-frugal-bayesian-optimization-scalable-surrogates-for-data--and-resource-limited-discovery)  
+1. [Machine Learning Assisted Design of Complex and High Entropy Alloys by Hybrid HiPIMS/Pulsed-DC PVD Process for Low Carbon Energy Applications in Extreme Environments](/202608/04/2608.01903v1-machine-learning-assisted-design-of-complex-and-high-entropy-alloys-by-hybrid-hipimspulsed-dc-pvd-process-for-low-carbon-energy-applications-in-extreme-environments)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：机器学习辅助高熵合金设计，AI直接用于材料设计
+2. [A Physics-Chemistry-Informed Neural Network (PCINN) for Real-Time Spatial-ALD Coverage Prediction and Reliable Kinetics Inversion](/202608/04/2608.00212v1-a-physics-chemistry-informed-neural-network-pcinn-for-real-time-spatial-ald-coverage-prediction-and-reliable-kinetics-inversion)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：面向材料等发现问题的贝叶斯优化代理模型计算感知基准
-2. [Scaling universal Fermi network toward ground states: A diffusion-Monte-Carlo assessment](/202608/03/2607.25872v1-scaling-universal-fermi-network-toward-ground-states-a-diffusion-monte-carlo-assessment)  
+   evidence：物理化学信息神经网络实时预测空间原子层沉积覆盖率，属于机器学习预测材料工艺属性
+3. [Machine Learning Compatible CALPHAD-type Optimization from Phase Equilibria by Auto-differentiation](/202608/04/2608.00516v1-machine-learning-compatible-calphad-type-optimization-from-phase-equilibria-by-auto-differentiation)  
+   标签：评分：7.0/10、query:aimat-mlpot
+   evidence：通过自动微分实现机器学习兼容的热力学相平衡优化
+4. [From fragmented data to actionable design: Physics-calibrated learning for plastic upcycling](/202608/04/2608.02402v1-from-fragmented-data-to-actionable-design-physics-calibrated-learning-for-plastic-upcycling)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：神经网络费米波函数与扩散蒙特卡洛用于相互作用电子体系，关联材料电子结构AI方法
-3. [ICDAR 2026 Competition on Information Extraction from Atomic Layer Deposition/Etching (ALD/E) Scientific Figures](/202608/03/2607.26848v1-icdar-2026-competition-on-information-extraction-from-atomic-layer-depositionetching-alde-scientific-figures)  
-   标签：评分：6.0/10、query:aimat-mlpot
-   evidence：面向材料科学图形信息抽取的多模态AI基准
+   evidence：机器学习框架从碎片化实验数据预测材料处理产物分布
 
 
 <div class="dpr-home-promo-card">

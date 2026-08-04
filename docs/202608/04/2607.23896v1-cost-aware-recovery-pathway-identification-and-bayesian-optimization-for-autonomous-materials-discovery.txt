@@ -1,0 +1,436 @@
+Title: Cost-Aware Recovery-Pathway Identification and Bayesian Optimization for Autonomous Materials Discovery
+
+URL Source: https://arxiv.org/pdf/2607.23896v1
+
+Published Time: Tue, 28 Jul 2026 01:23:31 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# Cost-Aware Recovery-Pathway Identification and Bayesian Optimization for Autonomous Materials Discovery 
+
+## Debajyoti Ray *
+
+## dray@coactive.science 
+
+## Coactive Science Niranjan Srinivas *
+
+## niranjan@coactive.science 
+
+## Coactive Science 
+
+Abstract 
+
+Autonomous laboratories automate experimental execution, but a campaign must also decide which recovery pathway merits optimization. We formulate this as a sequential decision problem with a discrete pathway-identification stage and a continuous within-pathway optimization stage under heterogeneous experimental costs. Our implementation, 
+
+Coactive learning , combines a cost-sensitive Bayesian hypothesis-discrimination policy motivated by EC 2 (Golovin et al., 2010) with Gaussian-process Bayesian optimization (Srinivas et al., 2010). Under explicitly stated assumptions, the expected spend of one fixed-budget campaign attempt is bounded by the expected pathway-identification cost plus the capped within-pathway optimization budget. We evaluate on synthetic benchmarks constrained by selected results reported for PNNL’s CICERO selective-precipitation study (Ritchhart et al., 2026); these are not reproductions of CICERO’s laboratory campaigns. The method performs comparably to an oracle-pathway Bayesian-optimization reference and to a strong split-plate baseline that discriminates pathways with its first plate, without an oracle label for the correct pathway (it is given a candidate hypothesis space and a diagnostic likelihood model). On an NdFeB-inspired instance it avoids the simulated penalty of a commit-first baseline that initially selects a plausible but inferior hydroxide pathway, a hypothetical wrong-first-commitment scenario motivated by the hydroxide–oxalate performance contrast reported by CICERO. Sensitivity of the conclusions to the assumed cost model is characterized. Code and benchmark are open source. 
+
+# 1 Introduction 
+
+Autonomous (self-driving) laboratories now automate the execution of experiments: liquid handlers dispense, charac-terization instruments stream results, and agentic planners tie the loop together (Burger et al., 2020; MacLeod et al., 2020; Abolhasani and Kumacheva, 2023). As execution is automated, the remaining bottleneck moves to experiment 
+
+selection : deciding which experiment, which protocol, and which scientific question merits instrument time. Unlike the data regime of language models, where training corpora are effectively unlimited, experimental data arrives one costly measurement at a time, so sample efficiency is the central concern and active learning the natural tool (Settles, 2009; MacKay, 1992; Lindley, 1956). This paper studies the experiment-selection problem for an autonomous laboratory in which every action has a known price: not only how to optimize a chosen protocol, but how to choose what to run. In current platforms (Coley et al., 2019; Stach et al., 2021), agents plan experiments, robotics execute them, instruments read the results back, and an optimization policy proposes the next batch. A recent and especially relevant example is CICERO (Ritchhart et al., 2026), an agentic workflow that recovers critical materials from complex feedstocks through selective precipitation. CICERO combines feedstock characterization, technoeconomic evaluation, hypothesis generation, experimental planning, robotic execution, automated analysis, and Bayesian optimization (BO) (Jones et al., 1998; Shahriari et al., 2016; Frazier, 2018); its results demonstrate the feasibility of connecting agentic scientific reasoning with an autonomous experimental platform. CICERO motivates two decision-theoretic questions that are not explicitly analyzed in its published workflow. First, given several plausible recovery pathways, how should a campaign spend to discriminate among them before committing continuous optimization budget to one? Committing incorrectly wastes entire 96-well plates. Second, standard acquisition functions do not price actions, so a $100 diagnostic and a $5,000 optimization plate cannot be weighed within one budget. We study the resulting allocation problem: dividing a heterogeneous assay budget between reducing uncertainty over candidate pathways and optimizing conditions within a selected pathway.   
+
+> *The foundational results this paper builds on, the EC 2algorithm for noisy Bayesian active learning (Golovin et al., 2010) and GP-UCB (Srinivas et al., 2010), were developed by the authors at the California Institute of Technology.
+
+1arXiv:2607.23896v1 [cs.AI] 26 Jul 2026 Contributions. We formalize and benchmark this allocation problem. • A two-stage cost-sensitive policy (§3). Coactive learning 1 is a two-stage cost-sensitive policy: a pathway-discrimination stage that selects priced diagnostics by posterior decision-region impurity reduction per dollar, motivated by EC 2 (Golovin et al., 2010), followed by batch Bayesian optimization with GP-UCB (Srinivas et al., 2010) within the selected pathway, from a center-biased initial design. • A conditional cost analysis (§4). Under explicit assumptions, the expected spend of one fixed-budget attempt is bounded by the expected pathway-identification cost plus the capped optimization budget (Prop. 1), and a commit-first baseline that initially selects an incorrect pathway pays a quantifiable wrong-commitment penalty (Prop. 2). • A CICERO-inspired synthetic benchmark and open implementation (§5). We construct synthetic response surfaces constrained by selected endpoints and qualitative trends reported by CICERO, for three feedstock-inspired instances, and release a dependency-light reference implementation with tests. • Empirical evaluation and ablations (§6). The method performs comparably (within 2% on the NdFeB-inspired instance) to an oracle-pathway BO reference and to a split-plate baseline, without an oracle pathway label, and avoids the simulated wrong-commitment penalty of a commit-first baseline ( ≈ 1/5 its cost on that instance); ablations and sensitivity studies characterize when priced discrimination is justified. We emphasize at the outset (§5, §8) that our experiments use a endpoint-constrained synthetic simulator , not new wet-lab runs; the contribution is the decision policy and its analysis, isolated on a benchmark that reproduces the paper’s reported optima. 
+
+Outlook. The framework is not specific to the CICERO workflow. The two-phase structure (identify the decision region, then optimize within it, each stage priced explicitly) applies to any campaign that first chooses among discrete protocol families and then tunes continuous parameters under heterogeneous assay costs, including separations, synthesis-route selection, and formulation problems such as battery electrolytes. The method takes a hypothesis space and priced actions as input and returns experiment selections, so it can be used inside existing agentic platforms; §9 discusses this direction. 
+
+# 2 Problem Formulation 
+
+A recovery campaign on a feedstock has two coupled unknowns. Which chemistry to use, and how to tune it. 
+
+Decision regions and diagnostics (discovery). Let H be a finite set of hypotheses about the feedstock’s recovery mechanism, with prior p0 over H. A known map r : H → R assigns each hypothesis to a decision region : a set of hypotheses that imply the same actionable recovery pathway , here a target metal and precipitating reagent. Hypotheses sharing a region are equivalent for the purpose of acting; we use “recovery pathway” in scientific prose and “decision region” in formal statements. We have a set of diagnostics T (e.g. an ICP-MS composition profile, a small bench precipitation probe, a technoeconomic screen), each with cost c(t) > 0 and a known noisy outcome model p(o | h, t ).Running t and observing o updates the posterior over H by Bayes’ rule. The discovery goal is to identify the correct region r⋆ = r(h⋆) with posterior confidence ≥ 1 − δ, at minimum expected cost. 
+
+Response surface (optimization). Conditioning on a committed (estimated) region br, recovery quality is an unknown function g : X → R (purity, yield, or separation factor) over a compact domain X ⊂ Rd of controllable knobs (reagent equivalents, pH, concentration). Evaluations are noisy, y = g(x) + η with η sub-Gaussian, and are run in batches (a 96-well plate evaluates q distinct conditions in parallel) at cost copt per plate. We seek a condition that is ε-optimal, 
+
+g(x) ≥ g⋆ − ε with g⋆ = max x g(x), equivalently, when τ = g⋆ − ε, that clears an application target τ . We assume a continuous kernel on compact X , so g⋆ and acquisition maximizers exist.     
+
+> 1We use Coactive learning as a contraction of cost-aware active learning (and a nod to its origin); it is distinct from the preference-feedback “coactive learning” of Shivaswamy and Joachims (2012).
+
+2Objective. The campaign goal is to identify r⋆ with confidence 1 − δ and return an ε-optimal condition within it. For one campaign attempt, define the expected spend as 
+
+Ecost  = E
+
+h P 
+
+> t∈diagnostics
+
+c(t)
+
+i
+
++ copt E#{plates }. (1) This common cost unit makes diagnostic and optimization expenditures comparable. Within each stage, the policy divides its stage-specific expected utility by action cost; it does not optimize a single cross-stage cost-to-target acquisition. 
+
+# 3 The Coactive-Learning Framework 
+
+Coactive learning runs one loop with two phases sharing a cost-normalized criterion. 
+
+## 3.1 Discovery: cost-aware EC 2
+
+We adopt the EC 2 (Equivalence Class Edge Cutting) objective of Golovin et al. (2010). Define a weighted graph on 
+
+H whose edges connect hypotheses in different regions, with edge weight equal to the product of their probabilities. Formally, for a posterior p over H the total cross-region edge weight is 
+
+W (p) = 12
+
+  P  
+
+> h
+
+p(h)2 − P
+
+> ρ∈R
+
+  P  
+
+> h:r(h)= ρ
+
+p(h)2
+
+, (2) and the EC 2 objective accrued after observing a set of (diagnostic, outcome) pairs is the expected cross-region weight cut :after a history ψ the realized accrued cut is W (p0) − Z2 
+
+> ψ
+
+W (pψ ), and expectation enters only through the conditional marginal acquisition. Driving the cut to its quota W (p0) identifies the true region only under an identifiability condition (every complete outcome vector compatible with a single region) that we do not assume; see Appendix B. Exact EC 2
+
+(Golovin et al., 2010) places fixed prior-weighted edges between hypotheses in different regions and cuts an edge when an observation is inconsistent with either endpoint; after a history ψ with prior mass Zψ and normalized posterior pψ ,the remaining edge mass is Z2 
+
+> ψ
+
+W (pψ ), not W (pψ ). Under the finite deterministic-realization expansion this objective is adaptive submodular and strongly adaptively monotone even with correlated noise. Our implementation uses a distinct surrogate: it evaluates W at the current posterior , so the acquisition is expected reduction in posterior cross-region mass (posterior decision-region impurity), not the prior-weighted edge count of exact EC 2. We therefore present it as a practical acquisition motivated by EC 2 rather than an algorithm inheriting its guarantee (§4). At each step the policy selects the unused diagnostic maximizing expected impurity reduction per dollar ,
+
+t⋆ = arg max 
+
+> t∈T
+
+Eo
+
+ W (p) − W (p | t, o ) 
+
+c(t) , (3) and stops once one region’s posterior mass exceeds a threshold 1 − δdisc (we use 0.9). This posterior-threshold stopping targets approximate Bayesian identification, Pr( r⋆̸ = br) ≤ δdisc under the model, rather than the exact edge cover analyzed for EC 2.
+
+## 3.2 Optimization: batch GP-UCB 
+
+Within the committed region we place a Gaussian-process prior on g (Rasmussen and Williams, 2006) and run GP-UCB (Srinivas et al., 2010): at round t with posterior mean μt and standard deviation σt, the acquisition is 
+
+αUCB  
+
+> t
+
+(x) = μt(x) + β1/2 
+
+> t
+
+σt(x) with the confidence schedule βt = 2 log  |D| t2π2/6δ for a discretized domain D
+
+(Thm. 1 of Srinivas et al., 2010). Plates of q conditions are formed by sequential greedy maximization with “kriging-believer” fantasies (Ginsbourger et al., 2010; Gonz ´alez et al., 2016; Desautels et al., 2014); we use LogEI (Ament et al., 2023) and Thompson sampling (Russo et al., 2018) as drop-in alternatives, and track a purity/yield/cost Pareto front for multi-objective campaigns via hypervolume improvement (Daulton et al., 2021). 33.3 Stage structure, pricing, and initialization 
+
+Within each stage, candidate actions are scored per unit cost: diagnostics by expected impurity reduction per dollar (3) ,and optimization batches by their acquisition value per dollar, 
+
+a$(·) = expected utility (·)cost( ·) . (4) These two per-dollar scores have different units (posterior mass versus objective value), so they are not compared against each other across stages: the policy is an explicitly two-stage procedure that discriminates pathways first and optimizes second (Algorithm 1). Defining a single common-currency acquisition across stages (for example, expected reduction in total remaining cost-to-target) is an open design problem we do not claim to solve here. Finally, the first optimization plate uses a center-biased initial design , a mild bias toward the domain centre with no information about the optimum and no use of data from other campaigns (Appendix C). 
+
+Algorithm 1: Coactive learning: cost-aware active-learning campaign                                               
+
+> Input: hypotheses H, prior p0, diagnostics Twith costs, confidence 1−δ, target τ, plate size q, initial-design distribution
+> π.
+> Discovery. while no region has posterior mass ≥1−δand unused diagnostics remain: run diagnostic t⋆maximizing expected posterior impurity reduction per dollar (3); update posterior.
+> if no region reached the threshold: return abstain .
+> Commit region br= arg max ρp(ρ)and its target/reagent.
+> Optimization. seed plate 1from π;for t= 2 ,3, . . . :fit GP to all observations in br; design a q-condition plate by batch GP-UCB; run plate; if best observed ≥τand at least one plate has followed a first success: return .
+
+Setting the discrimination stage, cost-normalization, and center-biased initialization aside recovers a standard single-pathway BO loop; these three ingredients are what the policy adds, and §6 ablates them. 
+
+# 4 Theoretical Analysis 
+
+We bound the expected spend of a fixed-budget campaign attempt (the expectation of (1) with a random plate count, 
+
+E[# {plates }]). Proofs are in Appendix A. The analysis combines one classical optimization guarantee with assumed discrimination-stage properties, yielding a fixed-budget spend bound and a success probability. We first recall the structural property the discovery phase relies on. 
+
+Definition 1 (Adaptive submodularity; Golovin and Krause, 2011) . Let f map partial realizations (sets of observed (item, outcome) pairs) to R≥0 and let p be a prior over realizations Φ. f is adaptive submodular w.r.t. p if for all partial realizations ψ ⊆ ψ′ and every item e / ∈ dom( ψ′), ∆( e | ψ′) ≤ ∆( e | ψ), where ∆( e | ψ) = Ef (ψ ∪{(e, Φ( e)) }) − f (ψ) ψ. It is strongly adaptively monotone if f (ψ ∪ { (e, o )}) ≥ f (ψ) for every feasible outcome 
+
+o. Cover guarantees additionally require coverability, an η-gap, and cost/normalization hypotheses specific to each theorem; adaptive submodularity alone is insufficient. 
+
+Assumption 1 (Discrimination stage) . The discrimination policy of §3.1, run with posterior threshold 1 − δdisc under a correctly specified likelihood model, either identifies a decision region or, if all diagnostics are exhausted below threshold, abstains ; conditional on committing, the committed region br equals the true region r⋆ with probability at least 1 − δdisc , and expected diagnostic cost is at most Cdisc . Counting abstention as failure, the discrimination-stage failure probability is at most δdisc + Pr( abstention ). We do not assume a competitive ratio for Cdisc : the missing justification is that the adaptive-cover hypotheses (objective, monotonicity, coverability, η-gap, cost normalization) have not been established for the implemented posterior-impurity surrogate and threshold stopping rule. Outcomes correlated through the latent hypothesis preclude the independent-item-state result of Hellerstein et al. (2021) specifically, not all adaptive-cover results (Appendix B); the known bounds are cited as motivation rather than invoked. 
+
+Assumption 2 (Optimization regularity) . g lies in the RKHS of a known kernel k with ∥g∥k ≤ B, k(x, x ) ≤ 1,and observation noise is conditionally R-sub-Gaussian. Let γT denote the maximum information gain of k after T
+
+evaluations. 4For exact EC 2 on equivalence-class determination, greedy cost-sensitive selection is near-optimal for the edge-cover objective; the history and assumptions of that bound are reviewed in Appendix B. Because our implementation optimizes posterior impurity with threshold stopping, we do not claim that competitive ratio here, and instead analyze the campaign conditionally on the discrimination stage’s error and cost (Assumption 1). 
+
+Theorem 1 (Optimization budget to ε; idealized sequential procedure) . Under Assumption 2, run sequential IGP-UCB (Chowdhury and Gopalan, 2017) in the committed region with width √βt = B + Rp2( γt−1 + 1 + ln(1 /δ )) and the matching posterior regularization. With probability ≥ 1−δ the cumulative regret satisfies RT = O √T (B√γT +γT ).Consequently some queried point is ε-optimal once RT /T ≤ ε; the sufficient condition βT γT = o(T ) (satisfied by the squared-exponential kernel, where γT = O((log T )d+1 ) and Tε = ˜O(ε−2)) ensures a finite Tε exists for any fixed ε; the condition is sufficient, not necessary. The guarantee concerns the existence of an ε-optimal queried point; identifying or returning it from noisy observations is a separate estimation step not covered by the bound. 
+
+Translating this sequential evaluation bound into parallel plate rounds requires a specifically analyzed batch policy (Desautels et al., 2014; Contal et al., 2013); we do not claim that conversion for the kriging-believer batches used in the benchmark, where full-plate costs enter only the empirical cost model. This analysis applies to an idealized fixed-kernel sequential procedure with a known RKHS norm bound and unclipped sub-Gaussian noise; the benchmark’s clipping of purity observations at 100% introduces a residual bias outside the theorem. The benchmark implementation instead learns hyperparameters by marginal likelihood, optimizes over a candidate grid, forms batches with kriging-believer fantasies, and stops on noisy observed values (Appendix C); it is motivated by, but not identical to, the algorithm covered by the theorem, and we do not claim the bound characterizes the implementation. 
+
+Proposition 1 (Fixed-budget spend and success bound) . Suppose the discrimination stage satisfies Assumption 1: it may abstain, its expected diagnostic cost is at most Cdisc , and conditional on committing the committed region is correct with probability at least 1 − δdisc . Suppose the within-region optimization stage is run for a fixed budget of at most T evaluations on every branch that commits to a region, with no optimization after abstention; this cap holds unconditionally. Separately, conditional on correct commitment, the optimization stage returns an ε-optimal condition with probability at least 1 − δopt . Then the expected spend of this single fixed-budget attempt is at most 
+
+Cdisc + Copt (T ), Copt (T ) = copt 
+
+T /q  (5) 
+
+under the full-plate cost model, and the probability of returning an ε-optimal condition is at least 1 − δdisc −
+
+Pr( abstention ) − δopt . (Spend is controlled on every branch because the optimization budget is capped unconditionally and abstention incurs no optimization spend.) Proof. Stage spends add, so expected spend is bounded by linearity of expectation; success requires both stages to succeed, and a union bound over the two failure events gives the probability statement. □
+
+The next result quantifies the cost of committing to a pathway incorrectly under a specific restricted baseline. 
+
+Proposition 2 (Penalty of wrong initial commitment; restricted baseline) . Consider a commit-first baseline that selects one decision region br without diagnostics (a fixed default, or an independent draw from p0), optimizes within it, and, if br̸ = r⋆, expends exactly Tfail evaluations ( copt ⌈Tfail /q ⌉ in plates) before detecting failure and switching to r⋆. For each policy let Cpost denote its residual optimization spend, defined on every branch (zero after abstention), excluding diagnostics and excluding the separately counted wrong-commitment spend copt ⌈Tfail /q ⌉.Assume E[Ccommit -first post ] ≥ E[Ctwo -stage post ]. Let pcorr = Pr( br = r⋆); when the prior induces a uniform distribution over decision regions, pcorr = 1 /|R| for either selection rule. Then 
+
+E[cost commit -first ] − E[cost two -stage ] ≥ (1 − pcorr ) copt 
+
+Tfail /q  − Cdisc . (6) 
+
+A sufficient condition for diagnostics to be beneficial against this baseline is Cdisc < (1 − pcorr ) copt ⌈Tfail /q ⌉. The two policies’ success probabilities differ in general and are not equated here. The bound applies to this baseline only, not to split-plate, mixed-space, or portfolio strategies (§6). 
+
+# 5 A CICERO-Inspired Synthetic Benchmark 
+
+The CICERO campaigns. The CICERO study comprises three closed-loop campaigns on real feedstocks, each an alternating sequence of decisions and priced measurements. A campaign proceeds as: (i) Diagnose , a quantitative ICP-MS reading of the feedstock that returns element identities and concentrations (for the produced water: Ca > 13 ,000 ppm, 5Na > 6,000 , Mg 1,840 , Sr 450 ; for the NdFeB leachate: Fe 62 ,000 , Nd 23 ,800 , Pr 5,900 , B 920 , Co 470 , Dy 27 , Tb 
+
+16 ); (ii) Evaluate/Hypothesize , in which characterization informs economic evaluation and literature-grounded pathway hypotheses, from which the campaign’s pathway is selected; and (iii) Optimize , rounds of 96 -well plates ( 8 conditions 
+
+× 12 replicates) with commodity reagents (NaOH, NaHCO 3, sodium oxalate), read out by automated ICP-MS as purity (mol%), yield, and separation factor. A single data point is therefore a (condition, assay) pair inside a sequential, budget-constrained loop; the object of study is the campaign-level policy rather than any single model fit. 
+
+Benchmark construction. We construct synthetic response surfaces constrained to reproduce selected endpoints and qualitative trends reported by CICERO (Ritchhart et al., 2026) (listed below), with Gaussian assay noise whose level ( 4.5% relative) is an author assumption motivated by the 4.0–7.6% repeatability range CICERO reports for its automated ICP-MS pipeline in one produced-water experiment. The raw campaign trajectories and complete response measurements are not publicly available, and the equations (Appendix C) are author-designed benchmark functions. These instances should therefore be interpreted as controlled benchmarks inspired by CICERO, not as statistical reconstructions or performance evaluations of CICERO’s laboratory campaigns; absolute costs and cost ratios depend on the modeling assumptions, whose provenance and sensitivity are reported in Appendix C. • Produced water (Mg). One knob (NaOH equivalents); Mg(OH) 2 purity peaks near 99% at ≈ 3.4 equivalents with 
+
+≈ 86% yield, falling as Ca co-precipitates at higher equivalents. • SmCo leachate (Sm). Two knobs (NaHCO 3 × NaOH); Sm purity peaks near 92% .• NdFeB leachate (Fe/REE). The discovery decision is sharp: oxalate yields a Fe/REE separation factor ≈ 200 across a wide concentration range, whereas hydroxide gives a low separation factor and collapses at high concentration. A second stage splits Nd/Pr (separation factor up to ≈ 1.35 ). Each feedstock defines an EC 2 discovery problem over candidate (target, reagent) hypotheses with priced diagnostics, and an optimization stage over the knobs above. We charge $50 per ICP-MS well; an optimization plate is 8 conditions 
+
+× 12 replicates ( = $4 ,800 ). This matches the plate structure CICERO reports for its produced-water reproducibility experiment; for benchmarking consistency we impose this common synthetic batch structure on all instances, which differs from CICERO’s campaign-specific designs. Plates are charged in full when submitted: cost accrues per whole plate, never per well within a submitted plate. A pathway-committed agent still characterises the feedstock to choose a target, but this is a single ICP-MS reading (as in CICERO), not a full plate; EC 2 diagnostics are priced comparably ($60–$120). “Cost-to-target” is the spend to first clear the application target; we also report the best true (noiseless) value reached against the numerically computed achievable optimum of each surface. 
+
+# 6 Experiments 
+
+We compare against four references on identical surrogates and acquisition: Oracle-pathway BO , given the correct pathway in advance (an upper reference); Split-plate BO , which divides its first plate across the candidate reagent pathways, commits to the best-observed pathway, and then optimizes within it; Commit-first BO , a simulated baseline that commits to a plausible default pathway and backtracks on failure (this trajectory is a benchmark construction motivated by the hydroxide–oxalate contrast CICERO reports, not an observed CICERO campaign); and Random search . The method is run without an oracle pathway label but with the specified hypothesis space and diagnostic likelihood model. Swapping the baseline acquisition between GP-UCB and LogEI changes results negligibly ( 90 .4 vs. 
+
+90 .3 best true value on SmCo). All numbers are means ± standard deviation over 20 seeds; costs are full-plate totals per seed (a mean such as $7,600 averages seeds that finished in one plate with seeds that needed two). Full setup in Appendix C. 
+
+Main result (Table 1, Fig. 1). On every instance the method performs comparably to Oracle-pathway BO without an oracle pathway label: on the NdFeB-inspired instance, $4,985 versus $4,890 to target (within 2% ). The commit-first baseline that initially selects hydroxide pays the wrong-commitment penalty of Proposition 2, about $24,090 versus $4,985 ( ≈ 4.8×); this trajectory is a simulated construction motivated by the hydroxide–oxalate performance contrast CICERO reports, not CICERO’s observed behavior. Importantly, the split-plate baseline also avoids that penalty at essentially the same cost ($4,890): with only two testable pathways and a broad above-target basin on the correct pathway, one plate divided across pathways both discriminates and optimizes. On this benchmark, priced 6Table 1: Cost-to-target and best true value reached (mean over 20 seeds), against the achievable optimum (shown in each instance label). Coactive learning performs comparably to Oracle-pathway BO and Split-plate BO on all three feedstocks; on NdFeB, where the chemistry choice is non-obvious, it reaches target at a fraction of the cost of the simulated commit-first baseline, which commits to hydroxide and must backtrack to oxalate. On produced water and SmCo the expert and default baselines coincide because the target is obvious. Feedstock Method Cost-to-target ($) Best achieved (true) Produced water (Mg) (opt 99.2) Coactive learning 4,980 ± 0 99.2                                                           
+
+> Oracle-pathway BO 5,370 ±1,440 99.1 Split-plate BO 5,370 ±1,440 99.1 Commit-first BO 5,370 ±1,440 99.1 Random search 5,130 ±1,046 99.1 SmCo (Sm) (opt 92.0) Coactive learning 7,600 ±4,150 88.9
+> Oracle-pathway BO 9,450 ±3,552 90.4 Split-plate BO 9,450 ±3,552 90.4 Commit-first BO 9,450 ±3,552 90.4 Random search 10,170 ±5,011 86.8 NdFeB (Fe/REE) (opt 216.0) Coactive learning 4,985 ±0215.9
+> Oracle-pathway BO 4,890 ±0216.0 Split-plate BO 4,890 ±0215.9 Commit-first BO 24,090 ±0215.9 Random search 24,090 ±0215.2
+
+diagnostics and a split first plate are therefore equally effective ways to buy pathway information; the practical case for diagnostics-first arises when the candidate pathway set is too large for a single plate to cover at useful per-pathway resolution, when diagnostics are much cheaper than wells, or when target basins are narrow. We state this as a hypothesis to be tested at larger pathway counts, not a demonstrated result. On produced water and SmCo the pathway is unambiguous, all pathway-informed baselines coincide, and discrimination is a small net overhead; on the one-dimensional produced-water instance random search is competitive. 
+
+Ablations (Table 2). Removing the discrimination stage sends the NdFeB cost to the commit-first figure ( ≈ $24 ,000 ), confirming pathway information as the dominant lever. The center-biased initial design gives a modest benefit on the two-dimensional SmCo surface and none on NdFeB. Removing cost-normalization inside the optimization stage changes nothing: with uniform plate costs the per-dollar division is a constant rescaling of the acquisition, so it is inert there by construction; prices matter in this benchmark only through the discrimination stage, and would enter the optimization stage only under heterogeneous per-action costs.                    
+
+> Table 2: Ablation: cost-to-target ($, mean over 20 seeds) as each Coactive learning ingredient is removed. Discovery is the dominant lever; the default-agent row is shown for reference. Method Produced water (Mg) SmCo (Sm) NdFeB (Fe/REE) Cost-to-target ($)
+> Coactive learning 4,980 7,600 4,985
+> w/o discrimination 4,890 8,490 24,090 w/o cost-aware 4,980 7,600 4,985 w/o center-biased init 5,220 10,000 4,985 Commit-first BO 5,370 9,450 24,090
+
+Interpreting the baseline comparisons. Two distinctions in Table 1 explain why the baselines sometimes perform no better than random search. The oracle vs. commit-first contrast isolates the pathway decision: the two coincide on produced water and SmCo, where the pathway is unambiguous, and diverge only on the NdFeB-inspired instance, 7100 150 200 
+
+experiments (wells) 
+
+98.0 
+
+98.2 
+
+98.4 
+
+98.6 
+
+98.8 
+
+99.0 
+
+99.2 
+
+> best true purity (%)  optimum
+
+Produced water (Mg) 
+
+> Commit-first BO
+> Oracle-pathway BO
+> Coactive (two-stage)
+
+100 200 300 
+
+experiments (wells) 
+
+75 
+
+80 
+
+85 
+
+90 
+
+> best true purity (%)  optimum
+
+SmCo (Sm) 
+
+200 400 600 
+
+experiments (wells) 
+
+10 2
+
+2 × 10 2
+
+> best true sep. factor  optimum
+
+NdFeB (Fe/REE) Figure 1: Best true (noiseless) recovery value vs. number of experiments (mean ± std over 20 seeds). Grey line: achievable optimum; dashed: application target. Coactive learning (teal) tracks the oracle-pathway reference (green); the commit-first baseline (copper) coincides with it on produced water and SmCo but, on the NdFeB-inspired instance (log scale), remains on hydroxide for 
+
+∼ 480 wells before backtracking to oxalate (a simulated trajectory; see §6). prior after assay 1 
+
+> ($75)
+> after assay 2
+> ($110)
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> decision-region posterior
+> Fe via oxalate
+> Fe via hydroxide
+> Direct REE precip.
+
+(a) EC 2 decision-region posterior over two cheap NdFeB diagnostics ($185 total). 0 1 2 3     
+
+> NaHCO 3equiv.
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 3.0
+> NaOH equiv.
+> GP posterior mean (Sm purity %)
+> 0123
+> NaHCO 3equiv.
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 3.0
+> NaOH equiv.
+> cost-aware acquisition (info/$)
+> observed
+> proposed batch
+> 40
+> 50
+> 60
+> 70
+> 80
+> 0.000
+> 0.005
+> 0.010
+> 0.015
+> 0.020
+
+(b) SmCo: GP posterior mean and cost-normalized acquisition over the two reagent knobs, with observed (circles) and proposed (stars) conditions. 
+
+Figure 2: Discovery (left) concentrates the posterior on the correct chemistry before any optimization plate; optimization (right) then designs plates by cost-normalized GP-UCB. 
+
+where the plausible default reagent (hydroxide) is inferior. The BO vs. random contrast isolates optimizer quality , and here the apparent tie is an artifact of the metric, not a weak optimizer. Cost-to-target measures the spend to first clear a fixed application target; on low-dimensional surfaces with a broad near-optimal basin, a single space-filling plate of 96 wells already contains a point above a modest target with high probability, so time-to-target saturates and any reasonable design looks similar. The optimizer’s advantage appears when we instead measure progress toward the 
+
+optimum , or tighten the target. In an isolated optimization study on SmCo (no discovery, no warm-start, identical initial plate; Appendix C), GP-UCB reaches a best true purity of 91 .9% versus random’s 89 .0% by the fifth plate, and the gap in plates-to-target widens monotonically as the target hardens ( 1.9 vs. 2.7 plates at 86% ; 2.8 vs. 3.7 at 91 .5% , where random reaches target in only 45% of runs). On these instances the cost-to-target differences are therefore governed by the pathway decision rather than by the acquisition function, on which all BO-based methods agree. 
+
+# 7 Related Work 
+
+Noisy Bayesian active learning. Identifying a hypothesis from costly, noisy tests has a long history, from generalized binary search (Dasgupta, 2004; Nowak, 2011) to the EC 2 algorithm and adaptive submodularity (Golovin et al., 2010; Golovin and Krause, 2011), whose cover guarantees were subsequently corrected and are theorem-specific: independent item states for Hellerstein et al. (2021), correlated realizations with unit costs for Esfandiari et al. (2021), and nonuniform costs for Cui and Nagarajan (2023) (Appendix B). ECED (Chen et al., 2017) provides a related approach for noisy and correlated testing settings; we do not implement it. Classical experimental design (Lindley, 1956; MacKay, 1992) and 8submodular sensing (Krause et al., 2008) share the information-theoretic view. We use these for the discovery phase and, crucially, in a cost-normalized form. 
+
+Bayesian optimization. GP-UCB and its regret theory (Srinivas et al., 2010, 2012) underpin our optimization phase; we also draw on EI/LogEI (Jones et al., 1998; Ament et al., 2023), Thompson sampling (Russo et al., 2018), batch methods (Ginsbourger et al., 2010; Gonz ´alez et al., 2016; Desautels et al., 2014; Wilson et al., 2018), and multi-objective BO (Daulton et al., 2021), as surveyed by Shahriari et al. (2016); Frazier (2018) and implemented in tools such as BoTorch (Balandat et al., 2020). Cost-aware BO weighs evaluation cost (Snoek et al., 2012; Astudillo et al., 2021); we extend the idea across the discovery/optimization boundary, normalizing a decision acquisition and an optimization acquisition by a common cost. Closest in spirit, a recent line treats active learning and Bayesian optimization from a unified standpoint (Di Fiore et al., 2023) and pairs GP-UCB with hypothesis generation (PA-GP-UCB; PA-GP-UCB authors, 2026); we differ in coupling equivalence-class decision-region identification with within-pathway Bayesian optimization in an explicitly two-stage policy, with a conditional fixed-budget cost analysis and an autonomous-lab benchmark. 
+
+Autonomous labs and materials discovery. Self-driving laboratories (Burger et al., 2020; MacLeod et al., 2020; Coley et al., 2019; Stach et al., 2021; Abolhasani and Kumacheva, 2023) and BO-for-chemistry systems (H ¨ase et al., 2018; Lookman et al., 2019) established the closed loop; CICERO (Ritchhart et al., 2026) applied it to critical-materials recovery with vanilla BO. Our contribution is orthogonal and composable: a policy for that loop with such a conditional cost analysis, one that decides what chemistry to run before optimizing it. 
+
+# 8 Discussion and Limitations 
+
+The comparison is designed to be fair: the baseline shares the same GP and acquisition, differing only in the three ingredients we add, so the measured gains are attributable to the policy, not to handicapping. The main limitations are as follows. • In-silico evaluation on author-designed surfaces. Response surfaces are synthetic functions constrained by selected published endpoints, not fits to raw measurements; absolute numbers are benchmark results, not laboratory claims, and the benchmark does not reproduce CICERO’s measured costs or trajectories. Validation against real campaign logs (replaying the policy against the recorded sequence of conditions and assays) and ultimately in closed-loop wet-lab deployment is the necessary next step. • Low-dimensional decision spaces. The optimization stages have one or two knobs and three candidate pathways (only two with modeled response surfaces). We hypothesize, but have not demonstrated, that diagnostics-first discrimination gains value over plate-splitting as the pathway count grows beyond what one plate can cover; Proposition 2 bounds only the commit-first case. • Hand-specified diagnostic models. The EC 2 likelihood matrices for cheap diagnostics are specified from do-main knowledge. In deployment these should be learned from historical assay data; robustness to likelihood misspecification is an open question. • Two-stage policy, not a unified acquisition. The implementation is an explicitly two-stage procedure; the discrimination and optimization utilities are not commensurable, and we make no claim of a single cross-stage acquisition. Defining a common-currency criterion (for example, expected reduction in remaining cost-to-target) is open. • Theory–implementation gap. The discrimination guarantee cited as motivation is for exact EC 2; the implementation uses posterior-impurity selection with threshold stopping, for which no competitive ratio is claimed. The GP-UCB regret bound is for an idealized fixed-kernel sequential procedure, not the empirical-Bayes batched implementation. • Baseline coverage. The split-plate baseline matches the method’s cost on this benchmark; mixed-space BO over (pathway, conditions), portfolio allocation across pathways, and a Bayes-optimal dynamic-programming policy on the small hypothesis set are not implemented and remain the strongest untested competitors. • Center-biased initialization, not transfer. The initial-design bias is fixed; a shared cross-campaign surrogate that accumulates structure across feedstocks would strengthen it into genuine transfer learning, with its own analysis. 99 Future Work 
+
+The natural progression is from surrogate benchmarks to instruments. First, replay : given campaign-level logs from an autonomous platform (sequences of conditions and assays, not only final protocols), the policy can be evaluated counterfactually on real chemistry with no new experiments, turning any archived campaign into a benchmark. Second, 
+
+closed-loop validation : running the engine against a platform’s incumbent optimizer on live campaigns, with matched budgets, in selective precipitation and in structurally identical decision-then-optimize problems such as electrolyte formulation, where discrete family choices precede continuous ratio tuning and cheap screens precede expensive cycling tests. Third, scaling the decision space : larger hypothesis sets, staged and multi-fidelity assay hierarchies, learned diagnostic likelihoods, and multi-objective targets, where explicit pricing should matter most. Finally, integration :agentic laboratory platforms already generate hypothesis spaces, protocols, and economic screens with language-model agents; the framework here can serve as the budget-allocation and experiment-selection component beneath such planners, providing explicit pathway uncertainty, cost accounting, and experiment-selection logic. The implementation and benchmark released with this paper are intended to support this line of work. 
+
+Hypothesis-expanding experiment design. The present framework selects among a fixed set of candidate recovery pathways. A more ambitious extension would use unexplained structure in campaign measurements, particularly full multi-element ICP-MS outputs rather than a single scalar objective, to propose additional pathways, co-product targets, staged precipitation sequences, or discriminating experiments. With access to campaign-level data from a platform such as CICERO, an initial study could proceed as: (i) retrospective reconstruction from raw per-well data; (ii) blind prediction on a held-out plate; (iii) a jointly designed prospective discrimination plate; (iv) dynamic expansion of the pathway hypothesis set when observations are poorly explained; and (v) validation of any newly identified co-product or sequential separation pathway. This would test whether active experiment selection enables campaigns that are otherwise infeasible because the combined pathway, protocol, and measurement space is too large for exhaustive exploration. We emphasize that this is future collaborative work, not a result of the present paper. 
+
+# 10 Conclusion 
+
+Autonomous campaigns must decide what to run, not only how to tune it. We formulated this as a sequential decision problem that separates recovery-pathway identification from within-pathway optimization under heterogeneous costs, gave a fixed-budget bound on expected campaign spend with an explicit success probability, and evaluated a two-stage cost-sensitive policy on CICERO-inspired synthetic benchmarks. The policy matches an oracle-pathway reference and a split-plate baseline without an oracle pathway label, and avoids the penalty of a simulated commit-first baseline; whether priced diagnostics outperform plate-based discrimination at larger pathway counts is the main open empirical question. As self-driving laboratories automate not only execution but selection, explicit prices on actions and explicit statements of expected spend seem likely to become standard components of campaign design. 
+
+# References       
+
+> Milad Abolhasani and Eugenia Kumacheva. The rise of self-driving labs in chemical and materials sciences. Nature Synthesis , 2: 483–492, 2023. Sebastian Ament, Samuel Daulton, David Eriksson, Maximilian Balandat, and Eytan Bakshy. Unexpected improvements to expected improvement for bayesian optimization. In Advances in Neural Information Processing Systems (NeurIPS) , 2023. Ra ´ul Astudillo, Daniel R. Jiang, Maximilian Balandat, Eytan Bakshy, and Peter I. Frazier. Multi-step budgeted bayesian optimization with unknown evaluation costs. In Advances in Neural Information Processing Systems (NeurIPS) , 2021. Maximilian Balandat, Brian Karrer, Daniel R. Jiang, Samuel Daulton, Benjamin Letham, Andrew Gordon Wilson, and Eytan Bakshy. Botorch: A framework for efficient monte-carlo bayesian optimization. In Advances in Neural Information Processing Systems (NeurIPS) , 2020. Benjamin Burger, Phillip M. Maffettone, Vladimir V. Gusev, et al. A mobile robotic chemist. Nature , 583:237–241, 2020.
+
+10 Yuxin Chen, S. Hamed Hassani, and Andreas Krause. Near-optimal bayesian active learning with correlated and noisy tests. 
+
+Electronic Journal of Statistics , 11(2):4969–5017, 2017. Sayak Ray Chowdhury and Aditya Gopalan. On kernelized multi-armed bandits. In International Conference on Machine Learning (ICML) , 2017. Connor W. Coley, Dale A. Thomas, Justin A. M. Lummiss, et al. A robotic platform for flow synthesis of organic compounds informed by ai planning. Science , 365(6453), 2019. Emile Contal, David Buffoni, Alexandre Robicquet, and Nicolas Vayatis. Parallel gaussian process optimization with upper confidence bound and pure exploration. In European Conference on Machine Learning and Knowledge Discovery in Databases (ECML PKDD) , 2013. Yubing Cui and Viswanath Nagarajan. Minimum cost adaptive submodular cover. In Symposium on Simplicity in Algorithms (SOSA) ,2023. Sanjoy Dasgupta. Analysis of a greedy active learning strategy. In Advances in Neural Information Processing Systems (NeurIPS) ,2004. Samuel Daulton, Maximilian Balandat, and Eytan Bakshy. Parallel bayesian optimization of multiple noisy objectives with expected hypervolume improvement. In Advances in Neural Information Processing Systems (NeurIPS) , 2021. Thomas Desautels, Andreas Krause, and Joel W. Burdick. Parallelizing exploration-exploitation tradeoffs in gaussian process bandit optimization. Journal of Machine Learning Research , 15:3873–3923, 2014. Francesco Di Fiore, Michela Nardelli, and Laura Mainini. Active learning and bayesian optimization: a unified perspective to learn with a goal. arXiv preprint arXiv:2303.01560 , 2023. Hossein Esfandiari, Amin Karbasi, and Vahab Mirrokni. Adaptivity in adaptive submodularity. In Conference on Learning Theory (COLT) , 2021. Peter I. Frazier. A tutorial on bayesian optimization. arXiv preprint arXiv:1807.02811 , 2018. David Ginsbourger, Rodolphe Le Riche, and Laurent Carraro. Kriging is well-suited to parallelize optimization. In Computational Intelligence in Expensive Optimization Problems , pages 131–162. Springer, 2010. Daniel Golovin and Andreas Krause. Adaptive submodularity: Theory and applications in active learning and stochastic optimization. 
+
+Journal of Artificial Intelligence Research , 42:427–486, 2011. Daniel Golovin, Andreas Krause, and Debajyoti Ray. Near-optimal bayesian active learning with noisy observations. In Advances in Neural Information Processing Systems (NeurIPS) , 2010. Javier Gonz ´alez, Zhenwen Dai, Philipp Hennig, and Neil D. Lawrence. Batch bayesian optimization via local penalization. In 
+
+International Conference on Artificial Intelligence and Statistics (AISTATS) , 2016. Blake Harris and Viswanath Nagarajan. Lower bound on the greedy approximation ratio for adaptive submodular cover. arXiv preprint arXiv:2405.14995 , 2024. Florian H ¨ase, Lo ¨ıc M. Roch, Christoph Kreisbeck, and Al ´an Aspuru-Guzik. Phoenics: A bayesian optimizer for chemistry. ACS Central Science , 4(9):1134–1145, 2018. Lisa Hellerstein, Devorah Kletenik, and Srinivasan Parthasarathy. A tight bound for stochastic submodular cover. Journal of Artificial Intelligence Research , 71:347–370, 2021. Donald R. Jones, Matthias Schonlau, and William J. Welch. Efficient global optimization of expensive black-box functions. Journal of Global Optimization , 13(4):455–492, 1998. Andreas Krause, Ajit Singh, and Carlos Guestrin. Near-optimal sensor placements in gaussian processes: Theory, efficient algorithms and empirical studies. Journal of Machine Learning Research , 9:235–284, 2008. Dennis V. Lindley. On a measure of the information provided by an experiment. The Annals of Mathematical Statistics , 27(4): 986–1005, 1956. Turab Lookman, Prasanna V. Balachandran, Dezhen Xue, and Ruihao Yuan. Active learning in materials science with emphasis on adaptive sampling using uncertainties for targeted design. npj Computational Materials , 5(1):21, 2019. 
+
+11 David J. C. MacKay. Information-based objective functions for active data selection. Neural Computation , 4(4):590–604, 1992. Benjamin P. MacLeod, Fraser G. L. Parlane, Thomas D. Morrissey, et al. Self-driving laboratory for accelerated discovery of thin-film materials. Science Advances , 6(20), 2020. Feng Nan and Venkatesh Saligrama. Comments on the proof of adaptive stochastic set cover based on adaptive submodularity, 2017. Identifies a gap in the original adaptive-submodular cover proof of Golovin and Krause. Robert D. Nowak. The geometry of generalized binary search. IEEE Transactions on Information Theory , 57(12):7893–7906, 2011. PA-GP-UCB authors. Gaussian process bandit optimization with machine learning predictions and application to hypothesis generation. arXiv preprint arXiv:2601.22315 , 2026. Author list per arXiv record. Carl Edward Rasmussen and Christopher K. I. Williams. Gaussian Processes for Machine Learning . MIT Press, 2006. Andrew Ritchhart, Sarah I. Allec, Pravalika Butreddy, Krista Kulesa, Qingpu Wang, Dan Thien Nguyen, Maxim Ziatdinov, and Elias Nakouzi. Agentic workflow enables the recovery of critical materials from complex feedstocks via selective precipitation. arXiv preprint arXiv:2603.15491 , 2026. Daniel J. Russo, Benjamin Van Roy, Abbas Kazerouni, Ian Osband, and Zheng Wen. A tutorial on thompson sampling. Foundations and Trends in Machine Learning , 11(1):1–96, 2018. Burr Settles. Active learning literature survey. Technical Report 1648, University of Wisconsin–Madison, 2009. Bobak Shahriari, Kevin Swersky, Ziyu Wang, Ryan P. Adams, and Nando de Freitas. Taking the human out of the loop: A review of bayesian optimization. Proceedings of the IEEE , 104(1):148–175, 2016. Pannaga Shivaswamy and Thorsten Joachims. Online structured prediction via coactive learning. In International Conference on Machine Learning (ICML) , 2012. Jasper Snoek, Hugo Larochelle, and Ryan P. Adams. Practical bayesian optimization of machine learning algorithms. In Advances in Neural Information Processing Systems (NeurIPS) , 2012. Niranjan Srinivas, Andreas Krause, Sham M. Kakade, and Matthias Seeger. Gaussian process optimization in the bandit setting: No regret and experimental design. In International Conference on Machine Learning (ICML) , 2010. Niranjan Srinivas, Andreas Krause, Sham M. Kakade, and Matthias Seeger. Information-theoretic regret bounds for gaussian process optimization in the bandit setting. IEEE Transactions on Information Theory , 58(5):3250–3265, 2012. Eric Stach, Brian DeCost, A. Gilad Kusne, et al. Autonomous experimentation systems for materials development: A community perspective. Matter , 4(9):2702–2726, 2021. James T. Wilson, Frank Hutter, and Marc P. Deisenroth. Maximizing acquisition functions for bayesian optimization. In Advances in Neural Information Processing Systems (NeurIPS) , 2018. 
+
+# A Proofs 
+
+Theorem 1. Fix a horizon T in advance and run IGP-UCB (Chowdhury and Gopalan, 2017) with posterior regular-ization λ = 1 + 2 /T and γt defined under that regularization. Under Assumption 2, Theorem 2 of Chowdhury and Gopalan (2017) supplies the anytime confidence bound (their coefficient βt equals this paper’s √βt in the convention 
+
+μ + √βt σ), and their Theorem 3 converts it into the IGP-UCB cumulative regret bound: with probability ≥ 1 − δ,
+
+RT = O √T (B√γT + γT ). Since min t≤T rt ≤ RT /T , some queried point is ε-optimal once RT /T ≤ ε; this establishes that such a point was queried , not that it is identified or returned from noisy observations. The sufficient condition βT γT = o(T ), which the squared-exponential kernel satisfies ( γT = O((log T )d+1 )), ensures eventual solvability of RT /T ≤ ε for any fixed ε; the condition is sufficient, not necessary. Plate counts in Prop. 1 follow from its fixed-budget assumption, not from a batch-regret theorem. □
+
+Proposition 1. Proved in the main text (linearity of expectation over the two sequential stage spends; union bound over the two failure events). 12 Proposition 2. With probability 1 − pcorr the commit-first baseline selects an incorrect region and, before it can switch, expends at least Tfail evaluations ( ⌈Tfail /q ⌉ plates at copt each); with probability pcorr it incurs no penalty. Its expected spend therefore exceeds the within-region optimization spend by at least (1 − pcorr )copt ⌈Tfail /q ⌉. The two-stage procedure pays expected discrimination cost Cdisc . The residual optimization spends CCF post and CTS post are defined on every branch and exclude the wrong-commitment term already counted above, so no cost is double-counted. 
+
+E[CCF post − CTS post ] ≥ 0 by the stated expectation assumption; retaining this term and subtracting gives the bound. Under a prior whose induced distribution over decision regions is uniform, pcorr = 1 /|R| exactly, so 1 − pcorr = 1 − 1/|R| 
+
+(bounded above by one). □
+
+# B Background: guarantees for adaptive-submodular cover 
+
+We summarize this literature by theorem scope; none of these guarantees applies to the implemented posterior-impurity objective, and quantities Q, η are not transferable between differently normalized objectives. (i) Exact EC 2 on the finite deterministic-realization expansion retains adaptive submodularity under correlated noise (Golovin et al., 2010); its original logarithmic approximation proof, however, invoked the general adaptive-cover theorem later shown to be flawed (Nan and Saligrama, 2017). (ii) Hellerstein et al. (2021) restore the ln( Q/η ) + 1 bound for stochastic submodular cover under independent item states ; it does not apply outside that setting, and outcomes here are correlated through the latent hypothesis. Correlation excludes this theorem specifically, not all adaptive-cover results; for our implementation it is instead the posterior-impurity surrogate, the threshold target, and the unestablished coverability hypotheses that prevent invoking the correlated-realization guarantees. (iii) For correlated realizations, Esfandiari et al. (2021) prove a unit-cost bound cgreedy ≤ (copt +1) ln( nQ/η )+1 under adaptive monotonicity, adaptive submodularity, an η-gap, and pointwise coverability; for nonuniform costs, Cui and Nagarajan (2023) prove a 4(1 + ln( Q/η )) bound in their observation-based monotone coverable model. (iv) Harris and Nagarajan (2024) show the corrected squared-log greedy theorem for general adaptive cover is false even at normalized quota Q = 1 ; this is a statement about general adaptive cover, not about EC 2 specifically. (v) Exact identification of the true region under the noisy expansion additionally requires every complete outcome vector to be compatible with a single region, which we do not assume; EC 2 instead determines the equivalence class of the decision-after-all-tests, a different target from our posterior-threshold identification. ECED 
+
+(Chen et al., 2017) analyzes a different error-based objective under its own noise assumptions. 
+
+# C Benchmark and Implementation Details 
+
+Constrained endpoints. The synthetic surfaces reproduce selected reported endpoints: produced-water Mg(OH) 2
+
+purity ≥ 98 .5% near 3.4 NaOH equivalents with ≈ 86% yield; SmCo Sm purity peak ≈ 92% ; NdFeB oxalate Fe/REE separation factor ≈ 200 (median over the concentration range), hydroxide < 30 at high concentration, and Nd/Pr separation factor up to ≈ 1.34 . A test suite asserts each of these. Assay noise is Gaussian with relative standard deviation 4.5% ; this is an author assumption motivated by the 4.0–7.6% repeatability range CICERO reports for one produced-water experiment, not a measured noise model for all assays. Purity observations are clipped to [0 , 100]% ,which can bias simulated observations near the optimum; alternative noise forms (additive, heteroscedastic, log-normal for separation factors) are not evaluated here. 
+
+Provenance of assumptions. Quantities used by the benchmark and their sources:                             
+
+> Quantity Value Source Plate structure (all instances) q=8 ,12 replicates CICERO produced-water expt.; imposed elsewhere Per-well cost $50 author assumption Diagnostic prices $60–$120 author assumption Hypothesis set 3per instance author construction Diagnostic likelihoods 0.70 –0.85 on-diagonal author construction Posterior stopping threshold 0.9author choice Assay noise 4.5% relative Gaussian assumption motivated by 4.0–7.6% range Commit-first failure horizon 4plates before backtrack author construction Response-surface shapes closed forms below author-designed, endpoint-constrained
+
+13 Absolute dollar figures are illustrative; ratios between methods under a fixed cost model are the meaningful quantities, and plate-equivalent units (one plate = $4 ,800 ) can be substituted. 
+
+Methods and costs. Plates have q=8 conditions × 12 replicates ( 96 wells) at $50/well. Diagnostics cost $60–$120. GP: ARD squared-exponential kernel, hyperparameters fit by marginal-likelihood maximization; GP-UCB schedule as in §3.2; batches by kriging-believer greedy. The Vanilla-BO baseline uses the identical GP and UCB but no discovery, no cost-normalization, and a cold (space-filling) first plate; on NdFeB it commits to the cheaper default (hydroxide) and backtracks on failure. All results average 20 seeds; the reference implementation is pure NumPy. 
+
+Optimizer quality vs. random (isolated). To confirm the GP-UCB baseline is a competent optimizer rather than a strawman, we run an isolated study on the SmCo surface (no discovery, no warm-start, the same initial plate for both methods), measuring the best true value reached and plates-to-target as the target hardens ( 60 seeds; script 
+
+optimizer vs random.py ):                        
+
+> best true purity by round 12345GP-UCB 82.1 88.9 91.0 91.9 91.9 Random 82.1 86.3 87.6 88.6 89.0 plates to target GP-UCB Random (reach)
+> 86% 1.93 2.67 (95%)
+> 90% 2.40 3.47 (63%)
+> 91 .5% 2.77 3.74 (45%)
+
+GP-UCB is consistently and increasingly better than random as the target tightens (true peak 92 .0% ); the tie on cost-to-target in the main benchmark is therefore a property of the easy targets, not the optimizer. 
+
+Reproducibility. Code and benchmark: https://github.com/coactivescience/cost-aware-active-learning 
+
+(MIT license; an archived release with a DOI will accompany the public preprint). Seeds 0–19 ; python tests/test coactive.py 
+
+checks the endpoint constraints and the main empirical claims (Coactive learning is ≥ 3× cheaper than the default agent on NdFeB on every seed, is within 1.4× of Oracle-pathway BO’s cost, and reaches ≥ 93% of the achievable optimum). All tables, figures, and the study above are regenerated by run benchmark.py , make figures.py ,and optimizer vs random.py .
+
+Response-surface equations. Let ς(z) = (1 + e−z )−1. The synthetic ground-truth surfaces (in %, or separation factor where noted) are: Produced water (Mg): g(eq ) = min  99 .4 − κ(eq )( eq − 3.4) 2, 99 .4 − 58 .4 ς( eq −5.50.45 ),κ = 0 .8 ( eq ≤ 3.4) , 2.0 ( eq > 3.4); yield = 40 + 58 ς( eq −2.40.7 ).
+
+SmCo (Sm): g(b, h ) = 34 + 58 exp   − 12 [(( b − 2.1) /0.62) 2 + (( h − 1.0) /0.85) 2].
+
+NdFeB Fe/REE: sox (c) = 150 + 70 ς( c−0.60.5 ), sOH (c) = 60 e− 12 (( c−0.4) /0.5) 2
+
++ 8 .
+
+NdFeB Nd/Pr: s(o, pH) =  1 + 0 .35 ς( o−1.60.38 )  1 + 0 .015(pH − 3) .
+
+Each assay returns the surface value plus Gaussian noise of relative standard deviation 0.045 (within CICERO’s 
+
+4.0–7.6% band); purity is clipped to [0 , 100]% .
+
+EC 2 instances. Each feedstock defines 3 hypotheses (a correct target ×reagent and two competitors/decoys), with priced diagnostics ($60–$120) whose row-stochastic likelihood matrices place 0.70 –0.85 mass on the outcome consistent with the true hypothesis. The cost-sensitive greedy (3) runs diagnostics until one decision region exceeds posterior mass 0.9; for NdFeB this commits oxalate after two assays ($185 total; Fig. 2a). 
+
+Hyperparameters. GP: zero-mean prior, ARD squared-exponential kernel; lengthscales, signal variance, and noise fit by marginal-likelihood maximization with 8 random restarts and coordinate refinement. GP-UCB schedule βt =2 log( |D|t2π2/6δ) with δ = 0 .1 and |D| = 800 Latin-hypercube candidates. Plates use q = 8 conditions selected by kriging-believer greedy. Warm-starting mixes the first space-filling plate with a neutral central prior ( x ← 0.6 xLHS +0.4 ¯ x with ¯x the domain centre), with no knowledge of the optimum; the baseline omits this and uses a pure space-filling first plate. 14

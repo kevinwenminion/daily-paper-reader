@@ -1,0 +1,1632 @@
+Title: From oligomers to entangled polymers: How to train a transferable machine learning interatomic potential
+
+URL Source: https://arxiv.org/pdf/2608.01162v1
+
+Published Time: Tue, 04 Aug 2026 01:17:28 GMT
+
+Number of Pages: 37
+
+Markdown Content:
+# From oligomers to entangled polymers: How to train a transferable machine learning interatomic potential 
+
+Mirko Fischer a and Andreas Heuer aaInstitute of Physical Chemistry, University of M¨ unster, Corrensstraße 28/30, 48149 M¨ unster, Germany 
+
+Abstract 
+
+Over the past decade, Machine Learning Interatomic Potentials (MLIPs) have emerged as a powerful technique for performing molecular dynamics (MD) simulations with nearly ab initio accuracy. Alongside the development of new de-scriptors and advanced machine learning architectures, sophisticated procedures for the generation of diverse and accurate reference datasets have been established. To date, research has focused primarily on MLIPs for crystalline or amorphous inorganic and small molecular systems; however, large macromolecules such as polymers remain underrepresented in the literature, despite beeing an important class of materials. In this work, we investigate several aspects of developing MLIPs for polymers, utilizing polyethylene as a representative, yet simple model system. First, we compare various local atomic descriptors, identifying the Atomic Cluster Expansion (ACE) as the most effective for this application. Second, we implement an automatized active learning scheme to efficiently generate diverse training data and demonstrate that ACE potentials fitted on small oligomers are transferable to larger polymers. Given that the accurate reproduction of the density depends critically on a correct description of intermolecular interactions, which are far more complex to learn than intramolecular interactions, we carefully evaluate the performance of the ACE potentials with respect to non-bonded interactions. By utilizing the computationally efficient OPLS-AA force field as a ground truth reference, we are able to perform a direct comparison of nanosecond-scale MD trajectories resulting from the ACE and reference potential. We find that the ACE potential accurately reproduces key thermodynamic, structural and dynamical properties. 
+
+# 1 Introduction 
+
+Polymers represent an important class of materials and are used for various different applications, including but not limited to packaging 1,2 , medicine 3,4 or battery electrolytes 5–7 . Their properties are determined by the chemical com-position, shape of individual polymer molecules and also their processing. 8–10 The design of new or tuning of known polymeric systems is therefore highly non-trivial and requires deep expertise, laboratory experiments as well as compu-tational studies. 11,12 For years, polymers have been studied in computational chemistry and physics to understand their basic underlying physics. Whereas ab initio methods like Density Functional Theory (DFT) can provide an understanding of polymerization processes and electronic properties, it is limited to small systems of a couple of hundred atoms and time scales of picoseconds. Therefore, large polymeric systems can not be modeled. 13,14 Contrary to DFT, molecular dynam-ics (MD) simulations are unable to describe the polymerization process and also less accurate but enable simulations of large bulk systems with thousands of atoms at the nanosecond timescale, providing insights into the polymeric structure, coiling behaviour and size as well as entanglements. Additionally, also the dynamics can be characterized, which might be strongly governed by the underlying structure, e.g. by entanglements. 15–17 Typically, this requires nanoseconds long simulations due to slow relaxation processes and restricted dynamics. 18,19 
+
+Recently, Machine Learning Interatomic Potentials (MLIPs) have evolved as a powerful tool, which aim to combine the efficiency of classical MD simulations with the accuracy of ab initio calculations. Whereas classical MD relies on handcrafted, analytical and physical interpretable potentials, MLIPs rely on flexible machine learning models, which allow to tune their accuracy based on the number of parameters and the accuracy of the underlying training data. 20–22 
+
+Typically, they predict energie and forces based on the local atomistic environment, which can be represented via atomic descriptors like SOAP 23,24 , LMBTR 25 or ACE 26 . Another advantage of MLIPs is that no fixed topology of molecules needs to be defined, allowing in principle reactions to take place. The MLIPs can learn the molecular topology directly from the data. This is not possible with classical potentials, for which the topology needs to be fixed to describe bonded interactions via analytical functions. So far, MLIPs have been successfully trained and applied for various crystalline and amorphous systems as well as small organic molecules, including the description of reactions. 20,27 On the one hand, there are highly specialized MLIPs, trained specifically on a particular system of interest and on the other hand, there are so-called foundation models, which are trained on large data sets comprising a huge portion of the chemical space 28–30 .1arXiv:2608.01162v1 [cond-mat.soft] 2 Aug 2026 For macromolecules like polymers to our knowledge there exists only a handful of studies in which MLIPs for poly-mers are trained, applied and evaluated. Foundation models for polymers do not exist up to know, although recently with OPoly26 a large data set was published which may serve as a starting point 31 .Potential future applications of MLIPs for polymers would allow for example to study polymerization reactions and electronic properties under operating conditions, which might have a strong impact on structure and dynamics. The existing studies focus mainly only on certain aspects of MLIPs of polymers, but a systematic evaluation is missing. Long et al. provide an overview about the recent developments and future challenges 32 . One early study focused on crys-talline organic polymers, demonstrating the importance of correctly fitted van der Waals interactions 33 . For polyethylene glycole (PEG), it was demonstrated that using a GAP potential with single oligomer structures as training data, correct experimental densities and stable simulations for a single long polymer chain can be achieved 34 . Another work on PEG employed clusters of small oligomers as training data and also characterized the local structure and density, diffusivity and heat capacity depending on the oligomer size. The results were compared to the OPLS4 force field 35 . For Polyacry-lonitrile (PAN) structures obtained with a neural network potential were compared to structures obtained with the ReaxFF force field 36 . All these studies trained MLIPs based on oligomers that were much smaller than the polymers to which they were applied, indicating that this approach is effective. Except of the last study, all others used also some active learning scheme to efficiently sample training data. Other approaches aim to refit analytical potentials using ML techniques or replace only some interactions by ML potentials 37,38 .Whereas different aspects of fitting MLIPs for polymers are distributed across these different publications a systematic investigation is missing so far. It is well established that polymer structures can be reproduced well, however, for the dynamics this is still open to discussion, since reference simulations with DFT for polymers are not feasible on the necessary time scales. Based on the existing literature, we identified several key questions, which remain unanswered so far: (1) Which local atomic descriptor is best suited for polymeric systems? (2) Do MLIPs trained on single oligomer molecules perform better than those trained on clusters, and what is the optimal cluster size? (3) What is the minimum oligomer size required during training to maintain a high accuracy when applying the MLIP to a polymeric system? (4) Can a carefully trained MLIP preserve the polymer topology during nanosecond-scale simulations? (5) How do small prediction errors affect key structural and dynamical properties in oligomers and polymers? (6) Can the dynamics of large entangled polymers be accurately reproduced by an MLIP? Question (1) and (2) are unexplored so far, since a comparison of different descriptors and of different cluster sizes as training data for the same system are missing in the existing literature. Both questions are explicitly considered in this work. The issue of minimum chain length (3) was recently explored by Hooven et al. 39 through the systematic training of MACE potentials on a series of single alkane molecules from methane to octane. While they demonstrated that potentials trained on butane or larger species are highly transferable with regards to energy and force predictions, the performance of these models in bulk phases remains untested. We aim to fill this gap by training MLIPs for alkanes and polyethylene as a simple model system and directly apply them for bulk phase simulations. Thereby, we furthermore answer questions (4), (5) and (6) which were to our knowledge not addressed so far in existing literature. This work is structured as follows: First, we evaluate various local atomic descriptors assessing their similarity across varying alkane and cluster sizes. We then systematically train ACE potentials on clusters of alkanes with different lengths, utilizing an active learning scheme to efficiently sample the relevant configurational space. This training process is analyzed to determine the optimal chain length and cluster size, with a particular emphasis on the accurate reproduction of intermolecular interactions. The resulting optimal ACE potential is then applied to bulk simulations of polymers of varying lengths to analyze their structural and dynamical properties, which are benchmarked against reference simulations. Because these fundamental methodological questions can be addressed independently of the accuracy of the training data, we utilize the computationally efficient OPLS-AA force field 40 as ground truth reference instead of computationally costly DFT. This approach enables a rapid sampling of the configurational space and therefore enables the testing of various active learning configurations and data sets. Furthermore it enables nanosecond-scale reference simulations, which are essential to characterize the inherently slow dynamics of polymer chains. 
+
+# 2 Methods 
+
+## 2.1 Polymer model systems 
+
+Polyethylene (PE) was selected as a representative model system due to its simplicity, comprising only carbon and hy-drogen as atomic species. In MD simulations, PE exhibits only small long-range electrostatic interactions due to its low partial charges. These characteristics make PE the ideal candidate for rapid training and also evaluation of MLIPs, which rely typically on the locality assumption. However, despite the structural simplicity of PE, the developement of an accurate MLIP remains a significant challenge. Specifically, very weak van-der-Waals interactions, which are orders of magnitude smaller than intramolecular interactions, are often poorly captured by MLIPs. Previous research has indicated that carefully curated reference data, including single molecules in vacuum and volume scans, are necessary to overcome the inherent 2difficulty MLIPs face when predicting energies and forces across several orders of magnitudes 41 . In this paper, we examine PE chains of varying lengths, ranging from small alkanes (C 2H6) up to C 512 H1026 and train MLIPs either for individual chain lengths or combined sets. 3D molecular structures are generated from SMILES strings using RDKit 42 
+
+up to C 16 H34 and an in-house tool beyond. 
+
+## 2.2 Atomic Cluster Expansion model 
+
+The atomic cluster expansion (ACE), originally proposed by Drautz 26 , provides a generalized framework for descriptor-based MLIPs. It translates the local atomic environment of an atom into a vector-based descriptor, defined by a set of many-body basis functions. Using this formalism an atomic property of atom i can be expanded as 
+
+φ (p) 
+
+> i
+
+=
+
+> nν
+
+# ∑
+
+> ν
+
+cν(p) Biν (1) where Biν are the basis functions and cν(p) are the corresponding coefficients which need to be fitted via linear regres-sion. ν = Knl is a multi-index, where K refers to the number of atoms considered in a multi-body interaction and n and l
+
+are quantum numbers of atomic orbitals, that appear in the construction of the basis functions Biν . In general, the atomic energy is expressed as 
+
+Ei = F
+
+
+
+φ (1) 
+
+> i
+
+, φ (1) 
+
+> i
+
+, ..., φ (P)
+
+> i
+
+
+
+(2) However, in the simplest case of only one atomic property it is equal to the atomic energy. 
+
+Ei = φ (1) 
+
+> i
+
+(3) Within this paper, we employ only one atomic property for simplicity. Furthermore, we restrict the expansion to two-body, three-body and four-body basis functions. This matches the type of interactions encountered in the OPLS-AA force field 40 which we employ as a reference (see Computational details). In the limit of an infinite number of basis functions of these body-orders, the OPLS-AA force field should be perfectly reproduced. However, for computational efficiency, we select only 606 basis functions in total. Furthermore, the cutoff radius to describe the local atomic environment is limited to 7 ˚ A. Note that many foundation models, fitted to large data bases, employ even smaller cutoff radii of 5 ˚ A or 6 ˚ A43 .The coefficients of the basis functions are optimized by minimizing a loss function, which is given by 
+
+L = ( 1 − κ)
+
+> Nstruct
+
+# ∑
+
+> n=1
+
+w(E)
+
+> n
+
+ EACE  
+
+> n
+
+− EREF 
+
+> n
+
+nat ,n
+
+2
+
++ κ
+
+> Nstruct
+
+# ∑
+
+> n=1
+> nat ,n
+
+# ∑
+
+> i=1
+
+w(F)
+
+> ni
+
+ FACE  
+
+> n
+
+− FREF 
+
+> n
+
+nat ,n
+
+2
+
+(4) where EACE  
+
+> n
+
+, EACE  
+
+> n
+
+, FACE  
+
+> n
+
+and FREF  
+
+> n
+
+are the energies and forces predicted by ACE and the corresponding ground truth. Nstruct is the number of different structures used for training an ACE potential and nat ,n is the number of atoms in structure n. w(E) 
+
+> n
+
+and w(F) 
+
+> ni
+
+are weighting factors which can be used to weight important structures higher than less important structures. κ weights the energies and the forces in the loss function. Within this paper, we weight the forces comparatively high by setting κ = 0.95, since they ultimately govern the dynamics, while an offset in the potential energy has no effect. 
+
+## 2.3 Active Learning Workflow 
+
+To enable the autonomous training of ACE potentials with minimal human intervention and computational overhead, we developed an active learning (AL) workflow that integrates existing software tools with custom-developed implementa-tions. The full workflow is displayed in Figure 1a and explained below. 
+
+2.3.1 Initialization 
+
+The AL procedure is initialized by performing MD simulations of a single molecule utilizing the LAMMPS software 44 .Snapshots from these simulations serve as the initial structural data base for the subsequent potential fitting. The reference energies and forces for these structures are calculated using the selected reference method. For DFT-based calculations the GPAW software 45 is integrated into the workflow, while LAMMPS is utilized for MD-based reference calculations. 
+
+2.3.2 ACE potential fitting 
+
+An ACE potential is fitted to the initial structures using the pacemaker software tool 46 , employing the L-BFGS solver for a maximum of 1000 iterations. Note that each potential is fitted from scratch during further AL iterations to avoid being stuck in local minima. More detailed setting of pacemaker are described in the SI ( section S1). 3Initial simulation (NVT)      
+
+> (single molecule, 𝑁 mol =1)
+> Fit potential
+> Short test simulations (NVT)
+> Perform volume scans
+> Perform single point
+> calculations
+> Select extrapolative
+> structures
+> Database
+
+# (a)  (b)
+
+Setup  Calculations 
+
+> Orchestrator
+
+Manage Data 
+
+and Jobs 
+
+## ACELearner Automated active learning workflow 
+
+## for polymer ACE potentials 
+
+Volume Scan 
+
+# (c)
+
+pacemaker                                  
+
+> Increase number
+> of molecules
+> Iteration 𝑁 mol
+> ≥01
+> ≥82
+> ≥12 4
+> ≥16 6
+> Chain length 𝑵 c
+> Setup 1:
+> 𝑁 c=2,3,4,8or 16
+> Setup 2:
+> 𝑁 c=6,𝟖 and 10
+> ▪General
+> Settings
+> ▪Molecule
+> Definition
+> (SMILES)
+> ▪Topology
+> ▪Force
+> Fiel d
+> ▪Create 3D molecular
+> structures
+> ▪Simulation setup
+> ▪Single point
+> calculation setu p
+> ▪Data collectio n
+> ▪Perform volume
+> scans
+
+Figure 1: a) Schematic active learning workflow for fitting ACE potentials applied within this work. b) Illustration of ACELearner as an orchestrator tool to manage the active learning workflow based on YAML setup files. c) Visual explanation of volume scans. 
+
+2.3.3 Test simulations 
+
+To evaluate the ACE potential, several MD test simulations are initiated. The initial setup consists of a single molecule in a periodic box; however, as the active learning process evolves, additional molecules are introduced at predefined iterations to increase system complexity. This strategy is designed to prioritize the accurate fitting of intramolecular interactions before subsequently incorporating intermolecular interactions through small molecular clusters and bulk systems. Within this work, at iteration 8, 12 and 16 further molecules are added, such that the setup consists of 2, 4 and 6 molecules. After 20 iterations, the active learning is stopped. Note that to ensure a more diverse exploration of different local atomic configurations, several short test simulations (typically 50 ps within this work) with different initial structures and velocities are performed rather than one long test simulation. This is particularly efficient during the first AL iterations, where only a few extrapolative structures per test simulation are encountered before the simulation is stopped due to a high extrapolation grade of the ACE potential (see below). 
+
+2.3.4 Extrapolation grade 
+
+In the ACE formalism, each local atomic environment i is represented by a corresponding vector of basis functions 
+
+Bi = ( Bi1, Bi2, . . . , Bin ν ). Each vector can be also represented as a combination of a subset of vectors BAk that span the largest volume of at most nν linear independent vectors among all vectors representing atomic environments. 47 
+
+Bi =
+
+> nν
+
+# ∑
+
+> k=1
+
+γ(i) 
+
+> k
+
+BAk , (5) The coefficients γ(i) 
+
+> k
+
+can be identified as a metric to measure the extrapolation for a given atomic environment i. Together, the vectors BAk form the active set matrix: ˆA =
+
+
+
+B11 . . . B1nν
+
+... . . . ...
+
+Bnν 1 . . . Bnν nν
+
+ (6) By solving the matrix form of Equation 5 for γ(i) 
+
+> k
+
+, it can be directly calculated. The maximum occurring γ(i) 
+
+> k
+
+for atom i is then defined as the corresponding extrapolation grade for this atom and can be calculated as: 47 
+
+γi = max 
+
+> k
+
+
+
+|γ(i) 
+
+> k
+
+|
+
+
+
+= max |Bi · ˆA−1| (7) 4If |γi| < 1 there is only interpolation, however, if |γi| > 1 extrapolation is observed. |γi| = 1 means that a given atomic environment is exactly represented in the active set. In practice, all structures with an extrapolation grade larger than γext , which is typically between 1-10, are collected. As a native choice, γext = 2 was selected for this work. Furthermore, if γi exceeds the threshold γstop , the complete simulation is interrupted. Unless otherwise specified, a value of γstop = 3.5 is used throughout this study. From all collected extrapolative structures, a subset of most diverse structures is selected for addition to the training data base, using the pacemaker utility tools 46,47 , to avoid the addition of similar or duplicate structures. 
+
+2.3.5 Volume scans 
+
+To further improve the potential with respect to non-bonded interactions, a volume scan is performed on some or all structures within this subset. During the volume scan the simulation box is scaled to increase the distance between individual molecules while preserving all intramolecular distances, as illustrated in Figure 1b. This procedure enables the MLIP to more effectively differentiate between inter- and intramolecular interactions. 41 If not mentioned otherwise, a subset of maximum 50 structures is selected within this work per AL iteration, and a volume scan is performed for not more than 25 of them, where for each structure 6 different volumes are selected by scaling the original box length with equidistant factors between 1.0 and 1.2. For all of those structures, reference calculations are performed prior to their addition to the data base and the subsequent fitting of the potential. 
+
+2.3.6 Termination 
+
+If no extrapolated structures are identified, it is checked whether the maximum number of molecules in the test simulation has been reached. If not, additional molecules are introduced earlier than initially scheduled. The AL procedure terminates either when the maximum number of iterations is reached or when no further extrapolated structures are identified for the maximum-sized system. 
+
+2.3.7 Refining the final potential 
+
+Upon completion of the AL workflow for a combined set of chain lengths Nc = 6, 8 and 10, a refined potential was trained on the full dataset. Since the BFGS optimizer 48 employed in the pacemaker tool is susceptible to local minima, five independent ACE potentials were trained using different random seeds to ensure a more robust optimization. The best performing potential was then selected as a starting point for further optimization. An additional 1000 L-BFGS iterations were performed using an adjusted loss function with κ = 0.05 to ensure the accurate reproduction of energies and min-imize any systematic energy offsets. 95 % of all structures collected during the AL process were used for training the refined potential and 5 % were used for testing. A similar strategy was also applied to fit potentials to with the data sets obtained after iterations 8, 12 and 16 to evaluate the effect of the additional training data without any bias. 
+
+2.3.8 ACELearner software 
+
+All important parameters of the AL procedure are configurable via a YAML setup file. This file serves as the input for the ACELearner software, which acts as an orchestrator for the entire workflow (see Figure 1c). ACELearner automat-ically initializes the reference simulations from a SMILES string of the molecule under consideration, manages the AL procedure and data handling, and interfaces with the Slurm workload manager to execute computationally costly potential fitting and testing and all reference calculations in parallel within a high-performance-computing (HPC) environment. The detailed setup and parameters of the ACELearner AL workflow are described in the SI (section S2). 
+
+# 3 Results and Discussion 
+
+## 3.1 Comparison of local descriptors 
+
+For reliable and accurate MD simulations with MLIPs, it is essential that the local atomic environments encountered dur-ing the MD simulation are well-represented within the training set. Otherwise, the MLIP may extrapolate which can lead to non-physical or unstable simulations. The similarity of local atomic environments can be characterized by comparing the corresponding local atomic descriptors across different structures. In this work, we evaluate three descriptors, com-monly employed in the development of MLIPs: The Atomic Cluster Expansion (ACE) descriptor, the Local Many-Body Tensor Representation (LMBTR) 25 and the Smooth Overlap of Atomic Positions (SOAP) 23,24 . These descriptors were applied to a dataset comprising single molecules and clusters of up to six oligomers. The oligomer chain lengths vary from two carbon atoms (ethane) up to sixteen (hexadecane), with all oligomers within a cluster maintaining a consistent size. Details about the dataset can be found in the SI (section S3). Figure 2 displays the two most important principle components (PCs) from a principle component analysis (PCA) 49 
+
+of the high-dimensional descriptors. In Figure 2a-c, the local atomic environment described by ACE, LMBTR and SOAP are color-coded by the oligomer size. Three distinct observations can be made. 5Figure 2: Comparison of regions within the descriptor space covered by clusters of different sizes Nmol and with different chain length Nc. a)-c) are color-coded by the chain length and d)-f) are color coded by the size of molecules within a cluster. As descriptors a), d) ACE, b), e) LMBTR and c), f) SOAP are compared. The concave hulls of the clusters for individual Nc and Nmol are indicated as colored lines. First, ACE and LMBTR effectively cluster atoms of different atom types, whereas SOAP fails to separate different atomic environments clearly. Furthermore, ACE and LMBTR also manage to distinguish between central (CH 2) and terminal (CH 3) carbon atoms, which is critical for a correct representation of the oligomer topology. If a descriptor fails to distinguish between CH 2 and CH 3, there is a risk that oligomer chains may break or merge during simulations. Second, smaller oligomers occupy a smaller region of the ACE and SOAP descriptor space. As oligomer length increases, a larger region is explored. This is driven by two effects: an increased density of larger oligomer clusters due to enhanced van der Waals interactions, and the emergence of different structural motifs, such as increased flexibility and bending in longer chains. These effects are most pronounced in the SOAP descriptor, which is highly sensitive to the system density, and less significant in the ACE descriptor. For the LMBTR descriptor a shift of the occupied regions is observed with increasing chain length rather than an expansion. Third, for ACE, we observe that the descriptor space for hydrogen and terminal carbon atoms is nearly fully explored using as small oligomers as propane. The only exception is the region occupied by terminal carbon atoms in ethane, which differs because the terminal carbon atoms are bonded directly to one another. While the region of the descriptor space that describes the central carbon atom expands as the oligomer size increases from propane ( Nc = 3) to octane ( Nc = 8), the regions descried by octane and hexadecane ( Nc = 16) nearly fully overlap. Consequently, it is expected that octane is sufficient to accurately represent central carbon atoms in much larger oligomers or polymers. In Figure 2d-f the local atomic environments are color-coded by cluster size. We observe effects similar to those seen when increasing the oligomer length. For SOAP, single molecules and small clusters occupy a limited region of the descriptor space while larger clusters occupy a significantly extended region. For LMBTR the regions are slightly expanded and additionally shifted. This expansion and shift diminish as the cluster size increases, becoming marginal when increasing the cluster size from four to six molecules. This suggests that for bulk simulation SOAP and LMBTR require the inclusion of larger clusters or, ideally, bulk struc-tures in the training set of any MLIP to avoid extrapolation. In contrast, the ACE descriptor shows a similar occupation of the descriptor space by single molecules and larger clusters. This implies that an MLIP trained on a single molecule using ACE could potentially yield an accurate description of bulk structures. Consequently, while LMBTR and SOAP require training sets composed of large clusters or long-chain polymers to ensure a sufficient overlap with bulk structures, the ACE descriptor remains robust even when trained only on small clusters or single molecules of relatively short oligomers such as octane. Based on these findings, we have selected the 6ACE descriptor as the ideal candidate for our subsequent studies. 
+
+## 3.2 Active Learning 0 5 10 15 20    
+
+> Iteration
+> 200
+> 400
+> 600
+> 800
+> 1000
+> Ave. Sim. Time [ps]  1246
+
+(a)        
+
+> 0510 15 20
+> Iteration
+> 10 1
+> 10 2
+> 10 3
+> 10 4
+> RMSE  F [meV/ Å] 1246
+
+(b)        
+
+> 0510 15 20
+> Iteration
+> 10 1
+> 10 2
+> 10 3
+> 10 4
+> RMSE  Epot  [meV/atom]  1246
+
+(c)            
+
+> Nc= 2 Nc= 3 Nc= 4 Nc= 8 Nc= 16 Nc= {6,8,10}
+
+Figure 3: Evaluation of the active learning process of training ACE potentials on oligomers of a single specific length and a combination of 3 different length. a) Average simulation time of test simulations before hitting the stopping criterion due to extrapolation. The maximum simulation time is 1 ns. Evolution of b) the RMSE of forces and c) RMSE of atomic energy during the active learning process. The number of molecules employed in the test simulations is shown at the top of the figures. The dashed line represents the RMSEs of the refined ACE potential after iteration 20. In the following, we evaluate the AL process as described above for training ACE potentials on oligomers of a specific chain length and evaluate the transferability of the potentials to oligomers of different sizes. Therefore, we define two different objectives which should be achieved during the AL process. 1) The potential must lead to stable trajectories for long timescales. 2) The accuracy must be sufficient. We evaluate the first objective, by performing extended test MD simulations over 1 ns for each ACE potential trained during the AL loop. Note that these include explicitly not the refined potentials. The simulations were stopped if γstop > 3.5was exceeded. Similar to the test simulations during the AL loop, they contain 1 molecule up to iteration 8, 2 molecules up to iteration 12, 4 molecules up to iteration 16 and 6 molecules beyond. Figure 3a depicts the average simulation over these simulations. For single molecule test simulations, the chain length has a small impact on the stability. For most chain lengths Nc = 8 and Nc = 16 the target simulation time was almost achieved after five AL iterations. However, for smaller chain lengths the simulations remain partially unstable even after seven iterations. For Nc < 8, there is no clear trend in the simulation stability, since the potentials for Nc = 3 are more stable than the simulations for Nc = 4. Only the simulations for Nc = 2 are clearly the most unstable ones. These differences may be attributed partly to statistical fluctuations, however there is also another possible explanation: While the number of initial training structures and structures added per AL iteration is identical, the chain length is different. Thus more training data is available in terms of local atomic environments with an increasing chain length. Contrary, larger chains have also more degrees of freedom (reflected by an increased coverage of the descriptor space) and are thus more difficult to characterize and require an increased amount of training data, such that there might be an optimal chain length in the sense that it balances the number of available local environments and degrees of freedom. When a second molecule is added for the test simulations but not yet for the training data (iteration 8) the average simulation time drops significantly. For chain lengths Nc < 16 the simulations are very unstable with less than a nanosec-ond simulation time achieved on average. Only for Nc = 16 there is just a small decrease in the stability, indicating that relevant intermolecular interactions have been learned already from a single chain. This behavior is only possible for longer chains, which possess sufficient conformational flexibility to bend and allow chain ends or other segments to interact via non-bonded interactions. By adding a small number of structures containing clusters of two molecules to the training set (iteration 10), simulations for chain lengths Nc = 8 and Nc = 4 become stable. However, the chain lengths Nc = 3 and Nc = 2 require more structures to obtain stable simulations. This is attributed to a low density of smaller alkanes, which remain in the gaseous phase rather than forming clusters. Additionally to the smaller number of local atomic environments they provide just limited new information. To counteract this, increasing the number of molecules in the simulation box enhances the frequency of intermolecular interactions. Once they are adequately learned, including larger clusters in the training set does not further improve stability. Stability across all chain lengths is achieved after 20 AL iterations, except for Nc = 2 where the average simulation time remains only close to 900 ns. Note that larger fluctuations for the stability, e.g. as observed for Nc = 16 in iteration 19, may be caused by non-optimal fitted parameters of the ACE potential, which is conditional to the random initialization of parameters. 7The second objective is evaluated by calculating the RMSE of the forces and the potential energy on an external test set, which is similar to the set of structures employed in the PCA analysis. Because this test set of structures encompasses various chain lengths, the resulting RMSEs provide insight non only into the performance of the trained potential for a specific chain length but also into its transferability across different chain lengths. Figure 3b and c display the RMSE of the forces and the potential energies, respectively. Since Nc = 2 occupies a different region in the descriptor space, RMSEs are expected to be higher if not trained specifically on this chain length. Therefore, the RMSEs were additionally calculated without considering Nc = 2 in the test set, however, no significant impact on the RMSEs was found for Nc ≥ 8. Note that the RMSEs of the refined potential for Nc = {6, 8, 10 } after ifteration 20 is shown as a dashed line in these figures for reference. For the RMSE of the forces depicted in Figure 3b two distinct regimes are observed depending on the chain length. For the potential trained on Nc < 8 the RMSE is larger than 2 · 10 3 meV ˚ A−1, compared to 200 meV ˚ A−1 for Nc = 8 and 100 meV ˚ A−1 for Nc = 16 in the initial iteration. Note that RMSEs below 100 meV ˚ A−1 are already within an acceptable range of errors, typically encountered in other MLIP applications 28,41 .Whereas for Nc ≥ 8 a slight decrease of the RMSE during the initial 2 AL iteration can be observed, there is no such trend for smaller oligomers. While only a single molecule is present in the training set, the RMSE remains constant and only drops if clusters of two molecules are added to the training set. When comparing Nc = 2, Nc = 3 and Nc = 4, the improvement increases for larger chain lengths and only for Nc = 4 the RMSE is in an acceptable range below 100 meV ˚ A−1 after 11 iterations. For Nc = 8 the RMSE decreases also further and converges to the RMSE observed for 
+
+Nc = 16, which is 36 meV ˚ A−1. This is already close to the optimum since no significant further improvement is observed for these chain lengths during later AL iterations including also larger clusters in the training set (RMSE of 35 meV ˚ A−1
+
+after 20 AL iterations). For Nc = 4 the RMSE improves further and equals 46 meV ˚ A−1 after 20 AL iterations. Also for 
+
+Nc = 3 the RMSE of 126 meV ˚ A−1 is still acceptable. Only for Nc = 2 it is larger than 1800 meV ˚ A−1 and therefore not applicable in any simulation. Whereas it seems to be possible to train a potential for PE using only butane ( Nc = 4) in the training set, slightly larger oligomers require a significantly reduced number of training iterations. Based on these results either a single oligomer chain of hexadecane ( Nc = 16) or two oligomers of octane ( Nc = 8) seem to be optimal and reach a similar RMSE below 40 meV ˚ A−1 after a few AL iterations. Potentially, the number of AL iterations can be further reduced for octane if a second molecule is employed in the test simulations already during the first AL iterations. For the RMSE of the energy, which is shown in Figure 3c, the trends are not such clear. This is caused by a higher weighting of forces in the loss function, with the refined potential as an exception. However, for Nc ≥ 8 the RMSE is almost constant within fluctuations during all AL iterations, whereas it drops for Nc < 8 after adding clusters of two oligomers to the training set. After 20 AL iterations the RMSE is nearly independent of the chain length employed in the training set. The observed RMSE fluctuates strongly between approximately 10 meV /atom and 200 meV /atom. This is much higher than expected and found in literature for similar systems of small molecules. However, the high RMSE is mainly caused by a trivial shift in potential energy that depends on the ratio of carbon to hydrogen atoms and thus also on the chain length (see SI Figure S1) 39 . This shift cannot be captured by including only oligomers of a single chain length in the training set. However, by incorporating various chain lengths, the shift can be learned, and the RMSE is substantially reduced. We demonstrate this by training a potential on a combined set of Nc = 6, 8 and10 (see refined potential), using an AL scheme similar to that used for the individual chain lengths. Note that we have analyzed the choice of temperature in the test simulations as well as the choice of the cutoff radius for the ACE potential for collecting the data in a similar manner (see SI Figure S2). It turns out that including structures obtained from simulations with higher temperatures in the training set provides a generally better description for simulation at other temperatures than including only structures sampled at low temperatures. The cutoff radius has only minor impact. During the first AL iterations when only single molecules are sampled a smaller cutoff-radius leads to a faster decrease of the RMSEs. However, as soon as clusters of molecules are considered, a larger cutoff-radius becomes slightly beneficial. 
+
+## 3.3 Inter-molecular interactions 
+
+In the following, we focus on the correct representation of intermolecular interactions, as they are critical to accurately de-scribe the density of a bulk system; even slight deviations can have a significant impact on the computed density. Figure 4 shows the intermolecular potential as a function of the simulation box volume for a cluster of six octane molecules. While scaling the volume of the box, all intramolecular distances were kept constant. The black line represents the ground truth reference intermolecular potential energy. The colored data points represent the energies obtained from ACE potentials at different stages of the active learning procedure, incorporating different chain length Nc = 6, Nc = 8 and Nc = 10 in the training set. Since the potential energy offset can be chosen arbitrarily and does not affect the computed forces, all potentials were shifted to align their minima. While all ACE potentials accurately describe the interamolecular potential energy close to the equilibrium volume, significant deviations may emerge at larger volumes where intermolecular distances increase. Specifically, potentials fitted only on single molecules during early stages of the AL process (iteration 8) underestimate the intermolecular potential 88 10 12 14 16 18 Volume [nm 3 ]0.8 0.6 0.4 0.2 0.0 0.2 0.4 0.6 
+
+> E inter  [meV/atom]
+> Reference Iteration 8 Iteration 12 Iteration 16 Iteration 20
+
+Figure 4: Inter-molecular potential energy for volume scans using refined ACE potentials from different iterations of the active learning loop. The reference is shown as a black line. All potentials are shifted such that their minima are aligned. energy at larger volumes. This would likely result in an overestimated bulk density. When clusters of at least two molecules are included in the training set the predictions closely follow the ground truth reference, with some minor deviations emerging at increased volumes beyond the equilibrium, which is described by all potentials sufficiently well. There are no significant trends observed in the potentials fitted at later stages of the AL procedure. For example the potential fitted at iteration 12 is most accurate for the largest volumes, whereas the potential fitted at iteration 16 is most accurate for intermediate volumes. The potential fitted at iteration 20 is not optimal for both but provides a solid accuracy over the full volume range. Note that it is inherently important to refine the potential by shifting to a higher weighing of the energy in the loss function in a second step, since otherwise inaccurate predictions are obtained for large volumes where premature plateaus of the potential energy are observed (see SI Figure S3). These results underscore the importance of an appropriate selection of training data and careful weighting of energies versus forces in the loss function. Furthermore, it highlights the necessity of of analyzing specific interaction components rather than relying solely on total energy and force errors, as deviations in intermolecular interactions can be masked by the dominating intramolecular part. Additional dissociation curves of two aligned octane molecules are shown in Figure S4. All trends remain similar, however, the predictions are less accurate and non-physical oscillations occur in the energy vs. volume curves caused by interpolation errors, since perfectly aligned alkanes are not part of the training set. This demonstrates also some limits of the refined ACE potential, which nevertheless shows reasonable interpolation capabilities for unseen structures. In amorphous structures the observed oscillations would be averaged out, even if they were still present. While a single volume scan is illustrative to understand the fundamental behaviour of fitted potentials, it is not suf-ficient to evaluate the accuracy and compare different potentials. Thus, we performed a more detailed analysis of the predictive performance for inter- and intramolecular interactions by calculating the individual contributions for the test set of the refined potential after iteration 20, which comprises 5 % of all structures collected during the AL procedure. Figure 5a-c shows the predicted total, intra- and intermolecular forces and energies plotted vs. the ground truth reference for the refined potential at this iteration. Generally, a good agreement between predictions and ground truth reference is observed. The agreement is in particular excellent for the intramolecular forces (R2-score of 0.999), while the intermolecular forces have a slightly lower R2-score of 0.958. While the R2-score is an intuitive first metric, it lacks the capability of quantifying the exact error of the potentials. Complementary to the R2-score, the root mean squared error (RMSE) of the forces and energies provides exactly this information. However, since intramolecular forces and energies are typically orders of magnitudes larger than the inter-molecular contributions, the RMSEs for both are not directly comparable. Therefore, we introduce a normalized RMSE, which is calculated by dividing the RMSE by the reference root mean squared energies or forces, respectively. When evaluating the RMSEs for different AL iterations (see Table 1 and SI section S10 for the pairplots), only a very small improvement is observed for intramolecular forces from 36.9 meVA −1 after iteration 8 to 33.1 meVA −1 after iteration 20. For the intermolecular interactions the RMSE decreases from 21.3 meVA −1 after iteration 8 to 7.3 meVA −1
+
+after iteration 12 and then only decreases slowly to 5.4 after iteration 20, indicating that the main improvement emerges when adding clusters of two atoms to the training set. Also for the total forces, the main improvement is observed when going from iteration 8 to iteration 12. The trends are also resembled in the normalized RMSE, allowing to compare the relative error of intra- and intermolecular forces. For the intramolecular forces a normalized RMSE between 0.037 and 0.033 is observed, which is much smaller than the normalized RMSE for intermolecular forces with 0.808 after iteration 8 and 0.203 after iteration 20. This indicates that significant deviations in the predictions of the intermolecular forces are still present. They could be attributed to the fact that the ACE potential applies a cutoff radius such that interactions beyond can be only considered in a mean field manner. This gives rise to a strongly increased normalized RMSE, compared to 9Figure 5: Pairplots of predicted versus true a) total forces, b) intramolecular forces, c) intermolecular forces, d) total energies, e) intramolecular energies and f) intermolecular energies for the final ACE potential. RMSE and normalized RMSEs are provided for each contribution. The normalized RMSEs are calculated by dividing the RMSE by the root mean squared reference forces and energies. The black dashed lines represent a perfect fit, the red dashed lines repersent a linear fit of predicted vs. true forces and energies. intramolecular interactions, which are all captured within the cutoff radius. The energetic contributions corresponding to the forces are also shown in Figure 5d-f. Whereas for the refined po-tentials after iteration 16 and 20 good agreement between predicted and true intra- and intermolecular interactions is observed, similar pairplots for refined potentials fitted at earlier stages of the AL process directly show larger deviations especially for the predicted intermolecular energy compared to the ground truth reference (see SI section S10). In particu-lar, the slope of predicted vs. true intermolecular energies is significantly larger than one after iteration 8 and significantly smaller after iteration 12. This is also directly reflected by a significantly higher RMSE of the intermolecular energy, compared to later iterations. When considering only the energetic contributions, the RMSEs of all interaction types are smaller after iteration 16 than after iteration 20, e.g. the RMSE of the intermolecular energy is 0.09 meV atom −1 and 0.12 meV atom −1, respec-tively. This could be explained by the fact that primary forces where optimized during the first step of the potential training and furthermore different local minima of the ACE parameters are discovered, leading to slightly different RMSEs close to the optimum RMSE, when training with different training data. Overall, the refined potential after iteration 20 reproduces intra- as well as intermolecular interactions with high accu-racy. Since there is only a small improvement in the force predictions and no improvement in the energy predictions when adding more data from iteration 16 to iteration 20, improving the ACE potential further would require an disproportional large additional amount of data. Moreover, the potential is mostly not limited by data but by the choice of the complexity of the potential and the cutoff radius itself. 
+
+## 3.4 Density 
+
+The density can be considered as a central property which needs to be reproduced correctly as a prerequisite to reproduce also other structural and dynamical properties correctly. The accuracy of the refined ACE potential after iteration 20 is high enough to expect that also the density as a bulk property, which is very sensitive to intermolecular interactions, should be reproduced sufficiently well. However, the exact effect of the error in the predictions of intermolecular interactions remains unclear so far. To check this, we performed a series of bulk simulations with the reference and with the refined ACE potential after iteration 20 and plot the observed density vs. chain length for fixed temperatures and density vs. temperature for fixed chain length in Figure 6a and b, respectively. Exact values of the densities are provided in Figure S9. 10 Table 1: Comparison of the RMSE and RMSE normalized by the root mean squared forces and energy, respectively, for total, intra- and intermolecular forces and energies. Refined potentials were fitted to datasets obtained after different iterations of the AL process. The number of local atomic environments in each training data set is also provided. The RMSEs were evaluated for the same set of structures (test set for the refined potential fitted after iteration 20).                                                                    
+
+> Iteration Atomic environments RMSE Forces [meV ˚ A−1]RMSE Energy [meV atom −1]Normalized. RMSE Forces Normalized. RMSE Energy Total Intra Inter Total Intra Inter Total Intra Inter Total Intra Inter 821644 42.6 36.9 21.3 1.4 0.44 1.3 0.042 0.037 0.808 0.023 0.007 0.849 12 58230 34.8 34.2 7.3 0.62 0.51 0.30 0.034 0.034 0.278 0.010 0.008 0.192 16 139584 34.5 34.2 5.7 0.50 0.48 0.09 0.034 0.034 0.215 0.008 0.008 0.057 20 246238 33.4 33.1 5.4 0.52 0.49 0.12 0.033 0.033 0.203 0.009 0.008 0.077 10 3
+> 10 2
+> 10 1
+> 10 0
+
+(a)    
+
+> Reference
+> ACE
+> T=330
+> T=430
+> T=530 10 2
+> 10 1
+> 10 0
+
+(b)  
+
+> Reference
+> ACE
+> N=8
+> N=32
+> N=256
+> 10 110 2
+
+Nc      
+
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> | ACE  Ref Ref  |
+> 300 400 500 600
+
+T [K]    
+
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> | ACE  Ref Ref  |
+
+Figure 6: Comparison of densities in various bulk simulations with the reference and the ACE potential. a) Dependence of the density ρ on the chain length for fixed temperatures and b) dependence of ρ on the temperature for fixed chain lengths. The lower plots show the relative difference in densities between systems simulated with the ACE and the reference potential. While smaller oligomers (up to Nc = 4 at 300 K and Nc = 8 at 530 K) exist in the gaseous phase, larger oligomers and polymers are in the liquid phase (Figure 6a). Although the potential was trained on small oligomers between Nc = 6and Nc = 10, which includes both, gaseous and liquid phase structures around Ttrain = 430 K, it yields more accurate densities for larger polymers. Depending on the temperature, the relative difference between the reference and ACE densities ranges from 1 % and 10 % for small oligomers, peaks at nearly 100 % where the gas-to-liquid transition occurs and subsequently declines to below 2 % for Nc > 100. At T = 530 K the deviation is further reduced to below 0.5 %. A more detailed evaluation of the temperature dependence of the density is represented in Figure 6b, showing that the ACE potential reproduces the reference mostly well, particularly for larger polymers. For Nc = 256, the relative difference is 3 % at T = 293 K and drops below 2 % for T > 430 K. For intermediate chain lengths, such as Nc = 32, the deviations remain almost constant close to 2-3 % regardless of the temperature. Smaller oligomers ( Nc = 8) exhibit significantly larger errors, starting at 10 % at T = 293 K and peaking at nearly 100 % close to the phase transition temperature. In the gasous phase the density difference fluctuates between 10 % and 100 %. Although we are not primarily interested in simulating small oligomers in this study, these observations clearly show some limitations of the fitted potential. The comparatively lower density close to phase transition temperatures in simu-lations with the ACE potential are mainly caused by neglected long-range interactions due to the introduction of a cutoff radius of 7 ˚ A. The mean-field treatment of these long-range interactions within the ACE potential breaks down when the distances between molecules increase and also small contributions become important. Similar observations were already made when decreasing the cutoff-radius in simulations with the classical OPLS-AA force field . In contrast, if the molecules are sufficiently large such that the intermolecular interactions are strong enough to keep molecules close to each other even at elevated temperatures, the deviations in the predicted intermolecular interactions become less important. Furthermore, for larger molecules also topological restrains play a more important role, which keep molecules also close to each other due to entanglements. As a summary, even minor inaccuracies in the prediction of intermolecular interactions can lead to fundamentally different densities for small molecules, whereas larger molecules 11 are less sensitive to such deviations. 
+
+## 3.5 Structure 0
+
+> 5
+> 10
+> PDF
+
+(a) 
+
+> 0.00
+> 0.05
+> 0.10
+> PDF
+
+(b) 
+
+> 0.000
+> 0.002
+> 0.004
+> 0.006
+> PDF
+
+(c)      
+
+> Reference T=330 K T=430 K T=530 K
+> 1.4 1.6 1.8
+
+Distance [Å]   
+
+> 0.1
+> 0.0
+> 0.1
+> 100 120 140
+
+Angle   
+
+> 0.002
+> 0.000
+> 0.002
+> 100 0100
+
+Dihedral 
+
+> 0.001
+> 0.000
+> 0.001
+> 0
+> 10
+> 20
+> gatomistic (r)
+
+(d) 
+
+> 0.8
+> 1.0
+> 1.2
+> gmol (r)
+
+(e)         
+
+> 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5
+
+r [Å]   
+
+> 0.0
+> 2.5
+> 010 20
+
+r [Å]      
+
+> 0.0
+> 0.1
+> Reference N=8 N=10 N=12 N=14 N=16
+> 0
+> 2
+> 4
+> 6
+> PDF
+
+(f) 
+
+> 10 1
+> Rg [Å]
+> N0.5
+> N0.8
+
+(g)      
+
+> 123456
+
+Rg [Å]  
+
+> 1
+> 0
+> 1
+> 10 110 2
+
+N       
+
+> 0.025
+> 0.000
+> 0.025
+> Reference N=4 N=6 N=8 N=10 N=12 N=14 N=16
+
+Figure 7: Comparison of structural properties between systems simulated with the reference OPLS-AA and the fitted ACE potential. Distribution of carbon backbone a) bond distances, b) angles and c) dihedrals in octane. d) atomistic and e) molecular radial distribution functions of selected oligomers at 430 K. f) Distribution of the radius of gyration Rg for oligomers of different length. e) Dependence of the Rg on the chain length of the polymer at 430 K. The lower panel of each subplots shows the difference between the ACE and reference potential. We evaluated several structural properties of the oligomer and polymer bulk systems, including bond, angle and dihedral distributions of the polymer backbone to characterize the structure of individual chain segments, the full atomistic and molecular radial distribution functions gatomistic (r) and gmol (r), respectively, as well as the radius of gyration to characterize the chain structures in bulk. The key results are displayed in Figure 7, where the upper panel of each subplot shows the specific structural property obtained with the ACE and the reference potential and the lower panel shows the difference between the ACE and the reference potential. The local structure of individual chain segments is well reproduced by the ACE potential as depicted in Figure 7a-c for the bond distance, the angles and dihedrals for the carbon backbone atoms. The distributions obtained from the ACE and reference potential are almost identical for a broad temperature range, exemplary shown for temperatures between 12 330 K and 530 K for Nc = 8, although the ACE potential was only trained on structures generated at 430 K. For even lower temperatures, it is expected that the distributions are still well represented by the ACE potential, however, for higher temperatures the potential is expected to extrapolate significantly, since strong non-equilibrium structures are encountered, which are not well represented in the training set. This can be seen in reduced simulation times due to high extrapolation grades for T > 530 K. For these simulations, statistics are not reliable enough to obtain meaningful distributions (see SI Figure S10). When evaluating the difference in the distributions between the ACE and reference potential more carefully (lower panels of Figure 7a-c) it becomes evident that a small asymmetry is present in the ACE potential. For example, close to the equilibrium bond distance (1 .54 ˚ A), larger bond distances are slightly over-represented and smaller bond distances are slightly under-represented in the ACE potential, caused by an underlying small shift of the potential energy distribution (see SI Figure S4). A similar asymmetry appears in the angular distribution (equilibrium angle of 114 ◦), with larger deviations than those seen in bond distances. While those deviations are negligible, the dihedral distributions show a notable discrepancy, with a significantly reduced probability at the equilibrium dihedral ( ±80 ◦) compared to the reference. Similar observations were made for angles, bonds and dihedrals including hydrogen atoms, with differences in the distributions being notably smaller. These differences are nearly indpendent of the chain length (see also Figure S11 and Figure S12 in the SI). The atomistic radial distribution function gatomistic (r) between central carbon atoms and other carbon and hydrogen atoms is depicted in Figure 7d for various chain lengths in liquid bulk systems. The first peaks are attributed to intra-chain interactions, for example, the first peak is attributed to the carbon-hydrogen bond and the second peak to the carbon-carbon bond. The third peak refers to the interaction between a central carbon atom and a hydrogen atom bonded to a neighboured carbon atom. Since g(r) is normalized by the system density, the peak intensity varies, decreasing as the density - and thus the chain length - increases. Overall, the ACE potential shows good agreement with the reference. However, the peaks in the ACE potential are slightly overestimated. This discrepancy diminishes with increasing chain length, which can be attributed to the improved accuracy of densities for longer chains. The molecular radial distribution function gmol (r) between the center of masses of a central molecule and of surrounding molecules is depicted in Figure 7e. Whereas for smaller chain lengths ( Nc ≤ 12) a distinct small peak around 7 ˚ A to 9 ˚ A is observed, it is shifted to higher distances and diminishes nearly as the chain length increases. This is caused by less ordered structures and an increasing number of entanglements (see below). The number of molecules in a simulation box decreases with increasing chain length, therefore less data is present and gmol (r) is noisy for the longest chains. This makes it impossible to compare the ACE and reference potentials with respect to small differences. However, similar to gatomistic (r) there is generally good agreement with the reference also for gmol (r).Finally, the radius of gyration Rg is evaluated. Figure 7f and g display the distribution of Rg for various chain lengths in gas and liquid phases, as well as the dependence of Rg on the chain length, respectively. Overall, the distributions for ACE and the reference show good agreement. However, the ACE potential exhibits a small shift toward slightly larger Rg, which is consitent with the previously observed overestimation of carbon-carbon bond distances. Rg increases with an increasing chain length, following a power law Rg ∝ Nβ 
+
+> c
+
+, where two regions with different exponents β can be identified. Up to Nc ≤ 16 alpha is approximately 0.8, and for Nc ≥ 32, β = 0.5 is observed, as would be expected for polymers 50 . Whereas for small oligomers Rg is slightly overestimated, Rg agrees better in the second regime. However, larger deviations are observed for Nc = 512. This can be attributed to insufficient averaging and finite-size effects which are generally more pronounced in systems with longer chains. 
+
+## 3.6 Dynamics 
+
+Having characterized the accuracy of the structures reproduced by the ACE potential, we now investigate the dynamics with a focus on the segmental mean squared displacement (MSD). Figure 8a displays the MSD for the carbon backbone atoms of four different chain lengths. To minimize chain-end-effects but still ensure statistical reliability, only the central 50 % of the carbon atoms in each chain were included in the analysis. All displayed bulk systems are in an amorphous or liquid state. Generally, the MSD increases faster for larger chain lengths. This trend and the overall MSD is accurately reproduced by the ACE potential. However, similar to the structural properties, also for the dynamics small deviation occur. While the MSD obtained from simulations with the ACE potential is larger for all chain length up to Nc = 256, it is smaller for Nc = 512 after 10 ns. The deviations might be attributed partly to statistical fluctuations; however, they can also be explained by slightly lower densities in simulations with the ACE potential, which leads to an increased dynamics. To understand the different regimes of the MSD and their proportionality (MSD ∝ tα ) it is helpful to characterize the entanglements of the oligomers and especially polymers, which strongly influence the dynamics. Compared to small oligomers, the dynamics of individual central polymer segments are restricted by their covalent connectivity to adjecent segments. This is typically evident in the MSD, where a sub-diffusive regime with α = 0.5emerges. Entanglements further constrain the dynamics, as the segments are restricted to move along tubes formed by surrounding entangled polymers. This results in a second, slower sub-diffusive regime with α = 0.25. Consequently, nanoseconds long simulation times are essential to fully characterize these dynamical regimes. 18,19 Note that the men-tioned exponents α may be only obtained for sufficiently long chains. Segments at the chain ends are less restricted in 13 10 1
+
+> 10 2
+> 10 3
+> MSD [Å 2]
+
+(a) 
+
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> 1.2
+
+(b) 
+
+> 0
+> 2
+> 4
+> 6
+> 8
+> Z
+
+(c)        
+
+> 10 110 210 310 4
+> t [ps]
+> 10 2
+> 0
+> 10 2
+> 10 110 210 310 4
+> t [ps]
+> 0.05
+> 0.00
+> 0.05
+> 200 400
+> Chain length
+> 2
+> 0
+> 2
+> Ref
+> ACE
+> NC=16
+> NC=32
+> NC=64
+> NC=512
+> Reference
+> ACE
+
+Figure 8: a) Mean squared displacement of the central carbon atoms of the polymer for different chain length at T = 430 K. Those 50 % of the carbon atoms were selected which are most central within each chain. b) Tracking of α to discriminate different regimes of subdiffusive behaviour. c) Dependence of the average number of entanglements ⟨Z⟩ on the chain length. their movement and therefore higher values of α are expected. Generally, it is important that the entanglements are also reproduced accurately by the ACE potential. This requires that all bonds are maintained during the simulation and no bond-breaking or new bond formation occurs, which may lead to a different entanglement situation. Entanglements typically occurs for polymers larger than their corresponding, polymer-specific entanglement length Ne. To observe the sub-diffusive regime of α = 0.25 in the MSE, typically chain lengths of approximately 5 Ne to 10 Ne are necessary 51 .As shown in Figure 8c, the average number of entanglements per chain ⟨Z⟩ depends approximately linear on the chain length. Within error bars, the ACE and the reference potential give the same values for ⟨Z⟩, indicating a well-preserved topology in the ACE potential, as already discussed in more detail when comparing other structural properties. From this linear dependence of ⟨Z⟩, Ne can be estimated 52 . Here, we obtain Ne ≈ 60, which is in agreement with the literature values for polyethylene 15,52,53 , although densities are different due to missing long-range vdw-interactions in this work. Consequently Nc > 300 is necessary to observe the relevant α-regime. Due to long simulations times that might be necessary to observe this regime and high computational costs of the ACE potential, we decided to run an extended simulation for more than 100 ns only for Nc = 512 to demonstrate that our fitted ACE potential reproduces the dynamics of entangled polymers correctly. When evaluating the dependence of α on lag time t, which can be calculated from the MSD, the different regimes become visible as plateaus (see Figure 8b). Independent of the chain length the first plateau is observed after approxi-mately 10 ps at α ≈ 0.75 for Nc = 16 and decreases with increasing chain length to α ≈ 0.6 for Nc = 512. The deviations from α = 0.5 can be explained partly by small chain length and partly by the dependence of the segment dynamics on the position of the segment within a chain. For finite chain length, α = 0.5 would be observed only for the most central segments. Since we average over the 50 % of most central carbon atoms, α is increased compared to averaging over a smaller portion carbon atoms. However, the statistical description is not sufficient due to a smaller amount of available data. For smaller chains with Nc ≤ 64 α increases after the first plateau and approaches the diffusive regime ( α = 1). Only for the largest chain length Nc = 512 α decreases further and reaches a second plateau after 10 ns at α = 0.3, indicating that a restricted dynamics due to entanglements is present. Note that longer simulation times would be needed to increase the statistical description and decrease the noise observed for these time scales. Similar values of α are obtained with the ACE and the reference potential. Especially for the first plateau an excellent agreement is observed. For the second plateau for Nc = 512 a reliable comparison is not possible due to large fluctuations in α. Overall the ACE potential reproduces the dynamics of the reference systems extremely well. 14 4 Conclusions 
+
+We have presented a systematic study on MLIPs for polymer systems and identified ACE as an ideal descriptor. Already very small systems like clusters of only two small oligomers (e.g. Nc = 8) or one larger oligomer ( Nc = 16) are sufficient to cover the full relevant descriptor space encountered when simulating various different systems, including larger chains or bulk systems with different densities. We implemented an automated active learning scheme, utilizing ACE and Lammps to efficiently create training data in an iterative way. Already after a few iterations, stable ACE potentials were obtained for single molecule systems. By including clusters of two or more molecules simulations were also stable for much larger clusters. Whereas the data collected during the later active learning iterations does not improve the predicted total forces and energies significantly, it still improves the inter-molecular energies and forces. By refining the potential after the final iteration the prediction accuracy can be improved further. Whereas deviations of the predictions from the ground truth might not be clearly pronounced in the inter-molecular forces, they are directly visible in the intermolecular energy. During the AL iterations, the R2-score increases from 0.908 after iteration 12 to 0.958 for the refined potential when considering the intermolecular forces but from 0.583 to 0.991 for the intermolecular energy. Although ultimately only forces are relevant in the MD simulations, considering metrics related to the potential energy can therefore provide further important insights. We demonstrated that it is crucial to predict correct intermolecular interactions to also reproduce all other properties observed in bulk simulations correctly. Even small deviations of the predicted intermolecular interactions from the ground truth reference can lead to significant changes in the density. In particular, for small molecules the changes in the density can be drastic, being most pronounced close to the phase transition temperature between liquid and gaseous phase. Larger molecules are less affected and thus the fitted ACE potential provides more reliable results. If energies and forces are fitted with high accuracy, all other properties are reproduced in simulations with the ACE potential with high accuracy, too, compared to the reference potential. When evaluating structural properties, like bond-distance, angle and dihedral distributions as well as the number of entanglements, it is evident that the refined ACE potential maintains the polymer topology during the full simulation time. Furthermore, the dynamics is reproduced correctly, independent of the chain length and the corresponding number of entanglements per chain. Overall, this study demonstrates the possibility to develop MLIPs for polymers based on clusters of small oligomers, which significantly reduces the computational costs in comparison to full bulk systems as training data. Therefore, we believe that our systematic study provides meaningful insights to enhance the development of MLIPs also for other polymeric systems and facilitate the efficient selection of training data to create large polymer databases. These might be used in future to create specialized or foundation models for polymers. In this sense, our work paves the way to train MLIPs with near-ab initio accuracy for polymeric systems. A logical progression of this work would be to replace the force-field-based reference calculations with high-fidelity density functional theory calculations within our learning scheme for ACE potentials. 
+
+# Computational Details 
+
+## Principal Component Analysis 
+
+For all structures within the given dataset (see section S3) the local atomic descriptors were calculated first using scikit-learn 54 . The PCA was then performed using all local atomic environments to identify the two most important principal components. For each value of Nc or Nmol clusters of individual atom types were identified using the DBSCAN 55 cluster algorithm to remove potential outliers. Afterwards the concave hull was calculated using the python library alphashape 56 . More details can be found in the example notebook. 
+
+## Local atomic descriptors 
+
+Smooth Overlap of Atomic Positions 
+
+The gaussian smoothed atomic density of species Z is defined as 
+
+ρZi (r) = ∑
+
+> j
+
+exp 
+
+
+
+− |r − ri j |2
+
+2σ 2
+
+
+
+(8) which ensures invariance to permutation of equivalent atoms. It can be expanded with spherical harmonics Ylm (θ , φ ) in an orthogonal basis 
+
+ρZi = ∑
+
+> nlm
+
+cZi
+
+> nlm
+
+Ylm (θ , φ )gn(r) (9) 15 where gn(r) are radial basis functions, which are chosen as spherical gaussian type orbitals here. Given cnlm the power spectrum 
+
+pZi,Z j 
+
+> nn ′l
+
+= π
+
+r 82l + 1 ∑
+
+> m
+
+cZi
+
+> nlm
+
+cZ j 
+
+> nlm
+
+(10) can be calculated which serves as the Smooth Overlap of Atomic Positions (SOAP) descriptor. 23,57 We compute SOAP descriptors using the DScribe library 58,59 , employing a cutoff radius for local densities of 7 ˚ A and values of nmax = 4 and 
+
+lmax = 3. 
+
+Local Many Body Tensor Representation 
+
+Within this paper, we use a Local Many Body Tensor Representation (LMBTR) of second order, which is given by: 
+
+LZi,Z j 
+
+> 2
+
+(r) = ∑
+
+> j
+
+w(ri j) exp − r − r−1
+
+> i j
+
+2σ 2
+
+!
+
+(11) with a weighting function 
+
+w(r) = e− 12 r. (12) 
+
+LZi,Z j 
+
+> 2
+
+(r) was sampled at 100 discrete points of r between 1 /rcut < r < 1.05 using the DScribe library implementation. Consistent with the other descriptors we chose rcut = 7 ˚ A. 
+
+## Molecular Dynamics Simulations 
+
+All molecular dynamics simulations were performed using the LAMMPS software 44 and the OPLS-AA force field param-eters 40 for reference simulations and fitted ACE potentials for all other simulations. The ACE potentials were evaluated using the PACE package 60 of LAMMPS. Different simulation setups were utilized for test simulations during the AL procedure and for subsequent simulations with the ACE potential and the OPLS-AA force field. 
+
+Test simulations during AL 
+
+During the AL procedure, an equilibration with a timestep of 0.5 fs was performed for 500 ps with the OPLS-AA param-eters, followed by a 50 ps production run with the fitted ACE potential in the NVT ensemble. The temperature for both, equilibration and production run, was varied within different active learning setups and managed by a Nose-Hoover thermostat 61 . A cubic simulation box with a size of 50 ˚ A in any dimension was employed for single molecules to ensure that they effectively were treated as if they were in vacuum. For clusters of larger molecules, a box length of 30 ˚ A was selected such that nearly isolated clusters and low density bulk structures are simulated. All structures with an extrapolation grade γmax > 2.0 have been dumped for later consideration as additional training data and simulations have been interrupted if γmax exceeds a threshold of 3.5. 
+
+Simulations for system analysis 
+
+The following protocol was applied to all bulk simulations of polymers up to C 256 H514 analyzed in this work. A detailed setup of the analyzed systems is provided in Table S4. First, the systems were equilibrated in the NPT ensemble at an elevated temperature of 630 K and a pressure of 1000 bar for 500 ps. Temperature and pressure were controlled by a Nose-Hoover thermostat and a Parrinello-Rahman barostat 62 , respectively, utilizing the equations of motion by Shinoda 63 as implemented in LAMMPS. Coupling constants of 0.5 ps for temperature and 2.0 ps for pressure were employed. In a second step the system were cooled over a period of 100 ps to the target temperature, while the pressure was simultaneously set to 1 bar. All systems were then equilibrated for an additional 100 ps at the target temperature and ambient pressure of 1 bar. All equilibration steps were performed using the OPLS-AA force field. As target temperatures 293.15 K and 330 K to 630 K in steps of 50 K were selected. The production runs were initiated from these equilibrated structures, employing either the OPLS-AA force field or the refined ACE potential within the same NPT ensemble as during the last equilibration step. Each production run was simulated for 10 ns. For all stages, a time step of 1 fs was used. For OPLS-AA simulations, a cutoff-radius of 10 ˚ A was applied to van-der-Waals and electrostatic interactions. Long-ranged electrostatic interactions beyond were handled by the particle-particle particle-mesh (pppm) solver 64 .For simulations with the refined ACE potential, the cutoff-radius was determined by the potential itself (7 ˚ A). Due to the inherent locality of ACE potentials, long-ranged interactions were not considered. If γmax exceeded a threshold of 25, the simulation was terminated, and the trajectory was analyzed up to that point. 16 Extended simulations for the largest system 
+
+Unlike small oligomers, polymers require significantly longer equilibration and production time scales to accurately cap-ture their equilibrium structure and dynamics. Consequently, extended simulations were performed for the longest poly-mer chain (C 512 H1026 ), consisting of 25 polymer chains placed in a cubic simulation box with an initial side length of 150 ˚ A. The system was first relaxed via an VT simulation at 630 K for 2 ns. The simulation box was then compressed in two stages using the NPT ensemble: First at 1000 bar for 10 ns, followed by 10 ns at 10 bar. Subsequently, the structures were equilibrated at 630 K for 100 ns and then cooled to 430 K over a period of 10 ns. Finally, production runs were performed in the NPT ensemble for 100 ns using both, the OPLS-AA force field and the refined ACE potential. All other simulation parameters remain consistent with those described previously. 
+
+Note on reference simulations 
+
+Typically, DFT or wavefunction-based methods are employed to calculate reference energies and forces for all structures in the training set . However, the high accuracy of these methods is associated with significant computational costs, rendering nanosecond-scale simulations of large systems containing thousands of atoms computationally prohibitive. Polymer systems typically encompass significantly more degrees of freedom than small molecular systems and thus require extended simulation timescales to characterize their dynamics, which are governed by slow relaxation processes. Consequently, it is impractical to directly compare the dynamics of an MLIP-driven simulation with a corresponding high-accuracy reference simulation over these timescales. Nevertheless, when evaluating the transferability of potentials - such as testing a potential fitted to a specific oligomer length and temperature on systems of different lengths or temperatures - the absolute accuracy of the reference method is less critical than the consistency of the underlying physics. We expect that transferability is largely independent of the reference method’s absolute accuracy, provided that essential interactions are adequately captured. Accordingly, this study focuses on a representative, yet simple model system and utilizes the OPLS-AA force field as a computationally efficient reference. This approach enables nanosecond-scale reference simulations of large-scale systems, allowing for a rigorous evaluation of the MLIP’s performance with regards to structure and dynamics. 
+
+## Calculation of entanglements 
+
+The number of entanglements per chain was calculated by computing primitive paths and subsequently counting all kinks per chain as introduced by 65 and implemented in the Z1+ software 66 .Primitive paths are represent the shortest paths that connect chain or segment ends without without inter-penetration of other principle paths 67–69 . Kinks occur when chains cross each other and therefore are a good estimation to characterize the entanglements. Following the approach by Hoy et al. , the entanglement length Ne was calculated as 1
+
+Ne
+
+= d⟨Z⟩
+
+dN c
+
+(13)  
+
+> d⟨Z⟩
+> dN c
+
+can be identified as the slope of a linear fit of ⟨Z⟩ vs N c.
+
+## Calculation of further structural and dynamical properties 
+
+All structural and dynamical properties were calculated using an in-house implementation build on top of the MDAnalysis tool 70 to handle large trajectories. The scripts are provided together with the ACELearner tool. 
+
+# Author contributions 
+
+M. Fischer: conceptualization, data curation, formal analysis, methodology, software, validation, visualization, writing -original draft. A. Heuer: supervision, writing - review & editing. 
+
+# Conflicts of interest 
+
+There are no conflicts to declare. 
+
+# Data availability 
+
+The ACELearner software tool is provided via Github at https://github.com/TibMont/ACElearner .17 Acknowledgements 
+
+M.F. acknowledges funding from the BMBF (InterKI, 16DHBKI049). Parts of the MD simulations and analysis have been performed on the HPC cluster PALMA-II of the University of M¨ unster. 
+
+# References 
+
+[1] C. Y. Barlow and D. C. Morgan. Polymer film packaging for food: An environmental assessment. Resources, Conservation and Recycling , 78:74–80, September 2013. [2] Samiris Cˆ occo Teixeira, Ta´ ıla Veloso de Oliveira, Nilda de F´ atima Ferreira Soares, and Paulo A. Raymundo-Pereira. Sustainable and biodegradable polymer packaging: Perspectives, challenges, and opportunities. Food Chemistry ,470:142652, April 2025. [3] Daniel W. Pack, Allan S. Hoffman, Suzie Pun, and Patrick S. Stayton. Design and development of polymers for gene delivery. Nature Reviews Drug Discovery , 4(7):581–593, July 2005. [4] Vladimir P. Torchilin. Structure and design of polymeric surfactant-based drug delivery systems. Journal of Con-trolled Release , 73(2):137–172, June 2001. [5] Lizhen Long, Shuanjin Wang, Min Xiao, and Yuezhong Meng. Polymer electrolytes for lithium polymer batteries. 
+
+Journal of Materials Chemistry A , 4(26):10038–10069, 2016. [6] Dong Zhou, Devaraj Shanmukaraj, Anastasia Tkacheva, Michel Armand, and Guoxiu Wang. Polymer Electrolytes for Lithium-Based Batteries: Advances and Prospects. Chem , 5(9):2326–2352, September 2019. [7] Daniel T. Hallinan Jr and Nitash P. Balsara. Polymer Electrolytes. Annual Review of Materials Research , 43(Volume 43, 2013):503–525, July 2013. [8] Dirk Willem Krevelen and K. te Nijenhuis. Properties of Polymers: Their Correlation with Chemical Structure Their Numerical Estimation and Prediction from Additive Group Contributions . Elsevier, Amsterdam, 4th, completely rev. ed edition, 2009. [9] Gert R. Strobl. The Physics of Polymers: Concepts for Understanding; Their Structures and Behavior; with 2 Tabl .Springer, Berlin Heidelberg, 3., rev. and exp. ed. [nachdruck] edition, 2010. [10] L. J. Fetters, D. J. Lohse, D. Richter, T. A. Witten, and A. Zirkel. Connection between Polymer Molecular Weight, Density, Chain Dimensions, and Melt Viscoelastic Properties. Macromolecules , 27(17):4639–4647, August 1994. [11] Kianoosh Sattari, Yunchao Xie, and Jian Lin. Data-driven algorithms for inverse design of polymers. Soft Matter ,17(33):7607–7622, August 2021. [12] A. A. Askadskii. Polymers . Cambridge International Science Pub, Cambridge [England], 2003. [13] Mine Yurtsever and Ersin Yurtsever. A DFT study of polymerization mechanisms of indole. Polymer , 43(22):6019– 6025, January 2002. [14] Ulrike Salzner. Electronic structure of conducting organic polymers: Insights from time-dependent density func-tional theory. WIREs Computational Molecular Science , 4(6):601–622, 2014. [15] V. M. Litvinov, M. E. Ries, T. W. Baughman, A. Henke, and P. P. Matloka. Chain Entanglements in Polyethylene Melts. Why Is It Studied Again? Macromolecules , 46(2):541–547, January 2013. [16] Janez Stepisnik, Ales Mohoric, Igor Serˇ sa, and G. Lahajnar. Analysis of Polymer Dynamics, September 2016. [17] Andr´ es R. Tejedor, Raquel Carracedo, and Jorge Ram´ ırez. Molecular dynamics simulations of active entangled polymers reptating through a passive mesh. Polymer , 268:125677, February 2023. [18] M. E. Cates. Reptation of living polymers: Dynamics of entangled polymers in the presence of reversible chain-scission reactions. Macromolecules , 20(9):2289–2296, September 1987. [19] Kurt Kremer and Gary S. Grest. Dynamics of entangled linear polymer melts: A molecular-dynamics simulation. 
+
+The Journal of Chemical Physics , 92(8):5057–5086, April 1990. [20] Volker L. Deringer, Miguel A. Caro, and G´ abor Cs´ anyi. Machine Learning Interatomic Potentials as Emerging Tools for Materials Science. Advanced Materials , 31(46):1902765, 2019. 18 [21] Yunxing Zuo, Chi Chen, Xiangguo Li, Zhi Deng, Yiming Chen, J¨ org Behler, G´ abor Cs´ anyi, Alexander V. Shapeev, Aidan P. Thompson, Mitchell A. Wood, and Shyue Ping Ong. Performance and Cost Assessment of Machine Learning Interatomic Potentials. The Journal of Physical Chemistry A , 124(4):731–745, January 2020. [22] Ryan Jacobs, Dane Morgan, Siamak Attarian, Jun Meng, Chen Shen, Zhenghao Wu, Clare Yijia Xie, Julia H. Yang, Nongnuch Artrith, Ben Blaiszik, Gerbrand Ceder, Kamal Choudhary, Gabor Csanyi, Ekin Dogus Cubuk, Bowen Deng, Ralf Drautz, Xiang Fu, Jonathan Godwin, Vasant Honavar, Olexandr Isayev, Anders Johansson, Boris Kozinsky, Stefano Martiniani, Shyue Ping Ong, Igor Poltavsky, KJ Schmidt, So Takamoto, Aidan P. Thompson, Julia Westermayr, and Brandon M. Wood. A practical guide to machine learning interatomic potentials – Status and future. Current Opinion in Solid State and Materials Science , 35:101214, March 2025. [23] Albert P. Bart´ ok, Risi Kondor, and G´ abor Cs´ anyi. On representing chemical environments. Physical Review B ,87(18):184115, May 2013. [24] Sandip De, Albert P. Bart´ ok, G´ abor Cs´ anyi, and Michele Ceriotti. Comparing molecules and solids across structural and alchemical space. Physical Chemistry Chemical Physics , 18(20):13754–13769, May 2016. [25] Haoyan Huo and Matthias Rupp. Unified representation of molecules and crystals for machine learning. Machine Learning: Science and Technology , 3(4):045017, November 2022. [26] Ralf Drautz. Atomic cluster expansion for accurate and transferable interatomic potentials. Physical Review B ,99(1):014104, January 2019. [27] Maksim Kulichenko, Benjamin Nebgen, Nicholas Lubbers, Justin S. Smith, Kipton Barros, Alice E. A. Allen, Adela Habib, Emily Shinkle, Nikita Fedik, Ying Wai Li, Richard A. Messerly, and Sergei Tretiak. Data Generation for Machine Learning Interatomic Potentials and Beyond. Chemical Reviews , 124(24):13681–13714, December 2024. [28] Ilyes Batatia, Philipp Benner, Yuan Chiang, Alin M. Elena, D´ avid P. Kov´ acs, Janosh Riebesell, Xavier R. Ad-vincula, Mark Asta, Matthew Avaylon, William J. Baldwin, Fabian Berger, Noam Bernstein, Arghya Bhowmik, Filippo Bigi, Samuel M. Blau, Vlad C˘ arare, Michele Ceriotti, Sanggyu Chong, James P. Darby, Sandip De, Fla-viano Della Pia, Volker L. Deringer, Rokas Elijoˇ sius, Zakariya El-Machachi, Edvin Fako, Fabio Falcioni, An-drea C. Ferrari, John L. A. Gardner, Mikołaj J. Gawkowski, Annalena Genreith-Schriever, Janine George, Rhys E. A. Goodall, Jonas Grandel, Clare P. Grey, Petr Grigorev, Shuang Han, Will Handley, Hendrik H. Heenen, Kersti Hermansson, Cheuk Hin Ho, Stephan Hofmann, Christian Holm, Jad Jaafar, Konstantin S. Jakob, Hyunwook Jung, Venkat Kapil, Aaron D. Kaplan, Nima Karimitari, James R. Kermode, Panagiotis Kourtis, Namu Kroupa, Jolla Kullgren, Matthew C. Kuner, Domantas Kuryla, Guoda Liepuoniute, Chen Lin, Johannes T. Margraf, Ioan-Bogdan Magd˘ au, Angelos Michaelides, J. Harry Moore, Aakash A. Naik, Samuel P. Niblett, Sam Walton Norwood, Niamh O’Neill, Christoph Ortner, Kristin A. Persson, Karsten Reuter, Andrew S. Rosen, Louise A. M. Rosset, Lars L. Schaaf, Christoph Schran, Benjamin X. Shi, Eric Sivonxay, Tam´ as K. Stenczel, Christopher Sutton, Viktor Svahn, Thomas D. Swinburne, Jules Tilly, Cas van der Oord, Santiago Vargas, Eszter Varga-Umbrich, Tejs Vegge, Martin Vondr´ ak, Yangshuai Wang, William C. Witt, Thomas Wolf, Fabian Zills, and G´ abor Cs´ anyi. A foundation model for atomistic materials chemistry. The Journal of Chemical Physics , 163(18):184110, November 2025. [29] Alice E. A. Allen, Nicholas Lubbers, Sakib Matin, Justin Smith, Richard Messerly, Sergei Tretiak, and Kipton Barros. Learning together: Towards foundation models for machine learning interatomic potentials with meta-learning. npj Computational Materials , 10(1):154, July 2024. [30] Zhenzhu Li and Aron Walsh. Platonic representation of foundation machine learning interatomic potentials. Nature Machine Intelligence , 8(5):830–840, May 2026. [31] Daniel S. Levine, Nicholas Liesen, Lauren Chua, James Diffenderfer, Helgi Ingolfsson, Matthew P. Kroonblawd, Nitesh Kumar, Amitesh Maiti, Supun S. Mohottalalage, Muhammed Shuaibi, Brian Van Essen, Brandon M. Wood, C. Lawrence Zitnick, Samuel M. Blau, and Evan R. Antoniuk. The Open Polymers 2026 (OPoly26) Dataset and Evaluations, 2025. [32] Teng Long, Jia Li, Chenlu Wang, Hua Wang, Xiao Cheng, Haifeng Lu, Ying Zhang, and Chuanjian Zhou. Polymers simulation using machine learning interatomic potentials. Polymer , 308:127416, August 2024. [33] Sung Jun Hong, Hoje Chun, Jehyun Lee, Byung-Hyun Kim, Min Ho Seo, Joonhee Kang, and Byungchan Han. First-Principles-Based Machine-Learning Molecular Dynamics for Crystalline Polymers with van der Waals Interactions. 
+
+The Journal of Physical Chemistry Letters , 12(25):6000–6006, July 2021. [34] Cas van der Oord, Matthias Sachs, D´ avid P´ eter Kov´ acs, Christoph Ortner, and G´ abor Cs´ anyi. Hyperactive learning for data-driven interatomic potentials. npj Computational Materials , 9(1):168, September 2023. 19 [35] Shaswat Mohanty, James Stevenson, Andrea R. Browning, Leif Jacobson, Karl Leswing, Mathew D. Halls, and Mohammad Atif Faiz Afzal. Development of scalable and generalizable machine learned force field for polymers. 
+
+Scientific Reports , 13(1):17251, October 2023. [36] Rajni Chahal, Michael D. Toomey, Logan T. Kearney, Ada Sedova, Joshua T. Damron, Amit K. Naskar, and Santanu Roy. Deep-Learning Interatomic Potential Connects Molecular Structural Ordering to the Macroscale Properties of Polyacrylonitrile. ACS Applied Materials & Interfaces , 16(28):36878–36891, July 2024. [37] Junmin Chen and Kuang Yu. PhyNEO: A Neural-Network-Enhanced Physics-Driven Force Field Development Workflow for Bulk Organic Molecule and Polymer Simulations. Journal of Chemical Theory and Computation ,20(1):253–265, January 2024. [38] Xufei Wang, Yuanda Xu, Han Zheng, and Kuang Yu. A Scalable Graph Neural Network Method for Developing an Accurate Force Field of Large Flexible Organic Molecules. The Journal of Physical Chemistry Letters , 12(33):7982– 7987, August 2021. [39] Natalie E. Hooven, Arthur Y. Lin, Charles H. Carroll, and Rose K. Cersonsky. How Long Is Long Enough? Extrap-olation of Machine-Learning Interatomic Potentials for Oligomeric and Polymeric Systems. Journal of Chemical Theory and Computation , June 2026. [40] William L. Jorgensen, David S. Maxwell, and Julian Tirado-Rives. Development and Testing of the OPLS All-Atom Force Field on Conformational Energetics and Properties of Organic Liquids. Journal of the American Chemical Society , 118(45):11225–11236, November 1996. [41] Ioan-Bogdan Magd˘ au, Daniel J. Arismendi-Arrieta, Holly E. Smith, Clare P. Grey, Kersti Hermansson, and G´ abor Cs´ anyi. Machine learning force fields for molecular liquids: Ethylene Carbonate/Ethyl Methyl Carbonate binary solvent. npj Computational Materials , 9(1):146, August 2023. [42] Greg Landrum. RDKit Documentation. [43] Janosh Riebesell. Matbench Discovery. https://janosh.github.io/matbench-discovery. [44] Aidan P. Thompson, H. Metin Aktulga, Richard Berger, Dan S. Bolintineanu, W. Michael Brown, Paul S. Crozier, Pieter J. in ’t Veld, Axel Kohlmeyer, Stan G. Moore, Trung Dac Nguyen, Ray Shan, Mark J. Stevens, Julien Tranchida, Christian Trott, and Steven J. Plimpton. LAMMPS - a flexible simulation tool for particle-based ma-terials modeling at the atomic, meso, and continuum scales. Computer Physics Communications , 271:108171, February 2022. [45] Jens Jørgen Mortensen, Ask Hjorth Larsen, Mikael Kuisma, Aleksei V. Ivanov, Alireza Taghizadeh, Andrew Peter-son, Anubhab Haldar, Asmus Ougaard Dohn, Christian Sch¨ afer, Elvar ¨ Orn J´ onsson, Eric D. Hermes, Fredrik An-dreas Nilsson, Georg Kastlunger, Gianluca Levi, Hannes J´ onsson, Hannu H¨ akkinen, Jakub Fojt, Jiban Kangsabanik, Joachim Sødequist, Jouko Lehtom¨ aki, Julian Heske, Jussi Enkovaara, Kirsten Trøstrup Winther, Marcin Dulak, Marko M. Melander, Martin Ovesen, Martti Louhivuori, Michael Walter, Morten Gjerding, Olga Lopez-Acevedo, Paul Erhart, Robert Warmbier, Rolf W¨ urdemann, Sami Kaappa, Simone Latini, Tara Maria Boland, Thomas Bli-gaard, Thorbjørn Skovhus, Toma Susi, Tristan Maxson, Tuomas Rossi, Xi Chen, Yorick Leonard A. Schmerwitz, Jakob Schiøtz, Thomas Olsen, Karsten Wedel Jacobsen, and Kristian Sommer Thygesen. GPAW: An open Python package for electronic structure calculations. The Journal of Chemical Physics , 160(9):092503, March 2024. [46] Anton Bochkarev, Yury Lysogorskiy, Sarath Menon, Minaam Qamar, Matous Mrovec, and Ralf Drautz. Efficient parametrization of the atomic cluster expansion. Physical Review Materials , 6(1):013804, January 2022. [47] Yury Lysogorskiy, Anton Bochkarev, Matous Mrovec, and Ralf Drautz. Active learning strategies for atomic cluster expansion models. Physical Review Materials , 7(4):043801, April 2023. [48] Roger Fletcher. Practical Methods of Optimization . Wiley, Chichester, West Sussex, U.K, online-ausg edition, 1987. [49] Felipe L. Gewers, Gustavo R. Ferreira, Henrique F. De Arruda, Filipi N. Silva, Cesar H. Comin, Diego R. Amancio, and Luciano Da F. Costa. Principal Component Analysis: A Natural Approach to Data Exploration. ACM Computing Surveys , 54(4):1–34, May 2022. [50] Paul J. Flory. Principles of Polymer Chemistry . Cornell Univ. Press, Ithaca, NY, 19. print edition, 1954. [51] Alireza F. Behbahani and Friederike Schmid. Relaxation Dynamics of Entangled Linear Polymer Melts via Molec-ular Dynamics Simulations. Macromolecules , 58(1):767–786, January 2025. [52] Robert S. Hoy, Katerina Foteinopoulou, and Martin Kr¨ oger. Topological analysis of polymeric melts: Chain-length effects and fast-converging estimators for entanglement length. Physical Review E , 80(3):031803, September 2009. 20 [53] Katerina Foteinopoulou, Nikos Ch. Karayiannis, Vlasis G. Mavrantzas, and Martin Kr¨ oger. Primitive Path Iden-tification and Entanglement Statistics in Polymer Melts: Results from Direct Topological Analysis on Atomistic Polyethylene Models. Macromolecules , 39(12):4207–4216, June 2006. [54] Fabian Pedregosa, Ga¨ el Varoquaux, Alexandre Gramfort, Vincent Michel, Bertrand Thirion, Olivier Grisel, Mathieu Blondel, Peter Prettenhofer, Ron Weiss, Vincent Dubourg, Jake Vanderplas, Alexandre Passos, David Cournapeau, Matthieu Brucher, Matthieu Perrot, and ´ Edouard Duchesnay. Scikit-learn: Machine learning in python. Journal of Machine Learning Research , 12(null):2825–2830, November 2011. [55] Martin Ester, Hans-Peter Kriegel, J¨ org Sander, and Xiaowei Xu. A density-based algorithm for discovering clus-ters in large spatial databases with noise. In Proceedings of the Second International Conference on Knowledge Discovery and Data Mining , KDD’96, pages 226–231, Portland, Oregon, 1996. AAAI Press. [56] Ken Bellock, Neil Godber, and Philip Kahn. Bellockk/alphashape: V1.3.1 Release. Zenodo, April 2021. [57] James P. Darby, James R. Kermode, and G´ abor Cs´ anyi. Compressing local atomic neighbourhood descriptors. npj Computational Materials , 8(1):166, August 2022. [58] Lauri Himanen, Marc O. J. J¨ ager, Eiaki V. Morooka, Filippo Federici Canova, Yashasvi S. Ranawat, David Z. Gao, Patrick Rinke, and Adam S. Foster. DScribe: Library of descriptors for machine learning in materials science. 
+
+Computer Physics Communications , 247:106949, February 2020. [59] Jarno Laakso, Lauri Himanen, Henrietta Homm, Eiaki V. Morooka, Marc O. J. J¨ ager, Milica Todorovi´ c, and Patrick Rinke. Updates to the DScribe library: New descriptors and derivatives. The Journal of Chemical Physics ,158(23):234802, June 2023. [60] Yury Lysogorskiy, Cas van der Oord, Anton Bochkarev, Sarath Menon, Matteo Rinaldi, Thomas Hammerschmidt, Matous Mrovec, Aidan Thompson, G´ abor Cs´ anyi, Christoph Ortner, and Ralf Drautz. Performant implementation of the atomic cluster expansion (PACE) and application to copper and silicon. npj Computational Materials , 7(1):97, June 2021. [61] Sh¯ uichi Nos´ e. A molecular dynamics method for simulations in the canonical ensemble. Molecular Physics ,52(2):255–268, June 1984. [62] M. Parrinello and A. Rahman. Polymorphic transitions in single crystals: A new molecular dynamics method. 
+
+Journal of Applied Physics , 52(12):7182–7190, December 1981. [63] Wataru Shinoda, Motoyuki Shiga, and Masuhiro Mikami. Rapid estimation of elastic constants by molecular dy-namics simulation under constant stress. Physical Review B , 69(13):134103, April 2004. [64] R. W. Hockney and J. W. Eastwood. Computer Simulation Using Particles . CRC Press, Boca Raton, March 2021. [65] Martin Kr¨ oger. Shortest multiple disconnected path for the analysis of entanglements in two- and three-dimensional polymeric systems. Computer Physics Communications , 168(3):209–232, June 2005. [66] Martin Kr¨ oger, Joseph D. Dietz, Robert S. Hoy, and Clarisse Luap. The Z1+ package: Shortest multiple disconnected path for the analysis of entanglements in macromolecular systems. Computer Physics Communications , 283:108567, 2023. [67] Sachin Shanbhag and Martin Kr¨ oger. Primitive Path Networks Generated by Annealing and Geometrical Methods: Insights into Differences. Macromolecules , 40(8):2897–2903, April 2007. [68] Sathish K. Sukumaran, Gary S. Grest, Kurt Kremer, and Ralf Everaers. Identifying the primitive path mesh in entangled polymer liquids. Journal of Polymer Science Part B: Polymer Physics , 43(8):917–933, 2005. [69] Ralf Everaers, Sathish K. Sukumaran, Gary S. Grest, Carsten Svaneborg, Arvind Sivasubramanian, and Kurt Kremer. Rheology and Microscopic Topology of Entangled Polymeric Liquids. Science , 303(5659):823–826, February 2004. [70] Naveen Michaud-Agrawal, Elizabeth J. Denning, Thomas B. Woolf, and Oliver Beckstein. MDAnalysis: A toolkit for the analysis of molecular dynamics simulations. Journal of Computational Chemistry , 32(10):2319–2327, 2011. 21 Supporting Information: 
+
+# From oligomers to entangled polymers: How to train a transferable machine learning interatomic potential 
+
+Mirko Fischer a and Andreas Heuer aaInstitute of Physical Chemistry, University of M¨ unster, Corrensstraße 28/30, 48149 M¨ unster, Germany S1 S1 Pacemaker Settings 
+
+Table S1: Settings for the pacemaker tool. Property Key Value Elements elements C, H Embedding embeddings Shifted Finnis-Sinclair type (Linear ACE) Basis function type radbase Bessel Basis function parameter radparameters 5.25 Basis function outer cutoff rcut 7.0 ˚ ABasis function outer cutoff dcut 0.01 ˚ ABasis function inner cutoff r in 0.8 ˚ ABasis function inner cutoff delta in 0.5 ˚ ACutoff function for basis functions NameOfCutoffFunction cos 
+
+Nmax by order (1,2,3) nradmax by orders 40, 3, 2 
+
+lmax by order (1,2,3) lmax by orders 0, 2, 2 Size of test set test size 0.05 Weighing of forces vs. energy ( κ) kappa 0.95 (0.05 for refining) L1-regularization L1 coeff 10 −9
+
+L2-regularization L2 coeff 10 −9
+
+Optimizer optimizer BFGS Maximum number of optimizer steps maxiter 1000 Weighting function for structures type EnergyBasedWeightingPolicy Maximum energy per structure DEup 2.0 eV Maximum total force per atom DFup 4.0 eV ˚ AS2 S2 Active Learning Settings 
+
+Table S2: Settings of the active learning loop. Property Key Value Maximum Iterations max iterations 21 Maximum test simulations per iteration test simulations 33 Number of extrapolated structures added to training set per iteration n select al 50 Addition of molecules at iterations iter add chain 8, 12, 16 Number of molecules after adding further ones n add chain 2, 4, 6 Atom type to species mapping mapping C C H Performing volume scan perform volume scan True Number of potentials fitted in final iteration n final potentials 6Molecule for initial simulation (SMILES) smiles CCCCCCCC Box length initial simulation box length 50.1 ˚ AOutput frequency initial simulation freq outputs 10000 Initial simulation time n runs 2000000 Temperature initial simulation v temp 430 Timestep initial simulation timestep 0.0005 ps Cutoff radius initial simulation cutoff 10 ˚ AMolecules considered during further simulations simulation scan:smiles CCCCCC, CCCCCCCC, CCCCCCCCCC Box length test simulations box length 20.1 ˚ AOutput frequency test simulations freq outputs 100 Test simulation time n runs 100000 Timestep test simulation timestep 0.0005 ps Cutoff radius test simulation cutoff 10 ˚ AEnsemble during equilibration equil mode nvt Ensemble during production prod mode nvt Calculation of extrapolation grade freq outputs gamma 1Extrapolation grade for dumping structure write gamma 2.0 Extrapolation grade for terminating test simulation stop gamma 3.5 Mode for volume scans volume scan mode interval Performing of volume scans every n iterations volume scan steps 1Maximum number of structures considered for volume scan n structures 25 Data points per volume scan n data points 6Scaling factors for volume scan scaling range [1.01, 1.2] S3 S3 Dataset for descriptor comparison and RMSE calculation of forces and energies during AL 
+
+For the comparison of different local atomic descriptors a set of structures was employed, which has been collected during AL. This ensures that the descriptor space is well sampled. AL has been performed for alkanes with chain lengths Nc of 2, 3, 4, 8 and 16 over 20 iterations. After completion of all AL iterations, 50 structures ( 5 % of all structures collected during AL) for each Nc were selected randomly. A similar approach was employed to create a test dataset for the calculation of the RMSE of forces and energies to evaluate the AL process afterwards. S4 S4 Data set for the refined ACE potential 
+
+Table S3: Number of structures used for training the refined ACE potential. Unique structures refers to the number of unique structures included in the data set, excluding all duplicates with scaled volumes. 
+
+Nc Nmol = 1 Nmol = 2 Nmol = 4 Nmol = 6Unique 6 151 64 32 24 8 384 119 75 44 10 306 118 150 139 Volume scan duplicates included 6 151 109 92 64 8 384 294 225 134 10 306 293 425 439 S5 S5 Simulation Setup 
+
+Table S4: Setup of simulations for different chain lengths Nc. The box size refers to the length of the equilibrated cubic simulation box for T = 430 K using the OPLS-AA force field. 
+
+Nc Nmol Natoms Simulation time [ns] Box size [ ˚ A] Ref. 430 K -Equi 1. (NPT) at 630 K (Comp. 1000 bar) Cool down (NPT) to Taim 
+
+Equi 2 (NPT) at. Taim 
+
+Prod (NPT) 2 1019 8152 0.5 0.1 0.1 10 321.0 3 682 7502 0.5 0.1 0.1 10 288.7 4 512 7168 0.5 0.1 0.1 10 256.6 5 409 6953 0.5 0.1 0.1 10 227.3 6 341 6820 0.5 0.1 0.1 10 201.7 7 292 6716 0.5 0.1 0.1 10 47.0 8 256 6656 0.5 0.1 0.1 10 45.7 10 204 6528 0.5 0.1 0.1 10 44.2 12 170 6460 0.5 0.1 0.1 10 43.3 14 146 6424 0.5 0.1 0.1 10 42.8 16 128 6400 0.5 0.1 0.1 10 42.5 32 64 6272 0.5 0.1 0.1 10 41.3 64 32 6208 0.5 0.1 0.1 10 40.7 128 16 6176 0.5 0.1 0.1 10 40.5 256 8 6160 0.5 0.1 0.1 10 40.3 Equi. 0 (NVT) at 630 K Equi. 1 (NPT) at 630 K (Comp. 1000 / 10 bar) Equi. 2 (NPT) at 630 K Cool down (NPT) to Taim 
+
+Prod (NPT) 512 25 38450 2 10+10 100 10 100 74.4 
+
+S6 S6 Dependence of Epot on carbon to hydrogen ratio 0.26 0.28 0.30 0.32 0.34 
+
+xC
+
+40.0 
+
+42.5 
+
+45.0 
+
+47.5 
+
+50.0 
+
+52.5 
+
+55.0 
+
+57.5 
+
+60.0    
+
+> Epot  [meV/atom]
+> Reference
+> Nc= 6, 8, 10
+> Nc= 6, 8, 10
+> refined
+> Nc= 8
+
+Figure S1: Dependence of Epot on the ratio xC of carbon to hydrogen atoms in a system, which depends on the chain length. The ratios corresponding to Nc = 6 and Nc = 10 are indicated by gray dotted lines. The dashed lines represent linear fits of Epot vs. x C for systems in liquid phase ( Nc > 6). S7 S7 Evaluation of the active learning process 0 10 20 
+
+0
+
+20 
+
+40 
+
+> Average Simulation
+> Time  t [ps]
+
+Chain length      
+
+> N= 2
+> N= 3
+> N= 4
+> N= 8
+> N= 16
+
+0 10 20 
+
+0
+
+20 
+
+40 
+
+> Average Simulation
+> Time  t [ps]
+
+Temperature     
+
+> T= 330 K
+> T= 430 K
+> T= 530 K
+> T= 630 K
+
+0 10 20 
+
+0
+
+20 
+
+40 
+
+> Average Simulation
+> Time  t [ps]
+
+Cutoff radius           
+
+> r= 4 Å
+> r= 5 Å
+> r= 6 Å
+> r= 7 Å
+> r= 8 Å
+
+0 10 20 
+
+10 2
+
+10 3
+
+10 4
+
+> Force RMSE
+> [meV/ Å]
+
+0 10 20 
+
+10 2
+
+4 × 10 1
+
+6 × 10 1
+
+2 × 10 2
+
+> Force RMSE
+> [meV/ Å]
+
+0 10 20 
+
+10 2
+
+4 × 10 1
+
+6 × 10 1
+
+> Force RMSE
+> [meV/ Å]
+
+0 10 20 
+
+10 1
+
+10 2
+
+10 3
+
+10 4
+
+> Energy RMSE
+> [meV/atom]
+
+0 10 20 
+
+10 0
+
+10 1
+
+> Energy RMSE
+> [meV/atom]
+
+0 10 20 
+
+10 0
+
+10 1
+
+> Energy RMSE
+> [meV/atom]
+
+0 10 20 
+
+Iteration 
+
+0
+
+20 
+
+40 
+
+> Extrapolative
+> Structures
+
+0 10 20 
+
+Iteration 
+
+0
+
+20 
+
+40 
+
+> Extrapolative
+> Structures
+
+0 10 20 
+
+Iteration 
+
+0
+
+20 
+
+40 
+
+> Extrapolative
+> Structures
+
+Figure S2: Evaluation of the active learning progress for varying chain lengths at 430 K and for varying temperature at a fixed chain length of 8. For both a ACE cutoff radius of 7 ˚ A is applied. Furthermore, the cutoff radius is varied while the temperature is fixed to 430 K and the chain length to 8. The maximum average simulation time is 50 ps. Similar to Figure 3 in the main paper, RMSEs are averaged over a test data set which comprises for each setup structures from all conditions: Different chain lengths in the first column, different temperatures in the second column and different cutoff-radii in the third columnn. S8 S8 Volume scan with non-refitted potentials 8 10 12 14 16 18 Volume [nm 3 ]0.8 0.6 0.4 0.2 0.0 0.2 0.4 0.6 
+
+> E inter  [meV/atom]
+> Reference Iteration 12 direct Iteration 16 direct Iteration 20 direct Iteration 20 re fi t
+
+Figure S3: Inter-molecular potential energy for volume scans using non-refined ACE potentials from different iterations of the active learning loop and the refined ACE potential after iteration 20. The reference is shown as a black line. All potentials are shifted such that their minima are aligned. S9 S9 Dissociation curves 0.10 0.05 0.00 0.05 0.10 Displacement [Å] 0.20 0.25 0.30 0.35 0.40 
+
+> E pot  [meV/atom]
+
+d) Reference Iteration 8 Iteration 12 Iteration 16 Iteration 20 4 5 6 7 8Distance [Å] 0.25 0.20 0.15 0.10 0.05 0.00 
+
+> E inter  [meV/atom]
+
+c) Reference Iteration 8 Iteration 12 Iteration 16 Iteration 20 5 6 7 8 9 10 Distance [Å] 0.20 0.15 0.10 0.05 0.00 
+
+> E inter  [meV/atom]
+
+b) Reference Iteration 8 Iteration 12 Iteration 16 Iteration 20 11 12 13 14 15 16 17 18 Distance [Å] 0.04 0.03 0.02 0.01 0.00 0.01 
+
+> E inter  [meV/atom]
+
+a) Reference Iteration 8 Iteration 12 Iteration 16 Iteration 20 
+
+y
+
+z
+
+x
+
+x
+
+Figure S4: a-c) Dissociation curves of aligned molecules in a) x, b) y and c) z-direction. d) Systematic probing of bond distances by moving one central carbon atom while keeping all other atoms fixed. All curves were evaluated with the refined potentials after the given AL iteration. S10 S10 Pairplots at different training stages 
+
+The pairplots shown here were generated using the same test set as that employed for Figure 5 in the main paper, which includes clusters of up to six oligomers. Depending on the active learning iteration, the potentials were trained on pro-gressively larger clusters, though some were exposed only to smaller clusters during their respective training stages. 
+
+Figure S5: Pairplots of predicted versus true a) total forces, b) intramolecular forces, c) intermolecular forces, d) total energies, e) intramolecular energies and f) intermolecular energies for the ACE potential at AL iteration 8. 
+
+Figure S6: Pairplots of predicted versus true a) total forces, b) intramolecular forces, c) intermolecular forces, d) total energies, e) intramolecular energies and f) intermolecular energies for the ACE potential at AL iteration 12. S11 Figure S7: Pairplots of predicted versus true a) total forces, b) intramolecular forces, c) intermolecular forces, d) total energies, e) intramolecular energies and f) intermolecular energies for the ACE potential at AL iteration 16. I8 I12 I16 I20 
+
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> 1.25
+> RMSE [meV/atom]
+
+RMSE Energy      
+
+> Total
+> Intra
+> Inter
+> I8 I12 I16 I20
+> 10 2
+> 10 1
+> 10 0
+> RMSE Root mean squared energy
+
+Norm. RMSE Energy    
+
+> I8 I12 I16 I20
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> Slope
+
+Slope Energy    
+
+> I8 I12 I16 I20
+> 0
+> 10
+> 20
+> 30
+> 40
+> RMSE [meV/ Å]
+
+RMSE Forces     
+
+> I8 I12 I16 I20
+> 10 1
+> RMSE Root mean squared force
+
+Norm. RMSE Forces    
+
+> I8 I12 I16 I20
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Slope
+
+Slope Forces 
+
+Figure S8: Improvement of the fitted ACE potentials during the active learning. Comparison of the RMSE and normalized RMSE of energy and forces after certain iterations and fitted slope of the predicted vs. true energy and forces. A slope of 1 indicates at least correct trends although their might be trivial systematic shifts in the energy. S12 S11 Density 2 3 4 5 6 7 8 10 12 14 16 32 64 128 256 
+
+Chain length 
+
+293.15 
+
+330 
+
+380 
+
+430 
+
+480 
+
+530 
+
+580 
+
+630 
+
+> Temperature
+
+-0.26 -0.20 -0.99 -0.19 -0.13 -0.10 -0.08 -0.06 -0.05 -0.05 -0.04 -0.03 -0.02 -0.02 -0.02 
+
+-0.27 -0.20 -0.26 -0.99 -0.17 -0.12 -0.10 -0.07 -0.06 -0.05 -0.04 -0.03 -0.02 -0.02 -0.02 
+
+-0.28 -0.24 -0.20 -0.22 -0.91 -0.18 -0.13 -0.08 -0.07 -0.05 -0.05 -0.03 -0.02 -0.02 -0.01 
+
+-0.30 -0.22 -0.19 -0.23 -0.30 -0.93 -0.19 -0.10 -0.08 -0.06 -0.05 -0.02 -0.01 -0.01 -0.01 
+
+-0.30 -0.26 -0.20 -0.20 -0.24 -0.37 -0.95 -0.16 -0.09 -0.07 -0.05 -0.02 -0.01 -0.00 -0.01 
+
+0.08 0.57 -0.26 -0.20 -0.19 -0.22 -0.85 -0.25 -0.12 -0.09 -0.06 -0.02 -0.01 -0.00 -0.01 
+
+0.14 -0.20 0.74 -0.17 -0.14 -0.14 -0.14 -0.93 -0.15 -0.10 -0.08 -0.01 -0.01 0.00 0.00 
+
+0.13 0.29 0.41 -0.04 -0.10 0.01 1.35 -0.02 -0.21 -0.13 -0.10 -0.02 0.00 0.00 -0.00 
+
+# (a) 
+
+2 3 4 5 6 7 8 10 12 14 16 32 64 128 256 
+
+293.15 
+
+330 
+
+380 
+
+430 
+
+480 
+
+530 
+
+580 
+
+630 
+
+> Temperature
+
+0.00 0.00 0.54 0.60 0.63 0.66 0.68 0.71 0.73 0.74 0.75 0.79 0.81 0.82 0.83 
+
+0.00 0.00 0.00 0.54 0.58 0.62 0.64 0.67 0.69 0.71 0.72 0.76 0.78 0.79 0.80 
+
+0.00 0.00 0.00 0.01 0.51 0.55 0.58 0.62 0.65 0.66 0.67 0.72 0.75 0.76 0.76 
+
+0.00 0.00 0.00 0.00 0.01 0.47 0.51 0.56 0.59 0.61 0.63 0.68 0.71 0.72 0.73 
+
+0.00 0.00 0.00 0.00 0.01 0.01 0.42 0.50 0.53 0.56 0.58 0.64 0.67 0.69 0.70 
+
+0.00 0.00 0.00 0.00 0.01 0.01 0.05 0.42 0.47 0.51 0.53 0.60 0.64 0.65 0.66 
+
+0.00 0.00 0.00 0.00 0.00 0.01 0.01 0.32 0.41 0.45 0.48 0.56 0.60 0.62 0.63 
+
+0.00 0.00 0.00 0.00 0.00 0.01 0.01 0.03 0.33 0.39 0.43 0.52 0.57 0.59 0.60 
+
+# (b) 
+
+2 3 4 5 6 7 8 10 12 14 16 32 64 128 256 
+
+Chain length 
+
+293.15 
+
+330 
+
+380 
+
+430 
+
+480 
+
+530 
+
+580 
+
+630 
+
+> Temperature
+
+0.00 0.00 0.00 0.48 0.55 0.59 0.62 0.66 0.69 0.71 0.72 0.77 0.79 0.81 0.81 
+
+0.00 0.00 0.00 0.00 0.49 0.54 0.58 0.62 0.65 0.67 0.69 0.74 0.77 0.78 0.79 
+
+0.00 0.00 0.00 0.00 0.05 0.45 0.51 0.57 0.60 0.63 0.64 0.70 0.73 0.75 0.75 
+
+0.00 0.00 0.00 0.00 0.01 0.03 0.41 0.50 0.55 0.58 0.60 0.67 0.70 0.71 0.72 
+
+0.00 0.00 0.00 0.00 0.00 0.01 0.02 0.42 0.49 0.52 0.55 0.63 0.67 0.68 0.69 
+
+0.00 0.00 0.00 0.00 0.00 0.01 0.01 0.32 0.42 0.46 0.50 0.59 0.63 0.65 0.66 
+
+0.00 0.00 0.00 0.00 0.00 0.01 0.01 0.02 0.35 0.40 0.44 0.55 0.60 0.62 0.63 
+
+0.00 0.00 0.00 0.00 0.00 0.01 0.02 0.03 0.26 0.34 0.39 0.51 0.57 0.59 0.60 
+
+# (c) 
+
+0.4 
+
+0.2 
+
+0.0 
+
+0.2 
+
+0.4 
+
+> ACE  ref ref
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+0.5 
+
+0.6 
+
+0.7 
+
+0.8 
+
+> Ref
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+0.5 
+
+0.6 
+
+0.7 
+
+0.8 
+
+> ACE
+
+Figure S9: a) Relative difference in the densities between ACE and reference simulations. b) Density in reference simu-lations. c) Density in ACE simulations. S13 S12 Extrapolation grade and simulation time 2 3 4 5 6 7 8 10 12 14 16 32 64 128 256 
+
+Chain length 
+
+293.15 
+
+330 
+
+380 
+
+430 
+
+480 
+
+530 
+
+580 
+
+630 
+
+> Temperature
+
+1.39 0.88 0.87 1.26 1.32 1.34 1.35 1.37 1.38 1.39 1.40 1.42 1.42 1.41 1.40 
+
+1.44 0.90 0.88 0.86 1.24 1.27 1.30 1.32 1.33 1.35 1.35 1.38 1.38 1.38 1.37 
+
+1.51 0.93 0.90 0.88 0.89 1.19 1.23 1.26 1.28 1.30 1.31 1.34 1.35 1.35 1.35 
+
+1.56 0.97 0.93 0.91 0.90 0.91 1.16 1.22 1.24 1.26 1.27 1.31 1.33 1.33 1.33 
+
+11.89 1.03 0.98 0.96 0.95 0.95 0.96 1.18 1.22 1.24 1.26 1.31 1.32 1.33 1.31 
+
+1.74 6.87 1.04 1.03 1.03 1.03 1.03 1.18 1.22 1.25 1.27 1.32 1.33 1.33 1.34 
+
+1.92 1.23 1.24 1.12 1.12 1.11 1.16 1.13 1.27 1.28 1.30 1.35 1.37 1.36 1.38 
+
+2.17 1.44 1.28 1.24 1.25 1.24 1.21 1.23 1.32 1.34 1.35 1.41 1.42 1.43 1.44 
+
+# (a) 
+
+2 3 4 5 6 7 8 10 12 14 16 32 64 128 256 
+
+Chain length 
+
+293.15 
+
+330 
+
+380 
+
+430 
+
+480 
+
+530 
+
+580 
+
+630 
+
+> Temperature
+
+2.12 1.61 1.16 1.98 2.16 2.25 2.17 2.34 2.73 3.13 2.53 2.43 2.77 2.30 2.78 
+
+2.19 1.39 1.35 1.60 2.16 2.05 2.51 2.45 2.78 2.66 2.39 2.34 2.56 2.32 2.19 
+
+2.39 1.67 1.92 1.70 1.76 2.23 2.15 2.23 2.15 2.16 2.14 2.07 2.15 2.53 2.37 
+
+2.38 2.34 1.86 2.54 1.78 2.25 2.76 2.61 2.52 2.14 2.23 2.27 2.36 2.21 7.33 
+
+15.75 3.35 4.40 2.88 2.51 2.06 2.34 2.38 2.84 5.23 2.70 2.63 2.27 4.84 18.92 
+
+3.07 23.88 10.30 5.53 4.03 3.45 9.54 6.02 3.15 4.19 5.19 5.24 5.98 13.76 4.48 
+
+8.17 4.92 2.41 14.39 3.49 3.19 16.85 23.39 6.26 11.93 2.53 9.59 5.57 20.12 5.82 
+
+14.84 16.03 2.88 10.59 9.83 4.06 1.56 3.67 12.55 2.48 7.86 4.74 7.93 3.76 9.89 
+
+# (b) 
+
+2 3 4 5 6 7 8 10 12 14 16 32 64 128 256 
+
+Chain length 
+
+293.15 
+
+330 
+
+380 
+
+430 
+
+480 
+
+530 
+
+580 
+
+630 
+
+> Temperature
+
+10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 3.77 2.08 
+
+10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 
+
+10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 
+
+10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 
+
+7.27 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 10.00 
+
+1.00 0.02 10.00 8.35 6.52 10.00 10.00 10.00 3.37 10.00 10.00 10.00 9.18 10.00 8.24 
+
+0.17 3.82 0.02 7.51 2.28 1.76 1.74 10.00 1.06 10.00 1.06 10.00 2.94 10.00 2.21 
+
+0.49 0.27 0.17 0.86 0.71 0.98 0.02 1.22 2.11 0.23 0.27 1.35 1.53 2.56 3.83 
+
+# (c) 
+
+2
+
+4
+
+6
+
+8
+
+10 
+
+5
+
+10 
+
+15 
+
+20 
+
+> max
+
+2
+
+4
+
+6
+
+8
+
+10 
+
+> Sim. Time [ns]
+
+Figure S10: a) Average and b) maximum extrapolation grade γ observed during the simulation before the stopping crite-rion with γstop > 25 was reached. c) Simulation time until γstop > 25 was reached. The maximum simulation time is 10 ns. S14 S13 Bond distance, angle and dihedral distributions 0
+
+5
+
+10 
+
+15 
+
+> PDF
+
+(a) C-C 
+
+0.00 
+
+0.05 
+
+0.10 
+
+0.15 
+
+> PDF
+
+(b) C-C-C 
+
+100 0 100 
+
+0.000 
+
+0.005 
+
+0.010 
+
+(c) C-C-C-C 
+
+1.4 1.6 1.8 
+
+Distance [Å] 
+
+0.1 
+
+0.0 
+
+0.1 
+
+100 120 140 
+
+Angle 
+
+0.0025 
+
+0.0000 
+
+0.0025 
+
+100 0 100 
+
+0.001 
+
+0.000 
+
+0.001 
+
+0
+
+5
+
+10 
+
+15 
+
+> PDF
+
+(d) C-H 
+
+0.00 
+
+0.05 
+
+0.10 
+
+0.15 
+
+> PDF
+
+(e) H-C-H 
+
+0.000 
+
+0.005 
+
+0.010 
+
+> PDF
+
+(f) H-C-C-H 
+
+1.0 1.2 
+
+Distance [Å] 
+
+0.05 
+
+0.00 
+
+0.05 
+
+80 100 120 
+
+Angle 
+
+0.0005 
+
+0.0000 
+
+0.0005 
+
+100 0 100 
+
+Dihedral 
+
+0.00025 
+
+0.00000 
+
+0.00025    
+
+> Reference T=330 K T=430 K T=530 K
+
+Figure S11: Comparison of bonds, angles and dihedral distributions obtained from simulations with the ACE potential with distributions obtained from the reference potential. a-c) Show distributions for carbon-backbone atoms only. d-f) show distributions including hydrogen atoms. The distributions are shown for Nc = 128 and varying temperature. S15 0
+
+5
+
+10 
+
+15 
+
+> PDF
+
+(a) C-C 
+
+0.00 
+
+0.05 
+
+0.10 
+
+0.15 
+
+> PDF
+
+(b) C-C-C 
+
+100 0 100 
+
+0.000 
+
+0.005 
+
+0.010 
+
+(c) C-C-C-C 
+
+1.4 1.6 1.8 
+
+Distance [Å] 
+
+1
+
+0
+
+1
+
+100 120 140 
+
+Angle 
+
+0.01 
+
+0.00 
+
+100 0 100 
+
+0.0025 
+
+0.0000 
+
+0.0025 
+
+0
+
+5
+
+10 
+
+15 
+
+> PDF
+
+(d) C-H 
+
+0.00 
+
+0.05 
+
+0.10 
+
+0.15 
+
+> PDF
+
+(e) H-C-H 
+
+0.000 
+
+0.005 
+
+0.010 
+
+> PDF
+
+(f) H-C-C-H 
+
+1.0 1.2 
+
+Distance [Å] 
+
+0.5 
+
+0.0 
+
+0.5 
+
+80 100 120 
+
+Angle 
+
+0.00 
+
+0.01 
+
+100 0 100 
+
+Dihedral 
+
+0.0000 
+
+0.0025      
+
+> Reference N=16 N=32 N=64 N=128 N=256
+
+Figure S12: Comparison of bonds, angles and dihedral distributions obtained from simulations with the ACE potential with distributions obtained from the reference potential. a-c) Show distributions for carbon-backbone atoms only. d-f) show distributions including hydrogen atoms. The distributions are shown for T = 430 K and varying Nc.S16

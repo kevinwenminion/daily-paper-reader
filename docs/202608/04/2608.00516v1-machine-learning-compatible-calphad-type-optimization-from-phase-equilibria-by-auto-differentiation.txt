@@ -1,0 +1,1566 @@
+Title: Machine Learning Compatible CALPHAD-type Optimization from Phase Equilibria by Auto-differentiation
+
+URL Source: https://arxiv.org/pdf/2608.00516v1
+
+Published Time: Tue, 04 Aug 2026 00:37:59 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# Machine Learning Compatible CALPHAD-type Optimization from Phase Equilibria by Auto-differentiation 
+
+Wenhao Zhang 
+
+International Center for Young Scientists (ICYS), National Institute for Materials Science (NIMS), Sengen 1-2-1, Tsukuba, Ibaraki 305-0047, Japan 
+
+Jean-Claude Crivello 
+
+CNRS-Saint-Gobain-NIMS, IRL 3629, Laboratory for Innovative Key Materials and Structures (LINK), 1-1 Namiki, Tsukuba, 305-0044, Ibaraki, Japan 
+
+Yusuke Matsuoka, Toshiyuki Koyama, and Taichi Abe 
+
+Research Center for Structure Materials, National Institute for Materials Science (NIMS), Sengen 1-2-1, Tsukuba, Ibaraki 305-0047, Japan 
+
+(*ZHANG.Wenhao@nims.go.jp) (Dated: August 4, 2026) To accurately determine phase boundaries and phase transitions, thermodynamic models that describe free energies of phases often have to be optimized based on experimentally observed phase equilibria. While dif-ferent approaches exist for thermodynamic optimizations, these approaches are often implemented in ways that are not compatible with machine learning workflows that requires differentiable calculation of loss function. In this work, we derive a phase equilibrium loss function based on thermodynamic potentials that can be effi-ciently evaluated and enable gradient based optimization by auto-differentiation in the PyTorch package. By minimizing this loss function, general thermodynamic model parameters can be optimized with respect to ex-perimental phase equilibria data. Using thermodynamic models in the CALculation of PHAse Diagram (CAL-PHAD) framework, We illustrate successful and efficient optimization in different systems including ternary ones with more than 100 parameters. As the loss function is defined independently of the details of the thermo-dynamic models, it can be used to optimize machine learning thermodynamic models in general. In particular, we demonstrate a top-down optimization of atomistic potential from target phase equilibria. 
+
+I. INTRODUCTION 
+
+Phase diagrams are of fundamental importance in materials development, design and optimization. However, as more and more research focus has been placed in multicomponent sys-tems for both functional and structural applications, revelant phases diagrams become less available. If some experimental observation are available, CALcula-tion of PHAse Diagram (CALPHAD) assessment can be used to efficiently interpolate between experimental data to deter-mine phase boundaries and predict phase diagrams. [1] In the CALPHAD approach, phenomenological free energy models are parameterized as a function of temperature, pressure and site-fractions. The parameters are then determined directly or indirectly by optimization with respect to experimental ther-modynamic quantitatives such as heat capacity or observed compositions at phase equilibria. Since smooth polynomi-als are often used in the thermodynamic models, interpolation into unknown regions of the phase diagram is often possible. Without experimental data, phase diagrams can be pre-dicted from first-principle. [2] In a typical approach, free energy of a phase can be calculated from energy and forces from density functional theory (DFT) calculations. Harmonic or quasi-harmonic phonon calculations account for vibrational entropy. [3] Configurational entropy can be approximated by in Bragg-Williams approximation or more accurately based on the cluster expansion method. [4] While these methods are readily available, high computational cost of density func-tional theory (DFT) evaluation hinders their applications to many practical problems. Recently advancement in universal machine learning interatomic potentials (UMLIPs) promises to significantly accelerate the prediction of phase diagram by providing a surrogate energy models that are a few magnitude faster to evaluate. [5] The state-of-the-art UMLIPs achieve near DFT accuracy and thus can be used instead of DFT for free energy calculations. Indeed, recent works have shown its success in different cases. [6, 7] However, practical usage of phase diagram depends cru-cially on the accuracy in describing phase boundaries and phase transitions temperatures, demanding accuracy in energy 
+
+≈ 10 J /mol. As UMLIPs are typically trained on DFT data calculated at PBE level, machine learning error ( ≈ 1 kJ /mol) will be compounded with DFT error ( ≈ 1 kJ /mol). As a result, UMLIP predicted phase diagrams often quantitatively devi-ate from experimental results and cannot be easily amended by further increasing training DFT data size. Such unreli-able MLIP phase diagram predictions may not be attractive to guide experimental effort. It can thus be concluded that DFT or UMLIP predictions of phase diagrams can only be used as a first approximations to the true phase diagrams determined from experiments. To improve the accuracy of the resulting phase diagrams, further optimization is necessary. A common approach is to com-bine DFT/MLIP assessment of free energy with CALPHAD assessment, in which a set of thermodynamic parameters is first derived by fitting the calculated free energy, and then sub-sequently optimized by fitting to experimental observations. However, since UMLIPs can be considered to be thermody-namic models themselves, there is no theoretical obstacles to optimize UMLIP model parameters directly from experimen-arXiv:2608.00516v1 [cond-mat.mtrl-sci] 1 Aug 2026 2tal data especially the phase equilibria data. Practical optimization however, is not straightforward. Typical approach such numerical gradient or blackbox opti-mization as used in many CALPHAD optimizations can not be reliably used for optimization of complex models. Re-cently, analytic gradient based optimization have been de-veloped and implemented by Kunselman et al. [8, 9] How-ever, their formulation cannot be extended easily beyond the CALPHAD framework. Auto-differentiation maybe the most promising route to enable gradient optimization of any thermodynamic models regardless of complexity. In 2022, Guan implemented an auto-differentiation based thermody-namic optimization. [10] However, his work is restricted to the Cu–Rh binary with a purpose-built loss function and implementation. In this work, we implemented an auto-differentiation based optimization for optimizing thermody-namic models based on experimental phase equilibria. To use auto-differentiation, a loss function have to be defined and expressed as a differentiable computation graph that are ef-ficient to compute. We derive a formula of the loss function rigorously from equilibrium condition. Using this loss func-tion and thermodynamic model in the CALPHAD framework (CALPHAD models for short in the following) as example use case, we show that our implementation allows accurate repro-duction of experimental phase equilibrium. The optimization workflow is implemented in PyTorch and can thus support any thermodynamic model with different complexity. This article is organized as follows: first, we will derived a differentiable loss function from the equilibrium condition. Then, we outline the techniques that enable the efficient cal-culation of the loss function. Finally, we will show examples of the optimization. As loss function is of key importance in thermodynamic optimization. We briefly provide a overview of loss functions that are being used in the CALPHAD approach. One form of the loss function that has been used is the sum of squared error between experimental value e and calculated value φ [11–13]: 
+
+L = 12 ∑
+
+> i
+
+wi[ei − φi(W)] 2
+
+where i index experimental data, wi is the associated weight related to the reliability of the data. ei is experimentally ob-served values, such as equilibrium composition, and φ is the corresponding value calculated from parameters W. This is used, for example, in the PARROT program. [12] However, such loss function can be difficult to use especially when val-ues cannot be calculated due to poor conditioning. [13] Al-ternatively, loss functions based on thermodynamic quantities have been used. For example, a necessary but not sufficient phase equilibrium condition has been used as loss function in 
+
+PanOptimizer [11]: 
+
+L = 12 ∑
+
+> i
+
+wi ∑
+
+> A
+
+"
+
+μα 
+
+> A
+
+(W) − μβ 
+
+> A
+
+(W)
+
+RT i
+
+#2
+
+where μα/β 
+
+> A
+
+is the chemical potential of component A in phase 
+
+α/β . Thermodynamic driving force [14] have also been used to define loss function. Driving force has been used in the ESPEI package. [15] Another example is given by the recent implementation of gradient based optimization by Kunselman et al. where the loss (residual) for stable phase α in phase equilibrium i is defined as: 
+
+li,α = ∑
+
+> A
+
+¯μAXα 
+
+> A
+
+− Gα
+
+where ¯ μA is the chemical potential of A in a defined target hyperplane and Gα is the Gibbs energy at the observed com-position. The target hyperplane is obtained from global equi-librium calculations. Finally, the total loss is written as sum of square of the loss for each observed stable phases. While this loss being minimized to zero is a necessary and sufficient con-dition to reproduce observed phase equilibria, the chemical potential required in the loss function is a part of the solution of a global optimization and its differentiable calculation can be expensive and inefficient. Below, we derive a loss function of phase equilibrium that can be calculated differentiably and efficiently.   
+
+> II. METHODOLOGY A. Equilibrium Conditions
+
+In this work, we use α, β to indicate a phase. A thermo-dynamic model Gα 
+
+> M
+
+(yα , T, P, Wα ) for a phase α is a function with which energy can be calculated from input variables T ,
+
+P and a set of internal coordinate yα , which may be required to satisfy a set of constraints Cα 
+
+> k
+
+(yα ) = 0. Such internal co-ordinates can be sublattice site fractions in the CALPHAD framework or other order parameters depending on the ther-modynamic model. The parameters of the model is denoted as Wα . The subscript M in GM indicate that this value GM is defined for one molar of the cell, in which vacancy could oc-cupy some sites. The amount of chemical species (A, B, · · · )
+
+in one molar of the same cell is given as functions of internal coordinates: 
+
+Nα 
+
+> A
+
+= Nα 
+
+> A
+
+(yα ); Nα 
+
+> B
+
+= Nα 
+
+> B
+
+(yα ); · · · 
+
+The total amount of chemical species is: Nα = ∑i̸=Vac Nα
+
+> i
+
+and from this, we can calculate thermodynamic properties per atom: Gα 
+
+> m
+
+= Gα 
+
+> M
+
+/Mα .We use black-bold letters to denote independent control variables. We consider a set of phases α, β , γ, δ · · · with phase fraction N α , N β · · · . The global equilibrium at given tem-perature T, pressure P and total number of atoms NA for each element A can be obtained by minimizing thermodynamic model with respect to the constraints: [14] 
+
+G(N, T, P) = min  
+
+> (N≥0,y,T,P)
+
+
+
+# ∑
+
+> α
+
+N α Gα 
+
+> M
+
+(yα , T, P, Wα )
+
+
+
+subject to 
+
+
+
+T = T
+
+P = P
+
+∑α N α Nα 
+
+> A
+
+(yα ) = NA, · · · 
+
+Cα 
+
+> 1
+
+(yα ) = 0, · · · 3It is important to note that we also have inequality constraint 
+
+N ≥ 0, so that for a phase γ that is not represent in equilib-rium, N γ = 0. The minimization problem can be solved by found by finding the stationary point of the Largrangian: 
+
+L = ∑
+
+> α
+
+N α Gα 
+
+> M
+
+(yα , T, P, Wα ) + ∑
+
+> A
+
+μA
+
+
+
+NA − ∑
+
+> α
+
+N α Nα 
+
+> A
+
+(yα )
+
+
+
++ ∑
+
+> α
+
+# ∑
+
+> k
+
+ζ α 
+
+> k
+
+Cα 
+
+> k
+
+(yα )= ∑
+
+> α
+
+N α Φα 
+
+> M
+
+(yα , μ, T, P, Wα ) + ∑
+
+> A
+
+μANA + ∑
+
+> α
+
+# ∑
+
+> k
+
+ζ α 
+
+> k
+
+Cα 
+
+> k
+
+(yα )
+
+where T = T and P = P is solved trivally and can be inserted into the Lagrangian. They are dropped in the following. μ and 
+
+ζ are lagrange multiplier for the mass balance constraints and constraints on y. μ can be shown to be the chemical potential. [16] We have defined a quantity Φ, which has the form of a grand potential (since it is a function of the chemical poten-tial): 
+
+Φα 
+
+> M
+
+(yα , μ, Wα ) = Gα 
+
+> M
+
+(yα , Wα ) − ∑
+
+> A
+
+μANα 
+
+> A
+
+(yα )
+
+The stationary point is given by the following set of equations: 
+
+∂ L
+
+∂ N α = Φα 
+
+> M
+
+(yα , μ, Wα )
+
+(
+
+= 0 if N α > 0
+
+> 0 if N α = 0
+
+∂ L
+
+∂ yα
+
+> i
+
+= N α ∂ Φα
+
+> M
+
+∂ yα
+
+> i
+
++ ∑
+
+> k
+
+ζk
+
+Cα 
+
+> k
+
+(yα )
+
+∂ yi
+
+= 0
+
+∂ L
+
+∂ μ A
+
+= ∑
+
+> α
+
+N α Nα 
+
+> A
+
+(yα ) − NA = 0
+
+∂ L
+
+∂ ζ α
+
+> k
+
+= Cα 
+
+> k
+
+(yα ) = 0where the above equations are defined for each phases, each internal coordinates, each chemical species and each con-straints, respectively. We note that for stable phase with 
+
+N α > 0, we require Φα 
+
+> M
+
+(yα , μ, Wα ) = 0, but for unstable phase γ, this condition does not need to be satisfied and thus the internal coordinates for phases with N = 0 cannot be uniquely determined. Nonetheless, with determined chemi-cal potential μ, the condition for a phase γ to be unstable is that: min  
+
+> yγ,Cγ
+> k
+
+Φγ 
+
+> M
+
+(yγ , μ, Wγ ) > 0where Cγ 
+
+> k
+
+means that constraints on yγ need to be satisfied. On the other hand, for a stable phase α, if we determine the same quantity min yα ,Cα 
+
+> k
+
+Φα 
+
+> M
+
+(yα , μ, Wα ), we find solving the minimization leads to the following set the equations which is identical to the equilibrium condition: 
+
+∂ Φα
+
+> M
+
+∂ yα
+
+> i
+
++ ∑
+
+> k
+
+ζk
+
+∂Cα 
+
+> k
+
+(yα )
+
+∂ yα
+
+> i
+
+= 0So we see that the internal coordinate yα solved from the the global phase equilibrium also minimizes Φα 
+
+> M
+
+. Therefore, we can combine the equilibrium conditions (1) and (2) to give the equilibrium condition for a stable phase: min  
+
+> yα,Cα
+> k
+
+Φα 
+
+> M
+
+(yα , μ, Wα ) = 0 
+
+> B. Loss Function
+
+Typically, experimental phase equilibrium data are given by the measured compositions of phases in equililibrum: 
+
+(Nα 
+
+> A
+
+, Nα 
+
+> b
+
+, · · · ), (Nβ 
+
+> A
+
+, Nβ 
+
+> b
+
+, · · · ), · · · 
+
+If an experimental equilibrium is indeed reproduced by the thermodynamic model, then, the internal coordinates that sat-isfy the equilibrium conditions should also satisfy: 
+
+Nα 
+
+> A
+
+(yα ) = Nα 
+
+> A
+
+· · · 
+
+Reversely, deviation from equilibrium can also be measured using the equilibrium condition, but at constrained composi-tion of each observed phase. Since the chemical potential is also unknown, we set auxiliary chemical potential vectors μ′
+
+for this phase equilibrium and we find deviation to the ob-served phase equilibrium: min  
+
+> yα,Cα
+> k
+
+Φα 
+
+> M
+
+(yα , μ′, Wα )̸ = 0which is illustrated in a binary system in Fig. 1 a. Since the solution y in the above minimization does not necessarily re-produce the observed equilibrium composition. We should, in addition, compute the same time at the constrained composi-tion Nα (yα ) = Nα , leading to the local condition: min    
+
+> yα,Cα
+> k,Nα
+
+Φα 
+
+> M
+
+(yα , μ′, Wα ) = min    
+
+> yα,Cα
+> k,Nα
+
+Gα 
+
+> M
+
+(yα , Wα ) − ∑
+
+> A
+
+μ′
+
+> A
+
+Nα
+
+> A
+
+= Gα 
+
+> M
+
+(Nα , Wα ) − ∑
+
+> A
+
+μ′
+
+> A
+
+Nα
+
+> A
+
+where the first term is composition constrained Gibbs energy. The above two equations defines the loss function associated with the observed stable phases. For unobserved phase γ, we still require that: min  
+
+> yγ,Cγ
+> k
+
+Φγ 
+
+> M
+
+(yγ , μ′, Wγ ) > 04      
+
+> FIG. 1. Upper panel: the illustration of thermodynamic quantita-tives used in the loss function in a binary system. μAand μBare the auxiliary chemical potential that can be fixed by the Gibbs energy at experimentally observed compositions. Lower panel: auxiliary chemical potential from a two-phase equilibrium in a ternary system. Auxiliary chemical potential require one additional parameter.
+
+with the auxiliary chemical potential μ′. Finally, the total de-viation can thus be measured as follows: 
+
+L (μ′, W) = ∑
+
+> α∈stable
+
+Gα
+
+> m
+
+(Xα , Wα ) − ∑
+
+> A
+
+μ′
+
+> A
+
+Xα
+
+> A
+> p
+
++ ∑
+
+> α∈stable
+
+min  
+
+> yα,Cα
+> k
+
+Φα
+
+> m
+
+(yα , μ′, Wα )
+
+> p
+
++ ∑ 
+
+> γ/∈stable
+
+ReLU 
+
+"
+
+− min  
+
+> yγ,Cγ
+> k
+
+Φγ
+
+> m
+
+(yγ , μ′, Wγ )
+
+#
+
+at a given auxiliary chemical potential and thermodynamic pa-rameters W. We have normalized the energies to per-molar-atoms and X is the atomic fraction of the observed phase. The exponent p = 1 leads to absolute loss and p = 2 leads to squared loss. In practice, we find p = 1 lead to better results as it maintains the magnitude of loss gradient even if the loss is small. The auxiliary chemical potential in the above equa-tion need to be optimized. Thus, optimal parameters Wopt can be found as: 
+
+Wopt = arg min 
+
+> W
+
+
+
+# ∑
+
+> t
+
+min 
+
+> μ′
+> t
+
+Lt (μ′ 
+
+> t
+
+, W) + λ ∥W ∥22
+
+
+
+where we have introduced the regularization with weight λ .The first term include all target equilibria indexed by t and should be zero when all experimentally observed phase equi-libria are reproduced. As the loss function is derived from equilibrium condition, its value equal to zero is a sufficient and necessary condition for observed phase equilibrium to be reproduced. In practice, Wopt can be found by minimizing 
+
+L (μ′, W) + λ ∥W ∥22 with respect to W and μ′ at the same time. Additional minimization with respect to internal coordi-nates can be found in the defined loss function for both the grand potential term Φ and Gibbs energy G. Internal coor-dinates y∗ that minimizes these quantities are themselves a function of W. Fortunately, using the envelope theorem, it is not necessary to evaluate the derivative of y∗ with respect to 
+
+W. To calculate the derivative of loss L with respect to pa-rameters W, it is only necessary to consider y∗ as input with-out needing to track the computational graphs that produce y∗.More details regarding the envelope theorem are provided in the Appendix A.  
+
+> C. Auxiliary Chemical Potential
+
+When the number of phases in equilibrium is equal to the number of chemical components. The loss 
+
+∑α∈stable 
+
+Gα
+
+> m
+
+(Xα , Wα ) − ∑A μ′
+
+> A
+
+Xα
+
+> A
+
+2 = 0 leads to a full-rank linear system from which auxiliary chemical potential can be solved. For example, in a binary system, knowing the com-position and composition constrained Gibbs energy of two phases allow us to define a chemical potential tangent plane that pass throughs both points in the composition-energy space (as shown in Fig. 1 a). In such case, it is possible to define μ′ from the above linear equation so that they are a function of model parameter W, thus eliminating them from optimization, as well as the corresponding loss terms. However, this is not in general possible. Consider a two phase equilibrium in a ternary system. Two points in the en-ergy composition space cannot uniquely define a chemical po-tential tangent plane. However, it is possible to force the tan-gent plane to cross known points from the two phases in equi-librium. Thus, only one degree of freedom need to be intro-duced to define the auxiliary potential and the first term in the loss function is again eliminated. This is illustrated in Fig. 1 b and allow us to greatly reduce the number of auxiliary po-tential term that need to be minimized in addition to W. The same method can be applied to any number of phase in equi-librium in any number of components. Furthermore, by defin-ing the auxiliary chemical potential, this loss function can also be used without modification in cases when composition of any phase in equilibrium (e.g. phase β ) is not known. In such 5cases, we simply require that min yβ ,Cβ
+
+> k
+
+Φβ
+
+> m
+
+(yβ , μ′, Wβ ) → 0with respect to μ′ and that μ′ are optimized. 
+
+D. Thermodynamic Model 
+
+To describe a thermodynamic systems, it is necessary for the model to provide free energy for different possible phases. In the CALPHAD approach, each phase has their own ther-modynamic model with different parameters and the thermo-dynamic system is an ensemble of defined models. However, it is also possible that a global model provide thermodynamic description of all phases, which may be the case of machine learning models. We use CALPHAD models as example of the optimiza-tion. In CALPHAD, the free energy of the phase is com-monly described by the compound energy formalism (CEF), in which we partition all sites in the unit cell into sublattices. we define the site fraction for sublattice s of element A as 
+
+y(s) 
+
+> A
+
+= n(s) 
+
+> A
+
+/(n(s) 
+
+> A
+
++ n(s) 
+
+> B
+
++ · · · ) where n(s) 
+
+> A
+
+is the number of el-ement A per molar formula at the sublattice s. [1] The total number of component A in a molar formula unit is obtained by counting the number of A is each sublattices Ni = ∑s Nsy(s)
+
+> i
+
+where Ns is the number of sites in the sublattice s in a mo-lar formula unit. Omitting the pressure, the thermodynamic model is given by: 
+
+GM (y, T ) = ∑
+
+> I
+
+PI (y)gI + RT ∑
+
+> s
+
+NsN
+
+# ∑
+
+> i=A
+
+y(s) 
+
+> i
+
+ln y(s) 
+
+> i
+
++ Gex  
+
+> M
+
+(y, T )
+
+where the first sum over I is over possible component array specifying the occupancy of sites in the end-members. For example: I = ( AB · · · ) with A occupy the first sublattice, etc, and gI can be interpreted as the free energy of the end-member configuration gAB ··· which can be written as temperature poly-nomials. The value of the coefficients PI is y(1) 
+
+> A
+
+y(1) 
+
+> B
+
+· · · .The excess energy can consist of different terms. Contribu-tion from pairwise, ternary excess term on the same sublattice, as well as binary mixing on two sublattices are given by Lukas et al. [1], where L(n) = L(T ) are temperature polynomials in-dexed by integer n:
+
+Gex ,pair  
+
+> M,ab ···
+
+(i j )
+
+|{z}  
+
+> (s)
+> ··· c
+
+= y(1) 
+
+> a
+
+y(2) 
+
+> b
+
+· · · (y(s) 
+
+> i
+
+y(s) 
+
+> j
+
+) · · · y(N)
+
+> c
+
+" v
+
+# ∑
+
+> n=0
+
+L(n)(y(s) 
+
+> i
+
+− y(s) 
+
+> j
+
+)n
+
+#
+
+Gex ,ternary  
+
+> M,ab ···
+
+(i jk )
+
+|{z}  
+
+> (s)
+> ··· c
+
+= y(1) 
+
+> a
+
+y(2) 
+
+> b
+
+· · · (y(s) 
+
+> i
+
+y(s) 
+
+> j
+
+y(s) 
+
+> k
+
+) · · · y(N)
+
+> c
+
+h
+
+viL(0) + v jL(1) + vkL(2)i
+
+Gex ,2pair  
+
+> M,ab ···
+
+(i j )
+
+|{z}  
+
+> (s)
+> ···
+
+(mn )
+
+|{z}  
+
+> (r)
+> ··· c
+
+= y(1) 
+
+> a
+
+y(2) 
+
+> b
+
+· · · (y(s) 
+
+> i
+
+y(s) 
+
+> j
+
+) · · · (y(r) 
+
+> m
+
+y(r) 
+
+> n
+
+) · · · y(N)
+
+> c
+
+h
+
+L(0) + ( y(r) 
+
+> m
+
+− y(r) 
+
+> n
+
+)L(1) + ( y(s) 
+
+> i
+
+− y(s) 
+
+> j
+
+)L(2)i
+
+where the index ab · · · (i j )(s) · · · c means that the specific term is related to the mixing on the (s)-th sublattice with com-ponent i and j, while all other sublattices are occupied by 
+
+a, b, · · · , c, respectively. The same notation can be extended for ternary mixing and mixing on different sublattices. In the ternary mixing, the normalized term vi = y(s) 
+
+> i
+
++ ( 1 − ∑ j y(s) 
+
+> j
+
+)/3is used. The compound energy formalism covers solid so-lution (single sublattice), intermetallics (multiple sublattices) and compounds (multiple sublattices with fixed site fractions). To calculate loss function, it is required to calculate min-imized Gibbs energy or grand potential. In the compound energy formalism, minimization problem has the following constraints on y: 0 ≤ y ≤ 1 and ∑i y(s) 
+
+> i
+
+= 1. For Gibbs en-ergy, composition constraints Xi = Ni/ ∑i Ni also have to be imposed. Explicitly, we have (N − 1) composition constraints for N chemical species: 
+
+# ∑
+
+> s
+
+Nsy(s) 
+
+> i
+
+= XA ∑ 
+
+> j̸=Va
+
+# ∑
+
+> t
+
+N(t)y(t)
+
+> j
+
+!
+
+= XA
+
+
+
+# ∑
+
+> s
+
+N(s) − ∑
+
+> t
+
+N(t)y(t)
+
+> Va
+
+
+
+which is linear. Our approach to calculate terms in the loss function consists of three steps: first, a random grid of feasi-ble points yi is prepared. This can be done using the Dirich-let sampling in the case of calculating grand potential, and when sampled points need to follow imposed composition constraints, the feasible points are in a polytope given by the above equations of constraints, and hit-and-run sampling can be used. Secondly, for each sampled points, gradient descend op-timization is performed for N steps. Especially, exponen-tial gradient descend (EGD) method can conveniently take into account the constraints on the internal coordinate y (Ap-pendix B). Denoting the linear constraints as Ay − B = 0, In 6
+
+> FIG. 2. Optimization results of binary system Al–Zn and Cu–Mg. For the two binary, initial phase diagram are shown on the left (a) and (c) and the optimized one together with training phase equilibria data are shown on the right (b) and (d).
+
+EGD, the t + 1 step of y(t+1) can be determined by finding the stationary point of the Lagrangian: 
+
+L =η ∑
+
+> is
+
+g(t) 
+
+> is
+
+y(t+1) 
+
+> is
+
++ ∑
+
+> is
+
+y(t+1) 
+
+> is
+
+log y(t+1)
+
+> is
+
+y(t)
+
+> is
+
+!
+
++ ∑
+
+> s
+
+λs ∑
+
+> i
+
+y(t+1) 
+
+> is
+
+− 1
+
+!
+
++ μ(Ay (t+1) − B)
+
+where g(t) and y(t) are the gradient and coordinate vector at step t and μ is a vector of N − 1 multipler. λs is the multipler for each sublattices. The stationary point is given by: 
+
+y(t+1) 
+
+> is
+
+= y(t) 
+
+> is
+
+e−ηg(t)  
+
+> is −∑aμaAa,is
+
+e1+λs
+
+The term e1+λs is the normalizer for each sublattices, and thus 
+
+λs can be eliminated to give: 
+
+y(t+1) 
+
+> is
+
+= y(t) 
+
+> is
+
+e−ηg(t)  
+
+> is −∑aμaAa,is
+
+∑ j y(t) 
+
+> js
+
+e−ηg(t)   
+
+> js −∑aμaAa,js
+
+without composition constraints, the update is simply given by 
+
+y(t+1) 
+
+> is
+
+= y(t) 
+
+> is
+
+e−ηg(t) 
+
+> is
+
+/ ∑ j y(t) 
+
+> js
+
+e−ηg(t) 
+
+> js
+
+. With constraints, the mul-tipler μ are determined by the set of now non-linear equa-tion of the composition constraints Ay (t+1) − B = 0 and need to be solved numerically. This is a much smaller problem and numerical solution can be efficiently found by Newtons method with analytic Jacobian matrix. When the multiplier is solved, y(t+1) 
+
+> is
+
+can be corresponding calculated (Appendix B). Such constrained optimization can be efficiently done in par-allel for all points sampled. By choosing a relatively dense sample grid, small number of gradient descent step is suffi-cient to ensure that a global minimium can be found. We note that the formula of EGD is similar to Kikuchi’s natural itera-tion method (NI) in the cluster variation method, [17] which is fundamentally due to the interpretation of internal variables as probability distribution in both cases. Finally, from all y′ after gradient descend, we use them as input to compute Gibbs energy and grand potential. All sam-pled points are considered in calculating the minimal by using a Softmin function: min  
+
+> y
+
+F(y, W) = −τ log ∑
+
+> j
+
+exp 
+
+
+
+− F(y j, W)
+
+τ
+
+
+
+where F is either the Gm(y, W) or Φm(y, μ, W). One benefit of using this formula is that all coordinates that yield degener-ate energy will be included, thus avoiding discontinuity from choosing any one of them. The results of Softmin are then inserted in the loss function. While Softmin is an approxima-tion, the error in Softmin can be controlled by parameter τ to be within 1 J /mol by setting τ = 1/ log (n) where n is the total number of samples.  
+
+> III. RESULTS
+
+The above loss function and calculation pipeline are imple-mented in the PyTorch package and is available at [url]. The inputs to the optimization are defined thermodynamic model with a set of parameters to be optimized, as well as input phase equilibria data. These phase equilibria could be separated into training, validation and test data. Training data are used to op-timize thermodynamic parameter, validation data can be used to optimize hyperparameters. Finally, test data can be used to assess the final error of optimization. In the following exam-ples in this work, we have used all input data for training for simplification and judge the success of optimization based on training error and the resulting phase diagrams. Adam opti-mizer is used for the gradient descent optimization. Gradients are accumulated over all training data before used to update the parameters. The following results considers thermodynamic model used in CALPHAD. We start from initially-parameterized models that provide free energy of different phases. However, instead of updating all parameters of the models directly, we consider lower order corrections to the terms that occur in the CEF ex-pressions, namely the end-member energies gI and interaction parameters L:
+
+gi(T ) = ginit  
+
+> i
+
+(T ) + wi + viTL j(T ) = Linit  
+
+> j
+
+(T ) + w j + v jT7     
+
+> FIG. 3. Loss function, excluding the regularization term, plotted against the number of training epoches for Al–Zn, Cu–Mg, Al–Mo– Si and Cu–Au. The loss function is normalized by the number of phase equilibria used for training. p=1 is used to calculate loss function. Therefore, it has a unit of J /mol
+
+where gi(T ), L j(T ) are terms that are used in the CEF model while ginit  
+
+> i
+
+(T ), Linit  
+
+> j
+
+(T ) are the initially parameterized model values that are frozen (as a reference surface). Minimizing the loss function is with respect to parameters w and v only. This form is chosen for convenience as it reduces the degree of freedom of freedom in the optimization and is practically sufficient to demonstrate the optimization. However, our im-plementation supports directly optimization of all model pa-rameters or any general form of parameterization, since the loss function can be computed without knowing the details of the thermodynamic models. Optimization is applied to three example systems Al–Zn, Cu–Mg and Al–Mo–Si that contain solid solution phases, compounds and intermetallics. All training phase equilib-ria data are generated from the target phase diagram from reference thermodynamic assessments hosted in the NIMS CPDDB database. [18] The initial and optimized model can be found as examples in the repository. All phase diagrams are plotted using the pycalphad program. [19]  
+
+> A. Binary Al–Zn and Cu–Mg Systems
+
+For the binary Al–Zn and Cu–Mg system, we start the opti-mization from initial CEF models derived from free energies computed from UMLIPs including formation enthalpy and harmonic phonon contributions to the entropy at finite tem-perature. The underlying UMLIP is the eSEN model which demonstrated low prediction error in benchmarking tests. [20] The detailed of the free energy calculation is given in our pre-vious work. CALPHAD thermodynamic models are obtained by fitting model parameters to the calculated free energies in both systems with the reesulting initial phase diagrams shown in Fig. 2 a and c. The phase diagram of Al–Zn binary consist of two solid solution phase with the liquid phase. At temperature below 550 K, a wide two-phase regions between FCC and HCP can be found. At higher temperature, the FCC phase extend from the Al rich side upto 0 .6 atomic fraction of Zn and a miscibil-ity gap can be found. [21] UMLIP phase diagram before opti-mization (Fig. 2) correctly predicts a wide FCC region at high temperature but cannot reproduce the miscibility gap. Further-more, homogeneity range of the HCP phase are severly over-estimated. There are a total of 22 parameters to be optimized. Since only two phase equilibria are considered, no auxiliary chemical potential need to be optimized. Training data con-sists of eight two-phase equilibria, illustrated in Fig. 2 b, that are computed from 400 K to 900 K with 100 K interval, with one additional phrase equilibrium at 640 K. The optimization is performed for 500 gradient descend updates, after which the experimental phase equilibria are successfully reproduce (Fig. 2 b). The learning curve is shown in Fig. 3. The Cu–Mg system is similarly optimized. Its phase di-agram consists of five phases: the line compound Mg 2Cu, the Laves phase MgCu 2, FCC phase on the Cu side, HCP phase on the Mg side and the liquid phase. [22] In additional, three extra compound phases (MgCu 3, MgCu 4, Mg 5Cu) taken from the Alexandria database are included in the optimization, which are not observed experimentally. The Laves MgCu 2
+
+phase is modelled using two sublattices from endmember en-ergies only. The phase diagram from UMLIPs (Fig. 2 c) pro-duces narrow homogeneity region of the Laves phase. How-ever, additional FCC phase is stabilized at the Mg-rich side of the phase diagram due to machine learning error in the calcu-lated free energy by the eSEN model. Nonetheless, this ini-tial thermodynamic description, with a total 38 parameters for correction, is used for the starting point of the optimization and the optimized model (1000 steps) satisfactorially repro-duces training phase equilibria data (Fig. 2 d).  
+
+> B. Ternary Al–Mo–Si System
+
+The optimization example in the ternary Al–Mo–Si system is based on the assessment by Y. Liu et al. [23] The thermody-namic model to be optimized is obtained by randomly chang-ing the value of some of the previously assessed parameters. The resulting initial phase diagrams at three different temper-atures is plotted on the left-most column of Fig. 4 and can be found to deviate much from the original assessment plotted on the right-most column of Fig. 4. 14 phases are present in the Al–Mo–Si system in the assessment, in which six of them are modelled as line-compounds. Again, we optimize w + vT 
+
+corrections to the terms in CEF models, leading to 110 pa-rameters to be optimized. In total 119 training phase equi-libria data are generated at five different temperatures from 500 K, to 2500 K with a step of 500 K. The phase equilibrium obtained at 1000 K, 1500 K and 2000 K are shown in Fig. 4. The number of auxiliary chemical potential parameter is 95 and the total number of parameters to be optimized is 205. The same approach as above is used to optimize the thermo-8
+
+> FIG. 4. Al–Mo–Si phase diagrams at three temperatures (a) 1000 K, (b) 1500 K and (c) 2000 K. At each temperature, rom left to right: phase diagrams from the initial thermodynamic models before optimization, phase diagrams after optimization, and target phase diagram that is used to generate training data. Black dashed lines indicate phase equilibria for training.
+
+dynamic model with 1000 gradient update steps and we find the target phase equilibria are successfully reproduced. The total time of the optimization is approximately 2 h 20 min on CPU (Apple M4 Pro). This example illustrated the accuracy and capability of the implementation optimization to repro-duce target phase equilibria even in very complex systems.  
+
+> C. EAM Potential in Au–Cu System
+
+To illustrate the optimization of atomistic models, we fine-tuned an embedded atom method (EAM) potential to repro-duce a simplified Au–Cu phase diagram. The Au–Cu phase diagram has been assessed by Sundman using a four sublat-tice split-CEF model, [24] and more recently by Cao et al. us-ing the cluster site approximation. [25]. Here, we consider a simplified phase diagram as optimization target that describes the congruent phase transition from three completely ordered intermetallic phases L10 CuAu ( T = 685 K), L12 Cu 3Au ( T =
+
+665 K) and CuAu 3 (T = 510 K) to disordered solid solution FCC phase in the binary. The three transition temperatures are derived from previously assessed phase diagrams. [25] The target phase equilibrium are shown in Fig. 5 a. The vibra-tional entropies are ignored and the Gibbs energy of the three intermetallic phases are described only by their formation en-thalpies HAuCu , HAuCu 3 and HAu 3Cu that come from EAM cal-culation. For the solid solution phase, only configurational entropy is considered: 
+
+GFCC (x, T ) = ∑
+
+> i=Cu ,Au
+
+xiHi + RT ∑
+
+> i=Cu ,Au
+
+xi ln xi
+
++ xAu xCu 
+
+> 2
+
+# ∑
+
+> n=0
+
+L(n)
+
+> Au ,Cu
+
+(xAu − xCu )n
+
+!
+
+where HCu /Au are also obtained from EAM calculation for FCC Cu and Au. The interaction parameters L(n) 
+
+> Au ,Cu
+
+are tem-perature independent and are obtained by alignning the en-thalpy part of GFCC to the enthalpies of three 16-atoms spe-cial quasirandom structure (SQS) at xCu equal to 0 .25, 0 .5 and 0.75 that represent random solid solution. Under the above simplification, GFCC (x, T ) is entirely parameterized from the enthalpies of five FCC structures. 9
+
+> FIG. 5. Embedded atom potential (EAM) potential optimized based on target phase equilibrium in the Cu–Au binary. Target phase di-agram is simplified by considering intermetallic phases as ordered compounds. (a) Target phase equilibrium used for training, and phase boundaries from the initial EAM model of Gola and Pastewka and the fine-tuned EAM model. (b) Optimized corrections to the density function in the EAM potentail (c) Optimized corrections to the pair-interaction function.
+
+The enthalpy values themselves are calculated from the EAM potential after full structural relaxation. The EAM po-tential are efficient many body potential in which the total en-ergy is given by: [26] 
+
+E = ∑
+
+> i
+
+"
+
+Fσi ∑ 
+
+> j̸=i
+
+fσi|σ j (ri j )
+
+!
+
++ 12 ∑ 
+
+> j̸=i
+
+φσiσ j (ri j )
+
+#
+
+where i index a site and j its neighboring sites. σi/ j is the chemical species (Cu and Au) on site i/ j. Fσi is the em-bedding function given for each chemical species. fσi|σ j (r)
+
+are density contribution from σ j at site j to σi at site i when they are separated by distance r. Finally, φσiσ j (r) are pair-wise interaction between σi and σ j, which is symmetric so that φσiσ j = φσ j σi . For the Cu–Au system, we used the devel-oped potential by Gola and Pastewka, denoted EAM GP , which successfully reproduce many experimentally quantities of the binary phases such as lattice parameters, elastic constants and bulk modulus. [26] However, as shown in Fig. 5 a and the original work, EAM GP cannot produce the transition temper-ature from ordered intermetallic phases to solid solution phase accurately. We fine-tune the EAM GP potential by optimizing additional correction terms ∆ f (r) and ∆φ (r) to the density function and the pairwise interaction so that target phase equilibrium loss is minimized. The distance-dependent correction are modelled by Chebyshev polynomials of the first kind, [27] which is then multiplied by an envelope function in an interval from 1 Å to 5 Å, which is the cutoff distance of the EAM potential: 
+
+∆ f (w, r)/∆φ (w, r) = 
+
+" n
+
+# ∑
+
+> i=0
+
+wnTn(r)
+
+#
+
+sin 
+
+ r − rmin 
+
+rmax − rmin 
+
+π
+
+
+
+where Tn are the Chebyshev polynomials of order n, wn are trainable coefficients and n = 6 is found to be sufficient for the correction. The EAM potential with trainable corrections are implemented in PyTorch as an ASE calculator object with forces and stresses from auto-differentiation. The loss func-tion is calculated as follows: i) for EAM potential param-eterized by w, all eight structures are fully relaxed and the minimized energy as a function of trainable parameters w are obtained using the envelope theorem, ii) the parameters of the solid solution phase are obtained as a function of the mini-mized energies, and iii) phase equilibrium loss can be calcu-lated from the Gibbs energies and the grand potentials of all considered phases, as above. The result of the optimization in terms of ∆ f (r) and ∆φ (r) are shown in Fig. 5 b and c. The optimized EAM potential reproduces the desired phase equi-librium satisfactorially (Fig. 5 a). The learning curve is plotted in Fig. 3. Different from the typical CALPHAD optimization in which different phases are parameterized by different param-eters, all phases in this example share the same parameteri-zation in terms of the underlying atomistic potential, which is optimized. The fine-tuned atomistic potential can not only be used for describing phase diagram, as illustrated by the ex-ample, but also be used for other downstream tasks such as Monte-Carlo simulations of ordering in the system. This is only made possible by the flexible implementation of phase equilibria optimization in a general machine-learning compat-ible environment.  
+
+> IV. CONCLUSION
+
+In order to optimize general parameters of thermodynamic models with respect to experimental phase equilibria, we de-veloped an optimization workflow based on differentiable cal-culation of phase equilibria loss. The proposed loss function 10 can be calculated without performing global equilibrium cal-culations and thus is efficient to compute using exponential gradient descend and the envelope theorem. As demonstra-tion, we have successfully optimized CALPHAD thermody-namic models in both binary and challenging ternary systems towards reference phase equilibria. This approach is not lim-ited to optimizating CALPHAD models but also any general form of thermodynamic models, including atomistic poten-tials. 
+
+> CONFLICT OF INTEREST
+
+The authors have no conflicts to disclose. 
+
+> AUTHOR CONTRIBUTIONS
+
+Wenhao Zhang : Conceptualization, Data Curation, For-mal Analysis, Investigation, Methodology, Writing of the original draft, review and editing. Yusuke Matsuoka :Methodology, review and editing. Jean-Claude Crivello :Writing (review and editing). Koyama Toshiyuki : Supervi-sion, Writing (review and editing). Taichi Abe : Supervision, Writing (review and editing). 
+
+> DATA AVAILABILITY STATEMENT
+
+The data that support the findings, including computational notebook and results, of this study are available at https: //github.com/whzhangg/eqoptimizer .
+
+> Appendix A: Envelope Theorem
+
+Envelope theorem is a well-known results that gives the derivatives of a value function V that has the following form: 
+
+V (ω) = min  
+
+> x
+
+f (x, ω)
+
+where ω are parameters. x∗(ω) = arg min x f is given by the solution to the equation ∂ f (x, ω)/∂ x = 0 and thus: V (ω) = 
+
+f (x∗(ω), ω). The derivative of V with respect to parameter ω
+
+is then: 
+
+∂V (ω)
+
+∂ ω = ∂ f
+
+∂ ω + ∑
+
+> i
+
+∂ f
+
+∂ x∗
+
+> i
+
+∂ x∗
+
+> i
+
+∂ ω = ∂ f
+
+∂ ω 
+
+since ∂ f /∂ x∗ 
+
+> i
+
+= 0 evaluated at the optimal x∗(ω). If we have constraints on x given by g(x, ω) = 0, x∗(ω) is determined by the stationary point of the lagrangian: 
+
+∂ f
+
+∂ x + λ ∂ g
+
+∂ x = 0; g = 0since at x∗(ω), the constraints are always satisfied, thus: 
+
+∂ g(x∗(ω), ω)
+
+∂ ω = ∂ g
+
+∂ ω + ∑
+
+> i
+
+∂ g
+
+∂ x∗
+
+> i
+
+∂ x∗
+
+> i
+
+∂ ω ≡ 0The derivative is: 
+
+∂V (ω)
+
+∂ ω = ∂ f
+
+∂ ω + ∑
+
+> i
+
+∂ f
+
+∂ x∗
+
+> i
+
+∂ x∗
+
+> i
+
+∂ ω 
+
+= ∂ f
+
+∂ ω + ∑
+
+> i
+
+∂ f
+
+∂ x∗
+
+> i
+
+∂ x∗
+
+> i
+
+∂ ω + λ
+
+"
+
+∂ g
+
+∂ ω + ∑
+
+> i
+
+∂ g
+
+∂ x∗
+
+> i
+
+∂ x∗
+
+> i
+
+∂ ω 
+
+#
+
+which is equal to ∂ L/∂ ω if g explicitly depends on ω and 
+
+∂ f /∂ ω otherwise, both evaluated at x∗(ω). In our loss func-tion, terms have the form min y G(y, W) and the envelope the-orem can be readily applied to these terms to calculate their derivative with respect to W. Finally, the derivative of the loss function with respect to W can be calculated using the chain rule. Thus, full differentiation through the determination of 
+
+y∗ can be avoided, reducing memory usage and computational cost. 
+
+> Appendix B: Exponential Gradient Descend with Constraints
+
+The ordinary gradient descent, xt+1 = xt − ηg(t), where g(t)
+
+is the gradient of the target function f at step t can be equiva-lent be expressed as the solution to a minimization problem: 
+
+xt+1 = arg min 
+
+> x
+
+
+
+f (x(t)) + ⟨g, x − x(t)⟩
+
+| {z } 
+
+> linearized estimate at x
+
++ λ
+
+2 || x − x(t)|| 2
+
+| {z }
+
+> penalty
+
+
+
+= arg min 
+
+> x
+
+
+
+η⟨g, x⟩ + 12 || x − x(t)|| 2
+
+
+
+The penalty term ensures the linear approximation to be valid. The second line is obtained by removing the part that does not depend on x and a scaling by η = 1/λ . ⟨a, b⟩ is the inner product between vector a and b. Denoting the bracketed term by L, Minimizing L leads to: 
+
+∂ L
+
+∂ x(t+1)
+
+> i
+
+= ηg(t) 
+
+> i
+
++ x(t+1) 
+
+> i
+
+− x(t) 
+
+> i
+
+= 0Similarly, we can change the penalty term from eculidean norm to divergence measure to reflect the property of the un-derlying geometry. In simplex, a vector can be interpreted as probability distributions, and based on this, Kullback-Leibler (KL) divergence measure could be introduced: 
+
+xt+1 = arg min 
+
+> x∈X
+
+n
+
+η⟨g(t), x⟩ + DKL (x|x(t))
+
+o
+
+and we have to constrain x to be in the simplex: X = {x | x ≥
+
+0, ∑i xi = 1}. The constrained minimization can be done using the Lagrange: 
+
+L = η ∑
+
+> i
+
+g(t) 
+
+> i
+
+xi + ∑
+
+> i
+
+x(t+1) 
+
+> i
+
+log xi
+
+x(t)
+
+> i
+
+!
+
++ λ ∑
+
+> i
+
+x(t+1) 
+
+> i
+
+− 1
+
+!
+
+and the solution is given by: 
+
+x(t+1) 
+
+> i
+
+= x(t) 
+
+> i
+
+e−ηg(t) 
+
+> i−1−λ
+
+e−1−λ ∑
+
+> i
+
+x(t) 
+
+> i
+
+e−ηg(t) 
+
+> i
+
+= 111 so that we see e−1−λ is just a normalization factor, leading to: 
+
+x(t+1) 
+
+> i
+
+= x(t) 
+
+> i
+
+e−ηg(t)
+
+> i
+
+∑i x(t) 
+
+> i
+
+e−ηg(t)
+
+> i
+
+As described in the Method section, the above can be ex-tended to multiple sublattices and linear constraints, as is the case in CEF. In the following, we describe the solution to the 
+
+N − 1 multipler μ that appears due to the composition con-straints Ay (t+1) − B = 0. For a constraint indexed by b:
+
+Fb(μ) = ∑
+
+> is
+
+Ab,is y(t+1) 
+
+> is
+
+− Bb = 0Newton’s method can be used to iteratively solve the non-linear equations. Using μ′ to denote current value of μ, we find: 
+
+Fb(μ′) + ∑
+
+> a
+
+∂ Fb(μ′)
+
+∂ μ a
+
+∆μa = 0leading to 
+
+F(μ′) + J(μ′)∆μ = 0where J is the Jacobian with matrix elements Jab = ∂ Fa/∂ μ b.The Newton update can be found by ∆μ = −J−1(μ′)F(μ′).The Jacobian matrix elements is given by: 
+
+∂ Fb
+
+∂ μ a
+
+= ∑
+
+> is
+
+Ab,is 
+
+∂ y(t+1)
+
+> is
+
+∂ μ a
+
+∂ y(t+1)
+
+> is
+
+∂ μ a
+
+= y(t+1) 
+
+> is
+
+# ∑
+
+> j
+
+Aa, js y(t+1) 
+
+> js
+
+− Aa,is 
+
+!
+
+where it should be note that y(t+1) is a function of the current 
+
+μ′.
+
+[1] H. Lukas, S. G. Fries, and B. Sundman, Computational Ther-modynamics: The Calphad Method , 1st ed. (Cambridge Uni-versity Press, 2007). [2] Z.-K. Liu, Thermodynamics and its prediction and CALPHAD modeling: Review, state of the art, and perspectives, Calphad 
+
+82 , 102580 (2023). [3] A. Togo and I. Tanaka, First principles phonon calculations in materials science, Scripta Materialia 108 , 1 (2015). [4] A. V. D. Walle and M. Asta, Self-driven lattice-model Monte Carlo simulations of alloy thermodynamic properties and phase diagrams, Modelling Simul. Mater. Sci. Eng. 10 , 521 (2002). [5] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, and K. A. Persson, A framework to evaluate machine learning crystal stability pre-dictions, Nat Mach Intell 7, 836 (2025). [6] M. Poul, L. Huber, and J. Neugebauer, Automated generation of structure datasets for machine learning potentials and alloys, npj Comput Mater 11 , 174 (2025). [7] S. Zhu, D. Sarıtürk, and R. Arróyave, Accelerating CALPHAD-based phase diagram predictions in complex alloys using uni-versal machine learning potentials: Opportunities and chal-lenges, Acta Materialia 286 , 120747 (2025). [8] C. Kunselman, B. Bocklund, A. Van De Walle, R. Otis, and R. Arróyave, Analytically differentiable metrics for phase sta-bility, Calphad 86 , 102705 (2024). [9] C. Kunselman, B. Bocklund, R. Otis, and R. Arroyave, Analyti-cal Gradient-Based Optimization of CALPHAD Model Param-eters (2025). [10] P.-W. Guan, Differentiable thermodynamic modeling, Scripta Materialia 207 , 114217 (2022). [11] W. Cao, S.-L. Chen, F. Zhang, K. Wu, Y. Yang, Y. Chang, R. Schmid-Fetzer, and W. Oates, PANDAT software with PanEngine, PanOptimizer and PanPrecipitation for multi-component phase diagram calculation and materials property simulation, Calphad 33 , 328 (2009). [12] F. Tang and B. Hallstedt, Using the PARROT module of Thermo-Calc with the Cr–Ni system as example, Calphad 55 ,260 (2016). [13] B. Reis, F. Tang, P. Keuter, and M. to Baben, User-friendly and robust Calphad optimizations using Calphad Optimizer in Fact-Sage, Calphad 88 , 102800 (2025). [14] B. Sundman, X.-G. Lu, and H. Ohtani, The implementation of an algorithm to calculate thermodynamic equilibria for multi-component systems with non-ideal phases in a free software, Computational Materials Science 101 , 127 (2015). [15] B. Bocklund, R. Otis, A. Egorov, A. Obaied, I. Roslyakova, and Z.-K. Liu, ESPEI for efficient thermodynamic database devel-opment, modification, and uncertainty quantification: Applica-tion to Cu–Mg, MRS Communications 9, 618 (2019). [16] M. Hillert, Some viewpoints on the use of a computer for cal-culating phase diagrams, Physica B+C 103 , 31 (1981). [17] R. Kikuchi, Ternary phase diagram calculations—I General the-ory, Acta Metallurgica 25 , 195 (1977). [18] T. Abe, K. Hashimoto, Y. Goto, Y. Sawada, and K. Hirose, CPDDB (2007). [19] R. Otis and Z.-K. Liu, Pycalphad: CALPHAD-based Compu-tational Thermodynamics in Python, JORS 5, 1 (2017). [20] X. Fu, B. M. Wood, L. Barroso-Luque, D. S. Levine, M. Gao, M. Dzamba, and C. L. Zitnick, Learning Smooth and Expres-sive Interatomic Potentials for Physical Property Prediction (2025), arXiv:2502.12147 [physics]. [21] S. A. Mey, Reevaluation of the Al-Zn System, International Journal of Materials Research 84 , 451 (1993). [22] P. Liang, H. Seifert, H. Lukas, G. Ghosh, G. Effenberg, and F. Aldinger, Thermodynamic modelling of the Cu-Mg-Zn ternary system, Calphad 22 , 527 (1998). [23] Y. Liu, G. Shao, and P. Tsakiropoulos, Thermodynamic re-assessment of the Mo–Si and Al–Mo–Si systems, Intermetallics 
+
+8, 953 (2000). [24] B. Sundman, S. G. Fries, and W. Oates, A thermodynamic as-sessment of the Au-Cu system, Calphad 22 , 335 (1998). [25] W. Cao, Y. Chang, J. Zhu, S. Chen, and W. Oates, Thermody-namic modeling of the Cu–Ag–Au system using the cluster/site approximation, Intermetallics 15 , 1438 (2007). [26] A. Gola and L. Pastewka, Embedded atom method potential for studying mechanical properties of binary Cu–Au alloys, Mod-elling Simul. Mater. Sci. Eng. 26 , 055006 (2018). [27] R. L. Burden and J. D. Faires, Numerical Analysis , 9th ed. (Brooks/Cole, Cengage Learning, Boston, MA, 2011).

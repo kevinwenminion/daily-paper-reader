@@ -1,0 +1,2190 @@
+Title: 2608.03680v1.pdf
+
+URL Source: https://arxiv.org/pdf/2608.03680v1
+
+Published Time: Wed, 05 Aug 2026 01:07:22 GMT
+
+Number of Pages: 53
+
+Markdown Content:
+1
+
+# Machine Learning Bandgap Prediction of Nanoporous Graphenes 
+
+# with Water 
+
+Sneha Mittal,  *, †  Alan E. Anaya Morales , †, ‡ Victor Rosendal , †, ‡ Mads Brandbyge  *, † 
+
+> †
+
+Department of Physics,  Technical University of Denmark, 2800 Kgs., Lyngby, Denmark 
+
+> ‡
+
+These authors contributed equally to this work. 
+
+*Corresponding Author. E -mail:  snemi@dtu.dk  (S.M.);  mabr@dtu.dk  (M.B.) 
+
+ABSTRACT 
+
+The structure and dynamical  behavior  of water confined at or within nanostructures is a 
+
+topic central to many fields from biology to emerging electronics such as carbon 
+
+nanostructures. Nanoporous graphene (NPG) containing periodic nanoscale pores with 
+
+specific topologies has emerged as a pro mising material in carbon -based nanoelectronics; 
+
+however, its interaction with ambient water remains poorly understood. Here, we combine 
+
+density functional theory (DFT),  ab -initio  molecular dynamics (AIMD), and interpretable 
+
+machine learning (ML) to reveal how water controls quantum transport in NPGs. 
+
+Depending on the local hydration structure, the bandgap varies by more than a factor of 
+
+two across NPG and nitrogen -doped hybrid (h -NPG) systems . To uncover the underlying 
+
+mechanism, we develop  Smooth  Overlap  of  Atomic  Positions (SOAP) -based black -box 
+
+and physics -informed grey -box ML models. The Gaussian process regression model 
+
+achieves  near -DFT accuracy ( 𝑅 2 ∼ 0.94 -1.00, RMSE  ≲ 0.02 eV) while enabling physical 
+
+interpretation. Analysis identifies water dipole orientation, water -substrate distance, water 
+
+center -of -geometry, and ribbon -resolved dipole moments as the dominant factors 
+
+controlling bandgap modulation across NPG and h -NPG  systems. 
+
+Keywords:  Machine Learning, Nanoporous Graphene, Bandgap, Density Functional Theory ,
+
+Quantum transport 2
+
+INTRODUCTION 
+
+At the nanoscale, the interaction of water with two -dimensional materials is crucial for 
+
+applications such as ferroelectricity, 1,2  energy storage, 3 nanofluidics, 4 and water splitting. 5
+
+Beyond these applications, interfacial and confined water can modulate electronic properties 
+
+by altering local electrostatic potentials, charge redistribution, and molecular dipole ordering. 6– 
+
+> 8
+
+Recent experiments have demonstrated that nanoconfined water can undergo liquid -solid 
+
+transitions even at ambient conditions, highlighting the profound impact of confinement on its 
+
+structural and dynamical properties. 9 Furthermore, collective ordering and dynamics of water 
+
+molecules have been shown to induce ferroelectric behavior in graphene nanoribbon 
+
+devices. 1,2,10  This interplay between water and low -dimensional carbon systems becomes even 
+
+more intriguing in nanoporous graphenes (NPGs), which feature dense, periodic arrays of 
+
+nanoscale pores within single - or few -layer graphene. 
+
+NPGs enable tuning of electronic and transport properties, positioning them at the forefront of 
+
+next -generation carbon nanoelectronics. 11 –17  Unlike graphene, which lacks an intrinsic 
+
+bandgap, NPG allows bandgap opening through structural design of the porous lattice, with 
+
+electronic properties tunable via pore size, periodicity, edge chemistry, and the extent of  π
+
+delocalization in the framework. 18,19  In particular, the topology and chemical structure of the 
+
+constituent graphene nanoribbons, together with in -plane anisotropy and quantum confinement 
+
+effects, play a central role in determining the band structure and electronic transport 
+
+characteristics. 20 –23  Given the presence of water under realistic experimental conditions, 
+
+understanding the interaction of water with NPGs is relevant. 24 –27  Key questions include: How 
+
+do  spatial  arrangement, density, position, and orientation of water molecules along the NPGs 
+
+layer impact the band structures and electronic states? What is the underlying mechanism by 3
+
+which water modulates  electronic  transport? Do different types of NPGs exhibit similar 
+
+sensitivity to water adsorption? 
+
+Addressing these questions requires a detailed understanding of NPGs in aqueous 
+
+environments at the molecular level, for which advanced automated tools like machine learning 
+
+(ML) can be helpful. 28 –33  For 2D materials, it has been widely used to predict electronic, 
+
+mechanical, and thermodynamic properties, including bandgaps, charge transport, and 
+
+response to external stimuli such as doping, strain, or electric fields. 34 –36  Herein, we develop 
+
+an interpretable ML framework in combination with DFT and AIMD simulations to investigate 
+
+how water controls electronic structure and quantum transport in NPGs. Our results reveal that 
+
+the electronic structure can be highly sensitive to  the spatial arrangement of surrounding water 
+
+molecules, leading to pronounced, configuration -dependent bandgap variations. To elucidate 
+
+the underlying mechanism, we develop predictive ML models trained on a total of 1320 DFT 
+
+calculated bandgap values to decode the structure -bandgap relationship of NPGs across single 
+
+and bulk -water environments. To capture structural effects, we compare NPG 37  and hybrid 
+
+nitrogen -doped NPG (h -NPG), 21  which  both have  been experimentally realized. A schematic 
+
+illustration of our ML approach is given in  Fig ure  1. 4
+
+Fig ure  1. (a) Atomic structure of NPG showing the selected unit -cell region used to model 
+
+single and bulk water NPG/h -NPG systems. Single -water configurations are shown for NPG 
+
+and h -NPG, (b) a representative bulk -water configuration, and (c) an end -to -end ML 
+
+framew ork comprising data generation, model training, prediction, and interpretation. 
+
+Structural descriptors, including SOAP and physics -informed descriptors, are extracted to 
+
+encode the relationship between atomic configurations and bandgap energies. Multiple d ata -
+
+driven black -box and physics -informed grey -box models are trained and evaluated, followed 
+
+by hyperparameter tuning. The best -fitted models are then applied to predict configuration -
+
+dependent bandgap energies of previously unseen NPG and h -NPG structure s that balance 
+
+predictive accuracy and interpretability. Model interpretation is performed using Shapley 
+
+additive explanations (SHAP) to identify key structural and environmental descriptors 
+
+controlling bandgap modulations. 
+
+RESULTS AND  DISCUSSION 
+
+Electronic Structure and Quantum Transport 
+
+As a first step, we performed DFT simulations to compare the band structures of periodic unit 
+
+cells of NPG and h -NPG with a single -water molecule adsorbed at the pore site ( Fig ure  2a ). 
+
+The presence of water has a negligible effect on NPG, with its band structure remaining largely 
+
+unchanged ( Figure 2 b). A direct bandgap of 0.624 eV is observed at the  Γ point. The different 
+
+band dispersions along  Γ → Z and  Γ → X indicate an anisotropic electronic structure, consistent 
+
+with Ref.  37 . In contrast, h -NPG shows a clear response to water. The bandgap decreases from 5
+
+0.381 eV in the pristine system to 0.241 eV upon water interaction, highlighting its enhanced 
+
+sensitivity to local hydration. To further understand this behavior, we examine site -dependent 
+
+interactions by placing water at top, bridge, hollow, and pore site s, as marked in  Figure 2a .
+
+The pore site is energetically most favorable for both NPG and h -NPG, as shown by relative 
+
+total energies ( Fig ure  S1 ).  The interaction is stronger in h -NPG, with a binding energy of  -0.45 
+
+eV, than in NPG, with  -0.23 eV, consistent with charge density difference (CDD) results 
+
+showing enhanced charge redistribution. The stronger interaction in h -NPG can be attributed 
+
+to enhanced dipole -dopant interactions and hydrogen -bonding interactions with water. 
+
+Accordingly, the total density of states (TDOS) exhibits more pronounced changes near the 
+
+Fermi level in h -NPG, reflecting higher electronic sensitivity. Unlike NPG, band structure 
+
+analysis  reveals larger bandgap variations  ∼ 0.44 -0.24 eV depending on adsorption sites in h -
+
+NPG, as shown in  Fig ure  S2 . We then investigate density -dependent effects by increasing the 
+
+number of water molecules per pore from one to three, as can be seen in  Figure 2 c. With 
+
+increasing water, the bandgap of NPG remains largely unchanged, while h -NPG exhibits a 
+
+strong, non -monotonic dependence on water density ( Fig ure  S3 ), indicating water dipole -
+
+dopant electrostatic interactions as a key factor governing bandgap modulations in h -NPG. 
+
+The above analyses capture the static electronic response of NPG and h -NPG to water 
+
+adsorption; however, aqueous environments are inherently dynamic. Thermal fluctuations at 
+
+room temperature continuously modulate water orientations, hydrogen -bond networks,  and 
+
+interfacial dipoles, which can directly influence the electronic response. To study the dynamics 
+
+of confined water in NPG and h -NPG for different adsorption sites and water densities, we 
+
+performed AIMD simulations in the NVT ensemble at 300 K for 1 ps  with a 1 fs time step using 
+
+the Nose -Hoover thermostat, as implemented in SIESTA. 38 6
+
+Fig ure  2. (a) Periodic unit cells of NPG and h -NPG with a single -water molecule adsorbed at 
+
+the pore site, the arrows show different adsorption sites for water, and (b) electronic band 
+
+structures of NPG and h -NPG in the presence of a single -water molecule. The band  dispersions 
+
+are plotted along the high -symmetry path  X → Γ → Z in the Brillouin zone. The black dashed 
+
+band lines indicate the corresponding band structures of the pristine systems for comparison. 
+
+(c) Schematic of the optimized configuration of h -NPG with an increasing number of water 7
+
+molecules (1, 2, and 3 H 2O molecules in each pore). Box normal plots summarizing the 
+
+statistical distribution of bandgap values for (d) NPG and (e) h -NPG with a single H 2O
+
+molecule adsorbed at different sites (pore, top, hollow, bridge). Box -normal plots summarize 
+
+the statistical distribution of bandgap values for (f) NPG, and (g) h -NPG as a function of 
+
+increasing number of water molecules. In each case, the boxes represen t the interquartile range, 
+
+the central line denotes the median bandgap, and the whiskers indicate the full range sampled 
+
+during the trajectory. The black dotted line represents the bandgap of NPG and h -NPG without 
+
+water. Atom color code: carbon (grey), hyd rogen (white), oxygen (red), and nitrogen (blue). 
+
+We emphasize that the AIMD simulations are not intended to yield highly converged 
+
+thermodynamic averages. Instead, their primary purpose is to sample physically realistic and 
+
+dynamically accessible water configurations representative of ambient conditions.  To analyze 
+
+bandgap fluctuations, 50 equally spaced frames are extracted from each trajectory. For NPG, 
+
+among the four sites, the pore site is more sensitive to water interaction with a wider 
+
+distribution in the bandgap ( Fig ure  2d ). The median bandgap remains virtually the same across 
+
+all adsorption geometries, indicating weak electrostatic coupling. In contrast, h -NPG exhibits 
+
+pronounced site -dependent behavior ( Figure 2 e). Water adsorption at the pore site leads to a 
+
+distinct distribution with the lowest median bandgap. Upon increasing the number of water 
+
+molecules in NPG, a downward shift in the median bandgap is observed for two water 
+
+molecules per pore, suggesting coop erative water dipole interactions that enhance the local 
+
+electrostatic field and thereby reduce the bandgap ( Figure 2 f). In contrast,  h-NPG shows 
+
+consistently narrower bandgap values compared to its pristine counterpart ( Figure 2 g). The 
+
+smallest spread and lowest bandgap occur for a  single water  molecule per pore, indicating a 
+
+stable and well -defined water dipole -dopant interaction in h -NPG. 
+
+We also analyze the band structures of NPG and h -NPG in the presence of 114 H 2O
+
+molecules, corresponding to a bulk -like water density of  ∼1.0 g /cm 3 within the fixed simulation 
+
+cell. The initial water configurations are generated using the  PACKMOL  package. 39  Under 
+
+bulk -water conditions, the NPG bandgap remains nearly unchanged, whereas in h -NPG , it 
+
+increases from 0.381 to 0.576 eV ( Figure  3a ). 8
+
+Fig ure  3. (a) Periodic unit cells of NPG and h -NPG under bulk -water at ambient density  (𝜌  =
+
+1.0 𝑔  𝑐𝑚 −3) and corresponding band  structures, ( b) Two -probe transport geometries of NPG/h -
+
+NPG with water adsorbed at the pore site. The dashed boxes indicate the electrode regions used 
+
+in the transport calculations, and (c) Zero -bias transmission spectra of single -water NPG/h -
+
+NPG systems. For compariso n, the transmission spectra of corresponding pristine systems are 
+
+also shown. The Fermi energy is shifted to zero. 9
+
+This opposite trend compared with the single -water case indicates that the bandgap response 
+
+of h -NPG is highly sensitive to water density and dipole arrangement. While a single -water 
+
+molecule reduces the bandgap through a local dipole -dopant interaction, the bulk -water 
+
+environment introduces collective dipole screening and structural/electrostatic rearrangement 
+
+around the N -doped pore, leading to bandgap widening.  After analyzing water -induced band -
+
+structure changes, we investigate quantum transport in the  energetically most stable single -
+
+water NPG/h -NPG systems ( Figure  3b ) using the nonequilibrium Green’s function approach, 
+
+as implemented in TranSIESTA. 40  The zero -bias transmission spectra of NPG and h -NPG 
+
+exhibit step -like, quantized features, characteristic of ballistic transport through nanoscale 
+
+channels ( Figure  3c ). Although water adsorption modulates the bandgap, the transmission near 
+
+the Fermi level remains nearly unchanged for both NPG and h -NPG. This indicates that the 
+
+water -induced electronic perturbation mainly shifts or modifies states away from the dominant 
+
+transport channels, while the conducting states at the Fermi level remain robust. 
+
+To better understand local electrostatic perturbations induced by a single -water molecule, we 
+
+calculate gate -tunable electronic band structures, modeled using the capacitor approach within 
+
+the  SIESTA  package. 38  The gate planes are positioned 6  Å above and below the system to 
+
+simulate top - and bottom -gate effects. The gate carries a charge density of  𝑛  =
+
+𝑔  × 10 13  𝑒 /𝑐𝑚 2, where  𝑔  defines the level of gating, such that the system is  𝑛  doped for  𝑔 
+
+< 0 and  𝑝 -doped for  𝑔  > 0. For NPG, gating primarily induces a rigid shift of the Fermi level, 
+
+with negligible modification of the band structure beyond band filling ( Fig ure  S4 ). 41  In 
+
+contrast, h-NPG exhibits a pronounced gate -dependent response in the single -water 
+
+configuration, where electrostatic gating opens the bandgap and drives the electronic structure 
+
+toward that of NPG ( Fig ure  S5 ). These observations indicate that localized nitrogen -derived 
+
+states can be  selectively modulated by gating, in contrast to the delocalized carbon states. 10 
+
+These results establish that the electronic response of NPG and h -NPG is strongly influenced 
+
+by the position, orientation, and density of water molecules, with h -NPG showing a much 
+
+higher sensitivity due to the presence of nitrogen dopants. However, the st ructural origin of 
+
+these bandgap changes is difficult to identify from DFT and AIMD analysis alone. To address 
+
+this, we develop an interpretable, structure -aware ML framework to predict the bandgap of 
+
+hydrated NPG/h -NPG systems and identify the key structu ral descriptors that control the 
+
+electronic response. 
+
+For this purpose, we consider both single -water and bulk -water configurations. From the AIMD 
+
+trajectories ( Supplementary Videos 1 -4), we extracted 460 frames for the single -water 
+
+systems and 200 frames for the computationally expensive bulk -water systems, followed by 
+
+DFT bandgap calculations for each structure. In total, 1320 band structure calculations are 
+
+performed across NPG/h -NPG  systems. The corresponding bandgap histograms are shown in 
+
+Fig ure  S6 . The single -water configurations span bandgaps of approximately  ∼ 0.32 -0.75 eV 
+
+for NPG and  ∼ 0.17 -0.41 eV for h -NPG, whereas the bulk -water configurations span  ∼ 0.16 -
+
+0.50 eV for NPG and  ∼ 0.20 -0.68 eV for h -NPG. 
+
+For visual understanding, the lowest and highest bandgap structures for each system, together 
+
+with their relative total energies are shown in  Figure  4. For single -water configurations, the 
+
+lowest -bandgap cases appear to be associated with water pointing towards the bridge, 
+
+particularly close to the N -dopant sites in h -NPG, suggesting stronger local electrostatic 
+
+coupling  (Figure  4a ). In contrast, the highest -bandgap cases show a different local water 
+
+arrangement with weaker coupling to the pore/dopant region. For bulk -water NPG, higher -
+
+bandgap configuration appears to be associated with stronger local structural or electrostatic 
+
+pert urbations close to the bridge region ( Figure  4b ). Notably, under both single -water and 
+
+bulk -water environments, the smaller bandgap structures have also smaller relative total 11 
+
+energies, indicating that energetically stable water configurations promote stronger water -
+
+substrate interactions and more pronounced bandgap modulations .
+
+Fig ure  4. The lowest and highest bandgap configurations of NPG and h -NPG in (a) single -
+
+water and (b) bulk  water environments. Atom color code: carbon (grey), hydrogen (white), 
+
+oxygen (red), and nitrogen (blue). 
+
+Black -Box ML Predictions 
+
+Building on these observations, we next use ML black -box models to test whether the water 
+
+dependent bandgap variations can be learned from structural descriptors or not. Unlike 
+
+conventional approaches that rely primarily on structure -based descriptors with different 
+
+molecular formulas, we use configuration -based descriptors (same molecular form ula) that 12 
+
+explicitly incorporate local aqueous environment in the predictions. 42 –45  Each selected AIMD 
+
+snapshot is represented using SOAP descriptors ( 𝑟 𝑐𝑢𝑡  = 6  Å , 𝑛 𝑚𝑎𝑥  = 8, and  𝑙 𝑚𝑎𝑥  = 6), as 
+
+implemented  in the DScribe package. 46  SOAP provides a continuous and differentiable 
+
+representation of local atomic environments that is invariant to translations and rotations, 
+
+making it particularly well suited for learning structure -property relationships in atomistic 
+
+systems. For  single -water configurations, this produces 3695 features per structure. For the 
+
+bulk -water systems, each snapshot contains more than 400 atoms, making the full SOAP 
+
+representation computationally expensive. Therefore, we use atom -centered SOAP descriptors 
+
+focuse d on the NPG/h -NPG framework within a 6  Å cutoff, allowing the local water 
+
+environment to be captured while keeping the feature size manageable. Because SOAP 
+
+descriptors are highly expressive, the number of features increases rapidly with the chosen 
+
+descriptor parameters. 
+
+To reduce the computational cost and remove redundant information, we apply principal 
+
+component analysis (PCA), which is a linear dimensionality reduction technique that 
+
+transforms the  high -dimensional datasets into a smaller set of uncorrelated principal 
+
+components (PCs) while retaining the most relevant information. 47  Each PC is a linear 
+
+combination of the original SOAP descriptors, and the number of PCs is chosen based on the 
+
+point where adding more components does not significantly increase the explained variance. 
+
+The explained variance measures how much of the datase t’s total information (or variability) 
+
+is captured by each PC. The reduced feature space is then used to generate the final input 
+
+datasets, comprising 460 data points for each single -water NPG/h -NPG system and 200 data 
+
+points for each bulk -water NPG/h -NPG  system. The datasets are split into 80% training and 
+
+20% testing. 
+
+To visualize the diversity of local atomic environments and their connection to bandgap, we 
+
+project the feature space onto a two -dimensional manifold using UMAP (uniform manifold 13 
+
+approximation and projection). 48  UMAP finds the nearest neighbors of each point in the high -
+
+dimensional space and then constructs a two -dimensional map that preserves these 
+
+neighborhood relationships as much as possible. In this representation, each point represents 
+
+an AIMD snapshot, whe re points that are close together have similar local structures, and the 
+
+color shows the corresponding bandgap. For single -water NPG, the points form a more 
+
+dispersed manifold, showing larger variations in local water configurations and a smooth 
+
+bandgap ch ange along different branches ( Fig ure  5a ). 
+
+In contrast, single -water h -NPG forms a more continuous S -shaped manifold, indicating a more 
+
+ordered structural evolution with a relatively bigger bandgap distribution. Under bulk -water 
+
+conditions, NPG exhibits multiple elongated branches corresponding to  heterogeneous local 
+
+environments, with bandgap values varying continuously along each branch, whereas h -NPG 
+
+forms a small number of well -defined clusters, with narrower bandgap distributions in some 
+
+regions and broader variation in others, reflecting the c ombined influence of dopants and 
+
+collective water interactions ( Figure 5 b). 
+
+We then train multiple supervised ML regression models using the PCA -reduced SOAP 
+
+descriptor space to predict bandgaps for previously unseen NPG and h -NPG configurations 
+
+under both single - and bulk -water environments. The selected algorithms include Gaussi an 
+
+process regression (GPR), Kernel Ridge Regression (KRR), Random Forest Regression (RFR), 
+
+and Extreme Gradient Boosting Regression (XGBR). Each model is trained using optimized 
+
+hyperparameters, as summarized in  Table S1 . Among these models, GPR provided strong 
+
+predictive performance in all four datasets, as summarized in  Table S2 , and is therefore 
+
+selected for further predictions. To further improve the GPR model performance and remove 
+
+less informative features, we apply greedy recursive feature elimination to the PCA -reduced 
+
+SOAP feature set. 49  In this procedure, the descriptors are iteratively evaluated, and the least 
+
+useful features are  removed until an optimized subset of descriptors is obtained. Using this 14 
+
+optimized descriptor subset, we trained GPR models to predict the DFT -calculated bandgaps 
+
+of previously unseen NPG and h -NPG configurations. 15 
+
+Fig ure  5. ML prediction of bandgaps from SOAP -based structural descriptors. Two -
+
+dimensional UMAP embeddings of the reduced feature space for (a) single -water NPG/h -NPG 
+
+and (b) bulk -water NPG/h -NPG configurations, colored by DFT -calculated bandgap energies. 
+
+The axes  UMAP1 and UMAP2 are latent embedding coordinates generated by the algorithm. 
+
+Marginal histogram parity plots comparing GPR -predicted and DFT -calculated bandgaps for 
+
+(c) single -water and (d) bulk -water configurations, with linear fits and error metrics show ing 
+
+the accuracy of the best -performing model. 
+
+The improvement after feature selection is evident from the parity plots and marginal 
+
+histograms, where the predicted bandgaps closely follow the DFT -calculated values and most 
+
+data points lie near the ideal diagonal line ( Figure 5 c-d).  Notably, in the bulk -water 
+
+configurations also, the model achieved near -DFT performance ( 𝑅 2 ∼ 0.99 -1.00, RMSE  ∼
+
+0.012 -0.001 eV). For the final GPR model, predictions are also reported with 95% confidence 
+
+intervals obtained from the predictive standard deviation of the Gaussian process ( Fig ure  S7 ). 
+
+The uncertainty bars provide an additional measure of model reliability, indicating where the 
+
+model is more or less confident in its bandgap predictions. To avoid relying on a single train –
+
+test split, we further evaluate the GPR model using repeated 10 -fol d cross -validation. The mean 
+
+RMSE values remain low across all systems, with  cross validation  RMSE values of 0.0164  ±
+
+0.0079 eV for single -water NPG, 0.0009  ± 0.0012 eV for single -water h -NPG, 0.0050  ± 0.0034 
+
+eV for bulk -water NPG, and 0.0320  ± 0.0138 eV for bulk -water h -NPG. These small mean 
+
+errors and standard deviations indicate that the models are stable across different train -test 
+
+splits. The learning curves further support the robustness and generalizability of the model, 
+
+showing that the cross -validation RMSE decreases as the training -set size increases and 
+
+gradually approaches a stable value ( Fig ure  S8 ). 
+
+Grey -Box ML Predictions 
+
+Motivated by the black -box ML results, we next develop a grey -box ML framework to identify 
+
+the key structural and electronic descriptors controlling bandgap changes. Before analyzing the 
+
+more complex bulk -water systems, we first select physically meaningfu l descriptors for the 16 
+
+simpler single -water NPG and h -NPG systems. These descriptors provide a baseline for 
+
+designing descriptors for the bulk -water systems. A detailed description of the extracted 
+
+features and their mathematical formulations is provided in  Supp orting  Note 1 , while  concise 
+
+summary is presented in  Table 1 .
+
+Table 1 . Description of selected features for bandgap prediction of single -water NPG/h -NPG 
+
+systems. 
+
+S. No.  Feature label  Description 
+
+1 𝐶𝑂𝐺 𝑋 (𝐻 2𝑂 ) x-component of the water  center  of geometry 
+
+2 𝐶𝑂𝐺 𝑦 (𝐻 2𝑂 ) y-component of the water center of geometry 
+
+3 𝐶𝑂𝐺 𝑧 (𝐻 2𝑂 ) z-component of the water center of geometry 
+
+4 𝑑 𝑚𝑖𝑛 (𝑂 𝑤 , 𝐻 𝑝𝑜𝑟𝑒 ) Minimum distance between the water oxygen and pore 
+
+hydrogen atoms 
+
+5 𝑑 𝑚𝑖𝑛 (𝐻 𝑤 , 𝑁 ) Minimum distance between water hydrogen atoms and N -
+
+dopant atoms 
+
+6 μ𝑋 (𝐻 2𝑂 ) x-component of the water dipole moment 
+
+7 μ𝑦 (𝐻 2𝑂 ) y-component of the water dipole moment 
+
+8 μ𝑧 (𝐻 2𝑂 ) z-component of the water dipole moment 
+
+9 |μ(𝐻 2𝑂 )| Magnitude of the water dipole moment 
+
+10  𝛳 μ,𝑧  Angle between the water dipole moment vector and the surface 
+
+normal direction 
+
+11  𝑑 𝑚𝑖𝑛 (𝐻 2𝑂 , 𝐶 ) Minimum distance between the water center of geometry and 
+
+framework carbon atoms 
+
+12  𝑑 𝑚𝑎𝑥 (𝐻 2𝑂 , 𝐶 ) Maximum distance between the water center of geometry and 
+
+framework carbon atoms 
+
+13  𝜎 𝑑 [𝑑 (𝐻 2𝑂 , 𝐶 )] Standard deviation of distances between the water center of 
+
+geometry and framework carbon atoms 
+
+Using these physics -informed descriptors, we prepared input datasets containing 460 data 
+
+points for the single -water NPG and h -NPG systems. Similar to the black -box ML analysis, 
+
+greedy recursive feature elimination is employed to identify the optimal set o f physics -
+
+informed descriptors while removing redundant information. The grey  box GPR results for the 
+
+single -water NPG and h -NPG systems are shown in  Figure  6. The model accurately reproduces 
+
+the DFT -calculated bandgaps for both systems. For NPG, the GPR  predicted values follow the 
+
+DFT trend with  𝑅 2 = 0 .94, although a few deviations are observed at higher bandgap values 
+
+(Figure  6a ). For h -NPG, the prediction is nearly ideal, with  𝑅 2 = 1 .00 and a test RMSE of 17 
+
+0.0007 eV. The reliability of the grey -box GPR models is further evaluated using repeated 10 -
+
+fold cross -validation. The mean cross -validation RMSE values are 0.0254 ± 0.0087 eV for 
+
+NPG and 0.0020 ± 0.0014 eV for h -NPG. These cross -validation results indica te that the 
+
+predicted bandgaps remain close to the DFT -calculated values across different train -test splits. 
+
+To interpret the grey -box GPR models, we calculated Shapley additive explanations (SHAP) 
+
+values for the selected physics -informed descriptors. SHAP  analysis assigns an importance 
+
+value to each descriptor based on its contribution to the model prediction. The SHAP analysis 
+
+reveals the key physical descriptors controlling the bandgap response ( Figure  6b ). For single -
+
+water NPG, the two most important descriptors are  𝛳 μ,𝑧  and  𝜎 𝑑  [𝑑 (𝐻 2𝑂 , 𝐶  )], which together 
+
+account for 38.5% of the total feature contribution. This indicates that the bandgap of NPG is 
+
+primarily governed by the orientation of the water dipole and the distribution of water –carbon 
+
+distances. For h -NPG, the dominant descriptors are  𝐶𝑂𝐺 𝑋 (𝐻 2𝑂 ) and  μ𝑧 (𝐻 2𝑂 ), which together 
+
+account for 40.2% of the total feature contribution. This suggests that the bandgap response of 
+
+h-NPG is sensitive to both the lateral position of the water molecule and its out -of -plane dipole 
+
+component.  Building on these results, we next extend the grey -box descriptor space to the bulk 
+
+water NPG/h -NPG systems. Compared with the single -water case, the bulk -water environment 
+
+requires additional descriptors to capture collective water effects, water –substrat e interactions, 
+
+and water –water interactions. To define the physically relevant water -substrate interactions, a 
+
+cutoff distance of 5.0  Å is used. In total, 38 structural descriptors are generated for the bulk -
+
+water systems. The detailed physical motivation and mathematical formulation of each 
+
+descriptor are provided in  Supp orting  Note 2 , while selected feature abbreviations and short 
+
+descriptions are presented in  Table 2 . For both datasets, each containing 200 data points, we 
+
+apply greedy recursive feature elimination, and the optimized feature subsets are then used to 
+
+train the GPR models for the bandgap prediction of corresponding test datasets. 18 
+
+Fig. 6  Grey -box ML prediction and feature -importance analysis for single -water NPG and h -
+
+NPG systems. (a) Marginal histogram parity plots comparing GPR -predicted bandgaps with 
+
+DFT -calculated bandgaps for NPG  + H2O and h-NPG + H2O using physics -informed 
+
+descriptors. (b) SHAP -based global feature -importance plots showing the relative contribution 
+
+of the selected descriptors to the bandgap prediction for each system. 
+
+The grey -box GPR results for the bulk -water NPG and h -NPG systems are shown in  Figure 
+
+7a . For bulk -water configurations, the GPR models achieve high predictive accuracy, with 
+
+𝑅 2 = 1.00  and  RMSE  = 0.0021  eV  for NPG, and  𝑅 2 = 0.99  and  RMSE  = 0.0123  eV  for 
+
+h-NPG. These results show that the selected physics -informed descriptors can capture the 
+
+underlying physical mechanism behind bandgap variations in the bulk -water NPG/h -NPG 
+
+systems. The repeated 10 -fold cross -validation RMSE values are  0.0076  ± 0.0052  eV  for 19 
+
+NPG and  0.0261  ± 0.0089  eV  for h -NPG. These validation results across different train -test 
+
+splits are  also in good agreement with the DFT -calculated values indicating that the grey -box 
+
+GPR models are not overfitted. The SHAP feature -importance results identify 
+
+𝛥  |μ|𝑏𝑟𝑖𝑑𝑔𝑒 −𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡  as the most important descriptor in bulk -water NPG, contributing 22.1% 
+
+of the total feature contribution ( Figure  7b ). 
+
+Table 2  Description of selected features for bandgap prediction of bulk -water NPG/h -NPG 
+
+systems. 
+
+S. No.  Feature label  Description 
+
+1 𝑚𝑒𝑎𝑛 [𝐶𝑂𝐺 𝑥 /𝑦 /𝑧  (𝐻 2𝑂 )] Mean  x, y, and  z coordinates of water  centers  of geometry 
+
+2 𝜎 𝑑 [𝐶𝑂𝐺 𝑥 /𝑦 /𝑧  (𝐻 2𝑂 )] Standard deviation of the water  center -of -geometry positions 
+
+along the  x, y, and  z directions 
+
+3 μ𝑥 /𝑦 /𝑧  
+
+> 𝑡𝑜𝑡
+
+x, y, and  z components of the total dipole moment of the water 
+
+layer 
+
+4 |μ𝑡𝑜𝑡 | Magnitude of the total dipole moment of the water layer 
+
+5 𝑚𝑒𝑎𝑛 [|μ|] Mean magnitude of individual water dipole moments 
+
+6 𝜎 𝑑 [|μ|] Standard deviation of individual water dipole magnitudes 
+
+7 𝑚𝑒𝑎𝑛 [𝛳 μ,𝑧 ] Mean angle between individual water dipole moments and the 
+
+surface normal direction 
+
+8 𝜎 𝑑 [𝛳 μ,𝑧 ] Standard deviation of water dipole orientations relative to the 
+
+surface normal direction 
+
+9 𝑚𝑖𝑛  [𝑑 (𝑂 𝑤 , 𝐻 𝑤  )] Minimum intermolecular O···H distance between water 
+
+molecules 
+
+10  𝑚𝑒𝑎𝑛  [𝑑 (𝑂 𝑤 , 𝐻 𝑤 )] Mean intermolecular O···H distance between water molecules 
+
+11  𝑚𝑖𝑛  [𝑑 (𝑁 , 𝐻 𝑤 )] Minimum distance between N -dopant atoms and water hydrogen 
+
+atoms 
+
+12  𝑚𝑒𝑎𝑛  [𝑑 (𝑁 , 𝐻 𝑤 )] Mean distance between N -dopant atoms and water hydrogen 
+
+atoms 
+
+13  𝑁 𝑂𝐻  Number of intermolecular O···H contacts within the cutoff 
+
+radius  𝑟 𝑐 
+
+14  𝑁 𝑁𝐻  Number of N···H contacts between N -dopant atoms and water 
+
+hydrogens within the cutoff radius  𝑟 𝑐 
+
+15  μ𝑥 /𝑦 /𝑧  
+
+> 𝑏𝑟𝑖𝑑𝑔𝑒
+
+x, y, and z components of the total dipole moment of water 
+
+molecules near the bridge region 
+
+16  |μ𝑏𝑟𝑖𝑑𝑔𝑒  | Magnitude of the total dipole moment of water molecules near 
+
+the bridge region 
+
+17  𝑚𝑒𝑎𝑛  [|μ𝑏𝑟𝑖𝑑𝑔𝑒  |] Mean magnitude of individual water dipole moments near the 
+
+bridge region 
+
+18  𝜎 𝑑  [|μ𝑏𝑟𝑖𝑑𝑔𝑒  |] Standard deviation of individual water dipole magnitudes near 
+
+the bridge region 
+
+19  μ𝑥 /𝑦 /𝑧  
+
+> 𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡
+
+x, y, and  z components of the total dipole moment of water 
+
+molecules in the combined left/right ribbon regions 
+
+20  |μ𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡 | Magnitude of the total dipole moment of water molecules in the 
+
+combined left/right ribbon regions 20 
+
+21  𝑚𝑒𝑎𝑛  [|μ𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡  |] Mean magnitude of individual water dipole moments in the 
+
+combined left/right ribbon regions 
+
+22  𝜎 𝑑  [|μ𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡 |] Standard deviation of individual water dipole magnitudes in the 
+
+combined left/right ribbon regions 
+
+23  𝛥  μ𝑥 /𝑦 /𝑧  Difference in total dipole components between the bridge region 
+
+and in the combined left/right ribbon regions 
+
+24  𝛥  |μ|𝑏𝑟𝑖𝑑𝑔𝑒 −𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡  Difference in total dipole magnitude between the bridge region 
+
+and in the combined left/right ribbon regions 
+
+25  𝛥 𝑚𝑒𝑎𝑛  [|μ|]𝑏𝑟𝑖𝑑𝑔𝑒 −𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡  Difference in mean individual water dipole magnitude between 
+
+the bridge region and in the combined left/right ribbon regions 
+
+26  𝛥 𝜎 𝑑  [|μ|]𝑏𝑟𝑖𝑑𝑔𝑒 −𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡  Difference in dipole -magnitude variability between the bridge 
+
+region and in the combined left/right ribbon regions 
+
+This indicates that in NPG, the bandgap is mainly governed by a ribbon -resolved imbalance in 
+
+the collective water -dipole response. Such an imbalance creates local variations in the 
+
+electrostatic potential between the bridge and left/right ribbon regions, t hereby modulating the 
+
+bandgap. In addition, the spatial geometry of water molecules along the confinement direction 
+
+and the ribbon -resolved water dipoles also play an important role in modulating the bandgap. 
+
+For the bulk -water h-NPG system, the dominant descriptors are 
+
+|μ𝑙𝑒𝑓𝑡 /𝑟𝑖𝑔 ℎ𝑡 |, 𝜎 𝑑 [𝐶𝑂𝐺 𝑥 (𝐻 2𝑂 )] and  𝑚𝑒𝑎𝑛  [𝐶𝑂𝐺 𝑥 (𝐻 2𝑂 )], which together account for 40.2% of 
+
+the total feature contribution. These descriptors indicate that the bandgap of h -NPG is strongly 
+
+influenced by the dipole response of water in the combined left/right ribbon regions and by the 
+
+lateral distribution of wat er molecules along the h -NPG surface. 
+
+To evaluate the reliability and transferability of our developed grey -box ML framework, we 
+
+analyzed the predictive confidence intervals and  learning curves of physics -informed GPR 
+
+models across single - and bulk -water NPG/h -NPG systems. The 95% confidence intervals 
+
+remained narrow for most test predictions, indicating a stable predictive performance ( Fig ure 
+
+S9a -b).  Slightly larger uncertainty is observed for the single -water NPG system, consistent 
+
+with its broader configurational variability. The bulk -water models showed more stable 
+
+predictions with relatively small uncertainty, suggesting that the collective water d escriptors 
+
+provide a robust representation of the hydration environment ( Fig ure  S9c -d).  The learning 
+
+curves further confirmed this behavior, showing a systematic decrease in prediction error with 21 
+
+increasing training -set size and convergence toward a stable error plateau ( Fig ure  S10 ). These 
+
+results indicate that the grey -box models are not overfitted and that the selected physics -
+
+informed descriptors capture transferable structure –property relationships across single -water 
+
+and bulk -water NPG/h -NPG systems. Thus, the proposed framework provides both predictive 
+
+accuracy and physical interpretability, offering a generalizable route fo r understanding and 
+
+rapidly screening water -controlled electronic properties in nanoporous graphenes and related 
+
+two -dimensional materials. 
+
+Fig ure  7. (a) Marginal histogram parity plots comparing GPR -predicted bandgaps with DFT -
+
+calculated bandgaps for NPG + Bulk water and h -NPG + Bulk water using physics -informed 
+
+descriptors and (b) SHAP -based global feature -importance plots showing the relative 22 
+
+contribution of the selected physics -informed descriptors to the bandgap prediction for NPG/h -
+
+NPG system. 
+
+CONCLUSION 
+
+We present an interpretable ML framework that integrates DFT, AIMD, and physics -informed 
+
+descriptors to rapidly predict the bandgaps of NPG and h -NPG in aqueous environments with 
+
+near -DFT accuracy. Our results show that the electronic structure of nanoporo us graphenes can 
+
+be sensitive to the position, orientation, and density of water molecules. This effect is 
+
+particularly pronounced in h -NPG, where nitrogen dopants introduce enhanced sensitivity to 
+
+local water configurations through water dipole -dopant int eractions. The predicted bandgaps 
+
+vary substantially with the water environment, ranging from  ∼ 0.32 -0.75 eV for NPG and  ∼
+
+0.17 -0.41 eV for h -NPG in single -water configurations, and from  ∼ 0.16 -0.50 eV for NPG and 
+
+∼ 0.20 -0.68 eV for h -NPG in bulk water. We find that water is not merely a passive surrounding 
+
+medium but an active tuning parameter for the electronic properties of nanoporous graphenes. 
+
+To uncover the underlying mechanism, we develop SOAP -based black -box and phys ics -
+
+informed grey -box ML models. Black -box models achieve near -DFT accuracy for bandgap 
+
+predictions across both single and bulk -water environments. Beyond predictive accuracy, this 
+
+study underscores the role of explainable ML as a bridge between atomistic  simulations and 
+
+physical understanding of nanomaterials under aqueous environments. By identifying 
+
+physically meaningful descriptors, our framework establishes a direct link between molecular -
+
+scale hydration structure and macroscopic electronic response. A nalyses identify water dipole 
+
+orientation, water -substrate distance, water center -of -geometry, and ribbon -resolved dipole 
+
+moments as the dominant factors controlling bandgap modulation across NPG and h -NPG 
+
+systems. We believe that the proposed ML framework can be reliably extended to other 2D 
+
+materials f or rapid bandgap prediction in aqueous environments. Although the physically 
+
+informed feature space may need adjustment for different materials, it offers a solid starting 23 
+
+point for exploring and predicting bandgaps beyond NPGs with a better understanding of 
+
+underlying physics, facilitating the targeted design of 2D materials with tailored electronic 
+
+properties. 
+
+METHODS 
+
+All first -principles calculations, including ab initio molecular dynamics (AIMD) simulations, 
+
+are performed within the framework of density functional theory (DFT) using  SIESTA  version 
+
+5.2.0. 38  Core –valence interactions are described using Troullier –Martins norm -conserving 
+
+pseudopotentials, 50  generated for C, N, O, and H atoms. Valence electrons are expanded in a 
+
+numerical atomic orbital basis using a double -ζ polarized (DZP) basis set for all atomic species. 
+
+An energy shift of 0.15 eV is applied to define the confinement radius of the basis orbitals. The 
+
+exchange –correlation energy is treated using a consistent -exchange van der Waals density 
+
+functional (vdW -DF) ,51  which provided an accurate description of dispersion interactions 
+
+critical for graphene –water interfaces. The real -space integration grid is defined by a mesh 
+
+cutoff of 400 Ry. Convergence tests confirmed that this value yielded total energy variations 
+
+be low 0.1 meV/atom. Structural relaxations are carried out using a conjugate -gradient 
+
+algorithm until the maximum residual force on each atom is below 0.01 eV/ Å. Total energy 
+
+convergence is set to 10 −4 eV. Periodic boundary conditions are applied along the  x and  y
+
+directions, while a vacuum spacing of 24  Å is introduced along the  z direction to avoid spurious 
+
+interactions between periodic replicas. Brillouin zone sampling is performed using a
+
+Monkhorst –Pack  k-point mesh of 1 × 4 × 1. Convergence tests with denser meshes showed 
+
+negligible changes in total energies and no variation in bandgap values. 
+
+The interaction energy ( 𝐸 𝑖 ) between the NPG/h -NPG system and the single -water molecule is 
+
+computed using the following expression: 
+
+𝐸 𝑖  = [𝐸 𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺 +H2O − (E𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺  + EH2O )] (1) 24 
+
+where  𝐸 𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺 +H2O is the total optimized energy of the NPG/h -NPG system with a water 
+
+molecule placed inside the pore, and  E𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺  and  EH2O are the total optimized energies of 
+
+the isolated NPG/h -NPG system and the isolated water molecule, respectively. 
+
+The charge density difference (CDD) is evaluated to analyze charge redistribution upon 
+
+interaction and is defined as: 
+
+𝛥𝜌 (𝑟 ) = [𝜌 𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺 +H2O (𝑟 ) − ( 𝜌 𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺 (𝑟 ) + 𝜌 H2O (𝑟 ))] (2) 
+
+where  𝜌 𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺 +H2O (𝑟 ) is the total charge density of the combined NPG/h -NPG –water 
+
+system, and  𝜌 𝑁𝑃𝐺 /ℎ−𝑁𝑃𝐺 (𝑟 ) and  𝜌 H2O (𝑟 ) are the charge densities of the isolated NPG/h -NPG 
+
+system and isolated water molecule, respectively, all evaluated at the optimized geometry of 
+
+the combined system. 
+
+To calculate the transport properties, DFT combined with the non -equilibrium Green’s function 
+
+(DFT –NEGF) approach is employed, as implemented in  TranSIESTA  version 5.2.0. 40 
+
+Machine -learning analyses are performed in Python using the open -source scikit -learn library. 
+
+SOAP descriptors are generated with DScribe 46  and used as input features in the black -box ML 
+
+models. Hyperparameters are optimized using RandomizedSearchCV, 52  and greedy recursive 
+
+feature elimination is applied for feature selection within scikit -learn. 53  All workflows are 
+
+executed in Google  Colab  (https://colab.research.google.com/ ).
+
+ASSOCIATED CONTENT 
+
+*Supporting Information: 
+
+Electronic Properties of NPG/h -NPG +  H2O ; Band Structures with Single Water ; Ban d
+
+Structures with an Increasing Number of Water Molecules ; Electrostatic gating of Single -Water 
+
+NPG System ; Electrostatic gating of Single -Water h -NPG System ; Bandgap Histograms under 
+
+Single and Bulk -water Environment ; Tuned Hyperparameters and Model Performance ;
+
+Confidence Intervals for Black -box GPR Models ; Learning Curves for Black -box GPR 25 
+
+Models ; Supporting Note 1 ; Supporting Note 2 ; Confidence Intervals for Grey -box GPR 
+
+Models ; Learning Curves for Grey -box GPR Models 
+
+*SUPP ORTING  VIDEOS  
+
+> •
+
+Supplementary Video 1: AIMD trajectory of NPG under a single -water environment.  
+
+> •
+
+Supplementary Video 2: AIMD trajectory of NPG under a bulk -water environment.  
+
+> •
+
+Supplementary Video 3: AIMD trajectory of HNPG under a single -water environment.  
+
+> •
+
+Supplementary Video 4: AIMD trajectory of HNPG under a bulk -water environment. 
+
+ACKNOWLEDGEMENTS 
+
+S.M. acknowledges financial support from Novo Nordisk Foundation (BIONWIRE, grant 
+
+NNF23OC0084494). A.E.A.M. is funded by Independent Research Fund Denmark, Grant 
+
+0.46540/3103 -00229B.  V.R. acknowledges Novo Nordisk Foundation (MOTIFS, grant 
+
+NNF23OC0086816).  We acknowldege DTU Computing Center for providing computational 
+
+resources,  http://dx.doi.org/10.48714/DTU.HPC.0001 .
+
+COMPETING INTERESTS 
+
+The authors declare no competing interests. 
+
+CODE AND DATA AVAILABILITY 
+
+The datasets and Python scripts used to train, test, and evaluate the machine -learning models 
+
+developed in this work for predicting the bandgap energies of NPG/h -NPG systems under 
+
+single - and bulk -water environments have been deposited in a public GitHub r epository:  https: 
+
+//github.com/Nanoelectronics -Theory -DTU/AquaNPG -ML -Bandgap -Prediction.git 
+
+AUTHOR CONTRIBUTIONS 
+
+M.B. Designed and supervised the project. S.M. performed the computational calculations, 
+
+developed ML models, and wrote the original draft. A.E.A.M. and V.R. assisted in data 
+
+analysis. A.E.A.M. and V.R. contributed equally to this work. All authors contrib uted to the 
+
+discussions and editing of the manuscript. 26 
+
+REFERENCES 
+
+(1)  Caridad, J. M.; Calogero, G.; Pedrinazzi, P.; Santos, J. E.; Impellizzeri, A.; Gunst, T.; 
+
+Booth, T. J.; Sordan, R.; Bøggild, P.; Brandbyge, M. A Graphene -Edge Ferroelectric 
+
+Molecular Switch.  Nano Lett.  2018 , 18  (8), 4675 –4683. 
+
+(2)  Chin, H. -T.; Klimes, J.; Hu, I. -F.; Chen, D. -R.; Nguyen, H. -T.; Chen, T. -W.; Ma, S. -W.; 
+
+Hofmann, M.; Liang, C. -T.; Hsieh, Y. -P. Ferroelectric 2D Ice under Graphene 
+
+Confinement.  Nat Commun  2021 , 12  (1), 6291. 
+
+(3)  Mendoza -Sánchez, B.; Gogotsi, Y. Synthesis of Two -Dimensional Materials for 
+
+Capacitive Energy Storage.  Advanced Materials  2016 , 28  (29), 6104 –6135. 
+
+(4)  Emmerich, T.; Vasu, K. S.; Niguès, A.; Keerthi, A.; Radha, B.; Siria, A.; Bocquet, L. 
+
+Enhanced Nanofluidic Transport in Activated Carbon Nanoconduits.  Nat. Mater.  2022 , 21 
+
+(6), 696 –702. 
+
+(5)  Cai, J.; Griffin, E.; Guarochico -Moreira, V. H.; Barry, D.; Xin, B.; Yagmurcukardes, M.; 
+
+Zhang, S.; Geim, A. K.; Peeters, F. M.; Lozada -Hidalgo, M. Wien Effect in Interfacial 
+
+Water Dissociation through Proton -Permeable Graphene Electrodes.  Nat Commun  2022 ,
+
+13  (1), 5776. 
+
+(6)  Wang, R.; Souilamas, M.; Esfandiar, A.; Fabregas, R.; Benaglia, S.; Nevison -Andrews, 
+
+H.; Yang, Q.; Normansell, J.; Ares, P.; Ferrari, G.; Principi, A.; Geim, A. K.; Fumagalli, 
+
+L. In -Plane Dielectric Constant and Conductivity of Confined Water.  Nature  2025 , 646 
+
+(8085), 606 –610. 
+
+(7)  Hong, Y.; Wang, S.; Li, Q.; Song, X.; Wang, Z.; Zhang, X.; Besenbacher, F.; Dong, M. 
+
+Interfacial Icelike Water Local Doping of Graphene.  Nanoscale  2019 , 11  (41), 19334 –
+
+19340. 27 
+
+(8)  Dufils, T.; Schran, C.; Chen, J.; K.  Geim, A.; Fumagalli, L.; Michaelides, A. Origin of 
+
+Dielectric Polarization Suppression in Confined Water from First Principles.  Chemical 
+
+Science  2024 , 15  (2), 516 –527. 
+
+(9)  Zheng, W.; Zhang, S.; Jiang, J.; He, Y.; Stöhr, R.; Denisenko, A.; Wrachtrup, J.; Zeng, X. 
+
+C.; Bian, K.; Wang, E. -G.; Jiang, Y. Experimental Observation of Liquid –Solid Transition 
+
+of Nanoconfined Water at Ambient Temperature.  Nat. Mater.  2026 , 25  (3), 495 –501. 
+
+(10)  Aslam, M. A.; Stanković, I.; Murastov, G.; Carl, A.; Khan, M. Z.; Song, Z.; Watanabe, K.; 
+
+Taniguchi, T.; Lugstein, A.; Teichert, C.; Gorbachev, R.; Rodriguez, R. D.; Matković, A. 
+
+Ferroelectricity in Graphene Nanoribbon Devices Enabled by Collective Water M olecule 
+
+Dynamics.  Nat Commun  2025 , 16  (1), 10982. 
+
+(11)  Bai, J.; Zhong, X.; Jiang, S.; Huang, Y.; Duan, X. Graphene Nanomesh.  Nature 
+
+Nanotechnology  2010 , 5 (3), 190 –194. 
+
+(12)  Cohen -Tanugi, D.; Grossman, J. C. Water Desalination across Nanoporous Graphene. 
+
+Nano Lett.  2012 , 12  (7), 3602 –3608. 
+
+(13)  Koenig, S. P.; Wang, L.; Pellegrino, J.; Bunch, J. S. Selective Molecular Sieving through 
+
+Porous Graphene.  Nature Nanotechnology  2012 , 7 (11), 728 –732. 
+
+(14)  Xu, Y.; Lin, Z.; Zhong, X.; Huang, X.; Weiss, N. O.; Huang, Y.; Duan, X. Holey Graphene 
+
+Frameworks for Highly Efficient Capacitive Energy Storage.  Nature Communications 
+
+2014 , 5 (1), 4554. 
+
+(15)  Dai, Z.; Jin, P.; Yuan, S.; Yang, J.; Agrawal, K. V.; Wang, H. A Molecularly Engineered 
+
+Large -Area Nanoporous Atomically Thin Graphene Membrane for Ion Separation.  Nature 
+
+Communications  2025 , 16  (1), 4626. 
+
+(16)  Jacobse, P. H.; McCurdy, R. D.; Jiang, J.; Rizzo, D. J.; Veber, G.; Butler, P.; Zuzak, R.; 
+
+Louie, S. G.; Fischer, F. R.; Crommie, M. F. Bottom -up Assembly of Nanoporous 28 
+
+Graphene with Emergent Electronic States.  J. Am. Chem. Soc.  2020 , 142  (31), 13507 –
+
+13514. 
+
+(17)  Boutilier, M. S. H.; Jang, D.; Idrobo, J. -C.; Kidambi, P. R.; Hadjiconstantinou, N. G.; 
+
+Karnik, R. Molecular Sieving Across Centimeter -Scale Single -Layer Nanoporous 
+
+Graphene Membranes.  ACS Nano  2017 , 11  (6), 5726 –5736. 
+
+(18)  Petersen, R.; Pedersen, T. G.; Jauho, A. -P. Clar Sextet Analysis of Triangular, Rectangular, 
+
+and Honeycomb Graphene Antidot Lattices.  ACS Nano  2011 , 5 (1), 523 –529. 
+
+(19)  Qin, T.; Wang, T.; Zhu, J. Recent Progress in On -Surface Synthesis of Nanoporous 
+
+Graphene Materials.  Communications Chemistry  2024 , 7 (1), 154. 
+
+(20)  Piquero -Zulaica, I.; Corral -Rascón, E.; Diaz de Cerio, X.; Riss, A.; Yang, B.; Garcia -
+
+Lekue, A.; Kher -Elden, M. A.; Abd El -Fattah, Z. M.; Nobusue, S.; Kojima, T.; Seufert, 
+
+K.; Sakaguchi, H.; Auwärter, W.; Barth, J. V. Deceptive Orbital Confinement at Edge s
+
+and Pores of Carbon -Based 1D and 2D Nanoarchitectures.  Nature Communications  2024 ,
+
+15  (1), 1062. 
+
+(21)  Tenorio, M.; Moreno, C.; Febrer, P.; Castro -Esteban, J.; Ordejón, P.; Peña, D.; Pruneda, 
+
+M.; Mugarza, A. Atomically Sharp Lateral Superlattice Heterojunctions Built -In 
+
+Nitrogen -Doped Nanoporous Graphene.  Advanced Materials  2022 , 34  (20), 2110099. 
+
+(22)  Liu, Z.; Chen, Z.; Wang, C.; Wang, H. I.; Wuttke, M.; Wang, X. -Y.; Bonn, M.; Chi, L.; 
+
+Narita, A.; Müllen, K. Bottom -Up, On -Surface -Synthesized Armchair Graphene 
+
+Nanoribbons for Ultra -High -Power Micro -Supercapacitors.  J. Am. Chem. Soc.  2020 , 142 
+
+(42), 17881 –17886. 
+
+(23)  Calogero, G.; Alcón, I.; Papior, N.; Jauho, A. -P.; Brandbyge, M. Quantum Interference 
+
+Engineering of Nanoporous Graphene for Carbon Nanocircuitry.  J. Am. Chem. Soc.  2019 ,
+
+141  (33), 13081 –13088. 29 
+
+(24)  Yang, J.; Ma, M.; Li, L.; Zhang, Y.; Huang, W.; Dong, X. Graphene Nanomesh: New 
+
+Versatile Materials.  Nanoscale  2014 , 6, 13301. 
+
+(25)  Calogero, G.; Papior, N. R.; Kretz, B.; Garcia -Lekue, A.; Frederiksen, T.; Brandbyge, M. 
+
+Electron Transport in Nanoporous Graphene: Probing the Talbot Effect.  Nano Lett.  2019 ,
+
+19  (1), 576 –581. 
+
+(26)  Wang, Y.; Cao, Z.; Barati Farimani, A. Efficient Water Desalination with Graphene 
+
+Nanopores Obtained Using Artificial Intelligence.  npj 2D Mater Appl  2021 , 5 (1), 1 –9. 
+
+(27)  Lv, H.; Yao, Y.; Li, S.; Wu, G.; Zhao, B.; Zhou, X.; Dupont, R. L.; Kara, U. I.; Zhou, Y.; 
+
+Xi, S.; Liu, B.; Che, R.; Zhang, J.; Xu, H.; Adera, S.; Wu, R.; Wang, X. Staggered Circular 
+
+Nanoporous Graphene Converts Electromagnetic Waves into Electricity.  Nature 
+
+Communications  2023 , 14  (1), 1982. 
+
+(28)  Butler, K. T.; Davies, D. W.; Cartwright, H.; Isayev, O.; Walsh, A. Machine Learning for 
+
+Molecular and Materials Science.  Nature  2018 , 559  (7715), 547 –555. 
+
+(29)  Yang, X.; Wang, Y.; Byrne, R.; Schneider, G.; Yang, S. Concepts of Artificial Intelligence 
+
+for Computer -Assisted Drug Discovery.  Chem. Rev.  2019 , 119  (18), 10520 –10594. 
+
+(30)  Wang, A. Y. -T.; Murdock, R. J.; Kauwe, S. K.; Oliynyk, A. O.; Gurlo, A.; Brgoch, J.; 
+
+Persson, K. A.; Sparks, T. D. Machine Learning for Materials Scientists: An Introductory 
+
+Guide toward Best Practices.  Chem. Mater.  2020 , 32  (12), 4954 –4965. 
+
+(31)  Westermayr, J.; Marquetand, P. Machine Learning for Electronically Excited States of 
+
+Molecules.  Chem. Rev.  2021 , 121  (16), 9873 –9926. 
+
+(32)  Tabor, D. P.; Roch, L. M.; Saikin, S. K.; Kreisbeck, C.; Sheberla, D.; Montoya, J. H.; 
+
+Dwaraknath, S.; Aykol, M.; Ortiz, C.; Tribukait, H.; Amador -Bedolla, C.; Brabec, C. J.; 
+
+Maruyama, B.; Persson, K. A.; Aspuru -Guzik, A. Accelerating the Discovery of Mat erials 
+
+for Clean Energy in the Era of Smart Automation.  Nature Reviews Materials  2018 , 3 (5), 
+
+5–20 30 
+
+(33)  Rao, L.; Yuan, Y.; Shen, X.; Yu, G.; Chen, X. Designing Nanotheranostics with Machine 
+
+Learning.  Nature Nanotechnology  2024 , 19  (12), 1769 –1781. 
+
+(34)  Dong, Y.; Wu, C.; Zhang, C.; Liu, Y.; Cheng, J.; Lin, J. Bandgap Prediction by Deep 
+
+Learning in Configurationally Hybridized Graphene and Boron Nitride.  npj 
+
+Computational Materials  2019 , 5 (1), 26. 
+
+(35)  Ward, L.; Agrawal, A.; Choudhary, A.; Wolverton, C. A General -Purpose Machine 
+
+Learning Framework for Predicting Properties of Inorganic Materials.  npj Computational 
+
+Materials  2016 , 2 (1), 16028. 
+
+(36)  Choubisa, H.; Todorović, P.; Pina, J. M.; Parmar, D. H.; Li, Z.; Voznyy, O.; Tamblyn, I.; 
+
+Sargent, E. H. Interpretable Discovery of Semiconductors with Machine Learning.  npj 
+
+Computational Materials  2023 , 9 (1), 117. 
+
+(37)  Moreno, C.; Vilas -Varela, M.; Kretz, B.; Garcia -Lekue, A.; Costache, M. V.; Paradinas, 
+
+M.; Panighel, M.; Ceballos, G.; Valenzuela, S. O.; Peña, D.; Mugarza, A. Bottom -up 
+
+Synthesis of Multifunctional Nanoporous Graphene.  Science  2018 , 360  (6385), 199 –203. 
+
+(38)  Soler, J. M.; Artacho, E.; Gale, J. D.; García, A.; Junquera, J.; Ordejón, P.; Sánchez -Portal, 
+
+D. The SIESTA Method for Ab Initio Order -N Materials Simulation.  J. Phys.: Condens. 
+
+Matter  2002 , 14  (11), 2745. 
+
+(39)  Martínez, L.; Andrade, R.; Birgin, E. G.; Martínez, J. M. PACKMOL: A package for 
+
+building initial configurations for molecular dynamics simulations.  Journal of 
+
+Computational Chemistry  2009 , 30  (13), 2157 –2164. 
+
+(40)  Brandbyge, M.; Mozos, J. -L.; Ordejón, P.; Taylor, J.; Stokbro, K. Density -Functional 
+
+Method for Nonequilibrium Electron Transport.  Phys. Rev. B  2002 , 65  (16), 165401. 
+
+(41)  Anaya Morales, A. E.; Brandbyge, M. Field -Controlled Electronic Breathing Modes and 
+
+Transport in Nanoporous Graphene.  2D Mater.  2025 , 12  (4), 041003. 31 
+
+(42)  Wang, H.; Tal, A.; Bischoff, T.; Gono, P.; Pasquarello, A. Accurate and Efficient Band -
+
+Gap Predictions for Metal Halide Perovskites at Finite Temperature.  npj Comput Mater 
+
+2022 , 8 (1), 237. 
+
+(43)  Zhuo, Y.; Mansouri Tehrani, A.; Brgoch, J. Predicting the Band Gaps of Inorganic Solids 
+
+by Machine Learning.  J. Phys. Chem. Lett.  2018 , 9 (7), 1668 –1673. 
+
+(44)  Rajan, A. C.; Mishra, A.; Satsangi, S.; Vaish, R.; Mizuseki, H.; Lee, K. -R.; Singh, A. K. 
+
+Machine -Learning -Assisted Accurate Band Gap Predictions of Functionalized MXene. 
+
+Chem. Mater.  2018 , 30  (12), 4031 –4038. 
+
+(45)  Olsthoorn, B.; Geilhufe, R. M.; Borysov, S. S.; Balatsky, A. V. Band Gap Prediction for 
+
+Large Organic Crystal Structures with Machine Learning.  Advanced Quantum 
+
+Technologies  2019 , 2 (7 –8), 1900023. 
+
+(46)  Himanen, L.; Jäger, M. O. J.; Morooka, E. V.; Federici Canova, F.; Ranawat, Y. S.; Gao, 
+
+D. Z.; Rinke, P.; Foster, A. S. DScribe: Library of Descriptors for Machine Learning in 
+
+Materials Science.  Computer Physics Communications  2020 , 247 , 106949. 
+
+(47)  Abdi, H.; Williams, L. J. Principal Component Analysis.  WIREs Computational Statistics 
+
+2010 , 2 (4), 433 –459. 
+
+(48)  Healy, J.; McInnes, L. Uniform Manifold Approximation and Projection.  Nat Rev 
+
+Methods Primers  2024 , 4 (1), 82. https://doi.org/10.1038/s43586 -024 -00363 -x. 
+
+(49)  Guyon, I.; Weston, J.; Barnhill, S.; Vapnik, V. Gene Selection for Cancer Classification 
+
+Using Support Vector Machines.  Machine Learning  2002 , 46  (1), 389 –422. 
+
+(50)  Troullier, N.; Martins, J. L. Efficient Pseudopotentials for Plane -Wave Calculations.  Phys. 
+
+Rev. B  1991 , 43  (3), 1993 –2006. 
+
+(51)  Dion, M.; Rydberg, H.; Schröder, E.; Langreth, D. C.; Lundqvist, B. I. Van Der Waals 
+
+Density Functional for General Geometries.  Phys. Rev. Lett.  2004 , 92  (24), 246401. 32 
+
+(52)  Bergstra, J.; Bengio, Y. Random Search for Hyper -Parameter Optimization.  Journal of 
+
+Machine Learning Research  2012 , 13  (10), 281 –305. 
+
+(53)  Pedregosa, F.; Varoquaux, G.; Gramfort, A.; Michel, V.; Thirion, B.; Grisel, O.; Blondel, 
+
+M.; Prettenhofer, P.; Weiss, R.; Dubourg, V.; Vanderplas, J.; Passos, A.; Cournapeau, D.; 
+
+Brucher, M.; Perrot, M.; Duchesnay, É. Scikit -Learn: Machine Learning in Pyt hon.  J. 
+
+Mach. Learn. Res. 2011 , 12 , 2825 –2830. 
+
+Table of Contents S1
+
+## Supporting Information 
+
+## Machine Learning Bandgap Prediction of Nanoporous Graphenes with 
+
+## Water 
+
+Sneha Mittal,  *, †  Alan E. Anaya Morales , †, ‡ Victor Rosendal , †, ‡ Mads Brandbyge  *, † 
+
+> †
+
+Department of Physics,  Technical University of Denmark, 2800 Kgs., Lyngby, Denmark 
+
+> ‡
+
+These authors contributed equally to this work. 
+
+*Corresponding Author. E -mail:  snemi@dtu.dk  (S.M.);  mabr@dtu.dk  (M.B.) 
+
+Table of Contents  Pages 
+
+1.  Electronic Properties of NPG/h -NPG +  H2O S2
+
+2.  Band Structures with Single Water  S3
+
+3.  Band Structures with an Increasing Number of Water Molecules  S4
+
+4.  Electrostatic gating of Single -Water NPG System  S5
+
+5.  Electrostatic gating of Single -Water  h-NPG System  S6
+
+6.  Bandgap Histograms under Single and Bulk -water Environ ment  S7
+
+7.  Tuned Hyperparameters and Model Performance  S8
+
+8.  Confidence Intervals for Black -box GPR Models  S9
+
+9.  Learning Curves  for Black -box GPR Models  S1 0
+
+10.  Supporting Note 1  S11 
+
+11.  Supporting Note  2 S14 
+
+12.  Confidence Intervals for  Grey -box GPR Models  S20 
+
+13.  Learning Curves  for  Grey -box GPR Models  S21 S2
+
+1.  Electronic Properties of NPG/h -NPG +  𝐇 𝟐 𝐎 
+
+Fig ure  S1 : (a) Optimized geometries of NPG with a water molecule adsorbed at different sites 
+
+and the corresponding relative total energy (R.E.) values, (b) charge density difference (CDD) 
+
+plot for NPG  + H2O system in its energetically most favorable pore configuration, along with 
+
+the corresponding interaction energy ( 𝐸 𝑖 ) and Mulliken charge transfer values, (c) total density 
+
+of states (TDOS) of NPG with and without water molecule, (d) optimized geometries of h -NPG 
+
+with a water molecule adsorbed at different sites and the corresponding R.E. values, (e) CDD 
+
+plot of the h -NPG  + H2O system in its energetically most favorable pore configuration, along 
+
+with the corresponding  Ei and Mulliken charge -transfer values, and (f) TDOS of h -NPG with 
+
+and without an adsorbed water. The Fermi energy level is shifted to zero. The isosurface value 
+
+is 0 .005  eÅ−3. Yellow and blue colors in the CDD plot represent charge depletion and charge 
+
+accumulation, respectively. Atom color code: carbon (grey), hydrogen (white), and oxygen 
+
+(red). S3
+
+2.  Band Structures of NPG/h -NPG with Single Water 
+
+Figure S2:  Band structures of  (a)  NPG and  (b)  h-NPG with water adsorbed at different sites: 
+
+pore, hollow, top, and bridge. The black dotted lines in the band structures represent the 
+
+corresponding pristine counterparts. The Fermi energy level is shifted to zero. S4
+
+3.  Band Structures of NPG/h -NPG with an Increasing Number of Water Molecules 
+
+Figure S3:  Band structures of (a) NPG and (b) h -NPG with an increasing number of water 
+
+molecules (1, 2, and 3 water molecules in each pore). The black dotted lines in the band 
+
+structures represent the corresponding pristine counterparts. The Fermi energy level is shi fted 
+
+to zero. S5
+
+4.  Electrostatic gating of Single -Water NPG System 
+
+Figure S 4: Band structure of single -water NPG under (a) top electrostatic gating and (b) bottom 
+
+electrostatic gating. The number of injected electrons corresponds to  𝑔  × 10 13  𝑒 /𝑐𝑚 2. The 
+
+band filling reflects the occupation of the electronic states. For comparison, the band structures 
+
+of pristine NPG under the same electrostatic gating conditions are shown as black dotted lines. S6
+
+5.  Electrostatic gating of Single -Water h -NPG System 
+
+Figure S 5: Band structure of single -water  h-NPG under (a) top electrostatic gating and (b) 
+
+bottom electrostatic gating. The number of injected electrons corresponds to  𝑔  × 10 13  𝑒 /𝑐𝑚 2.
+
+The band filling reflects the occupation of the electronic states. For comparison, the band 
+
+structures of pristine NPG under the same electrostatic gating conditions are shown as black 
+
+dotted lines. S7
+
+6.  Bandgap Histograms of NPG/h -NPG under Single and Bulk -water Environments 
+
+Figure S6:  Bandgap histograms of (a) NPG and (b) h -NPG from AIMD -sampled single water 
+
+configurations. Bandgap histograms of (c) NPG and (d) h -NPG from AIMD sampled bulk -
+
+water configurations. S8
+
+7. Tuned Hyperparameters and Model Performance 
+
+Table S1 : Optimized hyperparameters used for ML regression models for bandgap prediction 
+
+of NPG and h -NPG systems under single and bulk water environments. 
+
+Regression model  Optimized hyperparameters 
+
+Gaussian Process Regression (GPR)  Kernel:  C (1 .0) × Matern (length scale = 
+
+1.0,  ν = 1 .5) + White Kernel;  α = 1 × 
+
+10 −6; random state = 42 
+
+Kernel Ridge Regression (KRR)  α = 0 .001; polynomial kernel; degree = 
+
+2;  γ =
+
+0.01; coef0 = 0.5 
+
+Random Forest Regression (RFR)  Number of trees = 400; maximum depth 
+
+= 20; minimum samples split = 2; 
+
+random state = 42 
+
+Extreme Gradient Boosting Regression 
+
+(XGBR) 
+
+Number of trees = 300; maximum depth 
+
+= 6; learning rate = 0.05; subsample = 
+
+0.8; column sample by tree = 0.9; 
+
+objective = squared error; random state = 
+
+42 
+
+Table S2 : Train and test RMSE values (in eV) of ML regression models for bandgap prediction 
+
+of NPG/h -NPG systems. NPG +  H2O and h -NPG +  H2O denote single water systems, whereas 
+
+NPG + BW and h -NPG + BW denote bulk -water systems. 
+
+Regression model  RMSE  NPG +  𝐇 𝟐 𝐎  h-NPG +  𝐇 𝟐 𝐎  NPG + BW  h-NPG + 
+
+BW 
+
+Gaussian Process 
+
+Regression (GPR) 
+
+Train  0.0004  0.0007  0.0007  0.0006 
+
+Test  0.0217  0.0013  0.0041  0.0195 
+
+Kernel Ridge 
+
+Regression (KRR) 
+
+Train  0.0006  0.0000  0.0006  0.0002 
+
+Test  0.0238  0.0001  0.0019  0.0385 
+
+Random Forest 
+
+Regression (RFR) 
+
+Train  0.0174  0.0052  0.0077  0.0217 
+
+Test  0.0460  0.0139  0.0161  0.0740 
+
+Extreme Gradient 
+
+Boosting 
+
+Regression 
+
+(XGBR) 
+
+Train  0.0006  0.0004  0.0005  0.0005 
+
+Test  0.0427  0.0082  0.0129  0.0499 S9
+
+8. Confidence Intervals for Black -box GPR Models 
+
+Figure S7 : GPR -predicted versus DFT -calculated bandgaps using the PCA -reduced SOAP 
+
+feature space. The plots show predictions for (a) NPG +  H2O, (b) h -NPG +  H2O, (c) NPG + 
+
+Bulk water, and (d) h -NPG + Bulk water. The dashed diagonal line represents ideal agreement 
+
+between predicted and DFT -calculated bandgaps, while the error bars indicate the 95% 
+
+confidence intervals estimated from the predictive standard deviati on of the GPR model. S10 
+
+9. Learning Curve Analysis for Black -box GPR Models 
+
+Figure S 8: GPR -predicted versus DFT -calculated bandgaps using the PCA -reduced SOAP 
+
+feature space. The plots show predictions for (a) NPG +  H2O, (b) h -NPG +  H2O, (c) NPG + 
+
+Bulk water, and (d) h -NPG + Bulk water. The dashed diagonal line represents ideal agreement 
+
+between predicted and DFT -calculated bandgaps, while the error bars indicate the 95% 
+
+confidence intervals estimated from the predictive standard deviati on of the GPR model. S11 
+
+10 . Supp orting  Note 1: 
+
+Generation for Grey -Box ML Bandgap Prediction in Single -Water NPG/h -NPG Systems 
+
+We extracted a total of thirteen features for bandgap prediction in the single -water NPG/h -NPG 
+
+systems. The extracted features and their formulations are described below. 
+
+1. Cent er  of Geometry (COG) 
+
+The cent er of geometry of the water molecule is defined as the arithmetic mean of the positions 
+
+of  oxygen  and hydrogen atoms: 
+
+𝐑 COG  = 1
+
+3 ∑ 𝐫 𝑖 
+
+> 3
+> 𝑖 =1
+
+(1)
+
+where  𝐫 𝑖  is the position vector of atom  𝑖  in the water molecule ( 𝑖  = 1 for O and  𝑖  = 2,3 for H). 
+
+The three Cartesian components are denoted  COG 𝑥 (H2O), COG 𝑦 (H2O), and  COG 𝑧 (H2O),
+
+consistent with Table 1. They capture the spatial location of the water molecule within the 
+
+NPG/h -NPG pore. 
+
+2. Minimum N –H Distance ( 𝒅 𝐦𝐢𝐧 (𝐇 𝐰 , 𝐍 ))
+
+The minimum Euclidean distance between the hydrogen atoms of the water molecule and the 
+
+nitrogen atoms of the h -NPG system is calculated as: 
+
+𝑑 min (Hw, N) = min  
+
+> 𝑗 ,𝑘
+
+∥∥𝐫 Hw,𝑗  − 𝐫 N𝑘  ∥∥ (2)
+
+where  𝐫 Hw,𝑗  is the position of water hydrogen atom  𝑗  and  𝐫 N𝑘  is the position of N -dopant atom 
+
+𝑘  in h -NPG. S12 
+
+3. Minimum O –H Distance ( 𝒅 𝐦𝐢𝐧 (𝐎 𝐰 , 𝐇 𝐩𝐨𝐫𝐞 ))
+
+The minimum Euclidean distance between the oxygen atom of the water molecule and the 
+
+hydrogen -passivated pore edges of NPG/h -NPG is calculated as: 
+
+𝑑 min (Ow, Hpore ) = min  
+
+> 𝑚
+
+∥∥𝐫 Ow − 𝐫 Hpore ,𝑚  ∥∥ (3)
+
+where  𝐫 Ow is the position of the water oxygen and  𝐫 Hpore ,𝑚  is the position of pore -edge hydrogen 
+
+atom  𝑚 .
+
+4. Dipole Moment of Water 
+
+The molecular dipole of the water molecule is computed relative to its  center  of geometry: 
+
+𝛍  = ∑ 𝑞 𝑖 
+
+> 3
+> 𝑖 =1
+
+(𝐫 𝑖  − 𝐑 COG ) (4)
+
+where  𝑞 𝑖  is the partial charge of atom  𝑖  (oxygen:  −2 |𝑒 |; hydrogen:  +1 |𝑒 |),  𝐫 𝑖  is its position 
+
+vector, and  𝐑 COG  is the centre of geometry. The Cartesian components are labelled  𝜇 𝑥 (H2O),
+
+𝜇 𝑦 (H2O), and  𝜇 𝑧 (H2O) in Table 1. The resulting dipole vector, expressed in  e ⋅ Å , is converted 
+
+to Debye using the factor  4.803  D/(e ⋅ Å ). Its magnitude is: 
+
+|𝛍 (H2O)| = √𝜇 𝑥 
+
+> 2
+
+(H2O) + 𝜇 𝑦 
+
+> 2
+
+(H2O) + 𝜇 𝑧 
+
+> 2
+
+(H2O) (5)
+
+where  𝜇 𝑥 , 𝜇 𝑦 , and  𝜇 𝑧  are the Cartesian components of the dipole vector. Together, the dipole 
+
+components and magnitude describe the orientation and polarity of the water molecule. S13 
+
+5. Dipole Angle ( 𝜽 𝝁 ,𝒛 )
+
+The orientation of the water dipole moment relative to the surface normal is described by the 
+
+angle between the water dipole vector and the  𝑧 -axis: 
+
+𝜃 𝜇 ,𝑧  = cos −1 (𝛍  ⋅ 𝐳 ̂
+
+|𝛍 | ) 180 
+
+𝜋  (6)
+
+where  𝐳 ̂ is the unit vector along the surface -normal direction. The resulting value is reported in 
+
+degrees. 
+
+6. Water –Substrate Distance Descriptors 
+
+To describe the position of the water molecule relative to the graphene carbon framework, the 
+
+Euclidean distance between the water COG and each carbon atom is calculated as: 
+
+𝑑 (H2O, C𝑘 ) = ∥∥𝐑 COG  − 𝐫 C𝑘  ∥∥, 𝑘  = 1,2, … , 𝑁 C (7)
+
+where  𝐫 C𝑘  is the position of carbon atom  𝑘  and  𝑁 C is the total number of carbon atoms in the 
+
+NPG/h -NPG framework. From the distance set  {𝑑 (H2O, C𝑘 )}𝑘 =1 
+
+> 𝑁 C
+
+, three descriptors are 
+
+obtained: 
+
+𝑑 min (H2O, C) = min  
+
+> 𝑘
+
+𝑑 (H2O, C𝑘 ) (8)
+
+𝑑 max (H2O, C) = max  
+
+> 𝑘
+
+𝑑 (H2O, C𝑘 ) (9)
+
+𝜎 𝑑 [𝑑 (H2O, C)] = √ 1
+
+𝑁 C
+
+∑ (𝑑 (H2O, C𝑘 ) − 𝑑 (H2O, C))2
+
+> 𝑁 C
+> 𝑘 =1
+
+(10 )S14 
+
+where  𝑑 (H2O, C) is the mean distance between the water COG and framework carbon atoms. 
+
+11 . Supp orting  Note  2:
+
+Feature Generation for Bulk -Water NPG/h -NPG Systems 
+
+A total of 38 features were extracted to characterize the structural and electrostatic environment 
+
+of bulk -water NPG/h -NPG systems. These features were computed from the atomic 
+
+coordinates, with particular emphasis on water molecules and their interactions  with the 
+
+substrate. Distances and the selection of local dipole environments were evaluated using a 
+
+cutoff radius of  𝑟 c = 5 Å to retain physically relevant interactions. The feature set combines 
+
+global descriptors of the complete water layer with spatially resolved descriptors obtained by 
+
+partitioning the confined water into distinct regions. 
+
+i. Centre of Geometry of Water 
+
+For water molecule  𝑖 , the centre of geometry (COG) is the arithmetic mean of the positions of 
+
+its oxygen and two hydrogen atoms: 
+
+𝐑 COG ,𝑖  = 1
+
+3 ∑ 𝐫 𝑖 ,𝑎 
+
+> 3
+> 𝑎 =1
+
+(1)
+
+where  𝐫 𝑖 ,𝑎  is the position vector of atom  𝑎  in water molecule  𝑖 . For each Cartesian component 
+
+𝛼  ∈ {𝑥 , 𝑦 , 𝑧 }, the mean COG  coordinates  across the  𝑁 w water molecules is: 
+
+mean [COG 𝛼 (H2O)] = 1
+
+𝑁 w
+
+∑ 𝑅 COG ,𝑖 ,𝛼 
+
+> 𝑁 w
+> 𝑖 =1
+
+(2)
+
+and its standard deviation is: S15 
+
+𝜎 𝑑 [COG 𝛼 (H2O)] = √ 1
+
+𝑁 w
+
+∑(𝑅 COG ,𝑖 ,𝛼  − mean [COG 𝛼 (H2O)])2
+
+> 𝑁 w
+> 𝑖 =1
+
+(3)
+
+The six descriptors are  mean [COG 𝑥 /𝑦 /𝑧 (H2O)] and  𝜎 𝑑 [COG 𝑥 /𝑦 /𝑧 (H2O)], consistent with Table 
+
+2. The mean coordinates describe the average spatial distribution of water, whereas the standard 
+
+deviations quantify its spatial dispersion. 
+
+ii . Global Water Dipole -Moment Features 
+
+The dipole moment of water molecule  𝑖 , evaluated relative to its COG, is: 
+
+𝛍 𝑖  = ∑ 𝑞 𝑖 ,𝑎 
+
+> 3
+> 𝑎 =1
+
+(𝐫 𝑖 ,𝑎  − 𝐑 COG ,𝑖 ) (4)
+
+where  𝑞 𝑖 ,𝑎  and  𝐫 𝑖 ,𝑎  are the charge and position vector of atom  𝑎  in molecule  𝑖 . The total dipole 
+
+vector of the water layer is: 
+
+𝛍 tot  = ∑ 𝛍 𝑖 
+
+> 𝑁 w
+> 𝑖 =1
+
+(5)
+
+with Cartesian components  𝜇 𝑥 
+
+> tot
+
+, 𝜇 𝑦 
+
+> tot
+
+, and  𝜇 𝑧 
+
+> tot
+
+. Its magnitude is: 
+
+|𝛍 tot | = √(𝜇 𝑥 
+
+> tot
+
+)2 + (𝜇 𝑦 
+
+> tot
+
+)2 + (𝜇 𝑧 
+
+> tot
+
+)2 (6)
+
+The mean and standard deviation of the individual molecular dipole magnitudes are: 
+
+mean [|𝛍 |] = 1
+
+𝑁 w
+
+∑|𝛍 𝑖 |
+
+> 𝑁 w
+> 𝑖 =1
+
+(7)S16 
+
+𝜎 𝑑 [|𝛍 |] = √ 1
+
+𝑁 w
+
+∑(|𝛍 𝑖 | − mean [|𝛍 |])2
+
+> 𝑁 w
+> 𝑖 =1
+
+(8)
+
+The six global dipole descriptors are  𝜇 𝑥 /𝑦 /𝑧  
+
+> tot
+
+, |𝛍 tot |, mean [|𝛍 |], and  𝜎 𝑑 [|𝛍 |], matching Table 2. 
+
+They describe collective polarization, average molecular polarization strength, and polarization 
+
+heterogeneity. 
+
+iii . Dipole Angle Relative to the Surface 
+
+For each water molecule, the angle between its dipole vector and the surface -normal direction 
+
+𝐳 ̂ is: 
+
+𝜃 𝜇 ,𝑧 ,𝑖  = cos −1 (𝛍 𝑖  ⋅ 𝐳 ̂
+
+|𝛍 𝑖 | ) 180 
+
+𝜋  (9)
+
+The mean dipole angle and its standard deviation are: 
+
+mean [𝜃 𝜇 ,𝑧 ] = 1
+
+𝑁 w
+
+∑ 𝜃 𝜇 ,𝑧 ,𝑖 
+
+> 𝑁 w
+> 𝑖 =1
+
+(10 )
+
+𝜎 𝑑  [𝜃 𝜇 ,𝑧 ] = √ 1
+
+𝑁 w
+
+∑(𝜃 𝜇 ,𝑧 ,𝑖  − mean [𝜃 𝜇 ,𝑧 ])2
+
+> 𝑁 w
+> 𝑖 =1
+
+(11 )
+
+These descriptors quantify the average orientation and orientational disorder of the water 
+
+dipoles relative to the substrate. S17 
+
+iv . Intermolecular O···H Distances 
+
+The intermolecular O···H distance set contains distances between oxygen atom  O𝑖  of water 
+
+molecule  𝑖  and hydrogen atom  H𝑗 ,𝑎  of a different water molecule  𝑗 :
+
+𝒟 OH  = {∥∥𝐫 O𝑖  − 𝐫 H𝑗 ,𝑎  ∥∥ : 𝑖  ≠ 𝑗 , 𝑑 OH  ≤ 𝑟 c} (12 )
+
+Intramolecular O -H pairs are excluded. The minimum and mean distances are: 
+
+min [𝑑 (Ow, Hw)] = min 
+
+> 𝑑 ∈𝒟 OH
+
+𝑑  (13 )
+
+mean [𝑑 (Ow, Hw)] = 1
+
+|𝒟 OH | ∑ 𝑑 
+
+> 𝑑 ∈𝒟 OH
+
+(14 )
+
+Short O···H distances indicate strong hydrogen bonding within the water network, which 
+
+enhances local polarization and may indirectly influence the substrate electronic structure. 
+
+v. Water -Substrate N···H Distances 
+
+The N···H distance set contains distances between water hydrogen atoms and nitrogen atoms 
+
+of the h -NPG substrate within the cutoff: 
+
+𝒟 NH  = {∥∥𝐫 N𝑘  − 𝐫 H𝑖 ,𝑎  ∥∥: 𝑑 NH  ≤ 𝑟 c} (15 )
+
+The minimum and mean N···H distances are: 
+
+min [𝑑 (N, Hw)] = min 
+
+> 𝑑 ∈𝒟 NH
+
+𝑑  (16 )
+
+mean [𝑑 (N, Hw)] = 1
+
+|𝒟 NH | ∑ 𝑑 
+
+> 𝑑 ∈𝒟 NH
+
+(17 )S18 
+
+Short N···H distances indicate strong donor –acceptor interactions that can perturb the local 
+
+electronic environment and shift the conduction - or valence -band edges. 
+
+vi . Number of Contacts 
+
+The numbers of O···H and N···H contacts within the cutoff are defined as: 
+
+𝑁 OH  = ∑ ∑ 𝕀 
+
+> 𝑎 𝑖 ≠𝑗
+
+(𝑑 O𝑖 H𝑗 ,𝑎  ≤ 𝑟 c) (18 )
+
+𝑁 NH  = ∑ ∑ 𝕀 
+
+> 𝑖 ,𝑎 𝑘
+
+(𝑑 N𝑘 H𝑖 ,𝑎  ≤ 𝑟 c) (19 )
+
+where  𝕀 (⋅) is 1 when the stated condition is satisfied and 0 otherwise. These contact counts 
+
+provide global measures of the water hydrogen -bond network density and water –substrate 
+
+electrostatic coupling. 
+
+vii . Region -Resolved Dipole Features 
+
+The confined water layer is partitioned along the pore direction into a bridge region ( 𝐵 ), a left 
+
+ribbon, and a right ribbon. The bridge is the inter -pore channel between the two inner pore -
+
+edge boundaries. The outer hydration regions form the left and right ribbons; because they are 
+
+connected through periodic boundary conditions, they are co mbined into a single left/right 
+
+ribbon region ( 𝐿𝑅 ). 
+
+For a region  𝑅  ∈ {bridge , left /right } containing  𝑁 𝑅  water molecules, the region -resolved total 
+
+dipole vector is: 
+
+𝛍 𝑅  = ∑ 𝛍 𝑖 
+
+> 𝑖 ∈𝑅
+
+(20 )S19 
+
+and its magnitude is: 
+
+|𝛍 𝑅 | = √(𝜇 𝑥 
+
+> 𝑅
+
+)2 + (𝜇 𝑦 
+
+> 𝑅
+
+)2 + (𝜇 𝑧 
+
+> 𝑅
+
+)2 (21 )
+
+The regional mean and standard deviation of individual dipole magnitudes are: 
+
+mean [|𝛍 𝑅 |] = 1
+
+𝑁 𝑅 
+
+∑ |𝛍 𝑖 |
+
+> 𝑖 ∈𝑅
+
+(22 )
+
+𝜎 𝑑 [|𝛍 𝑅 |] = √ 1
+
+𝑁 𝑅 
+
+∑ (|𝛍 𝑖 | − mean [|𝛍 𝑅 |])2
+
+> 𝑖 ∈𝑅
+
+(23 )
+
+For the bridge region, the six descriptors are  𝜇 𝑥 /𝑦 /𝑧 
+
+> bridge
+
+, |𝛍 bridge |, mean [|𝛍 bridge |], and 
+
+𝜎 𝑑 [|𝛍 bridge |]. The corresponding left/right descriptors are  𝜇 𝑥 /𝑦 /𝑧 
+
+> left /right
+
+, |𝛍 left /right |,
+
+mean [|𝛍 left /right |], and  𝜎 𝑑 [|𝛍 left /right |].
+
+viii . Bridge -Ribbon Difference Features :
+
+For any regional descriptor  𝑋 , the bridge -left/right difference is defined as: 
+
+𝛥 𝑋 bridge −left /right  = 𝑋 bridge  − 𝑋 left /right  (24 )
+
+Accordingly, the six polarization -contrast descriptors are: 
+
+𝛥 𝜇 𝛼  = 𝜇 𝛼  
+
+> bridge
+
+− 𝜇 𝛼 
+
+> left /right
+
+, 𝛼  ∈ {𝑥 , 𝑦 , 𝑧 } (25 )
+
+𝛥 |𝛍 |bridge −left /right  = |𝛍 bridge | − |𝛍 left /right | (26 )
+
+𝛥 mean [|𝛍 |]bridge −left /right  = mean [|𝛍 bridge |] − mean [|𝛍 left /right |] (27 )S20 
+
+𝛥 𝜎 𝑑 [|𝛍 |]bridge −left /right  = 𝜎 𝑑  [|𝛍 bridge |] − 𝜎 𝑑 [|𝛍 left /right |] (28 )
+
+Together, these features quantify the polarization contrast between water molecules in the 
+
+bridge region and those in the combined left/right ribbon region. 
+
+12 . Confidence Intervals for  Grey -box GPR Models 
+
+Figure S 9: GPR -predicted versus DFT -calculated bandgaps using  the physics -informed 
+
+descriptors . The plots show predictions for (a) NPG +  H2O, (b) h -NPG +  H2O, (c) NPG + Bulk 
+
+water, and (d) h -NPG + Bulk water. The dashed diagonal line represents ideal agreement 
+
+between predicted and DFT -calculated bandgaps, while the error bars indicate the 95% 
+
+confidence intervals estimated from the predictive standard deviati on of the GPR model. S21 
+
+13 . Learning Curve Analysis for  Grey -box GPR Models 
+
+Figure S 10 : GPR -predicted versus DFT -calculated bandgaps using the  physics -informed 
+
+descriptors . The plots show predictions for (a) NPG +  H2O, (b) h -NPG +  H2O, (c) NPG + Bulk 
+
+water, and (d) h -NPG + Bulk water. The dashed diagonal line represents ideal agreement 
+
+between predicted and DFT -calculated bandgaps, while the error bars indicate the 95% 
+
+confidence intervals estimated from the predictive standard deviati on of the GPR model.

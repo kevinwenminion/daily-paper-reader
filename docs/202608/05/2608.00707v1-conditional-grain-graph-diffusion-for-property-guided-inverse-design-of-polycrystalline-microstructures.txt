@@ -1,0 +1,1013 @@
+Title: Conditional grain-graph diffusion for property-guided inverse design of polycrystalline microstructures
+
+URL Source: https://arxiv.org/pdf/2608.00707v1
+
+Published Time: Tue, 04 Aug 2026 00:54:15 GMT
+
+Number of Pages: 39
+
+Markdown Content:
+# Conditional grain-graph diffusion for property-guided inverse design of polycrystalline microstructures 
+
+Yuheng Zhou, Xiao Shang, Huicong Chen and Yu Zou ∗
+
+Department of Materials Science and Engineering, University of Toronto, Toronto ON, M5S 3E4, Canada 
+
+A R T I C L E I N F O 
+
+Keywords :Microstructure inverse design Graph neural network Diffusion model Generative design Titanium alloy Machine learning 
+
+A B S T R A C T 
+
+Graph representations compactly encode polycrystalline microstructures while retaining grain topology and grain boundary information. This work presents a conditional graph diffusion framework for the property-guided inverse design of dual-phase Ti-6Al-4V microstructures. An enhanced grain graph neural network (GNN), incorporating grain boundary edge features, learnable node and edge embeddings, and multi-statistic pooling, serves as a forward surrogate for stress prediction and candidate evaluation. A con-ditional graph diffusion model subsequently generates grain microstructure candidates via reverse diffusion under prescribed 𝛼 -phase volume fraction, elastic modulus, and yield-stress proxy targets. Evaluations across four target regimes and independently seeded starting sets show that the generated candidates consistently approach the prescribed properties, including a target beyond the property envelope of the existing microstructures. For Ti-6Al-4V specifically, local crystallographic consistency is quantified post-generation based on deviations from the Burgers orientation relationship (BOR). BOR-aware ranking partially recovers the crystallographic consistency, producing relative increases in mean BOR consistency of up to 44.9% and 56.4% for the in- and out-of-envelope targets, respectively, while retaining close property-target alignment. Selected candidates are further validated by finite element analysis, with the mean properties of the five best candidates in each primary design case exhibiting a maximum absolute relative error of 1.0%. In a representative benchmark, the diffusion model uses 32 candidate evaluations per input graph versus approximately 40,000 for random search and evolutionary optimization, while reducing runtime by approximately two orders of magnitude in the tested implementations. These results establish conditional grain-graph diffusion as an efficient framework for property-guided polycrystalline microstructure design. 
+
+> ∗
+
+Corresponding author 
+
+mse.zou@utoronto.ca (Y. Zou) 
+
+> ORCID
+
+(s): 0000-0002-2001-718X (Y. Zhou); 0009-0007-0888-5746 (X. Shang); 0000-0001-8240-3193 
+
+(H. Chen); 0000-0002-0179-3642 (Y. Zou) 
+
+Zhou et al. Page 1 of 39 arXiv:2608.00707v1 [cond-mat.mtrl-sci] 1 Aug 2026 1. Introduction 
+
+The macroscopic mechanical response of polycrystalline metallic materials is strongly con-trolled by grain-level microstructural features, including grain size, grain morphology, phase distribution, and crystallographic orientation. These features govern local deformation responses and collectively influence effective properties such as elastic modulus, yield strength, ductility, fatigue resistance, and creep performance [1, 2, 3]. Additive manufacturing (AM) can produce heterogeneous grain microstructures that differ substantially from those obtained by conventional processing, while also providing increasing control over grain morphology, texture, and phase distribution [4, 5]. As a result, the process-structure-property relationship in AM metals provides both a challenge and an opportunity for microstructure level materials design [6, 2]. Recent advances in metal AM have provided increasingly effective routes for controlling grain morphol-ogy, texture, and phase distribution. For example, grain structures can be manipulated through laser beam shaping, ultrasound-assisted solidification, and alternating process parameters during directed energy deposition [7, 8, 9, 10]. These process control strategies expand the attainable microstructure space and provide practical pathways for tailoring grain structures, making grain-level inverse design increasingly relevant for application specific materials development. High-fidelity numerical simulations provide a direct route for evaluating the mechanical re-sponse of candidate polycrystalline microstructures. Typically, representative volume elements are generated from grain microstructures, meshed, and evaluated under prescribed loading conditions using finite element analysis (FEA) [11, 12]. However, because polycrystalline microstructures contain stochastic grain morphologies, orientations, and phase distributions, iterative microstruc-ture design requires repeated evaluation of many candidate structures. Direct high-fidelity simu-lation therefore becomes computationally expensive when used as the property evaluator inside an inverse design loop. Machine learning-based surrogate models provide an efficient alternative by learning the mapping from microstructure to properties using a limited set of high-fidelity simulation labels. Once trained, these models can rapidly evaluate unseen microstructures and  
+
+> Zhou et al. Page 2 of 39
+
+can therefore be embedded into inverse design workflows. However, the accuracy, scalability, and physical interpretability of these surrogates depend strongly on the microstructure representation [13]. Existing microstructure representations can be broadly grouped into statistical descriptor-based, image- or voxel-based, and graph-based approaches. Statistical descriptor-based methods represent microstructures using compact features such as correlation functions, texture descriptors, or reduced-order embeddings [13, 14]. These approaches are computationally efficient, but they can compress away grain microstructure information. Image- and voxel-based representations retain spatially resolved morphological information and are naturally compatible with convolutional neural networks (CNN) [15, 16, 17]. Nevertheless, voxel-based representations scale poorly with 3D resolution and domain size, and grain boundaries are not represented as explicit physical entities. Graph-based representations provide a natural alternative for polycrystalline materials. In a grain graph, grains are represented as nodes and grain boundaries as edges, allowing grain-level features such as phase, volume, and crystallographic orientation to be combined with boundary-level features such as connectivity and boundary area. When paired with graph neural networks (GNN), these representations have been shown to provide compact and physically interpretable descriptions of polycrystalline microstructures [18, 19]. Graph-based models have been used for effective property prediction in polycrystalline materials and grain evolution or tracking [20, 21, 22]. In closely related work on dual-phase Ti-6Al-4V microstructures, Gao et al. combined a graph attention network (GAT) for predicting global stress-strain responses with a 3D conditional denoising diffusion probabilistic model for predicting local stress field distributions [21]. The framework therefore provides forward predictions at both global and local scales. Importantly, however, its diffusion model predicts stress fields for prescribed microstructures rather than generating new grain microstructures under specified property targets. The availability of fast surrogate models has accelerated inverse materials design. Search based and evolutionary optimization methods have been widely used to explore material and microstructure design spaces [15, 23, 24, 25]. These approaches can be extended to multi-objective  
+
+> Zhou et al. Page 3 of 39
+
+design through Pareto-based selection or scalarized objective functions. However, they still require many repeated candidate evaluations and become increasingly challenging as the number of design variables grows [26]. This limitation is especially important for grain-level design, where each microstructure may contain many phase and orientation variables. Generative models provide a complementary route by learning the distribution of feasible designs and generating candidates directly near a desired response window. Flow-based generative models have recently been explored for property-guided microstructure inverse design [27]. Among generative approaches, diffusion models are particularly well suited for inverse microstructure design because they learn a stochastic reverse denoising process and can generate diverse candidates conditioned on target properties. Recent studies have applied diffusion models to the inverse design of microstructure morpholo-gies and topologies [28, 29] and various classes of metamaterials and architected structures [30, 31, 32, 33, 34]. For polycrystalline materials, diffusion models have also been explored for statistically conditioned microstructure generation and for inverse prediction of process parameters and dendritic microstructures from mechanical properties [35, 36, 37]. Overall, prior studies have established grain-graph models for efficient forward grain mi-crostructure property prediction, whereas diffusion-based inverse design has been demonstrated primarily for image- and voxel-based microstructures. The direct application of conditional diffusion to polycrystalline grain graphs for generative microstructure design therefore remains largely unexplored. To address this gap, this work develops a conditional grain-graph denoising diffusion probabilistic model (DDPM) for property-guided inverse design of dual-phase Ti-6Al-4V microstructures. The diffusion model is trained to generate grain microstructure designs under prescribed elastic modulus, yield-stress proxy, and 𝛼 -phase volume fraction targets. An enhanced grain GNN forward surrogate incorporating grain boundary features, learnable feature embeddings, and multi-statistic graph pooling provides property prediction and candidate evaluation. Selected candidates are subsequently reconstructed and validated by FEA. Two primary target regimes are considered: an in-envelope design-to-spec case motivated by biomedical applications requiring reduced stiffness while retaining sufficient strength [38], and an out-of-envelope extreme-property  
+
+> Zhou et al. Page 4 of 39
+
+case, defined relative to the existing microstructures, motivated by aerospace applications requiring high stiffness and strength [39]. Sensitivity to starting-set selection and target location is further ex-amined across four target regimes using three independently seeded sets of initial microstructures. Local Burgers orientation relationship (BOR) consistency is quantified post-generation, and BOR-aware ranking is introduced to balance property-target alignment with crystallographic consistency. Finally, the target-matching performance and computational efficiency of the trained diffusion framework are further compared with random search and evolutionary optimization. 
+
+2. Polycrystalline Microstructure Database 
+
+For the development and demonstration of the proposed polycrystalline microstructure design pipeline, 5,177 dual-phase Ti-6Al-4V grain microstructures are derived from the microstructure database developed by Shang et al. [15]. As illustrated in Fig. 1 a), the 𝛼 + 𝛽 Ti-6Al-4V microstructures are generated in Neper using a two-level tessellation strategy, with equiaxed prior-𝛽 grains constructed at the first level and the constituent 𝛼 and 𝛽 grains introduced at the second level [40]. Each microstructure is embedded in a unit cubic domain and discretized using quadratic tetrahedral elements. A normalized characteristic length of 0.08 relative to the unit-domain length and a minimum mesh quality criterion of 1.0 are adopted. The prior-𝛽 
+
+crystallographic orientations are sampled from the BCC fundamental region, and the corresponding 
+
+𝛼 -grain orientations are subsequently generated by enforcing the BOR between the BCC 𝛽 and HCP 𝛼 phases [41]. As illustrated in Fig. 1 b), the mechanical response of each microstructure is computed using an elastic-viscoplastic crystal plasticity formulation implemented in FEPX [40]. Uniaxial tensile loading is applied at a constant strain rate of 0.001 s −1 up to a total strain of 1.5%. The resulting reaction forces are converted into homogenized engineering stresses using the initial cross-sectional area. As shown in Fig. 1 c), the stress values at six discrete strain levels, 0.25%, 0.50%, 0.75%, 1.00%, 1.25%, 1.50%, are used as supervised labels for forward stress prediction. The derived database properties are computed directly from these discrete stress labels. Specifically, the elastic modulus is represented by the secant modulus at 0.25% strain. Among the                     
+
+> Zhou et al. Page 5 of 39 Table 1
+> Ti-6Al-4V database property statistics and experimental property ranges. Mean SD Min. Max. Exp. [42, 43]
+> 𝛼 volume fraction, -0.54 0.15 0.24 0.98 Elastic modulus, GPa 111.91 5.81 93.91 130.94 105.31-117.00 Yield stress, GPa 0.94 0.03 0.82 1.09 0.77-1.19
+
+available discrete stress labels, the stress at 1.00% strain lies closest to the yield region indicated by the 0.2%-offset convention. It is therefore used as a proxy for yield stress and is referred to as the yield-stress proxy throughout this work. This definition provides a consistent discrete label without requiring interpolation of the simulated stress-strain curves. The property statistics of the Ti-6Al-4V database are summarized in Table 1 with experimen-tally reported ranges of elastic modulus and yield stress also included for comparison [42, 43]. The mean values of elastic modulus and yield-stress proxy derived from the database fall within the experimental range, showing good agreement between the simulated database labels and reported Ti-6Al-4V mechanical properties. 
+
+3. Grain GNN for Forward Property Prediction 
+
+The Ti-6Al-4V microstructure is represented using a grain graph for rapid prediction of its mechanical response. As illustrated in Fig. 2 a), each microstructure is converted into a directed graph, where each node corresponds to a crystalline grain and each edge corresponds to a grain boundary shared by neighboring grains. Each physical grain boundary is represented by two directed edges to allow message passing in both directions. The graph descriptors include grain phase, crystallographic orientation, grain volume, grain boundary connectivity, and grain boundary surface area. In the GNN model, the geometric descriptors are used in normalized form for better generalizability: grain volume is represented as grain volume fraction, and grain boundary surface area is represented as contact area fraction. The node features include the binary phase label, the crystallographic orientation, and the grain volume fraction. The crystallographic orientation is described by the Euler angles and encoded using sine-cosine functions [44]. Grain boundary   
+
+> Zhou et al. Page 6 of 39 Figure 1: Finite element simulation setup and property extraction from the Ti-6Al-4V microstructure database: a) Schematic of the uniaxial tensile loading boundary conditions. b) Representative von Mises stress distribution at the final imposed strain of 1.5% c) Representative simulated stress-strain response, elastic modulus and yield-stress proxy extracted from the stress values at 0.25% and 1.00% strain, respectively.
+
+connectivity is encoded by the graph adjacency, while the active edge attribute is the contact area fraction, which provides local grain boundary geometry information beyond connectivity alone. The forward model follows a graph attention architecture related to the GAT-based framework of Gao et al. [21], with several modifications to better use the grain and grain boundary descriptors. As demonstrated in Fig. 2 b), the node and edge features are first passed through multilayer  
+
+> Zhou et al. Page 7 of 39
+
+perceptron (MLP) embedding layers before being processed by GAT message passing layers [45]. After each GAT layer, graph-level descriptors are extracted using multi-statistic pooling. The pooled graph descriptors are then concatenated with the graph-level 𝛼 -phase volume fraction and strain condition before the final MLP regression head. The model is trained to predict the stress response at six prescribed strain levels: 0.25%, 0.50%, 0.75%, 1.00%, 1.25%, and 1.50%. The dataset is split at the graph level using a 4,141/518/518 (train/validation/test) split, ensuring that microstructures in the validation and test sets are not seen during training. 
+
+Figure 2: Grain graph representation and forward grain GNN architecture: a) Directed grain graph with nodes corresponding to grains and edges corresponding to grain boundaries. b) Schematic of the forward GNN architecture. 
+
+For a grain graph 𝐺 𝑖 = ( 𝑉 𝑖 , 𝑖 ), nodes represent grains and directed edges represent grain boundary contacts. The forward grain GNN predicts the stress at strain level 𝜀 𝑘 as ̂𝜎 𝑖𝑘 = 𝑓 𝜃 (𝐺 𝑖 , 𝜀 𝑘 ). (1) For node 𝑢 ∈ 𝑉 𝑖 , the input feature vector is defined as 
+
+𝐱 𝑢 = [𝑧 𝑢 ; 𝑓 enc (𝜙 1,𝑢 , Φ𝑢 , 𝜙 2,𝑢 ); 𝑓 𝑢 
+
+] , (2) where 𝑧 𝑢 ∈ {0 , 1} is the binary phase indicator, with 1 for 𝛼 and 0 for 𝛽 , and 𝑓 𝑢 = 𝑣 𝑢 ∕𝑣 total is the volume fraction of grain 𝑢 . The variables 𝜙 1,𝑢 , Φ𝑢 , 𝜙 2,𝑢 are the Bunge Euler angles of grain 𝑢 [44]. 
+
+Zhou et al. Page 8 of 39 To reduce discontinuities associated with angular periodicity, the Euler angles are encoded using a sine-cosine representation: 
+
+𝑓 enc (𝜙 1,𝑢 , Φ𝑢 , 𝜙 2,𝑢 ) = [sin 𝜙 1,𝑢 , sin Φ 𝑢 , sin 𝜙 2,𝑢 , cos 𝜙 1,𝑢 , cos Φ 𝑢 , cos 𝜙 2,𝑢 
+
+] . (3) A directed edge (𝑣, 𝑢 ) ∈ 𝑖 represents the grain boundary between grain 𝑢 and its neighboring grain 
+
+𝑣 . The edge feature is defined as 
+
+𝐞 𝑣𝑢 = [𝑓 𝐴 𝑣𝑢 
+
+] , (4) where 𝑓 𝐴 𝑣𝑢 is the fraction of the surface area of grain 𝑣 that is in contact with grain 𝑢 . The graph-level 
+
+𝛼 -phase volume fraction is defined as 
+
+𝑔 𝑖 = 𝑣 𝛼 𝑖 = ∑
+
+> 𝑢 ∈𝑉 𝑖
+
+𝑓 𝑢 𝑧 𝑢 . (5) Before message passing, node-, edge-, and graph-level features, strain conditions, and stress labels are normalized independently using statistics computed from the training set. For each graph-strain pair (𝐺 𝑖 , 𝜀 𝑘 ), the normalized target stress is defined as ̃𝜎 𝑖𝑘 = 𝜎 𝑖𝑘 − 𝜇 𝜎,𝑘 
+
+𝑠 𝜎,𝑘 
+
+, (6) where 𝜇 𝜎,𝑘 and 𝑠 𝜎,𝑘 are the training-set mean and standard deviation of the stress at strain level 𝜀 𝑘 ,respectively. The normalized node and edge features are then mapped through learnable embedding transformations: 
+
+𝐡 (0)  
+
+> 𝑢
+
+= 𝜙 node (̃𝐱 𝑢 ), 𝜼 𝑣𝑢 = 𝜙 edge (̃𝐞 𝑣𝑢 ). (7) The grain GNN is implemented using PyTorch Geometric (PyG) [46]. The message passing backbone consists of three GATv2 layers with a hidden dimension of 128 and attention heads (3,3,2) [45]. For layer 𝓁 , the attention-weighted message to node 𝑢 is computed as 
+
+Zhou et al. Page 9 of 39 𝐦 (𝓁 ) 
+
+> 𝑢
+
+= ∑ 
+
+> 𝑣 ∈(𝑢 )
+
+𝛼 (𝓁 ) 
+
+> 𝑣𝑢
+
+𝐖 (𝓁 ) 
+
+> 𝑡
+
+𝐡 (𝓁 ) 
+
+> 𝑣
+
+, (8) where the attention coefficient for the directed edge (𝑣, 𝑢 ) is 
+
+𝛼 (𝓁 ) 
+
+> 𝑣𝑢
+
+=exp 
+
+(
+
+𝐚 (𝓁 )⊤LeakyReLU 
+
+(
+
+𝐖 (𝓁 ) 
+
+> 𝑠
+
+𝐡 (𝓁 ) 
+
+> 𝑢
+
++ 𝐖 (𝓁 ) 
+
+> 𝑡
+
+𝐡 (𝓁 ) 
+
+> 𝑣
+
++ 𝐖 (𝓁 ) 
+
+> 𝑒
+
+𝜼 𝑣𝑢 
+
+)) ∑𝑞 ∈ (𝑢 ) exp 
+
+(
+
+𝐚 (𝓁 )⊤LeakyReLU 
+
+(
+
+𝐖 (𝓁 ) 
+
+> 𝑠
+
+𝐡 (𝓁 ) 
+
+> 𝑢
+
++ 𝐖 (𝓁 ) 
+
+> 𝑡
+
+𝐡 (𝓁 ) 
+
+> 𝑞
+
++ 𝐖 (𝓁 ) 
+
+> 𝑒
+
+𝜼 𝑞𝑢 
+
+)) , (9) where  (𝑢 ) denotes the neighboring grains connected to grain 𝑢 . After the attention update, the node state is updated through residual addition, layer normalization LN( ⋅) [47], dropout with 
+
+𝑝 drop = 0 .10 [48], and a feed-forward MLP: ̄
+
+𝐡 (𝓁 +1)  
+
+> 𝑢
+
+= LN 
+
+(
+
+𝐡 (𝓁 ) 
+
+> 𝑢
+
++ Dropout 𝑝 drop 
+
+(𝐦 (𝓁 )
+
+> 𝑢
+
+))
+
+, (10) 
+
+𝐡 (𝓁 +1)  
+
+> 𝑢
+
+= LN 
+
+(̄
+
+𝐡 (𝓁 +1)  
+
+> 𝑢
+
++ Dropout 𝑝 drop 
+
+(
+
+𝜙 (𝓁 )f fn 
+
+(̄
+
+𝐡 (𝓁 +1) 
+
+> 𝑢
+
+))) 
+
+. (11) After each message passing layer, graph-level pooling is performed using the grain volume fraction weights 𝑤 𝑢 = 𝑓 𝑢 , with ∑𝑢 ∈𝑉 𝑖 𝑤 𝑢 = 1 . The weighted mean, weighted standard deviation, and max pooling are computed as 
+
+𝝁 (𝓁 ) 
+
+> 𝑖
+
+= ∑
+
+> 𝑢 ∈𝑉 𝑖
+
+𝑤 𝑢 𝐡 (𝓁 ) 
+
+> 𝑢
+
+, (12) 
+
+𝝈 (𝓁 ) 
+
+> 𝑖
+
+=
+
+√∑
+
+> 𝑢 ∈𝑉 𝑖
+
+𝑤 𝑢 
+
+(
+
+𝐡 (𝓁 ) 
+
+> 𝑢
+
+− 𝝁 (𝓁 )
+
+> 𝑖
+
+)2
+
+, (13) 
+
+𝐦 (𝓁 ) 
+
+> 𝑖
+
+= max 
+
+> 𝑢 ∈𝑉 𝑖
+
+𝐡 (𝓁 ) 
+
+> 𝑢
+
+. (14) The pooled graph descriptor is constructed as 
+
+𝐩 (𝓁 ) 
+
+> 𝑖
+
+=
+
+[
+
+𝝁 (𝓁 ) 
+
+> 𝑖
+
+; 𝝈 (𝓁 ) 
+
+> 𝑖
+
+; 𝐦 (𝓁 )
+
+> 𝑖
+
+]
+
+. (15) 
+
+Zhou et al. Page 10 of 39 The final graph-level vector is obtained by concatenating the pooled descriptors from the three GATv2 layers with the normalized graph-level 𝛼 -phase volume fraction and the normalized strain condition: 
+
+𝐳 𝑖𝑘 =
+
+[
+
+𝐩 (1)  
+
+> 𝑖
+
+; 𝐩 (2)  
+
+> 𝑖
+
+; 𝐩 (3)  
+
+> 𝑖
+
+;̃𝑔 𝑖 ;̃𝜀 𝑘 
+
+]
+
+. (16) Finally, the normalized stress is predicted by a MLP head, ̂̃ 𝜎 𝑖𝑘 = 𝜙 head (𝐳 𝑖𝑘 ), (17) SiLU activation [49] is used in the GAT forward blocks and the hidden layers of the prediction head. The stress is mapped back to the physical stress scale as ̂𝜎 𝑖𝑘 = 𝜇 𝜎,𝑘 + 𝑠 𝜎,𝑘 ̂̃ 𝜎 𝑖𝑘 . (18) The forward predictor is trained using the mean squared error between the predicted and true normalized stresses: 
+
+pred = 1
+
+||∑
+
+> (𝑖,𝑘 )∈ 
+
+‖‖̂̃ 𝜎 𝑖𝑘 −̃𝜎 𝑖𝑘 ‖‖2 , (19) where  denotes the graph-strain pairs in the training set. The training is performed using the AdamW optimizer with an initial learning rate of 0.0001 and weight decay of 0.0001 [50]. A batch size of 64 is used, and training is conducted for a maximum of 500 epochs, with early stopping applied after 80 consecutive epochs without improvement in the validation loss. The forward prediction performance is evaluated using the test set. Fig. 3 a) shows the correlation between FEA computed stresses and GNN predicted stresses across all strain levels, while Fig. 3 b) provides the corresponding true versus predicted stress correlations at individual strain levels. Overall, the grain GNN achieves accurate stress prediction, with an overall 𝑅 2 of 0.998 and mean absolute error (MAE) of 0.008 GPa. The results from individual strain levels show that the prediction performance is strongest in the elastic regime and decreases at higher strain  
+
+> Zhou et al. Page 11 of 39
+
+levels. This trend is consistent with the increasingly nonlinear mechanical response after the onset of plasticity, where the microstructure-property mapping becomes more difficult to resolve using a surrogate model.  
+
+> Figure 3: Forward stress prediction performance of the grain GNN presented by the correlation between FEA computed stresses and GNN predicted stresses: a) across all strain levels; b) at each prescribed strain level.
+
+The variation of 𝑅 2 and MAE with strain is summarized in Fig. 4. The MAE increases rapidly from 0.25% strain to approximately 1.0% strain, after which it begins to plateau. This behavior is associated with the changing magnitude of stress values across the strain range. From 0.25% to 1.0% strain, the stress increases rapidly, so a comparable relative prediction error produces a larger absolute error and leads to a sharp increase in MAE. At higher strain levels, the change  
+
+> Zhou et al. Page 12 of 39
+
+of stress response becomes less steep, and the increase in MAE becomes less pronounced. The 
+
+𝑅 2 score decreases sharply between approximately 0.75% and 1.00% strain, corresponding to the transition from predominantly elastic deformation to plastic deformation. This indicates that the relative ability of the model to resolve differences between the graphs in stress response becomes more limited in the plastic regime.     
+
+> Figure 4: 𝑅 2and MAE of grain GNN at each strain level, and 𝑅 2of grain GNN baseline and CNN model.
+
+For comparison, the 𝑅 2 values of the grain GNN are benchmarked against a baseline grain GNN model adapted from Gao et al. [21] and the voxel-based CNN model reported by Shang et al. [15]. The voxel-based CNN achieves comparable 𝑅 2 values at the reported strain levels, but it operates on a voxelized 3D microstructure representation. In contrast, the grain GNN achieves competitive accuracy using a compact graph representation. Specifically, for the representative microstructure with 38 grains shown in Fig. 1 a), a 32 3 voxelized representation contains 32,768 voxel locations before accounting for feature channels. In comparison, the graph representation encodes the same grain microstructure using only 38 grain nodes and 131 undirected grain boundary edges. The baseline grain GNN model shows a lower accuracy, indicating that the enhanced graph representation and GNN architecture, including grain boundary properties as edge  
+
+> Zhou et al. Page 13 of 39
+
+features, node and edge feature embeddings, and multi-statistic graph pooling, improve the forward stress prediction capability. 
+
+4. Conditional Microstructure Generation and Finite Element Validation 
+
+The inverse design model uses the same GAT message passing backbone as the grain GNN for forward property prediction. Instead of predicting graph-level stress values, the diffusion GNN predicts the node-level noise added to the grain-level design variables, which consists of the phase and crystallographic orientation of each grain. As illustrated in Fig. 5, the graph-level features are combined with the target property conditions and the diffusion timestep embedding to form a graph-level feature vector. This graph-level feature vector is then broadcast back to the nodes and fused with the node-level features, allowing the model to predict node-level noise using both node-level grain information and graph-level design target information.   
+
+> Figure 5: Schematic of the conditional graph denoising network used in the diffusion model. Zhou et al. Page 14 of 39
+
+The binary phase is represented by a continuous phase logit 𝓁 𝑢, 0 ∈ ℝ, with associated phase probability and binary 𝛼 -phase assignment 
+
+𝑝 𝑢, 0 = 𝜎 (𝓁 𝑢, 0), 𝑧 𝑢, 0 = 𝕀 [𝑝 𝑢, 0 > 0.5] . (20) The Euler angles (𝜙 1,𝑢 , Φ𝑢 , 𝜙 2,𝑢 ) ∈ [0 , 2𝜋 ) × [0 , 𝜋 ] × [0 , 2𝜋 ) are mapped to a rotation matrix 
+
+𝐑 𝑢, 0 ∈ 𝑆𝑂 (3) and then to a rotation vector using the logarithmic map, Log( ⋅) [51, 52, 53, 54]: 
+
+𝝎 𝑢, 0 = Log( 𝐑 𝑢, 0) ∈ ℝ3. (21) The node-level diffusion state is therefore 
+
+𝐲 𝑢, 0 = [𝝎 𝑢, 0; 𝓁 𝑢, 0
+
+] ∈ ℝ4, (22) and the graph-level state is denoted by 
+
+𝐘 0 = { 𝐲 𝑢, 0}𝑢 ∈𝑉 𝑖 . (23) Following DDPMs [55], Gaussian noise is injected into the design variables through the forward noising process 
+
+𝑞 (𝐘 𝑡 ∣ 𝐘 0) = 
+
+(√̄𝛼 𝑡 𝐘 0, (1 − ̄𝛼 𝑡 )𝐈 
+
+)
+
+, (24) with 
+
+𝛼 𝑡 = 1 − 𝛽 𝑡 ,̄ 𝛼 𝑡 =
+
+> 𝑡
+
+∏
+
+> 𝑠 =1
+
+𝛼 𝑠 , (25) where 𝛽 𝑡 follows a cosine schedule [56]. At diffusion step 𝑡 , the node feature vector is rebuilt from the current diffusion state as 
+
+𝐱 dif f  
+
+> 𝑢,𝑡
+
+= [𝝎 𝑢,𝑡 ; 𝓁 𝑢,𝑡 ; 𝑓 𝑢 
+
+] , (26) 
+
+Zhou et al. Page 15 of 39 where 𝑓 𝑢 is the grain volume fraction. The edge feature retains the same geometric form used in the forward model: 
+
+𝐞 dif f  
+
+> 𝑣𝑢,𝑡
+
+= [𝑓 𝐴 𝑣𝑢 
+
+] , (27) where 𝑓 𝐴 𝑣𝑢 is the directed contact area fraction. To preserve consistency with the forward model, the target elastic modulus and yield-stress proxy are translated to stress space conditioning targets as 𝜎 ∗0.25 = 𝐸 ∗𝜀 el and 𝜎 ∗1.00 = 𝑌 ∗, where 𝜀 el = 0 .0025 . The graph-level conditioning target is defined as 
+
+𝐪 ∗ 
+
+> 𝑖
+
+=
+
+[
+
+𝜎 ∗0.25 ; 𝜎 ∗1.00 ; 𝑣 𝛼 ∗
+
+> 𝑓
+
+]
+
+, (28) where 𝑣 𝛼 ∗ 
+
+> 𝑓
+
+is the target 𝛼 -phase volume fraction. Each conditioning component is normalized using statistics computed over the diffusion model dataset, and the resulting normalized property target, ̃
+
+𝐪 ∗ 
+
+> 𝑖
+
+, is embedded using a MLP: 
+
+𝐜 𝑖 = 𝜙 𝑐 (̃𝐪 ∗ 
+
+> 𝑖
+
+). (29) The reverse diffusion denoiser uses the same GATv2 block architecture and multi-statistic graph-level pooling strategy as the forward GNN. However, the denoiser has separate node and edge input embeddings, separate trainable parameters, and a different output head for node-level noise prediction. The diffusion node and edge features are first embedded as 
+
+𝐡 (0) ,dif f  
+
+> 𝑢,𝑡
+
+= 𝜙 dif f node 
+
+(
+
+𝐱 dif f 
+
+> 𝑢,𝑡
+
+)
+
+, 𝜼 dif f  
+
+> 𝑣𝑢
+
+= 𝜙 dif f edge 
+
+(
+
+𝐞 dif f 
+
+> 𝑣𝑢,𝑡
+
+)
+
+. (30) The embedded graph is then processed by three GATv2 message passing layers in the same manner as the forward model: 
+
+𝐡 (𝓁 ),dif f  
+
+> 𝑢,𝑡
+
+= GATv2 (𝓁 ),dif f (
+
+𝐡 (𝓁 −1) ,dif f  
+
+> 𝑢,𝑡
+
+, 𝜼 dif f  
+
+> 𝑣𝑢
+
+, 𝑖 
+
+)
+
+, 𝓁 = 1 , 2, 3. (31) 
+
+Zhou et al. Page 16 of 39 After each layer, the same pooling operator used in the forward model is applied: 
+
+𝐩 (𝓁 ),dif f  
+
+> 𝑖,𝑡
+
+=
+
+[
+
+𝝁 (𝓁 ),dif f  
+
+> 𝑖,𝑡
+
+; 𝝈 (𝓁 ),dif f  
+
+> 𝑖,𝑡
+
+; 𝐦 (𝓁 ),dif f 
+
+> 𝑖,𝑡
+
+]
+
+, (32) where the weighted mean and standard deviation use the grain volume-fraction weights 𝑤 𝑢 = 𝑓 𝑢 .The diffusion timestep is encoded using a sinusoidal positional embedding, PE( ⋅), and then mapped through a MLP [56]: 
+
+𝐭 𝑡 = 𝜙 𝑡 (PE( 𝑡 )) . (33) The graph-level context vector is then formed by combining the diffusion pooled descriptors, timestep embedding, and conditioning vector: 
+
+𝐠 𝑖,𝑡 = 𝜙 𝑔 
+
+[
+
+𝐩 (1) ,dif f  
+
+> 𝑖,𝑡
+
+; 𝐩 (2) ,dif f  
+
+> 𝑖,𝑡
+
+; 𝐩 (3) ,dif f  
+
+> 𝑖,𝑡
+
+; 𝐭 𝑡 ; 𝐜 𝑖 
+
+]
+
+. (34) The graph-level context is broadcast back to the node level and used to predict the additive diffusion noise for each node state: ̂
+
+𝝐 𝑢,𝑡 = 𝜙 out 
+
+[
+
+𝐡 (1) ,dif f  
+
+> 𝑢,𝑡
+
+; 𝐡 (2) ,dif f  
+
+> 𝑢,𝑡
+
+; 𝐡 (3) ,dif f  
+
+> 𝑢,𝑡
+
+; 𝐠 𝑖,𝑡 
+
+]
+
+,̂ 𝝐 𝑢,𝑡 ∈ ℝ4. (35) The denoiser is trained with the standard DDPM noise prediction objective [55]: 
+
+dif f = 𝔼 𝑖,𝑡, 𝝐 
+
+[‖‖𝝐 −̂ 𝝐 𝜃 (𝐘 𝑡 , 𝑡, 𝐜 𝑖 )‖‖2]
+
+. (36) Training is performed using the AdamW optimizer with a learning rate of 0.0003, a weight decay of 0.0001, and a batch size of 64 [50]. The dataset is divided into 4,659 training and 518 validation graphs. Training is limited to 500 epochs, with early stopping applied after 80 consecutive epochs without improvement in the validation loss. During training, the conditioning vector is randomly dropped with probability 𝑝 cond -drop = 0 .10 to enable classifier-free guidance 
+
+Zhou et al. Page 17 of 39 (CFG) during sampling [57]: ̂
+
+𝝐 cfg  
+
+> 𝜃
+
+=̂ 𝝐 ∅ 
+
+> 𝜃
+
++ 𝑠 (̂
+
+𝝐 cond  
+
+> 𝜃
+
+−̂ 𝝐 ∅
+
+> 𝜃
+
+) , (37) where ̂ 𝝐 ∅ 
+
+> 𝜃
+
+is the unconditional noise prediction, ̂ 𝝐 cond  
+
+> 𝜃
+
+is the conditional noise prediction, and 𝑠 is the guidance scale which is defined as 𝑠 = 6 in this work. The reverse diffusion update follows the standard DDPM Gaussian posterior parameterization [55, 56]: 
+
+𝝁 𝜃 (𝐘 𝑡 , 𝑡, 𝐜 𝑖 ) = 1
+
+√𝛼 𝑡 
+
+(
+
+𝐘 𝑡 − 𝛽 𝑡 
+
+√1 − ̄𝛼 𝑡 ̂
+
+𝝐 cfg  
+
+> 𝜃
+
+(𝐘 𝑡 , 𝑡, 𝐜 𝑖 )
+
+)
+
+, (38) with posterior variance ̃𝛽 𝑡 = 𝛽 𝑡 
+
+1 − ̄𝛼 𝑡 −1 
+
+1 − ̄𝛼 𝑡 
+
+. (39) The sampling step is performed as 
+
+𝐘 raw  
+
+> 𝑡 −1
+
+= 𝝁 𝜃 (𝐘 𝑡 , 𝑡, 𝐜 𝑖 ) + 𝕀 [𝑡 > 1] 
+
+√̃𝛽 𝑡 𝝃 , 𝝃 ∼  (𝟎 , 𝐈 ). (40) After each reverse step, a graph-level phase fraction correction is applied in logit space. For the raw logits 𝓁 raw 
+
+> 𝑢,𝑡 −1
+
+, a scalar shift Δ𝑡 −1 is computed such that 
+
+∑
+
+> 𝑢 ∈𝑉 𝑖
+
+𝑓 𝑢 𝜎 (𝓁 raw  
+
+> 𝑢,𝑡 −1
+
++ Δ 𝑡 −1 ) = 𝑣 𝛼 ∗ 
+
+> 𝑓
+
+. (41) The corrected phase logits are then 
+
+𝓁 corr  
+
+> 𝑢,𝑡 −1
+
+= 𝓁 raw  
+
+> 𝑢,𝑡 −1
+
++ Δ 𝑡 −1 . (42) The corrected logits 𝓁 corr  
+
+> 𝑢,𝑡 −1
+
+replace the raw logits 𝓁 raw  
+
+> 𝑢,𝑡 −1
+
+before the next reverse step. After the reverse diffusion process, the output phase probability and binary phase assignment are recovered as 
+
+𝑝 out  
+
+> 𝑢
+
+= 𝜎 (𝓁 corr  
+
+> 𝑢
+
+), 𝑧 out  
+
+> 𝑢
+
+= 𝕀 [𝑝 out  
+
+> 𝑢
+
+> 0.5] . (43) 
+
+Zhou et al. Page 18 of 39 The crystallographic orientation is recovered from the output rotation vector using the exponential mapping, Exp( ⋅), and converted back to Euler angles, EA( ⋅) [51, 52]: 
+
+𝐑 out  
+
+> 𝑢
+
+= Exp( 𝝎 out  
+
+> 𝑢
+
+), (𝜙 out 1,𝑢 , Φout  
+
+> 𝑢
+
+, 𝜙 out 2,𝑢 ) = EA( 𝐑 out  
+
+> 𝑢
+
+). (44) As illustrated in Fig. 6, the conditional sampling begins by applying the forward diffusion process to the phase and orientation variables of an input grain graph up to the selected starting timestep, 𝑇 = 50 . The reverse diffusion process then gradually maps the noised phase and orientation fields from 𝑇 = 50 back to 𝑇 = 0, generating a clean candidate microstructure conditioned on the prescribed property targets.  
+
+> Figure 6: Illustration of the conditional reverse diffusion process for grain microstructure inverse design.
+> 4.1. In-Envelope and Extrapolative Property Targets
+
+Two property target scenarios are considered to evaluate the conditional grain graph diffusion framework. The first is an in-envelope property-targeting task, for which the prescribed elastic modulus, yield-stress proxy, and 𝛼 -phase volume fraction are located within the property distribu-tion represented by the reference database. This regime evaluates the ability of the framework to generate microstructures matching a feasible combination of prescribed properties. The second is  
+
+> Zhou et al. Page 19 of 39
+
+an extrapolative high-property targeting task. In this case, the prescribed elastic modulus and yield-stress proxy extend beyond the corresponding upper bounds observed in the reference database, while a high 𝛼 -phase volume fraction is prescribed. It evaluates whether conditional generation can propose candidate microstructures outside the observed mechanical-property range. For each scenario, 50 grain microstructures are randomly selected from the database and used as input graphs for conditional generation. Two target cases are defined relative to the database statistics summarized in Table 1. The design-to-spec case targets 𝐸 ∗ = 102 GPa , 𝑌 ∗ = 0 .90 GPa ,and 𝑣 ∗ 
+
+> 𝛼
+
+= 0 .3, corresponding to the lower-tail region of the database distribution. The extreme-property case targets 𝐸 ∗ = 135 GPa , 𝑌 ∗ = 1 .10 GPa , and 𝑣 ∗ 
+
+> 𝛼
+
+= 0 .75 , corresponding to the upper-tail region, with the mechanical targets extending beyond the database envelope. Specifically, 
+
+𝐸 ∗ is 4.06 GPa above the database maximum of 130.94 GPa, while 𝑌 ∗ is 0.01 GPa above the database maximum of 1.09 GPa. Relative to the database statistics, these targets correspond to approximately 4.0 and 5.3 standard deviations above the mean, respectively. For each selected input graph, 32 candidate microstructure designs are generated and evaluated using the trained forward GNN model. The generated candidates are ranked using a target-matching score based on their deviations from the prescribed elastic modulus and yield-stress proxy targets: 
+
+𝑆 = 𝑤 𝐸 
+
+|𝐸 − 𝐸 ∗||𝐸 ∗| + 𝑤 𝑌 
+
+|𝑌 − 𝑌 ∗||𝑌 ∗| . (45) Here, 𝐸 ∗ and 𝑌 ∗ denote the prescribed elastic modulus and yield-stress proxy targets, respectively. The weighting factors are set to 𝑤 𝐸 = 𝑤 𝑌 = 1 , giving equal weight to both target property terms. The properties of the initial candidate pool and the generated designs after the forward GNN screening are shown in Fig. 7 a). The generated designs are shifted from the initial candidate pool and become clustered near the prescribed property targets in both the design-to-spec and extreme-property scenarios. For quantitative comparison, Fig. 7 b-d) shows the distributions of 𝛼 -phase volume fraction, elastic modulus, and yield-stress proxy for the initial and generated candidate groups, while Table 2 summarizes the mean properties of the generated candidates from GNN and  
+
+> Zhou et al. Page 20 of 39
+
+Figure 7: Property-guided microstructure generation for the design-to-spec and extreme-property design scenarios: a) Distribution of initial and generated candidate designs in the design property space. b-d) Distributions of 𝛼 -phase volume fraction, elastic modulus, and yield-stress proxy for the initial and generated candidate designs. 
+
+Table 2 
+
+Property targeting performance of generated Ti-6Al-4V microstructure designs.                               
+
+> GNN FEA FEA Best 5
+> 𝛼 -vf, -E, GPa Y, GPa E, GPa Y, GPa 𝛼 -vf, -E , GPa Y, GPa Initial 0.552 -112.82 0.945 -
+> Spec target 0.296 (1.48%) 102.95 (0.93%) 0.893 (0.78%) 99.00 (2.94%) 0.873 (3.00%) 0.308 (2.67%) 102.32 (0.31%) 0.898 (0.24%)
+> Extreme target 0.755 (0.72%) 135.13 (0.10%) 1.084 (1.50%) 131.78 (2.38%) 1.079 (1.86%) 0.759 (1.20%) 135.37 (0.27%) 1.103 (0.29%)
+
+FEA, and the mean properties of the five best FEA-validated candidates. Values in parentheses denote the absolute relative error (ARE) computed with respect to the prescribed target value. The generated 𝛼 -phase volume fractions align closely with the prescribed targets in both scenar-ios, with ARE of 1.48% and 0.72% respectively, confirming the effectiveness of the phase fraction control during reverse diffusion. In the design-to-spec case, the generated designs shift toward 
+
+Zhou et al. Page 21 of 39 the prescribed low-modulus target while retaining agreement with the yield-stress proxy target, with an ARE of 0.93% and 0.78% for the elastic modulus and the yield-stress proxy, respectively. This case represents a constrained trade-off because elastic modulus and yield-stress proxy are strongly correlated in the database. Therefore, simultaneously lowering the elastic modulus while maintaining the prescribed yield-stress proxy target is challenging, and the generated distribution tends to fall between the two target requirements rather than collapsing exactly onto both. In the extreme-property case, the generated designs show a strong shift toward the high-modulus and high-yield region. The mean elastic modulus coincides with the prescribed target well with an ARE of 0.10%. The yield-stress proxy remains lower than the target on average, with an ARE of 1.50%, suggesting that the prescribed yield-stress proxy target lies near or beyond the readily attainable range under the current phase and orientation design variables. Nevertheless, part of the generated distribution overlaps with the target yield-stress proxy region, indicating that viable high yield candidates can still be identified. Moreover, many of the generated extreme property designs exceed the maximum elastic modulus and yield-stress proxy observed in the selected input pool, despite being generated from only 50 selected input graphs from the full database of 5177. For design validation, selected generated candidates are further evaluated using FEA, as shown in Fig. 7 b-d). The FEA-computed elastic modulus and yield-stress proxy are generally slightly lower than the values predicted by the forward GNN. The scatter is more pronounced for yield-stress proxy than for elastic modulus, and the overall scatter is broader in the extreme property case than in the design-to-spec case. This is because both the reverse diffusion and candidate screening are based on the GNN surrogate, whereas FEA provides a higher-fidelity evaluation. The larger scatter in yield-stress proxy estimation is also consistent with the forward model results, where the grain GNN captures the elastic response at the lower strain more accurately than the yield stress at a higher strain. The discrepancy is more pronounced for the extreme-property target because this case requires extrapolation beyond the selected candidate property envelope, where the forward GNN prediction uncertainty is expected to be larger.  
+
+> Zhou et al. Page 22 of 39
+
+Table 3 
+
+Conditional diffusion results for different property targets with independently seeded runs.                                
+
+> Target regime Mean ARE
+> 𝛼 -vf (SD), -E (SD), GPa Y (SD), GPa 𝛼 -vf EYDesign-to-spec 0.298 (0.001) 103.47 (0.31) 0.897 (0.0021) 0.65% 1.44% 0.30%
+> Dataset-mean 0.556 (0.006) 110.79 (0.30) 0.936 (0.0014) 3.03% 1.08% 0.45%
+> Upper-tail 0.698 (0.007) 118.05 (0.05) 0.973 (0.0002) 0.23% 0.04% 0.31%
+> Extreme-property 0.748 (0.003) 134.69 (0.17) 1.079 (0.0023) 0.33% 0.23% 1.87%
+
+Nevertheless, although discrepancies remain between the GNN-predicted and FEA-computed properties, the FEA validation results still fall close to the prescribed target region. As shown in Table 2, the average FEA-computed elastic modulus and yield-stress proxy of the best five generated candidates with the lowest selection score are in good agreement with the target values with a maximum ARE of 2.67%. These results indicate that the conditional diffusion model can efficiently generate candidate grain microstructures close to the desired property targets, while FEA validation remains necessary to confirm the final candidate quality. 
+
+4.2. Sensitivity Across Seeded Runs and Property Targets 
+
+To examine the sensitivity of the conditional diffusion model to the selection of starting microstructures and to evaluate generation over a broader property range, two additional target sets were considered. The first, 𝑣 ∗ 
+
+> 𝛼
+
+= 0 .54 , 𝐸 ∗ = 112 GPa , and 𝑌 ∗ = 0 .94 GPa , corresponds to the rounded mean properties of the present dataset. The second, 𝑣 ∗ 
+
+> 𝛼
+
+= 0 .70 , 𝐸 ∗ = 118 GPa , and 
+
+𝑌 ∗ = 0 .97 GPa , represents an upper-tail target within the dataset property envelope. These targets complement the design-to-spec and extreme-property cases considered in the previous section. Each of the four target regimes was evaluated using three random-seed sample selections, with 50 starting microstructures selected for each run. Table 3 reports the mean predicted properties across the three runs, together with the corresponding standard deviations. The AREs are also calculated for each target regime. As shown in Table 3, the candidate properties closely approach all four prescribed targets. The maximum ARE is 3.03%, corresponding to the 𝛼 -phase volume fraction for the dataset-mean target, while all other AREs are below 1.90%. Variability across the three seeded runs is also small, 
+
+Zhou et al. Page 23 of 39 with a maximum coefficient of variation of 1.08%. These results indicate limited sensitivity to starting-set selection for the three seeds examined and close target alignment across in-envelope and extrapolative property regimes. 
+
+> 4.3. Local Burgers Orientation Relationship (BOR) Analysis
+
+The conditional diffusion framework is developed for general inverse design of polycrystalline materials, but the present Ti-6Al-4V case has an additional crystallographic consideration. In dual-phase Ti-6Al-4V, neighboring HCP 𝛼 and BCC 𝛽 phases often exhibit the plane-direction alignment associated with the BOR [58], 
+
+{0001} 𝛼 ∥ {110} 𝛽 , ⟨11 ̄20 ⟩𝛼 ∥ ⟨111 ⟩𝛽 . (46) The initial database was generated with BOR-constrained orientation assignment. However, the parent-child transformation links are not explicitly stored, and the present design pipeline operates on a fixed grain topology at a microstructural snapshot without explicitly modeling its trans-formation history. The analysis below is therefore a statistical estimate of local crystallographic consistency rather than an exact reconstruction of the original transformation pathway. For the BOR angle computation, each BOR plane-direction pair is represented as an orthonor-mal frame. Given a plane normal 𝐧 and an in-plane direction 𝐝 , with 𝐧 ⋅ 𝐝 = 0 , the frame is constructed as 
+
+𝐅 =
+
+[̂
+
+𝐝 ,̂ 𝐧 × 𝐝 ,̂ 𝐧 
+
+]
+
+, (47) where ̂ (⋅) denotes normalization. The first axis is the in-plane BOR direction, the third axis is the BOR plane normal, and the second axis completes the right-handed orthonormal basis. The Euler angles of each grain are converted into their corresponding Bunge orientation matrices. Let 𝐑 𝑖 be the orientation matrix of 𝛼 grain 𝑖 , and let 𝐑 𝑗 be the orientation matrix of a neighboring 𝛽 grain 𝑗 .The corresponding BOR frames are mapped into the sample frame as 
+
+𝐀 𝑖𝑎 = 𝐑 𝑇 𝑖 𝐅 𝛼 𝑎 , 𝐁 𝑗𝑏 = 𝐑 𝑇 𝑗 𝐅 𝛽 𝑏 , (48)  
+
+> Zhou et al. Page 24 of 39
+
+where 𝑎 and 𝑏 index the enumerated BOR frame choices in the 𝛼 and 𝛽 phases, respectively. The relative rotation between an 𝛼 BOR frame and a 𝛽 BOR frame is 
+
+Δ𝐑 𝑖𝑗𝑎𝑏 = 𝐀 ⊤𝑖𝑎 𝐁 𝑗𝑏 . (49) The angular deviation from BOR is computed from the trace of the relative rotation matrix as [51, 52] 
+
+𝜃 𝑖𝑗𝑎𝑏 = cos −1 
+
+[tr (Δ𝐑 𝑖𝑗𝑎𝑏 
+
+) − 1 2
+
+]
+
+. (50) Let 𝛽 (𝑖 ) denote the set of neighboring 𝛽 grains of 𝛼 grain 𝑖 . The local BOR angle assigned to 𝛼 
+
+grain 𝑖 is 
+
+𝜃 min  
+
+> 𝑖
+
+= min  
+
+> 𝑗 ∈𝛽 (𝑖 )
+
+min  
+
+> 𝑎,𝑏
+
+𝜃 𝑖𝑗𝑎𝑏 . (51) The local BOR consistency of 𝛼 grains is quantified using an adopted angular threshold of 𝜏 = 15 ◦
+
+[59, 60] as 
+
+𝐹 𝜏 = 1
+
+𝑁 loc 
+
+> 𝛼 𝑁 loc
+> 𝛼
+
+∑
+
+> 𝑖 =1
+
+𝕀 [𝜃 min  
+
+> 𝑖
+
+< 𝜏 ] , (52) where 𝑁 loc  
+
+> 𝛼
+
+is the number of 𝛼 grains with at least one local neighboring 𝛽 candidate. To improve the crystallographic consistency in both target cases, the 32 candidates generated for each input graph are re-ranked using a combined score that augments the property-only matching formulation with an additional local BOR-consistency term: 
+
+𝑆 BOR = 𝑤 𝐸 
+
+|𝐸 − 𝐸 ∗||𝐸 ∗| + 𝑤 𝑌 
+
+|𝑌 − 𝑌 ∗||𝑌 ∗| + 𝑤 BOR 
+
+(1 − 𝐹 15 
+
+) , (53) where 𝐹 15 is the local BOR fraction below 15 ◦. The weighting factors for property matching remain unchanged with 𝑤 𝐸 = 𝑤 𝑌 = 1 . The BOR weight is varied over 𝑤 BOR ∈ {0 , 0.1, 0.5, 1, 10} to investigate the effect of post-generation local BOR-consistency term. As shown in Fig. 8, the local BOR fraction, 𝐹 15 , is plotted against 𝑤 BOR in logarithmic scale for both the design-to-spec and extreme-property cases. The BOR-constrained input structures have a 
+
+Zhou et al. Page 25 of 39 mean 𝐹 15 of 0.983. Under property-only ranking, that is 𝑤 BOR = 0 , the selected design-to-spec and extreme-property candidates have mean values of 0.497 and 0.293, respectively. Thus, candidates chosen solely for property agreement are less locally BOR-consistent than the inputs, with a larger reduction for the extreme-property target. This may be associated with its greater departure from the initial data distribution. The database contains no BOR-consistent microstructure near the extreme property target that can provide a nearby reference state for the conditioned reverse process. In addition, the higher target 𝛼 -phase fraction reduces local 𝛽 -phase availability, leaving fewer neighboring 𝛽 grains with which an 𝛼 grain can satisfy the BOR criterion. At 𝑤 BOR = 0 .5, the two means increase to 0.659 and 0.434, corresponding to relative increases of 32.6% and 48.1% over property-only ranking. These gains capture 72.6% and 85.2%, respectively, of the total improvement observed between 𝑤 BOR = 0 and 10. At 𝑤 BOR = 1 , the means are 0.694 and 0.452, while increasing the weight to 10 yields 0.720 and 0.458. The marginal improvement therefore diminishes beyond approximately 𝑤 BOR = 1 , particularly for the extreme-property target.   
+
+> Figure 8: Local BOR fraction of the selected design-to-spec and extreme-property candidates with respect to the BOR weight. Zhou et al. Page 26 of 39
+
+The corresponding property distributions and FEA validation results are shown in Fig. 9. The reported designs are selected using the combined score with 𝑤 BOR = 0 .5 as it captures most of the observed BOR improvement while maintaining substantial emphasis on the property targets. The BOR-consistency-selected distributions continue to overlap the target-property regions, showing that a more BOR-consistent candidate can be identified within each set of 32 candidate designs without a noticeable loss of target agreement. For the best five FEA-validated candidates, the mean design-to-spec properties are 𝐸 = 102 .94 GPa, 𝑌 = 0 .904 GPa, and 𝑣 𝛼 = 0 .297 , with AREs of 0.92%, 0.44%, and 1.00%, respectively. The corresponding extreme-property values are 
+
+𝐸 = 135 .53 GPa, 𝑌 = 1 .11 GPa, and 𝑣 𝛼 = 0 .756 , with AREs of 0.39%, 0.91%, and 0.80%, respectively. The differences in ARE between the BOR-aware and property-only selections are comparable in magnitude, and the property target agreement is therefore considered comparable between the two selection strategies. Accordingly, BOR-aware ranking partially recovers local crystallographic consistency in both cases without a material loss in the target agreement of the best validated candidates. The recovery remains incomplete relative to the input reference, particularly for the extreme-property target. Further improvement may require a larger generated candidate pool or the incorporation of parent-child crystallographic information during the generation process. 
+
+5. Comparison with Random Search and Evolutionary Optimization 
+
+The efficiency of the proposed conditional diffusion framework is compared with two com-monly used gradient-free inverse design strategies: random search and evolutionary optimization. The comparison is performed using three initial grain microstructures from the database under the design-to-spec targets 𝑣 ∗ 
+
+> 𝛼
+
+= 0 .30 , 𝐸 ∗ = 102 GPa, and 𝑌 ∗ = 0 .90 GPa. For random search and evolutionary optimization, the optimization objective includes an explicit 𝛼 -phase volume fraction term, because unlike the diffusion model, these methods do not impose the prescribed phase fraction through generation-time phase-fraction projection: 
+
+𝑆 opt = 𝑤 𝐸 
+
+|𝐸 − 𝐸 ∗||𝐸 ∗| + 𝑤 𝑌 
+
+|𝑌 − 𝑌 ∗||𝑌 ∗| + 𝑤 BOR 
+
+(1 − 𝐹 15 
+
+) + 𝑤 𝛼 |𝑣 𝛼 − 𝑣 ∗ 
+
+> 𝛼
+
+|. (54)    
+
+> Zhou et al. Page 27 of 39 Figure 9: Property distributions of the design-to-spec and extreme-property candidates after BOR-consistency selection: Distributions of a) 𝛼 -phase volume fraction, b) elastic modulus, and c) yield-stress proxy for the initial and generated candidate designs.
+
+The weighting factors are set to 𝑤 𝐸 = 1 , 𝑤 𝑌 = 1 , 𝑤 BOR = 0 .5, and 𝑤 𝛼 = 0 .5, so that the gradient-free optimization uses the same property matching and BOR-consistency terms as the diffusion candidate selection score, with an additional explicit phase fraction penalty. Random search and evolutionary optimization are implemented using the same design vari-ables, bounds, and objective function. For each grain, the design variables are the Euler angles and a continuous phase gene in [0 , 1] , which is thresholded at 0.5 to assign the binary phase. Evolutionary  
+
+> Zhou et al. Page 28 of 39
+
+Table 4 
+
+Comparison of target alignment, local BOR consistency, and design cost for the inverse design methods.                             
+
+> E (SD), GPa Y (SD), GPa 𝛼 -vf (SD), -𝐅 𝟏𝟓 (SD), -Design evaluations (SD), -Computational time (SD), s Target 102.00 0.900 0.300 -Random search 124.21 (0.47) 1.015 (0.001) 0.388 (0.012) 0.577 (0.024) 40000 (-) 2800.67 (111.76)
+> Evolutionary optimization 124.63 (0.63) 1.017 (0.009) 0.329 (0.006) 0.601 (0.021) 41404 (5542) 2363.33 (355.97)
+> Diffusion model 102.35 (1.37) 0.889 (0.008) 0.311 (0.025) 0.693 (0.042) 32 (-) 24 (0.47)
+
+optimization is implemented using differential evolution from SciPy [61] with a population size multiplier of 3, a maximum of 10 generations, a mutation interval of (0 .5, 1.0) , a recombination constant 0.7, and a convergence tolerance 0.01. All runs reached the prescribed generation limit. The results are therefore interpreted as fixed-budget outcomes rather than converged optimal solution. Random search uniformly samples a prescribed number of independent candidate design vectors within the same design variable bounds. In this work, 40,000 random candidates are evaluated, which is chosen to be comparable to the total number of objective evaluations used by the evolutionary optimization. Fig. 10 compares the three inverse design methods in terms of target alignment, local BOR consistency, and design efficiency. For visual comparison, the target alignments for 𝛼 -phase volume fraction, elastic modulus, and yield-stress proxy are normalized by their corresponding target values as 1− |𝑃 −𝑃 ∗|  
+
+> 𝑃 ∗
+
+, where 𝑃 ∈ { 𝐸, 𝑌 , 𝑣 𝛼 }. A normalized target match of 1 indicates an exact target agreement to the design target. The local BOR consistency is normalized by the maximum value among the compared strategies, and the number of design evaluations required to obtain one selected design is plotted on a logarithmic scale. The corresponding numerical values are summarized in Table 4. The conditional diffusion model is substantially more efficient than random search and evolu-tionary optimization. For each input graph, the conditional diffusion sampling procedure generates 32 candidate designs, and only these 32 generated candidates are subsequently evaluated by the forward GNN for final selection. In contrast, random search and evolutionary optimization require repeated sampling, mutation, and evaluation of trial designs. In the present comparison, the two gradient free optimization strategies require approximately 40,000 design evaluations to obtain one 
+
+Zhou et al. Page 29 of 39 selected design. Thus, the search-based methods require roughly three orders of magnitude more forward property evaluations than the conditional diffusion workflow. The computation wall-clock times for the three benchmark problems are also reported in Table 4. Training of the diffusion model and all benchmark calculations are performed on the same computation platform equipped with an Intel Core Ultra 9 285K processor operating at 3.70GHz, 64GB of RAM, and an NVIDIA GeForce RTX 5080 GPU with 16GB of memory. The mean runtimes per benchmark problem are 2,801s for random search, 2,363s for evolutionary optimization, and 24s for the diffusion model. Thus, the trained diffusion workflow was approx-imately two orders of magnitude faster than the search-based methods for the design generation. The reduction in wall-clock time is less pronounced than the reduction in candidate evaluations. Random search and evolutionary optimization require 40,000 and an average of 41,404 candidate evaluations, respectively, corresponding to approximately 1,300 times the 32 candidates evaluated by the diffusion model. In comparison, their runtimes are approximately 117 and 99 times that of diffusion. This difference arises because generating a diffusion candidate is more computationally expensive than evaluating one independently sampled or evolutionarily generated candidate: each diffusion candidate must pass through the complete reverse diffusion before the forward evaluation. Training the diffusion model introduces a one-time cost of 365s. For a single design problem, conservatively assigning the entire training cost to that problem gives a total diffusion cost of approximately 389s, which remains substantially lower than the corresponding runtimes of 2,801 and 2,363s for random search and evolutionary optimization, respectively. Across the three benchmark problems considered here, the total diffusion cost is 437s, corresponding to an amortized cost of approximately 146s per problem. Because the trained model can subsequently be reused for additional targets and initial graph inputs without retraining, the contribution of this initial training cost decreases as the number of design problems increases, approaching the online sampling cost of approximately 24s per problem. In addition to its lower evaluation cost, conditional diffusion also gives the highest alignment for all four reported quantities. Random search and evolutionary optimization give similar elastic  
+
+> Zhou et al. Page 30 of 39
+
+modulus and yield-stress proxy alignment, while evolutionary optimization provides noticeably better 𝛼 -phase volume fraction alignment and moderately better BOR consistency.  
+
+> Figure 10: Target alignment, local BOR consistency, and design efficiency of the inverse design methods.
+
+Overall, the conditional grain-graph diffusion framework provides the closest mean target alignment and highest mean 𝐹 15 in this benchmark. Unlike random search and evolutionary optimization, which rely on large numbers of trial designs evaluated sequentially or iteratively, the diffusion model learns a conditional generative distribution and directly proposes candidate microstructures near the prescribed target region. Accordingly, the diffusion workflow reduces the number of sample evaluations by approximately three orders of magnitude and the design runtime by approximately two orders of magnitude. This efficiency supports high-throughput grain microstructure inverse design, particularly when the trained model is reused across multiple design queries.  
+
+> Zhou et al. Page 31 of 39
+
+6. Conclusions 
+
+In this work, a conditional grain-graph diffusion framework is developed for the inverse design of dual-phase Ti-6Al-4V microstructures. The proposed framework represents each microstructure as a grain graph, where grains are encoded as nodes and grain boundaries are encoded as edges. Based on this graph representation, a GNN is first constructed as a surrogate model for forward stress prediction, and a conditional graph DDPM is then developed for inverse design by denoising node-level phase and crystallographic orientation states under prescribed property targets. The grain GNN shows accurate forward stress prediction performance, particularly in the low strain regime. The model achieves an 𝑅 2 of 0.95 with an MAE of 0.003 GPa at 0.25% strain, and maintains good accuracy up to 0.75% strain with an 𝑅 2 of 0.93 and an MAE of 0.008 GPa. Due to the increased nonlinearity of the plastic response, the prediction accuracy decreases after the onset of plasticity, reaching an 𝑅 2 of 0.78 and an MAE of 0.012 GPa at 1.50% strain. Compared with the voxel-based CNN benchmark, the grain GNN achieves comparable prediction accuracy using a more compact and efficient graph-based microstructure representation. For the representative microstructure with 38 grains, a 32 3 voxelized CNN input contains 32,768 voxel locations before accounting for feature channels. In contrast, the graph representation encodes the same microstructure using only 38 grain nodes and 131 undirected grain boundary edges. Compared with the baseline grain GNN, the proposed model shows improved accuracy thanks to the addition of grain boundary property features, node and edge feature embeddings, and multi-statistic graph pooling. The conditional diffusion model is evaluated across four target regimes using three indepen-dently seeded starting sets of 50 microstructures for each regime. The generated candidates ap-proach the prescribed targets within and beyond the property envelope of the initial microstructures. The diffusion model also shows limited sensitivity to starting-set selection over the three seeds examined. For the two primary design cases, selected microstructure designs are further validated by FEA, and the top five FEA-validated candidates show close agreement with the prescribed  
+
+> Zhou et al. Page 32 of 39
+
+targets. As the 𝛼 and 𝛽 phases in Ti-6Al-4V are commonly related through the BOR, local BOR consistency is evaluated as a crystallographic consistency metric for the generated designs. The candidates selected using property-only ranking exhibit lower local BOR consistency than the BOR-constrained input microstructures, with a greater reduction in the extreme-property case. This reduction can be attributed in part to the absence of a nearby BOR-consistent input microstructure to guide reverse diffusion toward the out-of-envelope target. In addition, the higher target 𝛼 -phase volume fraction leaves fewer neighboring 𝛽 grains available for local BOR matching. Introducing a BOR-consistency term into the candidate selection score partially recovers local crystallographic consistency in both cases, increasing the mean BOR consistency relative to property-only ranking by up to 44.9% and 56.4% for the in- and out-of-envelope targets, respectively, while retaining close property target agreement with an ARE of 1.0%. The efficiency of the diffusion framework is compared with random search and evolutionary optimization. For the same design task, the diffusion model shows the best overall target alignment and design efficiency. The diffusion workflow requires only 32 generated candidates to be evaluated for final selection, whereas random search and evolutionary optimization require approximately 40,000 objective evaluations. This corresponds to approximately three orders of magnitude fewer terminal evaluations and, for the tested implementations, approximately two orders of magnitude lower runtime. These gains arise because the diffusion model learns a conditional generative distribution and directly proposes candidate microstructures near the target region, rather than relying on large numbers of iterative trial evaluations. Overall, this work demonstrates that conditional grain-graph diffusion provides an effective computational framework for the property-guided inverse design of polycrystalline microstruc-tures. By integrating a compact grain-graph representation, a GNN forward surrogate, and a conditional graph DDPM, the proposed framework enables multi-target microstructure design with substantially fewer candidate evaluations than conventional search-based approaches. For Ti-6Al-4V specifically, the results further demonstrate that crystallographic constraints, such as local BOR consistency, can be incorporated through post-generation candidate selection to balance  
+
+> Zhou et al. Page 33 of 39
+
+property-target alignment and crystallographic consistency. However, more complete recovery of BOR consistency may require a larger candidate pool or the explicit incorporation of parent-child crystallographic information into the generative process. 
+
+CRediT authorship contribution statement Yuheng Zhou: Conceptualization, Methodology, Formal analysis, Investigation, Data curation, Validation, Visualization, Writing - original draft. Xiao Shang: Conceptualization, Investigation, Data curation, Writing - review and editing. Huicong Chen: Investigation, Writing - review and editing. Yu Zou: Conceptualization, Supervision, Funding acquisition, Writing - review and editing. 
+
+Acknowledgment 
+
+This work was supported by the Natural Sciences and Engineering Research Council of Canada (NSERC) Discovery Grant (RGPIN-2026-06958), New Frontiers in Research Fund-Exploration (NFRFE-2019-00753), Digital Research Alliance of Canada. Y. Zou acknowledges the Canada Research Chair in Materials and Manufacturing for Extreme Environments. 
+
+Declaration of interests 
+
+The authors declare that they have no known competing financial interests or personal relation-ships that could have appeared to influence the work reported in this paper. 
+
+Declaration of generative AI and AI-assisted technologies in the manuscript preparation process 
+
+During the preparation of this work the authors used Claude in order to improve readability and language. After using this tool/service, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.  
+
+> Zhou et al. Page 34 of 39
+
+Data availability 
+
+The code related to this work is publicly available at https://github.com/YuhengZhou-McGill/ Conditional_Grain_Graph_Diffusion.git . The repository contains a representative subset of 200 Ti-6Al-4V grain graphs with corresponding labels. The complete microstructure database is available upon reasonable request. 
+
+References 
+
+[1] R. B. Figueiredo, M. Kawasaki, T. G. Langdon, The role of grain size in achieving excellent properties in structural materials, Journal of Materials Research and Technology 30 (2024) 3448–3462. URL: https://www.sciencedirect.com/science/article/pii/ S2238785424008342 . doi: https://doi.org/10.1016/j.jmrt.2024.04.059 .[2] T. Zhu, W. Chen, Mechanical behaviour of additively manufactured metals, Nature Materials 25 (2026) 373–385. URL: https://doi.org/ 10.1038/s41563-025-02459-5 . doi: 10.1038/s41563-025-02459-5 .[3] G. Xu, G. Li, P. Tang, Q. Zhu, L. Zhang, C. Zhang, Z. Li, Y. Li, R. Zheng, C. Ma, S. Zhao, H. Guo, High impact resistance in a high-entropy alloy with thermally stable hierarchical heterostructures, Nature Materials (2026). URL: https://doi.org/10.1038/s41563-026-02626-2 .doi: 10.1038/s41563-026-02626-2 .[4] S. Gao, Z. Li, S. Van Petegem, J. Ge, S. Goel, J. V. Vas, V. Luzin, Z. Hu, H. L. Seet, D. F. Sanchez, H. Van Swygenhoven, H. Gao, M. Seita, Additive manufacturing of alloys with programmable microstructure and properties, Nature Communications 14 (2023) 6752. URL: https://doi.org/10.1038/s41467-023-42326-y . doi: 10.1038/s41467-023-42326-y .[5] X. Shang, C. Shao, S. S. Dash, L. Guo, J. Agyapong, L. Lang, A. Chen, S. B. Yi, T. Lyu, H. Chen, S. Boakye-Yiadom, Y. Zou, Confined necking and improved tensile ductility in heterostructured bi-metallic steels made by additive manufacturing, Acta Materialia 307 (2026) 121952. URL: https://www.sciencedirect.com/science/article/pii/S1359645426000583 . doi: https://doi.org/ 10.1016/j.actamat.2026.121952 .[6] S. Wei, P. Wang, L. Zhang, U. Ramamurty, Grain morphologies in additively manufactured alloys: From solidification fundamentals to advanced microstructure control, Journal of Materials Science & Technology 235 (2025) 133–145. URL: https://www.sciencedirect. com/science/article/pii/S1005030225002592 . doi: https://doi.org/10.1016/j.jmst.2025.02.033 .[7] T. T. Roehling, R. Shi, S. A. Khairallah, J. D. Roehling, G. M. Guss, J. T. McKeown, M. J. Matthews, Controlling grain nucleation and morphology by laser beam shaping in metal additive manufacturing, Materials & Design 195 (2020) 109071. URL: https://www. sciencedirect.com/science/article/pii/S0264127520306067 . doi: https://doi.org/10.1016/j.matdes.2020.109071 .[8] C. Todaro, M. Easton, D. Qiu, M. Brandt, D. StJohn, M. Qian, Grain refinement of stainless steel in ultrasound-assisted additive manufacturing, Additive Manufacturing 37 (2021) 101632. URL: https://www.sciencedirect.com/science/article/pii/S2214860420310046 .doi: https://doi.org/10.1016/j.addma.2020.101632 .[9] G. Zhang, X. Lu, J. Li, J. Chen, X. Lin, M. Wang, H. Tan, W. Huang, In-situ grain structure control in directed energy deposition of ti6al4v, Additive Manufacturing 55 (2022) 102865. URL: https://www.sciencedirect.com/science/article/pii/S2214860422002640 .doi: https://doi.org/10.1016/j.addma.2022.102865 .[10] X. Shang, S. Yang, H. E. Chapman, X. Fan, A. Chen, Z. Gao, X. Jin, P. D. Lee, Y. Zou, Directed energy deposition addi-tive manufacturing: Microstructure and composition engineering for high-performing metallic materials, Additive Manufacturing 125 
+
+Zhou et al. Page 35 of 39 (2026) 105240. URL: https://www.sciencedirect.com/science/article/pii/S2214860426001661 . doi: https://doi.org/ 10.1016/j.addma.2026.105240 .[11] M. Knezevic, B. Drach, M. Ardeljan, I. J. Beyerlein, Three dimensional predictions of grain scale plasticity and grain boundaries using crystal plasticity finite element models, Computer Methods in Applied Mechanics and Engineering 277 (2014) 239–259. URL: https://www. sciencedirect.com/science/article/pii/S0045782514001480 . doi: https://doi.org/10.1016/j.cma.2014.05.003 .[12] R. Quey, P. Dawson, F. Barbe, Large-scale 3d random polycrystals for the finite element method: Generation, meshing and remeshing, Computer Methods in Applied Mechanics and Engineering 200 (2011) 1729–1745. URL: https://www.sciencedirect.com/science/ article/pii/S004578251100003X . doi: https://doi.org/10.1016/j.cma.2011.01.002 .[13] R. Bostanabad, Y. Zhang, X. Li, T. Kearney, L. C. Brinson, D. W. Apley, W. K. Liu, W. Chen, Computational microstructure characterization and reconstruction: Review of the state-of-the-art techniques, Progress in Materials Science 95 (2018) 1–41. URL: https://www. sciencedirect.com/science/article/pii/S0079642518300112 . doi: https://doi.org/10.1016/j.pmatsci.2018.01.005 .[14] S. Hashemi, S. R. Kalidindi, A machine learning framework for the temporal evolution of microstructure during static recrystallization of polycrystalline materials simulated by cellular automaton, Computational Materials Science 188 (2021) 110132. URL: https://www.sciencedirect.com/science/article/pii/S0927025620306236 . doi: https://doi.org/10.1016/j. commatsci.2020.110132 .[15] X. Shang, Z. Liu, J. Zhang, T. Lyu, Y. Zou, Tailoring the mechanical properties of 3d microstructures: A deep learning and genetic algorithm inverse optimization framework, Materials Today 70 (2023) 71–81. URL: https://www.sciencedirect.com/science/article/pii/ S1369702123003012 . doi: https://doi.org/10.1016/j.mattod.2023.09.007 .[16] O. Ibragimova, A. Brahme, W. Muhammad, D. Connolly, J. Lévesque, K. Inal, A convolutional neural network based crystal plasticity finite element framework to predict localised deformation in metals, International Journal of Plasticity 157 (2022) 103374. URL: https://www. sciencedirect.com/science/article/pii/S0749641922001541 . doi: https://doi.org/10.1016/j.ijplas.2022.103374 .[17] J. Liu, M. Huang, Z. Li, L. Zhao, Y. Zhu, A deep learning method for predicting microvoid growth in heterogeneous polycrystals, Engineering Fracture Mechanics 264 (2022) 108332. URL: https://www.sciencedirect.com/science/article/pii/S0013794422000911 .doi: https://doi.org/10.1016/j.engfracmech.2022.108332 .[18] M. Dai, M. F. Demirel, Y. Liang, et al., Graph neural networks for an accurate and interpretable prediction of the properties of polycrystalline materials, npj Computational Materials 7 (2021) 103. URL: https://doi.org/10.1038/s41524-021-00574-w . doi: 10. 1038/s41524-021-00574-w .[19] M. Dai, M. F. Demirel, X. Liu, Y. Liang, J.-M. Hu, Graph neural network for predicting the effective properties of polycrystalline materials: A comprehensive analysis, Computational Materials Science 230 (2023) 112461. URL: https://www.sciencedirect.com/science/ article/pii/S092702562300455X . doi: https://doi.org/10.1016/j.commatsci.2023.112461 .[20] Y. Qin, S. DeWitt, B. Radhakrishnan, G. Biros, Graingnn: A dynamic graph neural network for predicting 3d grain microstructure, Journal of Computational Physics 510 (2024) 113061. URL: https://www.sciencedirect.com/science/article/pii/S0021999124003103 .doi: https://doi.org/10.1016/j.jcp.2024.113061 .[21] Z. Gao, C. Zhu, C. Wang, Y. Shu, S. Liu, J. Miao, L. Yang, Advanced deep learning framework for multi-scale prediction of mechanical proper-ties from microstructural features in polycrystalline materials, Computer Methods in Applied Mechanics and Engineering 438 (2025) 117844. URL: https://www.sciencedirect.com/science/article/pii/S0045782525001161 . doi: https://doi.org/10.1016/j.cma. 2025.117844 .
+
+Zhou et al. Page 36 of 39 [22] V. Venkatesh, Z. Croft, K. Thornton, A. Shahani, A graph-based approach for tracking grains in time-resolved 2d/3d mi-crostructural datasets, Acta Materialia 306 (2026) 121885. URL: https://www.sciencedirect.com/science/article/pii/ S1359645425011723 . doi: https://doi.org/10.1016/j.actamat.2025.121885 .[23] D. Park, J. Lee, H. Lee, G. X. Gu, S. Ryu, Deep generative spatiotemporal learning for integrating fracture mechanics in composite materials: inverse design, discovery, and optimization, Mater. Horiz. 11 (2024) 3048–3065. URL: http://dx.doi.org/10.1039/D4MH00337C .doi: 10.1039/D4MH00337C .[24] S. Lee, Z. Zhang, G. X. Gu, Generative machine learning algorithm for lattice structures with superior mechanical properties, Mater. Horiz. 9 (2022) 952–960. URL: http://dx.doi.org/10.1039/D1MH01792F . doi: 10.1039/D1MH01792F .[25] Y. Kim, Y. Kim, C. Yang, et al., Deep learning framework for material design space exploration using active transfer learning and data augmentation, npj Computational Materials 7 (2021) 140. URL: https://doi.org/10.1038/s41524-021-00609-2 . doi: 10.1038/ s41524-021-00609-2 .[26] J. Liu, R. Sarker, S. Elsayed, D. Essam, N. Siswanto, Large-scale evolutionary optimization: A review and comparative study, Swarm and Evo-lutionary Computation 85 (2024) 101466. URL: https://www.sciencedirect.com/science/article/pii/S2210650223002389 .doi: https://doi.org/10.1016/j.swevo.2023.101466 .[27] H. Mirzaee, S. Kamrava, Inverse design of microstructures using conditional continuous normalizing flows, Acta Materialia 285 (2025) 120704. URL: https://www.sciencedirect.com/science/article/pii/S1359645424010528 . doi: https://doi.org/ 10.1016/j.actamat.2024.120704 .[28] N. N. Vlassis, W. Sun, Denoising diffusion algorithm for inverse design of microstructures with fine-tuned nonlinear material properties, Computer Methods in Applied Mechanics and Engineering 413 (2023) 116126. URL: https://www.sciencedirect.com/science/ article/pii/S0045782523002505 . doi: https://doi.org/10.1016/j.cma.2023.116126 .[29] W. Xu, Z. Xie, H. Lin, X. Wang, G. Mou, T. Xue, Style-constrained inverse design of microstructures with tailored mechan-ical properties using unconditional diffusion models, International Journal for Numerical Methods in Engineering 127 (2026) e70376. URL: https://onlinelibrary.wiley.com/doi/abs/10.1002/nme.70376 . doi: https://doi.org/10.1002/nme.70376 .
+
+arXiv:https://onlinelibrary.wiley.com/doi/pdf/10.1002/nme.70376 .[30] J.-H. Bastek, D. M. Kochmann, Inverse design of nonlinear mechanical metamaterials via video denoising diffusion models, Nature Machine Intelligence 5 (2023) 1466–1475. URL: https://doi.org/10.1038/s42256-023-00762-x . doi: 10.1038/s42256-023-00762-x .[31] H. Wang, Z. Du, F. Feng, Z. Kang, S. Tang, X. Guo, Diffmat: Data-driven inverse design of energy-absorbing metamaterials using diffusion model, Computer Methods in Applied Mechanics and Engineering 432 (2024) 117440. URL: https://www.sciencedirect.com/ science/article/pii/S0045782524006959 . doi: https://doi.org/10.1016/j.cma.2024.117440 .[32] Z. Yang, Y. Guo, Z. Sun, K. I. Elkhodary, F. Feng, Z. Kang, S. Tang, X. Guo, Graphdgm: A generative data-driven design approach for frame and lattice structures, Journal of Mechani-cal Design 147 (2025) 101701. URL: https://doi.org/10.1115/1.4068106 . doi: 10.1115/1.4068106 .
+
+arXiv:https://asmedigitalcollection.asme.org/mechanicaldesign/article-pdf/147/10/101701/7442509/md-24-1770.pdf .[33] J. Zhang, S. Chen, R. J. Martin, B. Liu, R. Zhang, D. Xiao, Conditional diffusion models for the inverse design of lattice structures, Structural and Multidisciplinary Optimization (2025) 58. [34] L. Zheng, S. Kumar, D. M. Kochmann, Algebraic language models for inverse design of metamaterials via diffusion transformers, Nature Ma-chine Intelligence 8 (2026) 628–640. URL: https://doi.org/10.1038/s42256-026-01218-8 . doi: 10.1038/s42256-026-01218-8 .
+
+Zhou et al. Page 37 of 39 [35] M. O. Buzzy, A. E. Robertson, S. R. Kalidindi, Statistically conditioned polycrystal generation using denoising diffusion models, Acta Materialia 267 (2024) 119746. URL: https://www.sciencedirect.com/science/article/pii/S1359645424000995 . doi: https: //doi.org/10.1016/j.actamat.2024.119746 .[36] P. Fernandez-Zelaia, J. Cheng, J. Mayeur, A. K. Ziabari, M. M. Kirka, Digital polycrystalline microstructure generation using diffusion probabilistic models, Materialia 33 (2024) 101976. URL: https://www.sciencedirect.com/science/article/pii/ S2589152923003034 . doi: https://doi.org/10.1016/j.mtla.2023.101976 .[37] A. Ikeda, R. Higuchi, T. Yokozeki, et al., Conditional diffusion model for inverse prediction of process parameters and dendritic microstructures from mechanical properties, Scientific Reports 15 (2025) 37147. URL: https://doi.org/10.1038/s41598-025-22942-y . doi: 10. 1038/s41598-025-22942-y .[38] S. Safavi, Y. Yu, D. L. Robinson, H. A. Gray, D. C. Ackland, P. V. S. Lee, Additively manufactured controlled porous orthopedic joint replacement designs to reduce bone stress shielding: a systematic review, Journal of Orthopaedic Surgery and Research 18 (2023) 42. doi: 10.1186/s13018-022-03492-9 .[39] P. Gradl, D. C. Tinker, A. Park, O. R. Mireles, M. Garcia, R. Wilkerson, C. Mckinney, Robust metal additive manufacturing process selection and development for aerospace components, Journal of Materials Engineering and Performance 31 (2022) 6013–6044. doi: 10. 1007/s11665-022-06850-0 .[40] R. Quey, M. Kasemer, The neper/fepx project: Free / open-source polycrystal generation, deformation simulation, and post-processing, IOP Conference Series: Materials Science and Engineering 1249 (2022) 012021. URL: https://doi.org/10.1088/1757-899X/1249/1/ 012021 . doi: 10.1088/1757-899X/1249/1/012021 .[41] F. Niessen, T. Nyyssönen, A. A. Gazder, R. Hielscher, Parent grain reconstruction from partially or fully transformed microstructures in 
+
+MTEX , Journal of Applied Crystallography 55 (2022) 180–194. URL: https://doi.org/10.1107/S1600576721011560 . doi: 10.1107/ S1600576721011560 .[42] P. Tao, J. Zhong, H. Li, Q. Hu, S. Gong, Q. Xu, Microstructure, mechanical properties, and constitutive models for ti–6al–4v alloy fabricated by selective laser melting (slm), Metals 9 (2019). URL: https://www.mdpi.com/2075-4701/9/4/447 . doi: 10.3390/met9040447 .[43] V. Tuninetti, A. F. Jaramillo, G. Riu, C. Rojas-Ulloa, A. Znaidi, C. Medina, A. M. Mateo, J. J. Roa, Experimental correlation of mechanical properties of the ti-6al-4v alloy at different length scales, Metals 11 (2021). URL: https://www.mdpi.com/2075-4701/11/1/104 .doi: 10.3390/met11010104 .[44] H. J. Bunge, Texture Analysis in Materials Science: Mathematical Methods, Butterworths, London, 1982. [45] S. Brody, U. Alon, E. Yahav, How attentive are graph attention networks?, in: International Conference on Learning Representations, 2022. URL: https://openreview.net/forum?id=F72ximsx7C1 .[46] M. Fey, J. E. Lenssen, Fast graph representation learning with pytorch geometric, 2019. URL: https://arxiv.org/abs/1903.02428 .
+
+arXiv:1903.02428 .[47] J. L. Ba, J. R. Kiros, G. E. Hinton, Layer normalization, arXiv preprint arXiv:1607.06450 (2016). [48] N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, R. Salakhutdinov, Dropout: A simple way to prevent neural networks from overfitting, Journal of Machine Learning Research 15 (2014) 1929–1958. [49] S. Elfwing, E. Uchibe, K. Doya, Sigmoid-weighted linear units for neural network function approximation in reinforcement learning, CoRR abs/1702.03118 (2017). URL: http://arxiv.org/abs/1702.03118 . arXiv:1702.03118 .[50] I. Loshchilov, F. Hutter, Decoupled weight decay regularization, 2019. URL: https://arxiv.org/abs/1711.05101 .
+
+arXiv:1711.05101 .
+
+Zhou et al. Page 38 of 39 [51] G. Gallego, A. Yezzi, A compact formula for the derivative of a 3-d rotation in exponential coordinates, Journal of Mathematical Imaging and Vision 51 (2015) 378–384. [52] D. Rowenhorst, A. D. Rollett, G. S. Rohrer, M. Groeber, M. Jackson, P. J. Konijnenberg, M. De Graef, Consistent representations of and conversions between 3d rotations, Modelling and Simulation in Materials Science and Engineering 23 (2015) 083501. URL: https: //doi.org/10.1088/0965-0393/23/8/083501 . doi: 10.1088/0965-0393/23/8/083501 .[53] Y. Zhou, C. Barnes, J. Lu, J. Yang, H. Li, On the continuity of rotation representations in neural networks, Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (2019) 5745–5753. [54] Y. Jagvaral, F. Lanusse, R. Mandelbaum, Diffusion generative models on SO(3), in: International Conference on Learning Representations, 2023. URL: https://openreview.net/forum?id=jHA-yCyBGb .[55] J. Ho, A. Jain, P. Abbeel, Denoising diffusion probabilistic models, in: Advances in Neural Information Processing Systems, volume 33, 2020, pp. 6840–6851. [56] A. Q. Nichol, P. Dhariwal, Improved denoising diffusion probabilistic models, in: Proceedings of the 38th International Conference on Machine Learning, volume 139 of Proceedings of Machine Learning Research , 2021, pp. 8162–8171. [57] J. Ho, T. Salimans, Classifier-free diffusion guidance, 2022. URL: https://arxiv.org/abs/2207.12598 . arXiv:2207.12598 .[58] T. B. Britton, F. P. E. Dunne, A. J. Wilkinson, On the mechanistic basis of deformation at the microscale in hexagonal close-packed metals, Proceedings of the Royal Society A: Mathematical, Physical and Engineering Sciences 471 (2015) 20140881. URL: https: //doi.org/10.1098/rspa.2014.0881 . doi: 10.1098/rspa.2014.0881 .[59] M. Cabibbo, S. Zherebtsov, S. Mironov, et al., Loss of coherency and interphase 𝛼 /𝛽 angular deviation from the burgers orientation relationship in a Ti–6Al–4V alloy compressed at 800 ◦c, Journal of Materials Science 48 (2013) 1100–1110. URL: https://doi.org/10.1007/ s10853-012-6842-z . doi: 10.1007/s10853-012-6842-z .[60] B. A. Begley, K. Markham, M. Mizak, et al., Prediction of relative globularization rates in 𝛼 + 𝛽 titanium alloys as a function of initial crystal orientation, Journal of Materials Research 35 (2020) 1113–1120. URL: https://doi.org/10.1557/jmr.2020.54 .doi: 10.1557/jmr.2020.54 .[61] P. Virtanen, R. Gommers, T. E. Oliphant, M. Haberland, T. Reddy, D. Cournapeau, E. Burovski, P. Peterson, W. Weckesser, J. Bright, S. J. van der Walt, M. Brett, J. Wilson, K. J. Millman, N. Mayorov, A. R. J. Nelson, E. Jones, R. Kern, E. Larson, C. J. Carey, İ. Polat, Y. Feng, E. W. Moore, J. VanderPlas, D. Laxalde, J. Perktold, R. Cimrman, I. Henriksen, E. A. Quintero, C. R. Harris, A. M. Archibald, A. H. Ribeiro, F. Pedregosa, P. van Mulbregt, SciPy 1.0 Contributors, SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python, Nature Methods 17 (2020) 261–272. doi: 10.1038/s41592-019-0686-2 .
+
+Zhou et al. Page 39 of 39

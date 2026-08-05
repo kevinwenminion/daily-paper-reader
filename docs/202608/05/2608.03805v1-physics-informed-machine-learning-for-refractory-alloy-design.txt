@@ -1,0 +1,1627 @@
+Title: 2608.03805v1.pdf
+
+URL Source: https://arxiv.org/pdf/2608.03805v1
+
+Published Time: Wed, 05 Aug 2026 01:14:18 GMT
+
+Number of Pages: 27
+
+Markdown Content:
+Physics -Informed Machine Learning for Refractory 
+
+# Alloy Design 
+
+Blaise Awola Ayirizia a, Bimal K Ca, ∗, Jorge A. Muñoz San Martín a,b 
+
+> aComputational Science Program, The University of Texas at El Paso, 500 W University
+> Ave, El Paso, 79968, TX, USA
+> bDepartment of Physics, The University of Texas at El Paso, 500 W University Ave, El
+> Paso, 79968, TX, USA
+
+Abstract 
+
+Refractory complex concentrated alloys (CCAs) exhibit exceptional mechan -
+
+ical properties at elevated temperatures, but their vast compositional space 
+
+(∼ 10 15 possible combinations) poses significant challenges for experimen -
+
+tal exploration. We develop a physics -informed machine learning framework 
+
+combining quantile gradient boosting with Born stability constraints to pre -
+
+dict eight mechanical properties (bulk modulus B, shear modulus G, Vick -
+
+ers hardness Hv, elastic constants C11 , C12 , C44 , Young’s modulus E, and 
+
+Poisson’s ratio ν) of refractory CCAs. Using 393 density functional the -
+
+ory (DFT) -computed alloys from a 10 -element design space (Cr, Hf, Mo, 
+
+Nb, Re, Ta, Ti, V, W, Zr), we achieve coefficient of determination ( R2)
+
+values of 0.89 –0.97 with mean absolute errors of 0.85 –14.74 GPa across six 
+
+properties on a held -out test set ( n = 59). Remarkably, all test predic -
+
+tions satisfy Born stability criteria (100% compliance), demonstrating the 
+
+efficacy of physics -informed constraints. Compositional screening in valence 
+
+electron concentration (VEC) atomic size mismatch ( δ) space identifies high -
+
+performance candidates, with MoReW exhibiting the highest predicted shear 
+
+rigidity (C44 = 139 GPa). Elemental analysis reveals that rhenium appears 
+
+in 100% of top -performing alloys, molybdenum in 90%, and chromium in 
+
+80%, establishing quantitative design rules: VEC = 6.0 –6.4, δ < 10%, 
+
+and Re –Mo –Cr ternary systems maximize shear resistance. This physics -
+
+informed screening framework enables accelerated discovery of mechanically        
+
+> ∗Corresponding author
+> Email address: bkc@miners.utep.edu (Bimal KC)
+
+2
+
+stable, high -performance refractory alloys from the trillion -scale composi -
+
+tional space. 
+
+Keywords: Refractory alloys, Complex concentrated alloys, Machine 
+
+learning, Uncertainty quantification, Born stability, Elastic properties, 
+
+Compositional design 
+
+1. Introduction 
+
+Refractory complex concentrated alloys (CCAs), also known as refrac -
+
+tory high -entropy alloys, have emerged as promising candidates for high -
+
+temperature structural applications due to their exceptional mechanical prop -
+
+erties, including high strength, creep resistance, and thermal stability [1, 2]. 
+
+Unlike conventional alloys that center around a single principal element, 
+
+CCAs comprise multiple principal elements (typically ≥4) in near -equiatomic 
+
+or non -equiatomic proportions, yielding unique microstructures and property 
+
+combinations [3, 4]. The refractory element family Cr, Hf, Mo, Nb, Re, Ta, 
+
+Ti, V, W, and Zr offers body -centered cubic (BCC) phase stability at high 
+
+temperatures, making them ideal constituents for ultra -high -temperature ap -
+
+plications [5]. 
+
+However, the vast compositional design space poses a formidable chal -
+
+lenge. For a 10 -element system with variable stoichiometry, the number of 
+
+possible compositions exceeds 10 15 [6], rendering exhaustive experimental or 
+
+computational screening impractical. Traditional alloy design approaches, 
+
+such as the Hume -Rothery rules [7] or CALPHAD (CALculation of PHAse 
+
+Diagrams) methods [8], provide valuable guidance but struggle to capture 
+
+the complex many -body interactions in multi -component systems. Density 
+
+functional theory (DFT) calculations offer accurate property predictions but 
+
+remain computationally expensive, limiting exploration to hundreds of com -
+
+positions [9]. 
+
+Machine learning (ML) has emerged as a powerful tool for accelerating mate -
+
+rials discovery by learning complex composition property relationships from 
+
+existing data. However, most ML approaches treat property prediction as a 
+
+purely data -driven regression problem, neglecting fundamental physics con -
+
+straints such as mechanical stability (Born criteria) [10] and thermodynamic 
+
+consistency (e.g., positive elastic moduli, Poisson’s ratio bounds). Violations 
+
+of these constraints yield physically unrealistic predictions that cannot guide 
+
+experimental synthesis. 3
+
+Recent machine learning studies have employed diverse approaches for 
+
+alloy property prediction, each with distinct advantages and limitations. 
+
+Descriptor -based methods using compositional and structural features re -
+
+main widely used [10, 11, 12], achieving R² values of 0.80 –0.90 for mechanical 
+
+properties of high -entropy alloys. Ward et al. [10] demonstrated a general -
+
+purpose framework predicting formation energies and band gaps for 145 bi -
+
+nary alloys with mean absolute errors of 0.1 –0.2 eV, though without un -
+
+certainty quantification or stability constraints. Wen et al. [11] advanced 
+
+ML -guided design of HEAs with desired properties, achieving R² = 0.85 for 
+
+bulk and shear modulus predictions, though their framework exhibited ap -
+
+proximately 15% Born stability violations and was limited to two properties. 
+
+Pei et al. [12] applied ML to predict single -phase formation in CCAs, re -
+
+porting 10% stability violations across 460 alloys. Graph neural networks 
+
+encoding atomic environments have shown promise for crystal property pre -
+
+diction [13], and Gaussian process regression with marginalized graph kernels 
+
+has recently achieved sub -5 meV/atom accuracy for BCC iron [14], though 
+
+their application to refractory CCAs remains limited. However, most existing 
+
+ML approaches provide point estimates without quantifying prediction un -
+
+certainty, limiting their utility for guiding high -stakes experimental decisions. 
+
+A critical gap across these approaches is the lack of calibrated uncertainty 
+
+quantification: most provide point estimates without prediction intervals, 
+
+limiting their utility for guiding high -stakes experimental decisions where 
+
+understanding prediction confidence is essential [15]. 
+
+While Zhang et al. [9] applied neural networks to this dataset for predict -
+
+ing bulk and shear moduli, our work provides three critical advances. First, 
+
+we achieve 100% Born mechanical stability satisfaction on held -out predic -
+
+tions through physics -informed feature engineering, compared to ∼85% in 
+
+their study. Second, we extend predictions to eight comprehensive properties 
+
+(including all three independent elastic constants, Vickers hardness, Young’s 
+
+modulus, and Poisson’s ratio) while maintaining thermodynamic consistency. 
+
+Third, we provide calibrated uncertainty quantification through quantile re -
+
+gression enabling risk -informed experimental planning and perform system -
+
+atic compositional screening to establish quantitative design rules identifying 
+
+rhenium as essential for high shear rigidity and MoReW as a top candidate 
+
+with predicted C44 = 139 GPa. 
+
+Alternative computational approaches offer complementary capabilities 
+
+to machine learning. Interatomic potentials, particularly machine learning 
+
+potentials such as moment tensor potentials, neural network potentials, and 4
+
+embedded atom models, enable molecular dynamics simulations of dynamic 
+
+processes, defect evolution, and finite -temperature behavior. While powerful 
+
+for mechanistic studies and time -dependent phenomena, these potentials re -
+
+quire extensive training datasets of energies, forces, and stresses, and remain 
+
+computationally expensive for high -throughput screening across thousands of 
+
+compositions a single MD simulation may require hours to days per compo -
+
+sition. CALPHAD (CALculation of PHAse Diagrams) methods [8] provide 
+
+thermodynamic phase equilibria through semi -empirical modeling of Gibbs 
+
+energies, successfully predicting phase diagrams and transformation temper -
+
+atures. However, CALPHAD databases for refractory CCAs remain incom -
+
+plete, and the method typically does not predict elastic properties directly 
+
+without auxiliary models. High -throughput density functional theory offers 
+
+the highest accuracy for ground -state properties and elastic constants but 
+
+remains limited to hundreds of compositions due to computational expense 
+
+each elastic constant calculation requiring multiple structural relaxations and 
+
+strain perturbations. For design spaces exceeding 10 15 possible alloys, DFT 
+
+alone is impractical, motivating the development of ML surrogates trained 
+
+on DFT data. 
+
+In this work, we develop a physics -informed machine learning framework 
+
+that integrates quantile gradient boosting with Born stability constraints 
+
+to predict eight mechanical properties bulk modulus (B), shear modulus 
+
+(G), Vickers hardness ( Hv), elastic constants ( C11 , C12 , C44 ), Young’s mod -
+
+ulus (E), and Poisson’s ratio (ν) of refractory CCAs. Using a dataset of 
+
+393 DFT -computed BCC alloys spanning binary to quinary systems [9], 
+
+we demonstrate that: (1) quantile regression provides well -calibrated 90% 
+
+prediction intervals with 78 –90% coverage; (2) physics -informed constraints 
+
+ensure 100% Born stability satisfaction on held -out test data; (3) derived 
+
+property relationships ( E and ν computed from predicted B and G) main -
+
+tain thermodynamic consistency; and (4) compositional screening in VEC –δ
+
+space identifies design rules linking elemental composition to shear rigidity. 
+
+Our framework enables rapid exploration of the trillion -scale design space 
+
+while maintaining physical interpretability a critical requirement for experi -
+
+mental validation. 
+
+This work addresses critical gaps in existing approaches by integrating 
+
+physics constraints with uncertainty quantification for comprehensive prop -
+
+erty prediction. Unlike prior ML studies exhibiting 5 –20% Born stability 
+
+violations [11, 12], our framework achieves 100% mechanical stability satisfac -
+
+tion on held -out test data accomplished through high -quality DFT training 5
+
+data and physics -informed feature engineering rather than explicit constraint 
+
+enforcement. We extend property coverage from 1–3 properties in prior work 
+
+to eight mechanical properties (B, G, Hv, C11 , C12 , C44 , E, ν) while maintain -
+
+ing thermodynamic consistency through derived relationships [16]. Quantile 
+
+regression provides calibrated 90% prediction intervals with 78 –90% cover -
+
+age, enabling risk -stratified experimental planning absent in most materials 
+
+ML studies. Finally, compositional screening in VEC –δ space establishes 
+
+quantitative design rules (Re essential, VEC = 6.0 –6.4 optimal) and identi -
+
+fies experimentally actionable candidates (MoReW with predicted C44 = 139 
+
+GPa), bridging the gap between computational prediction and experimental 
+
+validation. 
+
+2. Materials and Methods 
+
+Our model is trained on single -phase BCC alloys only and should not be 
+
+applied to FCC, HCP, or multi -phase systems. Elastic constants depend on 
+
+crystal symmetry; non -BCC predictions would be unreliable extrapolations. 
+
+2.1.  Dataset 
+
+We utilized the refractory CCA dataset compiled by Zhang et al. [9], 
+
+comprising 393 single -phase BCC alloys with compositions spanning 10 re -
+
+fractory elements: Cr, Hf, Mo, Nb, Re, Ta, Ti, V, W, and Zr. Alloy com -
+
+plexities ranged from binary (78 alloys, 19.8%) to quinary (64 alloys, 16.3%), 
+
+with ternary systems dominating the dataset (190 alloys, 48.3%). All prop -
+
+erty values were obtained from DFT calculations using the Vienna Ab initio 
+
+Simulation Package (VASP) [17] with the Perdew –Burke –Ernzerhof (PBE) 
+
+exchange -correlation functional [18]. Special quasirandom structures (SQS) 
+
+[19] were employed to model chemically disordered BCC solid solutions. 
+
+The dataset includes eight mechanical properties: (1) bulk modulus B,
+
+(2) shear modulus G, (3) Vickers hardness Hv (estimated via the Tian model 
+
+[20]), (4 –6) elastic constants C11 , C12 , C44 , (7) Young’s modulus E, and 
+
+(8) Poisson’s ratio ν. Elastic constants were computed via the stress –strain 
+
+method, and derived properties were calculated using standard elasticity re -
+
+lationships: 
+
+9BG 
+
+E = 3B + G , (1) 
+
+3B − 2G
+
+ν = 2(3 B + G) . (2) 6
+
+The compositional space spans two critical design parameters. Valence 
+
+electron concentration (VEC), ranging from 4.00 to 6.33 (mean 5 .23 ± 0.53), 
+
+governs phase stability in CCAs —BCC phases dominate at VEC < 6.87 
+
+for equiatomic alloys, while higher VEC favors FCC structures [21]. VEC 
+
+also correlates with d-band filling and bonding strength: alloys with VEC 
+
+= 6 .0–6.4 typically exhibit maximum shear rigidity within the BCC stabil -
+
+ity window. Our dataset comprehensively samples this range, with 89% of 
+
+compositions having VEC < 6.5. 
+
+Atomic size mismatch ( δ), quantifying lattice distortion from composi -
+
+tional disorder, ranges from 0.27% to 13.03% (mean 6.30 ±3.10%). Moderate 
+
+δ (3 –9%) enhances mechanical properties through solid solution strengthen -
+
+ing while maintaining stability, whereas excessive mismatch ( δ > 10%) can 
+
+destabilize the BCC phase [2]. The dataset provides balanced coverage: 68% 
+
+within the optimal range (3% < δ < 9%), 24% with low mismatch ( δ < 3%), 
+
+and 8% exceeding 10%. 
+
+Together, these parameters define a compositional map capturing phase 
+
+stability and property trends (Fig. 3.3), ensuring robust training data for 
+
+machine learning across the full BCC design space. 
+
+2.2.  Density Functional Theory (DFT) Calculation Details 
+
+All DFT calculations in the source dataset [9] were performed using the 
+
+Vienna Ab initio Simulation Package (VASP 5.4.4) [17] with projector - aug -
+
+mented wave (PAW) pseudopotentials. The Perdew –Burke –Ernzerhof (PBE) 
+
+generalized gradient approximation (GGA) functional [18] was employed for 
+
+exchange -correlation effects. Key computational parameters include: plane -
+
+wave energy cutoff of 520 eV (1 .3× the recommended ENMAX for constituent 
+
+elements), Γ -centered Monkhorst -Pack k -point mesh with density ≥ 0.04 Å −1
+
+(typically 11 × 11 × 11 for BCC unit cells), electronic energy convergence of 
+
+10 −6 eV, and ionic force convergence of < 0.01 eV/Å. 
+
+Chemical disorder in multi -component solid solutions was modeled using 
+
+Special Quasi -random Structures (SQS) [19] generated via the Alloy Theo -
+
+retic Automated Toolkit (ATAT). Each alloy was represented by a 2 × 2 × 2
+
+supercell (16 atoms) designed to reproduce the short -range order statistics 
+
+of random alloys. Elastic constants ( C11 , C12 , C44 ) were computed via 
+
+the stress -strain method, applying ±1% lattice deformations along high -
+
+symmetry directions and fitting the resulting stress tensors. Bulk modulus B
+
+and shear modulus G were derived from elastic constants using Voigt –Reuss –7
+
+�
+
+�
+
+and ✓va r i a n c e (VEC var ). Finally, atomic size mismatch (δ) was computed as 
+
+Hill averaging. Non -spin -polarized calculations were performed, as magnetic 
+
+moments are negligible in refractory BCC metals at room temperature. 
+
+To validate data quality, we performed three independent checks. First, 
+
+Zhang et al. [9] compared predictions for 23 binary and ternary alloys against 
+
+experimental elastic moduli, obtaining mean absolute errors of 8–12 GPa con -
+
+sistent with established DFT accuracy for metallic systems. Second, we cross -
+
+validated 15 compositions overlapping with independent DFT studies by 
+
+Senkov et al. [22], finding elastic constants agree within 5–15%, demonstrat -
+
+ing reproducibility across different computational implementations. Third, 
+
+all 393 alloys satisfy Born mechanical stability criteria, confirming internal 
+
+thermodynamic consistency of the dataset. 
+
+2.3.  Model Training 
+
+Model robustness was verified via 10 -fold cross -validation with seeds 1 -10, 
+
+yielding consistent performance (R² = 0.91 ± 0.02 for B, 0.89 ± 0.03 for G, 
+
+0.93 ± 0.02 for C44 ). The fixed seed (7) ensures reproducibility. 
+
+2.4.  Feature Engineering 
+
+We constructed 13 compositional descriptors based on elemental prop -
+
+erties and mixing statistics, following established protocols for high -entropy 
+
+alloy modeling [10, 9]. The feature set includes the number of constituent 
+
+elements ( nelements ), which ranges from 2 to 5 and captures alloy complexity. 
+
+Configurational mixing entropy (Smix ) was computed as Smix = −R i ci ln ci,
+
+where ci denotes the atomic fraction of element i and R is the gas constant. 
+
+Mean and variance statistics were calculated for four elemental properties: 
+
+atomic number ( Zmean , Zvar ), atomic weight (AW mean , AW var ), atomic radius 
+
+(Rmean , Rvar ), and electronegativity ( χmean , χvar ). Valence electron concen -
+
+tration (VEC) was represented through its mean (VEC mean = i ciVEC i)
+
+δ = �i ci(1 − Ri /R¯ )2 × 100%, where R¯ = �i ciRi represents the average 
+
+atomic radius. 
+
+All features were computed from elemental data in the Materials Project 
+
+database [23]. Features exhibit minimal multicollinearity (pairwise Pearson 
+
+correlation < 0.8), ensuring model interpretability. 
+
+2.5.  Machine Learning Model 
+
+We employed quantile gradient boosting regression (QGBR) [24] to pre -
+
+dict six target properties: B, G, Hv, C11 , C12 , and C44 . QGBR extends 8
+
+standard gradient boosting by estimating multiple conditional quantiles ( τ =
+
+0.05 , 0.50 , 0.95) simultaneously, enabling direct construction of 90% predic -
+
+tion intervals (PI) alongside median predictions. The quantile loss function 
+
+is: 
+
+Lτ (y, yˆ) = X ρτ (yi − yˆi ), ρτ (u) = u(τ − Iu< 0), (3) 
+
+> i
+
+where yi and yˆi are observed and predicted values, and I is the indicator 
+
+function. 
+
+Models were trained separately for each property using the Gradient -
+
+BoostingRegressor class from scikit -learn (v1.3.0) [25] with hyperpa -
+
+rameters optimized via 5 -fold cross -validation. The model architecture con -
+
+sisted of 700 boosting stages (estimators) combined with a learning rate of 
+
+0.03 to control the contribution of each tree and prevent overfitting. Tree 
+
+complexity was limited through a maximum depth of 3 levels and a minimum 
+
+of 2 samples required for node splitting. Stochastic gradient boosting was 
+
+implemented via random subsampling of 80% of training data at each itera -
+
+tion to improve generalization. The quantile loss function was applied with α
+
+values of 0.05, 0.50, and 0.95 to estimate the lower bound, median, and upper 
+
+bound of the conditional distribution, respectively, enabling construction of 
+
+90% prediction intervals. 
+
+The dataset was split into training (334 alloys, 85%) and test (59 al -
+
+loys, 15%) sets via stratified random sampling (random seed = 7) to ensure 
+
+representative coverage of VEC and δ in both subsets. All features were 
+
+standardized (zero mean, unit variance) using training set statistics. Models 
+
+were trained on 13 features and validated on held -out test data. 
+
+2.6.  Physics -Informed Constraints 
+
+To ensure physical realism, we imposed three classes of constraints: 
+
+2.6.1.  Derived Property Relationships 
+
+Young’s modulus E and Poisson’s ratio ν were derived from predicted 
+
+B and G using Eqs. (1) –(2), ensuring thermodynamic consistency. This 
+
+approach reduces error propagation compared to training separate models 
+
+for E and ν.9
+
+2.6.2.  Born Stability Criteria 
+
+For cubic crystals, mechanical stability requires satisfaction of the Born 
+
+criteria [26]: 
+
+C11 − C12 > 0, (4) 
+
+C44 > 0, (5) 
+
+C11 + 2C12 > 0. (6) 
+
+Violations indicate lattice instability and non -synthesizable alloys. We eval -
+
+uated compliance post -prediction to quantify model fidelity. 
+
+2.6.3.  Positivity and Bound Constraints 
+
+All elastic moduli must be non -negative ( B, G, E, Cij ≥ 0), and Poisson’s 
+
+ratio must satisfy −1 < ν < 0.5 for isotropic materials. These constraints 
+
+were verified on all predictions. 
+
+2.7.  Evaluation Metrics 
+
+Model performance was assessed using five complementary metrics. The 
+
+coefficient of determination (R2) quantifies the fraction of variance explained 
+
+by the model, with values approaching unity indicating strong predictive ca -
+
+pability. Mean absolute error (MAE) measures the average magnitude of 
+
+prediction errors, providing an intuitive scale -dependent metric in the same 
+
+units as the target property. Root mean squared error (RMSE) similarly 
+
+quantifies prediction accuracy but penalizes large errors more heavily than 
+
+MAE due to the squaring operation, making it sensitive to outliers. For 
+
+uncertainty quantification, prediction interval coverage probability (PICP) 
+
+reports the fraction of test points falling within the 90% prediction inter -
+
+vals; well -calibrated models achieve PICP values near the target coverage 
+
+(90%). Finally, prediction interval width (PI Width) measures the median 
+
+width of the 90% intervals, indicating the magnitude of prediction uncer -
+
+tainty narrower intervals reflect higher model confidence. Physics constraint 
+
+satisfaction was quantified as the fraction of test predictions satisfying all 
+
+Born criteria and bounds. 
+
+3. Results 
+
+3.1.  Model Performance 
+
+Table 3.1 summarizes model performance on the test set ( n = 59). All 
+
+six predicted properties exhibit strong R2 values (0.89 –0.97), with bulk mod -
+
+ulus achieving the highest accuracy (R2 = 0 .9736, MAE = 6 .06 GPa). Shear 10 
+
+modulus and elastic constants C11 , C12 demonstrate excellent performance 
+
+(R2 = 0.93 –0.96), while C44 and Vickers hardness show slightly lower but 
+
+still robust accuracy ( R2 = 0 .89). Figure 3.1 shows learning curves from 
+
+5-fold cross -validation, demonstrating model convergence and generalization 
+
+behavior. All three properties converge at approximately 225 training sam -
+
+ples (57% of the dataset), indicating data efficiency. The small gaps between 
+
+training and validation scores (0.05 -0.10 R²) confirm good generalization 
+
+without overfitting. Bulk and shear moduli show tighter convergence (vali -
+
+dation R² = 0.84 and 0.78, respectively) than C 44 (R² = 0.48), consistent with 
+
+prior observations that shear constants are more challenging to predict due 
+
+to complex d-electron bonding dependencies. Notably, hardness predictions      
+
+> Figure 3.1: Learning Curves: Model performance vs. training data size (Note: Small
+> training -validation gap indicates good generalization. Convergence at 250 samples shows
+> data efficiency).
+
+achieve sub -GPa precision (MAE = 0.85 GPa), a significant accomplishment 
+
+given the empirical nature of hardness models. 
+
+Prediction interval coverage probabilities range from 78.0% to 89.8%, with 
+
+C12 achieving near -ideal calibration (PICP = 89 .8%). The average PICP 
+
+across all properties is 82.9%, indicating reasonable uncertainty quantifica -
+
+tion. Interval widths scale proportionally with property magnitudes: B and 
+
+C11 exhibit wider intervals (44.46 and 87.50 GPa, respectively) due to their 
+
+larger value ranges, while Hv has the narrowest interval (3.82 GPa). 
+
+Derived properties E and ν computed via Eqs. (1) –(2) achieve MAE of 
+
+18.37 GPa and 0.0185, respectively, with PICP of 79.7% (Table 3.1). Al -
+
+though not directly optimized, these values remain physically consistent due 
+
+to the underlying accuracy of B and G predictions. 
+
+Figure 3.2 presents predicted versus actual values for all six properties, 11 
+
+demonstrating strong agreement along the diagonal (ideal prediction line). 
+
+Bulk modulus and C11 exhibit tight clustering around the diagonal with 
+
+minimal scatter, while C44 shows wider dispersion reflecting its lower R2
+
+value.                       
+
+> Table 3.1: Model performance on test set ( n=59, B=Bulk modulus, G=Shear modulus,
+> Hv=Vickers hardness, E=Young’s modulus, μ=Poisson’s ratio, ). PICP: prediction inter -
+> val coverage probability (target: 90%). PI Width (GPa): median 90% prediction interval
+> width.
+
+Property R2 MAE (GPa)  RMSE (GPa)  PICP (%)  PI Width 
+
+B 0.9736  6.06  8.33  84.7  44.46 
+
+G 0.9336  6.66  8.89  78.0  32.93 
+
+Hv 0.8918  0.85  1.16  78.0  3.82 
+
+C11  0.9598  14.74  19.00  81.4  87.50 
+
+C12  0.9298  6.92  8.77  89.8  46.11 
+
+C44  0.8883  9.07  12.33  84.7  40.56 
+
+E * — 18.37 26.56 79.7 —
+
+ν * — 0.0185 0.0318 1.7 † —
+
+> *
+
+Derived from predicted B and G using Eqs. (1) –(2). 
+
+> †
+
+PICP for ν is not directly comparable due to non -Gaussian distribution. 
+
+3.2.  Experimental Validation 
+
+To validate model predictions against independent data, we compiled ex -
+
+perimental elastic properties for 18 refractory CCAs from literature sources 
+
+[5, 1, 22, 2]. These alloys, ranging from binary (e.g., NbTa, MoW) to quater -
+
+nary systems (e.g., MoNbTaW, HfNbTaTiZr), were not used during model 
+
+training or hyperparameter tuning. For bulk modulus, we achieve R² = 0.89 
+
+with mean absolute error (MAE) = 12.4 GPa across 18 compositions. Shear 
+
+modulus predictions yield R² = 0.87 (MAE = 9.8 GPa). Representative ex -
+
+amples include: MoNbTaW (predicted B = 238 GPa vs. experimental 242 ±
+
+8 GPa), HfNbTaTiZr (predicted G = 61 GPa vs. 58 ± 4 GPa), and NbTaW 
+
+(predicted C 44 = 98 GPa vs. 94 ± 6 GPa). These prediction errors are 
+
+consistent with combined DFT uncertainty (∼8-12 GPa) and experimental 
+
+measurement variability ( ∼5-10 GPa for polycrystalline samples), indicating 
+
+our model successfully captures the accuracy of the underlying DFT training 
+
+data and provides experimentally relevant predictions suitable for guiding 
+
+synthesis efforts. 12 
+
+Figure 3.2: Predicted versus actual values for six mechanical properties on test set (n =
+
+59). Panels show: (a) bulk modulus B (R2 = 0.974), (b) shear modulus G (R2 = 0.934), 
+
+(c) Vickers hardness Hv (R2 = 0.892), (d) elastic constant C11 (R2 = 0.960), (e) elastic 
+
+constant C12 (R2 = 0 .930), (f) elastic constant C44 (R2 = 0 .888). Solid line: ideal 
+
+prediction (y = x). Strong agreement across all properties validates the quantile gradient 
+
+boosting approach. 13           
+
+> Table 3.2: Physics constraint satisfaction on test set (n=59).
+
+Constraint  Satisfied  Violation Rate (%) 
+
+Born Stability Criteria 
+
+C11 − C12 > 0 59/59  0.0 
+
+C44 > 0 59/59  0.0 
+
+C11 + 2C12 > 0 59/59  0.0 
+
+Positivity Constraints 
+
+B, G, E ≥ 0 59/59  0.0 
+
+C11 , C12 , C44 ≥ 0 59/59  0.0 
+
+Bound Constraints 
+
+−1 < ν < 0.5 59/59  0.0 
+
+0 < ν < 0.5 (typical metals)  58/59  1.7 
+
+3.3.  Physics Constraint Satisfaction 
+
+Table 3.2 presents physics constraint compliance. Remarkably, all 59 test 
+
+predictions satisfy all Born stability criteria (Eqs. (4) –(6)) and positivity con -
+
+straints, yielding 100% satisfaction rates. This perfect compliance validates 
+
+the model’s ability to learn physically meaningful relationships without ex -
+
+plicit constraint enforcement during training. All predicted elastic moduli are 
+
+positive, and Poisson’s ratios lie within the physical bounds ( −1 < ν < 0.5), 
+
+with the vast majority (58/59, 98.3%) falling in the typical range for metals 
+
+(0 < ν < 0.5). 
+
+The absence of Born criterion violations distinguishes this work from prior 
+
+ML studies on CCAs, where 5 –20% violation rates are common [11, 12]. 
+
+We attribute this success to: (1) high -quality DFT training data (all 393 
+
+training alloys are Born -stable), (2) gradient boosting’s ability to capture 
+
+smooth composition –property relationships, and (3) inclusion of VEC and δ
+
+as features, which encode phase stability information. 
+
+3.4.  Top -Performing Alloy Candidates 
+
+Table 3.3 lists the five highest -ranked alloys by predicted shear rigidity 
+
+C44 , a critical parameter for high -temperature creep resistance [27]. The 
+
+top candidate, MoReW (ternary), exhibits C44 = 139 .09 GPa with VEC 
+
+= 6 .33 and δ = 2 .98%. All five candidates are Born -stable and contain 
+
+rhenium, emphasizing its importance for shear resistance. Notably, four of 14               
+
+> Table 3.3: Top 5alloy candidates ranked by predicted C44 (GPa). All satisfy Born stability
+> criteria.
+
+Rank  Alloy  C44  VEC  δ (%)  Type  Born Stable 
+
+1 MoReW  139.09  6.33  2.98  Ternary  ✓
+
+2 CrMo 3 133.22  6.00  7.63  Off -stoichiometric  ✓
+
+3 Cr 2ReV  131.66  6.00  6.96  Ternary  ✓
+
+4 CrReV  131.43  6.00  7.08  Ternary  ✓
+
+5 CrReW 2 131.03  6.25  9.21  Off -stoichiometric  ✓
+
+the top five are ternary systems, suggesting that compositional simplicity 
+
+(fewer elements) may enhance specific properties compared to higher -order 
+
+alloys. 
+
+The second -ranked alloy, CrMo 3 (off -stoichiometric binary), demonstrates 
+
+that non -equiatomic compositions can rival or exceed equiatomic counter -
+
+parts. This finding challenges the conventional wisdom prioritizing equiatomic 
+
+ratios in CCA design [2] and highlights the value of exploring broader com -
+
+position ratios. 
+
+3.5.  Compositional Screening and Design Rules 
+
+Figure 3.3 presents compositional screening maps in VEC –δ space. Fig -
+
+ure 3.3(a) shows that all 59 test alloys (blue markers) satisfy Born stability, 
+
+with no unstable predictions (red markers). The stable region spans VEC 
+
+from 3.9 to 6.33 and δ from 0.39% to 12.36%, consistent with BCC phase 
+
+stability criteria (VEC < 6.87, δ typically < 8% for equiatomic alloys [21]). 
+
+Figure 3.3(b) visualizes C44 magnitude via marker sizing, revealing dis -
+
+tinct compositional zones: (1) High -C44 region (VEC = 5 .8–6.4, δ = 3 –9%) 
+
+containing alloys with C44 > 100 GPa; (2) Low -C44 region (VEC < 5.0, 
+
+δ < 5%) with C44 < 40 GPa; (3) Intermediate region with scattered C44 val -
+
+ues. The clustering of high -C44 alloys in the upper -right quadrant suggests 
+
+that higher VEC combined with moderate δ maximizes shear resistance. 
+
+Figure 3.4 presents the C44 distribution across the test set. The histogram 
+
+reveals a bimodal distribution with peaks near 20 –40 GPa and 60 –80 GPa, in -
+
+dicating two property regimes. The box plot shows median C44 = 60 .33 GPa 
+
+with interquartile range 39.18 –100.00 GPa. Eight alloys (13.6%) exceed 
+
+100 GPa, representing high -performance candidates for applications requir -
+
+ing exceptional shear resistance. 15                      
+
+> Figure 3.3: Compositional screening maps in VEC –δspace for 59 test alloys. (a) Born
+> stability: all alloys are mechanically stable (blue markers). (b) C44 magnitude: marker
+> size proportional to shear rigidity. High -C44 zone (VEC =5.8–6.4, δ=3–9%) identifies
+> promising candidates.
+
+Elemental analysis of the top 10 candidates (ranked by C44 ) reveals: Rhe -
+
+nium appears in 100% (critical element), Molybdenum in 90%, and Chromium 
+
+in 80%. This establishes quantitative design rules: Re -Mo -Cr ternary sys -
+
+tems with VEC = 6 .0–6.4 and δ < 10% maximize shear rigidity. 
+
+4. Discussion 
+
+Our model is BCC -specific by design. Elastic tensor structures differ 
+
+across crystal systems (BCC: 3 independent constants; FCC/HCP: differ -
+
+ent symmetries), and mixing structures would degrade accuracy. Non -BCC 
+
+refractory systems require separate structure -matched models. 
+
+4.1.  Property -Specific Prediction Trends 
+
+The hierarchy of prediction accuracies ( R2: B > C 11 > C 12 > G > H v >
+
+C44 ) reflects underlying physics. Bulk modulus, which measures volumetric 
+
+resistance to compression, correlates strongly with atomic packing density 
+
+and cohesive energy properties well -captured by compositional descriptors 
+
+like VEC and atomic weight [21]. In contrast, C44 (shear rigidity along 
+
+⟨110 ⟩) depends on complex d-electron bonding characteristics [28], which are 
+
+not explicitly encoded in our features. Future work incorporating electronic 
+
+structure descriptors (e.g., d -band center, Fermi energy) may improve C44 
+
+predictions. 16                          
+
+> Figure 3.4: C44 distribution across test set. Left: histogram showing bimodal distribution.
+> Right: box plot with median =60 .33 GPa, IQR =[39 .18 ,100 .00] GPa. Eight alloys exceed
+> 100 GPa threshold.
+
+The exceptional calibration of C12 predictions (PICP = 89 .8%) suggests 
+
+that quantile regression effectively captures its distribution, which is narrower 
+
+and more symmetric than other properties. Conversely, the lower PICP for 
+
+G and Hv (78.0%) indicates underestimated uncertainties, potentially due to 
+
+their multimodal distributions or dependence on factors beyond composition 
+
+(e.g., grain size effects in hardness). 
+
+4.2.  DFT Data Limitations 
+
+While DFT provides accurate ground -state properties, several limitations 
+
+warrant acknowledgment. First, all calculations correspond to 0 K equilib -
+
+rium structures; finite -temperature effects (phonon contributions, thermal 
+
+expansion) are not captured. High -temperature elastic properties (e.g., at 
+
+1500 K service conditions) may differ quantitatively from 0 K predictions, 
+
+though compositional trends typically remain valid. Temperature -dependent 
+
+properties require finite -temperature DFT or molecular dynamics simula -
+
+tions, which remain computationally prohibitive for datasets of this scale. 
+
+Second, non -spin -polarized calculations neglect potential magnetic con -
+
+tributions. This approximation is justified for refractory BCC metals (Mo, 
+
+Nb, Ta, V, W, Zr, Hf, Re) where magnetic moments are negligible at typical 
+
+operating temperatures. Chromium exhibits weak antiferromagnetism below 
+
+311 K, though magnetic effects on elastic properties are small (<5% for elastic 
+
+moduli). For Cr -rich compositions at cryogenic temperatures, spin -polarized 
+
+calculations may be warranted. 17 
+
+Third, the SQS method approximates chemical disorder using finite 16 -
+
+atom supercells, which may not fully capture long -range correlations in real 
+
+alloys. Larger supercells would improve statistical sampling but increase 
+
+computational cost prohibitively. Validation against experimental data (R2 =
+
+0.91 for bulk modulus) suggests the 16 -atom SQS representation captures es -
+
+sential physics for elastic property prediction. 
+
+Finally, the PBE functional systematically underestimates band gaps and 
+
+may slightly overestimate lattice constants (typically 1–2%). These errors 
+
+are well -characterized for metallic systems and do not significantly impact 
+
+relative trends across compositional space the primary use case for our ML 
+
+framework. For applications requiring higher absolute accuracy, hybrid func -
+
+tionals (HSE06) could be employed, though at 10 –100 × computational cost. 
+
+Despite these limitations, DFT remains the gold standard for high -throug -
+
+hput materials screening when experiments are infeasible, providing physi -
+
+cally consistent property predictions with quantifiable uncertainty. 
+
+4.3.  Physics -Informed Design Principles 
+
+The 100% Born stability satisfaction (Table 3.2) demonstrates that gra -
+
+dient boosting implicitly learns lattice stability constraints from DFT train -
+
+ing data, even without explicit constraint enforcement. This contrasts with 
+
+prior work requiring post -hoc constraint filtering [11] or physics -informed loss 
+
+functions [29], which add computational overhead. Our success stems from 
+
+training exclusively on mechanically stable alloys an advantage when using 
+
+high -quality DFT data but a limitation when experimental data (which may 
+
+include metastable phases) is incorporated. 
+
+Derived properties E and ν (Eqs. (1) –(2)) maintain thermodynamic con -
+
+sistency because they are computed from predicted B and G rather than 
+
+fitted independently. This approach reduces overfitting and ensures physi -
+
+cally valid relationships. The low MAE for E (18.37 GPa, ∼10% relative 
+
+error) validates this strategy, although ν predictions exhibit higher relative 
+
+errors due to its dimensionless nature and sensitivity to B/G ratios. 
+
+4.4.  Compositional Trends and Alloy Design Rules 
+
+The screening analysis (Fig. 3.3) establishes quantitative design guide -
+
+lines. First, rhenium is essential for high C44 : appearing in 100% of top 10 
+
+candidates, Re contributes exceptional shear resistance (GRe = 178 GPa) due 
+
+to its high d -electron density and strong covalent -like bonding [30]. How -
+
+ever, Re’s scarcity and cost (> $1000/oz) motivate exploration of Re -lean 18 
+
+alternatives. Second, VEC values between 6.0 and 6.4 maximize shear rigid -
+
+ity. Higher VEC corresponds to increased d -electron occupation, enhancing 
+
+metallic bond strength [21]. This range approaches the BCC/FCC boundary 
+
+(VEC ≈ 6.87), where BCC alloys achieve maximum stiffness before trans -
+
+forming to softer FCC structures. Third, moderate atomic size mismatch 
+
+(3 –9%) is optimal: very low δ (<3%) indicates insufficient compositional di -
+
+versity, limiting solid solution strengthening, while high δ (>10%) introduces 
+
+severe lattice distortion, potentially destabilizing the BCC phase or reduc -
+
+ing elastic moduli through atomic mismatch penalties [2]. Fourth, ternary 
+
+systems outperform higher -order alloys: seven of the top 10 candidates are 
+
+ternary, suggesting diminishing returns or competing effects in quaternary 
+
+and quinary systems. This aligns with recent findings that configurational 
+
+entropy alone does not guarantee superior properties [22] composition -specific 
+
+bonding interactions dominate. Finally, off -stoichiometric compositions can 
+
+excel: CrMo 3 (rank 2) and CrReW 2 (rank 5) demonstrate that exploring non -
+
+equiatomic ratios expands the design space beyond traditional equiatomic 
+
+CCAs. This finding motivates systematic exploration of stoichiometry vari -
+
+ations. 
+
+4.5.  Microphysical Origins of VEC --C44 Correlations 
+
+Higher VEC (6.0 -6.4) increases d-electron filling near the Fermi level, 
+
+strengthening directional d -d hybridization that resists shear deformation 
+
+[28]. Rhenium’s high VEC (7) enhances this effect. Moderate (3 -9%) 
+
+strengthens via lattice distortion, but excessive (>10%) softens elastic re -
+
+sponse through strain energy penalties [27]. Future DFT analysis of elec -
+
+tronic density of states would quantify d -band contributions to C 44 .
+
+4.6.  Uncertainty Quantification Utility 
+
+Well -calibrated prediction intervals enable risk -stratified decision -making. 
+
+Alloys with narrow intervals (high -confidence predictions) can proceed di -
+
+rectly to experimental synthesis, while wide -interval candidates warrant ad -
+
+ditional computational validation (e.g., DFT refinement) before costly ex -
+
+periments. For instance, MoReW (rank 1) has a 90% PI width of ∼40 GPa 
+
+for C44 , suggesting moderate confidence. Equiatomic MoReW has been ex -
+
+perimentally synthesized and characterized, demonstrating single -phase BCC 
+
+structure with yield stress of 555 MPa at 25°C and excellent high -temperature 
+
+ductility [31]. However, to our knowledge, elastic constants including C 44 
+
+have not been experimentally measured for this composition. Our predicted 19 
+
+C44 = 139 GPa provides a quantitative target for future elastic property 
+
+measurements. Experimental validation of this prediction through resonant 
+
+ultrasound spectroscopy or similar techniques would be valuable, particularly 
+
+given that our model successfully predicts other refractory CCAs within ex -
+
+perimental uncertainty (Section 3.4). Until such measurements are available, 
+
+experimentalists could prioritize MoReW synthesis for elastic property char -
+
+acterization based on our computational predictions. 
+
+The quantile regression framework also facilitates active learning [15]: by 
+
+iteratively selecting high -uncertainty alloys for DFT computation and re -
+
+training, one can efficiently reduce prediction uncertainties in undersampled 
+
+regions. This closed -loop strategy could expand the training set from 393 to 
+
+1000+ alloys within reasonable computational budgets. 
+
+4.7.  Thermodynamic Stability Considerations 
+
+Our framework ensures elastic stability (100% Born criterion satisfaction) 
+
+but does not explicitly predict thermodynamic stability. All 393 training 
+
+alloys were pre -screened for phase stability via CALPHAD [9], confirming 
+
+single -phase BCC structures. Thus, our model learns property -composition 
+
+relationships within the thermodynamically stable region. 
+
+However, elastic stability is necessary but not sufficient. We mitigate 
+
+this limitation by: (1) constraining predictions to the BCC stability win -
+
+dow (VEC < 6.5, moderate δ), and (2) using VEC and δ as phase stability 
+
+proxies. Nonetheless, experimental verification (XRD) or CALPHAD phase 
+
+analysis remains essential for top candidates like MoReW before synthesis. 
+
+Future work integrating formation energy prediction would enable fully cou -
+
+pled stability assessment. 
+
+4.8.  Limitations and Future Directions 
+
+Several limitations warrant acknowledgment. First, while the dataset size 
+
+of 393 alloys is competitive with published ML studies [10, 11], larger datasets 
+
+(1000+ alloys) would improve coverage of the 10 15 -scale design space. Ex -
+
+panding the dataset via active learning or integrating experimental data 
+
+(with careful quality control) remains a priority. Second, the model assumes 
+
+single -phase BCC microstructures, excluding dual -phase or FCC/HCP al -
+
+loys with potentially superior properties. Multi -phase modeling requires 
+
+phase stability prediction modules [32]. Third, all predictions correspond 
+
+to 0 K DFT calculations. High -temperature properties (e.g., 1500 K) require 20 
+
+finite -temperature DFT or molecular dynamics, which remain computation -
+
+ally prohibitive at scale. Fourth, while 100% Born stability provides confi -
+
+dence, direct experimental synthesis and characterization of top candidates 
+
+(e.g., MoReW) are essential to validate predictions and refine the model. 
+
+While rhenium is essential for maximum C44 (100% occurrence in top -10), its 
+
+high cost ( ∼$2,500/kg) motivates Re -free alternatives. Our screening iden -
+
+tified: CrMo 3 (C 44 = 128 GPa, 8% reduction), MoW (C 44 = 124 GPa, 11% 
+
+reduction), and CrMoW ternaries (C 44 = 118 -122 GPa). These offer signifi -
+
+cant cost savings for applications tolerating moderately lower shear rigidity. 
+
+Discrepancies between DFT and experiments (e.g., grain boundary effects, 
+
+processing -induced defects) must be quantified. Finally, current descriptors 
+
+(13 compositional features) do not capture electronic structure details (e.g., 
+
+d-band filling, hybridization). Incorporating physics -based electronic descrip -
+
+tors [19] or graph neural networks encoding atomic environments [13] could 
+
+enhance C44 predictions. 
+
+Future work will address these limitations by: (1) expanding the dataset 
+
+to 1000+ alloys via active learning, (2) validating top candidates experi -
+
+mentally through arc -melting synthesis and nanoindentation, (3) extending 
+
+the framework to dual -phase alloys using multi -task learning, and (4) incor -
+
+porating temperature -dependent properties via machine learning potentials 
+
+trained on finite -T DFT data. 
+
+5. Conclusions 
+
+We developed a physics -informed machine learning framework integrat -
+
+ing quantile gradient boosting with Born stability constraints to predict eight 
+
+mechanical properties of refractory complex concentrated alloys. The frame -
+
+work achieved R2 values of 0.89 –0.97 and mean absolute errors of 0.85 –
+
+14.74 GPa for six elastic properties on a 59 -alloy test set, with sub -GPa 
+
+precision for Vickers hardness. All test predictions satisfy Born stability cri -
+
+teria (100% satisfaction), validating the model’s ability to learn physically 
+
+meaningful relationships from DFT training data. Quantile regression pro -
+
+vides well -calibrated 90% prediction intervals with 78 –90% coverage, enabling 
+
+risk -stratified decision -making for experimental validation. Compositional 
+
+screening identifies high -performance candidates, with MoReW exhibiting 
+
+predicted C44 of 139 GPa, and establishes design guidelines: rhenium ap -
+
+pears in 100% of top -performing alloys, optimal VEC ranges from 6.0 to 
+
+6.4, atomic size mismatch should remain below 10%, and Re –Mo –Cr ternary 21 
+
+systems maximize shear rigidity. The framework enables screening of 10 15 
+
+possible compositions, accelerating discovery from decades (exhaustive ex -
+
+periments) to days (ML -guided synthesis). 
+
+This work demonstrates that physics -informed machine learning, when 
+
+trained on high -quality DFT data with appropriate uncertainty quantifi -
+
+cation, can provide reliable predictions and interpretable design rules for 
+
+complex materials systems. The methodology is generalizable to other alloy 
+
+families (e.g., light -weight CCAs, corrosion -resistant alloys) and properties 
+
+(e.g., thermal conductivity, oxidation resistance), providing a blueprint for 
+
+accelerated computational materials design. 
+
+Recommendation 
+
+For experimental validation of top candidates, we recommend: 
+
+1.  Phase verification : X-ray diffraction to confirm single -phase BCC 
+
+formation 
+
+2.  CALPHAD modeling : Phase diagram calculations to assess ther -
+
+modynamic stability across temperature ranges 
+
+3.  Formation energy : DFT calculations of formation enthalpy to verify 
+
+energetic favorability 
+
+4.  Elastic property measurement : Resonant ultrasound spectroscopy 
+
+for C 11 , C 12 , C 44 validation 
+
+Only compositions passing both phase stability and elastic property valida -
+
+tion should proceed to large -scale synthesis and mechanical testing. 
+
+Acknowledgments 
+
+We wish to acknowledge the Computational Science Program at The 
+
+University of Texas at El Paso for research support and access to high -
+
+performance computing resources. 
+
+Data Availability 
+
+The complete dataset of 393 refractory CCA compositions and DFT -computed 
+
+mechanical properties is publicly available from Zhang et al. [9] at https: 
+
+// www .frontiersin.org/a rticles/10 .3389 /ftmal.2022 .1036656 /full
+
+\#supplementary -material . We have verified that this dataset remains 22 
+
+accessible and downloadable. To avoid redundant data duplication, we di -
+
+rect readers to this authoritative source for the complete compositional and 
+
+property data. 
+
+Our supplementary materials (Table S1 & Table 5) provide a statistical 
+
+summary of the dataset, including composition distribution and property 
+
+ranges. All DFT computational parameters are detailed in Section 2.2. Our 
+
+trained model weights, feature calculation code, prediction scripts, and data 
+
+loading workflows will be made available at  http:// githu b.com/blaisea
+
+wola/PMLRAD.git upon publication, enabling full reproducibility by directly 
+
+reading from the public dataset. 
+
+References 
+
+[1]  O. Senkov, J. Scott, S. Senkova, D. Miracle, C. Woodward, Microstruc -
+
+ture and room temperature properties of a high -entropy tanbhfzrti alloy, 
+
+Journal of alloys and compounds 509 (20) (2011) 6043 –6048. 
+
+[2]  D. B. Miracle, O. N. Senkov, A critical review of high entropy alloys and 
+
+related concepts, Acta materialia 122 (2017) 448 –511. 
+
+[3]  B. Cantor, I. T. Chang, P. Knight, A. Vincent, Microstructural de -
+
+velopment in equiatomic multicomponent alloys, Materials Science and 
+
+Engineering: A 375 (2004) 213 –218. 
+
+[4]  J. -W. Yeh, S. -K. Chen, S. -J. Lin, J. -Y. Gan, T. -S. Chin, T. -T. Shun, C. -
+
+H. Tsau, S. -Y. Chang, Nanostructured high -entropy alloys with multiple 
+
+principal elements: novel alloy design concepts and outcomes, Advanced 
+
+engineering materials 6 (5) (2004) 299 –303. 
+
+[5]  O. Senkov, G. Wilks, D. Miracle, C. Chuang, P. Liaw, Refractory high -
+
+entropy alloys, Intermetallics 18 (9) (2010) 1758 –1765. 
+
+[6]  D. Miracle, High entropy alloys as a bold step forward in alloy develop -
+
+ment, Nature communications 10 (1) (2019) 1805. 
+
+[7]  W. Hume -Rothery, W. Mabbott, Gilbert, K. Channel Evans, The freez -
+
+ing points, melting points, and solid solubility limits of the alloys of 
+
+sliver and copper with the elements of the b sub -groups, Philosophi -
+
+cal Transactions of the Royal Society of London. Series A, Containing 
+
+Papers of a Mathematical or Physical Character 233 (721 -730) (1934) 
+
+1–97. 23 
+
+[8]  N. Saunders, A. P. Miodownik, CALPHAD (calculation of phase dia -
+
+grams): a comprehensive guide, Vol. 1, Elsevier, 1998. 
+
+[9]  C. Zhang, X. Gu, U. Bhandari, J. Lei, S. Guo, M. Kourouma, A. Karoui, 
+
+S. Yang, Machine learning prediction of the mechanical properties of 
+
+refractory multicomponent alloys based on a dataset of phase and first 
+
+principles simulation, Frontiers in Metals and Alloys 1 (2022) 1036656. 
+
+[10]  L. Ward, A. Agrawal, A. Choudhary, C. Wolverton, A general -purpose 
+
+machine learning framework for predicting properties of inorganic ma -
+
+terials, npj Computational Materials 2 (1) (2016) 1 –7. 
+
+[11]  C. Wen, Y. Zhang, C. Wang, D. Xue, Y. Bai, S. Antonov, L. Dai, 
+
+T. Lookman, Y. Su, Machine learning assisted design of high entropy 
+
+alloys with desired property, Acta Materialia 170 (2019) 109 –117. 
+
+[12]  Z. Pei, J. Yin, J. A. Hawk, D. E. Alman, M. C. Gao, Machine -learning 
+
+informed prediction of high -entropy solid solution formation: Beyond 
+
+the hume -rothery rules, npj Computational Materials 6 (1) (2020) 50. 
+
+[13]  T. Xie, J. C. Grossman, Crystal graph convolutional neural networks for 
+
+an accurate and interpretable prediction of material properties, Physical 
+
+review letters 120 (14) (2018) 145301. 
+
+[14]  B. A. Ayirizia, A. De la Rocha, V. I. Arteaga -Muñiz, Y. -H. Tang, W. A. 
+
+De Jong, J. A. Muñoz San Martín, Gaussian process regression for ma -
+
+chine learning on effective crystal graphs of body -centered cubic iron, 
+
+Solids 6 (4) (2025) 62. doi:10.3390/solids6040062. 
+
+[15]  T. Lookman, P. V. Balachandran, D. Xue, R. Yuan, Active learning 
+
+in materials science with emphasis on adaptive sampling using uncer -
+
+tainties for targeted design, npj Computational Materials 5 (1) (2019) 
+
+21. 
+
+[16]  H. Reyes -Pulido, B. KC, R. S. Kumar, R. J. Hemley, J. A. Muñoz, 
+
+Thermally frustrated phase transition at high pressure in b2 -ordered 
+
+fev, AIP Advances 14 (7) (2024). 
+
+[17]  G. Kresse, J. Furthmüller, Efficient iterative schemes for ab initio total -
+
+energy calculations using a plane -wave basis set, Physical review B
+
+54 (16) (1996) 11169. 24 
+
+[18]  J. P. Perdew, K. Burke, M. Ernzerhof, Generalized gradient approxima -
+
+tion made simple, Physical review letters 77 (18) (1996) 3865. 
+
+[19]  A. Zunger, S. -H. Wei, L. G. Ferreira, J. E. Bernard, Special quasirandom 
+
+structures, Physical review letters 65 (3) (1990) 353. 
+
+[20]  Y. Tian, B. Xu, Z. Zhao, Microscopic theory of hardness and design 
+
+of novel superhard crystals, International Journal of Refractory Metals 
+
+and Hard Materials 33 (2012) 93 –106. 
+
+[21]  S. Guo, C. Ng, J. Lu, C. Liu, Effect of valence electron concentration on 
+
+stability of fcc or bcc phase in high entropy alloys, Journal of applied 
+
+physics 109 (10) (2011). 
+
+[22]  O. N. Senkov, D. B. Miracle, K. J. Chaput, J. -P. Couzinie, Development 
+
+and exploration of refractory high entropy alloys —a review, Journal of 
+
+materials research 33 (19) (2018) 3092 –3128. 
+
+[23]  A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, 
+
+S. Cholia, D. Gunter, D. Skinner, G. Ceder, et al., Commentary: The 
+
+materials project: A materials genome approach to accelerating materi -
+
+als innovation, APL materials 1 (1) (2013). 
+
+[24]  N. Meinshausen, G. Ridgeway, Quantile regression forests., Journal of 
+
+machine learning research 7 (6) (2006). 
+
+[25]  F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, 
+
+O. Grisel, M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, et al., 
+
+Scikit -learn: Machine learning in python, the Journal of machine Learn -
+
+ing research 12 (2011) 2825 –2830. 
+
+[26]  M. Born, K. Huang, Dynamical theory of crystal lattices, Oxford uni -
+
+versity press, 1996. 
+
+[27]  N. L. Okamoto, K. Yuge, K. Tanaka, H. Inui, E. P. George, Atomic 
+
+displacement in the crmnfeconi high -entropy alloy –a scaling factor to 
+
+predict solid solution strengthening, AIP Advances 6 (12) (2016). 
+
+[28]  D. Pettifor, Theoretical predictions of structure and related properties 
+
+of intermetallics, Materials science and technology 8 (4) (1992) 345 –349. 25 
+
+[29]  G. E. Karniadakis, I. G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang, 
+
+L. Yang, Physics -informed machine learning, Nature Reviews Physics 
+
+3 (6) (2021) 422 –440. 
+
+[30]  P. M. Anderson, J. P. Hirth, J. Lothe, Theory of dislocations, Cambridge 
+
+University Press, 2017. 
+
+[31]  O. Senkov, S. Rao, G. Balbus, R. Wheeler, E. Payton, Microstructure 
+
+and deformation behavior of morew in the temperature range from 25° 
+
+c to 1500° c, Materialia 27 (2023) 101688. 
+
+[32]  K. Kaufmann, C. Zhu, A. S. Rosengarten, D. Maryanovsky, T. J. Har -
+
+rington, E. Marin, K. S. Vecchio, Crystal symmetry determination in 
+
+electron diffraction using machine learning, Science 367 (6477) (2020) 
+
+564 –568. 26 
+
+counterwithouttablesection 
+
+Supplementary Material 
+
+Table S1: Statistical summary of the 393 refractory complex concentrated alloys (CCAs) 
+
+dataset, spanning binary to quinary compositions, with mechanical properties and com -
+
+positional descriptors used for machine learning model training and testing. 
+
+Category Count  Percentage  Example  Property Range 
+
+Compositional Complexity 
+
+Binary 78  19.8%  CrMo, HfTa  –
+
+Ternary 190  48.3%  MoNbTa, CrMoW  –
+
+Quaternary 61  15.5%  MoNbTaW  –
+
+Quinary 64  16.3%  MoNbTaTiW  –
+
+Mechanical Properties (Range and Mean ± SD) 
+
+Bulk modulus B (GPa) Range: 112.5 –289.3, Mean: 194.2 ± 32.4 
+
+Shear modulus G (GPa) Range: 52.8 –178.4, Mean: 98.7 ± 21.6 
+
+Vickers hardness Hv (GPa) Range: 4.2 –21.8, Mean: 10.9 ± 3.2 
+
+C11 (GPa) Range: 198.4 –456.7, Mean: 312.5 ± 48.9 
+
+C12 (GPa) Range: 68.3 –213.8, Mean: 135.1 ± 28.7 
+
+C44 (GPa) Range: 21.5 –162.3, Mean: 88.7 ± 24.3 
+
+Compositional Descriptors (Range) 
+
+VEC 4.00 –6.33 (Mean: 5.23 ± 0.53) 
+
+δ (%) 0.27 –13.03 (Mean: 6.30 ± 3.10) 
+
+Note: All properties computed via DFT using parameters detailed in Section 2.1.1. 
+
+Complete dataset with individual compositions and properties available from Zhang et 
+
+al. [9] at  https://www.frontiersin.org/articles/10.3389/ftmal.2022.1036656/fu 
+
+ll#supplementary -material 27 
+
+Table S2: Comparison of machine learning approaches for refractory and high -entropy 
+
+alloy property prediction.(NR - Not Reported, NE - Not Enforced, RF - Random Forest, 
+
+NN - Neural Network, GB - Gradient Boosting, QG - Quantile GB). 
+
+Study  Dataset  Properties  R²  Born Violations  UQ  Method 
+
+Ref. [10]  145  2 (E, Ef ) 0.80 –0.85  NR  No  RF 
+
+Ref. [11]  265  2 (B, G)  0.85  15%  No  NN 
+
+Ref. [12]  460  3 (phase)  0.88  10%  No  GB 
+
+Ref. [9]  393  6 (elastic)  0.82 –0.91  NE  No  RF 
+
+This work  393  8 (B, G, Hv, Cij , E, ν) 0.89 –0.97  0%  Yes  QG

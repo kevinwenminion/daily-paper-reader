@@ -1,0 +1,459 @@
+Title: Guided Synthesis of EMT Zeolites by Machine Learning
+
+URL Source: https://arxiv.org/pdf/2608.03760v1
+
+Published Time: Wed, 05 Aug 2026 01:27:09 GMT
+
+Number of Pages: 24
+
+Markdown Content:
+Guided Synthesis of EMT Zeolites by Machine Learning 
+
+Emmanuel A. Olanrewaju, 1 Santosh Adhikari, 1 Zhiyin Niu, 1 Michael Nikolaou, 1 Jeremy C. Palmer, 1 Jeffrey D. Rimer, 1 and Mingjian Wen 1, ∗
+
+> 1
+
+William A. Brookshire Department of Chemical and Biomolecular Engineering, University of Houston, Houston, TX, 77204, USA 
+
+Zeolites are microporous crystalline materials with diverse frameworks, widely used in industrial applications such as petroleum refining and molecular separation. Unlike most zeolites, EMT can be synthesized under mild conditions (at low temperatures and without the use of organic structure-directing agents), making it attractive for cost-effective and environmentally sustainable production. However, the specific synthesis conditions that selectively produce EMT rather than similar frame-works like FAU are not yet well established. In this work, we develop machine learning (ML) models to guide the discovery of synthesis conditions for EMT zeolites. Our dataset comprises 174 experimental synthesis attempts, recording reaction time, temperature, silica and alumina sources, Si/Al stoichiometric ratio, and other synthesis parameters. We apply both classical ML methods and pretrained foundation models to predict zeolite framework outcomes from these synthesis pa-rameters. Feature importance analysis identifies critical parameters for EMT formation, validating known synthesis principles. Leveraging the ML models, we explore the synthesis space and identify six promising new conditions for EMT formation. Experimental validation confirms EMT crystal-lization in five cases, including two with Si/Al stoichiometric ratios outside the training dataset’s range. Evaluation on independent literature-reported synthesis conditions further demonstrates the generalizability of the model. This work demonstrates a data-driven approach to accelerating zeolite synthesis, closing the loop between ML prediction and experimental validation. 
+
+I. INTRODUCTION 
+
+Zeolites are crystalline materials containing pores and channels arranged in highly ordered three-dimensional frameworks. Their unique pore sizes and channel ge-ometries, which can be chemically tuned, make them invaluable for industrial processes like petroleum refin-ing (where they help convert crude oil into gasoline) and molecular separation (where they selectively filter molecules based on size and shape)[1–4]. The synthesis of a specific zeolite framework depends on a complex in-terplay of parameters such as atomic composition (e.g., SiO 2 and Al 2O3 molar amounts and stoichiometric ra-tio), reaction conditions (e.g., time and temperature), and even precursor sources (e.g., fumed vs colloidal sil-ica sources) [5, 6]. No unique synthesis route exists for a given zeolite framework; variations in synthesis parame-ters can yield the same crystalline phase, demonstrating the flexibility of the synthesis process [7–11]. For exam-ple, EMT zeolites, typically synthesized at low temper-atures of 30–60 °C with Si/Al ratios around 2 [12, 13], have been successfully dealuminated (post-processed) at elevated temperatures of 450–600 °C to obtain Si/Al ra-                
+
+> ∗mjwen@uestc.edu.cn; Present address: Institute of Fundamental and Frontier Sciences, University of Electronic Science and Tech-nology of China, Chengdu, 611731, China
+> ©2026 American Physical Society. This is the accepted manuscript of the following article: E. A. Olanrewaju et al. ,“Guided synthesis of EMT zeolites by machine learning,” Phys. Rev. Materials 10 , 083801 (2026). The final published ver-sion is available at https://doi.org/10.1103/v2yp-ylxm. This manuscript version is posted with permission for non-commercial scholarly use.
+
+tios ranging from 4.5 to 52 [14]. Despite this flexibility, small changes in synthesis parameters can result in com-pletely different zeolite frameworks [15–17]. For example, at low temperature, minor variations in temperature or reaction time can lead to a transition from EMT to alter-native frameworks such as FAU or SOD [13]. This dual behavior reveals fundamental gaps in understanding the factors governing zeolite synthesis. Computational methods have been extensively em-ployed to study zeolites. Molecular simulations using classical force fields have successfully modeled molecu-lar adsorption and transport processes within zeolites [18–21]. First-principles calculations based on density functional theory (DFT) have provided accurate pre-dictions of electronic structure, framework thermody-namic stability, and zeolite-catalyzed reactions [22–27]. Modeling the zeolite synthesis process, however, still re-mains infeasible. Classical force fields require extensive system-specific parameterization [28], and are further limited by accessible time and length scales, typically capturing only microsecond-scale processes in complex, multi-component synthesis environments of synthesis gel. DFT, while more accurate, incurs prohibitive computa-tional costs for the relevant length and time scales in-volved in zeolite crystallization [6, 29]. More recently, machine learning (ML) techniques have been applied to investigate zeolite synthesis. Extensive databases of zeolites have been constructed using data mining and natural language processing to systematically extract synthesis information from the literature [30–32]. Using such databases, ML models have been developed for mapping the synthesis–structure–property relation-ship [33–41]. These studies have provided insights into the factors governing zeolite synthesis, such as the ef-arXiv:2608.03760v1 [cond-mat.mtrl-sci] 4 Aug 2026 2fects of synthesis parameters on product yield [35] and inorganic structure-directing agents [36]. Despite the progress and success, most existing work in this domain employs ML models to categorize synthesis conditions based on the resulting zeolite frameworks. However, the reliability of these predictions often remains unverified, primarily for two reasons. First, the adopted ML meth-ods inherently contain errors and uncertainties, particu-larly when trained on limited datasets [42–44]. Second, and more critically, the proposed synthesis conditions are rarely experimentally validated [6, 45]. In this work, we integrate data analytics, ML meth-ods, and experiments to study the synthesis conditions that govern EMT formation. Using an in-house dataset of 174 experimental synthesis conditions targeting EMT zeolites, we develop ML models to predict crystalliza-tion outcomes. Comprehensive evaluation of multiple al-gorithms, including both classical statistical ML meth-ods [46] and the recently introduced TabPFN founda-tion model [47], reveals comparable performance across all methods. The ML models successfully identify key synthesis parameters such as temperature, Si/OH stoi-chiometric ratio, Si/Al stoichiometric ratio, and Si molar amount that play a significant role in the formation of EMT zeolites. We also leverage the developed ML models to explore synthesis conditions that favor EMT formation. This is accomplished by first generating new synthesis condi-tions in a dimension-reduced latent space, followed by screening these conditions based on both the predicted likelihood of forming EMT frameworks (as determined by the ML models) and additional criteria, such as the uniqueness of each condition. Subsequent synthesis ex-periments demonstrate that five of the top six predicted conditions result in a pure EMT phase. Thus, the ML models are found to have a success rate of 83%. This value is significantly larger than the baseline prevalence in the training data set, where only 32% of the conditions yielded pure EMT. Notably, while all synthesis mixture Si/Al ratios in the training data exceeded 2.5, two of the five successful conditions exhibited lower ratios of 1.77 and 2.3. This demonstrates that our ML approach can identify synthesis conditions that extrapolate beyond the parameter space of the training data, uncovering previ-ously unexplored regions of the chemical space. Finally, we benchmark the model against literature-reported synthesis conditions to assess its external gen-eralizability. This benchmark shows that the model re-liably predicts EMT outcomes for literature cases that remain close as well as distant from the training domain, including cases with NaOH far outside the original train-ing range.   
+
+> II. METHODS A. Dataset
+
+The in-house dataset is built around canonical OSDA-free (organic structure-directing agent free) EMT syn-thesis routes reported in the literature [12, 13, 48]. We retained the key features that define these routes (alka-line, OSDA-free synthesis from sodium-based silica and aluminum precursors) and then deliberately broadened the synthesis space around them. Compared to the lit-erature routes, our dataset spans a much wider range of compositions, crystallization temperatures and times, and precursor choices, so that the ML model can learn how EMT formation depends on synthesis parameters beyond the narrow window of the literature conditions. A side-by-side comparison of the literature routes and the in-house parameter ranges is provided in Table S1 of the Supplemental Material (SM) [49]. The raw experimental data was cleaned by checking for duplicates, estimating missing values, and removing in-formation that can only be determined post-synthesis, such as crystal morphology and pH. See SM for de-tailed data cleaning procedures. After cleaning, the final dataset consisted of 174 samples with 13 synthesis pa-rameters (i.e., features) and a label indicating the final synthesis outcome. The features include composition in-formation (e.g., Si and Al molar amounts), precursor type (e.g., fumed silica or Ludox-AS40 as Si source), synthesis time, and temperature, among others. Table I lists all features, along with their data type. The synthesis out-come label consists of three distinct values: ‘pure-EMT’ for zeolites with a pure EMT phase; ‘non-EMT’ for out-comes in amorphous or solution forms where no EMT phase was observed; and ‘hybrid-EMT’ for zeolites ex-hibiting intergrowth of EMT with other phases such as FAU. Out of the 174 samples, there are 57 pure-EMT, 69 hybrid-EMT, and 48 non-EMT. A pair plot showing the distributions of the features is provided in Fig. S1 in the SM.  
+
+> B. Model Training
+
+Given the relatively small dataset, we employed classi-cal statistical ML algorithms (Random Forest [50], XG-Boost [51], and CatBoost [52]) to develop classification models to map the features to the labels. We also used TabPFN [47], a recently proposed foundation model pre-trained on massive synthetic data to address classifica-tion problems with small data, which is well-suited to our case. The features were preprocessed before being fed to the ML algorithms. Numerical features with continuous val-ues (e.g., synthesis time) were normalized to have a mean of zero and a standard deviation of one to ensure that the scale of different features does not bias the learning pro-cess. Categorical features that take discrete values (e.g., 3                                 
+
+> TABLE I. Experimental synthesis parameters for EMT zeolites. X is one of: fumed silica, Ludox-AS40, Ludox-SM30, Na 2SiO 3
+> and tetraethyl orthosilicate (TEOS); Y is either Al(OH) 3or NaAlO 2. Two types of features are used: numerical (N), which can have values in a continuous range, and categorical (C), which takes discrete values. Feature Explanation Type Time Synthesis time (hour) NTemperature Synthesis temperature ( °C) NSi Molar amount of SiO 2NAl Molar amount of Al cations NNaOH Molar amount of NaOH NH2OMolar amount of H 2ONSi/OH Stoichiometric ratio between SiO 2and NaOH NSi/Al Stoichiometric ratio between SiO 2and Al cation NSi size SiO 2particle size (nm) in the silica source NSi:X Reagent (X) that provides SiO 2to the synthesis mixture CAl:Y Reagent (Y) that provides Al cation to the synthesis mixture CPd:Si Whether the SiO 2reagent is pre-dissolved before adding to the synthesis mixture CPd:Al Whether the Al reagent is pre-dissolved before adding to the synthesis mixture C
+
+the reagent that provides SiO 2) were encoded using a one-hot scheme. For all models trained in this work, the dataset was randomly split into three subsets for training, validation, and testing, with a ratio of 8:1:1. The model parame-ters were optimized using the training set, hyperparam-eters were determined based on model performance on the validation set, and performance metrics are reported on the test set in the main text. Results on the training and validation sets are provided in the SM. To reduce the dependency of the model on a particular data split, we trained 35 models, each with a different data split. The reported performance metrics represent the average across all models, with error bars indicating the standard deviation of these measurements.                                                
+
+> III. RESULTS AND DISCUSSION A. Importance of Synthesis Parameters
+> TABLE II. Performance of various models on the ternary clas-sification. The error is obtained as the standard deviation of predictions from multiple models, each trained on a different data split. XGBoost Random Forest CatBoost TabPFN Accuracy 0 .76 ±0.07 0.75 ±0.09 0.76 ±0.08 0 .74 ±0.09 Precision 0 .79 ±0.07 0.78 ±0.09 0.79 ±0.07 0 .76 ±0.09 Recall 0.76 ±0.07 0.75 ±0.09 0.76 ±0.08 0 .74 ±0.09
+> F10.76 ±0.07 0.75 ±0.09 0.76 ±0.08 0 .74 ±0.09
+
+We first benchmark XGBoost [51], Random Forest [50], CatBoost [52], and TabPFN [47] by developing ternary classifiers that predict synthesis outcomes (pure-EMT, hybrid-EMT, or non-EMT) from synthesis parameters. Details of model training are provided above in Sec-tion II B, and their performance metrics, including ac-curacy, precision, recall, and F1 score, on the test set are summarized in Table II. All four ML models achieve an F1 score of about 0.75, and no model performs sig-nificantly better than the others. This is also true for accuracy, precision, and recall. XGBoost is selected for subsequent analysis. Using the XGBoost model, we perform feature impor-tance analysis to identify key synthesis parameters that control EMT formation. Feature importance analysis was conducted using both the mean decrease in impu-rity (MDI) method [46] and the Shapley Additive Ex-planations (SHAP) method [53]. MDI quantifies feature importance by measuring the total reduction in impurity (e.g, entropy) brought by each feature across all trees in the ensemble [46], while SHAP employs concepts from cooperative game theory to attribute the contribution of each feature to the model’s prediction [53]. More-over, the sign of a SHAP value (positive or negative) indicates whether a feature pushed the model’s specific prediction above or below the average baseline predic-tion, which can provide deeper insight into the model’s decision-making process. Both SHAP analysis (Fig. 1) and MDI (Fig. S2, SM) identify the Si/OH ratio, Si/Al ratio, temperature, and molar amounts of Si, NaOH, and Al as the most influential features. This agreement un-derscores the importance of these parameters in EMT synthesis, despite differences in their relative rankings between the two methods. Although feature importance analysis confirms that synthesis outcomes are governed by multiple parameters, distinct regions in the parameter space correspond to specific zeolite types. This relationship is illustrated in Fig. 2, which shows the outcome labels plotted against the three most influential features: Si molar amount, Si/OH ratio, and temperature. Although pure-EMT samples coexist with hybrid-EMT and non-EMT, they are found exclusively within a specific regime of Si mo-lar amounts and Si/OH ratios (dashed box in Fig. 2). The absence of pure-EMT samples outside this region demonstrates that its crystallization is confined to cer-tain synthesis conditions. 41.0 0.5 0.0 0.5 1.0 
+
+> SHAP
+> Si:TEOS
+> Pd:Al
+> Al:NaAlO 2
+> Si:Ludox-SM30
+> Si size
+> H2O
+> Si:Fumed silica
+> Si:Ludox-AS40
+> Pd:Si
+> Si:Na 2SiO 3
+> Time
+> Al
+> NaOH
+> Al:Al(OH) 3
+> Si/Al
+> Temperature
+> Si
+> Si/OH
+> Low
+> High
+> Feature value
+
+FIG. 1. Feature importance analysis using SHAP for the ternary classification model. The horizontal spread of SHAP values indicates feature importance: a wider distribution sig-nifies greater influence. The 18 features displayed (compared to 13 in Table I) result from one-hot encoding, which expands categorical features into multiple dimensions. 0 5 10 15   
+
+> Si
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Si/OH
+> 30
+> 40
+> 50
+> 60
+> 70
+> 80
+> 90
+> 100
+> Temperature (°C)
+> Hybrid-EMT Pure-EMT Non-EMT
+
+FIG. 2. Distribution of synthesis outcome labels with respect to the three most important features. These features are SiO 2
+
+molar amount, Si/OH stoichiometric ratio, and temperature. All pure-EMT samples lie inside the dashed box. 
+
+B. A Simplified and Focused Model 
+
+A closer examination of the ternary classification model in Section III A reveals that prediction errors are primarily associated with the hybrid-EMT class. As shown in Fig. 3, only three pure-EMT samples are mis-classified as non-EMT, and only one non-EMT sample is misclassified as pure-EMT. This stands in stark con-trast to the hybrid-EMT class, which exhibits substantial misclassifications with both pure-EMT and non-EMT. We posit that because the hybrid-EMT class represents mixed-phase products, its synthesis conditions have a larger overlap with those of both pure-EMT and non-EMT, leading to a higher rate of misclassification. Since our primary objective is to identify conditions that yield pure-EMT zeolites, we can simplify the problem by merg-ing the hybrid-EMT and non-EMT classes into a single class, called ‘Others’. This results in a binary classifica-tion of ‘pure-EMT’ versus ‘Others’. non-EMT hybrid-EMT pure-EMT 
+
+Prediction       
+
+> non-EMT hybrid-EMT pure-EMT
+> Target
+> 132 42 1
+> 31 185 29
+> 347 160
+
+FIG. 3. Confusion matrix for the XGBoost ternary classifica-tion model. TABLE III. Binary classification results using the reduced dataset of 101 samples. The reported values are averaged over predictions from multiple models, each trained on a different data split. Therefore, the mean F1 score is not generally equal to the harmonic mean of the average precision and average re-call, nor is it guaranteed to lie between them. The error is obtained as the standard deviation of predictions from multi-ple models. XGBoost Random Forest CatBoost TabPFN Accuracy 0 .81 ± 0.12 0.81 ± 0.13 0.79 ± 0.13 0 .80 ± 0.13 Precision 0 .81 ± 0.13 0.81 ± 0.15 0.79 ± 0.14 0 .80 ± 0.14 Recall 0.79 ± 0.13 0.80 ± 0.15 0.79 ± 0.14 0 .79 ± 0.14 
+
+F1 0.79 ± 0.13 0.79 ± 0.15 0.78 ± 0.14 0 .79 ± 0.14 
+
+The task can be further simplified by focusing on the region of the parameter space most relevant to EMT formation. As discussed above (see Fig. 2), pure-EMT crystallizes only within specific regions in the parameter space. For the binary classification task, we identified that the Si/Al ratio and NaOH molar amount are effec-tive at delineating the pure-EMT region (Fig. 4). All 57 pure-EMT samples are located within the bounds of 2 ≤
+
+Si/Al ≤ 10 and 30 ≤ NaOH ≤ 50. This region contains a total of 101 samples with 57 pure-EMT and 44 Oth-ers. Using these two features for filtering is more effec-tive than using the top two features from the importance 5a b      
+
+> FIG. 4. Distribution of binary synthesis outcome labels with respect to Si/Al stoichiometric ratio, NaOH molar amount, and temperature. (a) Distribution of all 174 samples in the dataset. (b) Zoomed-in view of the dashed region in panel a, which contains all pure-EMT samples. 1.0 0.5 0.0 0.5
+> SHAP
+> Si:TEOS
+> Time
+> H2O
+> Si:Fumed silica
+> Pd:Al
+> Si:Ludox-SM30
+> Al:NaAlO 2
+> Al:Al(OH) 3
+> Pd:Si
+> Al
+> NaOH
+> Si size
+> Si:Na 2SiO 3
+> Si:Ludox-AS40
+> Si/Al
+> Si
+> Si/OH
+> Temperature
+> Low
+> High
+> Feature value
+> FIG. 5. Feature importance analysis using SHAP for the bi-nary classification model. The 18 features displayed (com-pared to 13 in Table I) result from one-hot encoding, which expands categorical features into multiple dimensions.
+
+analysis (Si molar amount and Si/OH ratio in Fig. 2), which define a larger region containing 147 samples. Ow-ing to feature correlations, constraining Si/Al and NaOH also implicitly restricts other parameters. For example, the temperature within this focused region is confined to 30–45 °C, a significant reduction from the full dataset’s range of 30–100 °C. Using the filtered dataset of 101 samples, we devel-oped binary classification models to distinguish pure-EMT from Others. Similar to the ternary classification, the XGBoost, Random Forest, CatBoost, and TabPFN models demonstrate comparable performance on the test set across all classification metrics, as summarized in Ta-ble III (results on the training and validation sets are pro-vided in the SM). At first glance, the performance of the binary classification models may appear only marginally better than that of the ternary classification models pre-sented in Table II. However, it is important to note that in this binary classification task, 73 of the 174 samples in the original dataset were excluded because they can be trivially classified as ‘Others’. This is because their synthesis conditions lie outside the defined ranges for the Si/Al ratio and NaOH molar amount. Taking this into account, the effective performance of the binary classifi-cation model is significantly improved. For example, it achieves an accuracy of 89%, compared to 76% for the ternary classification. SHAP feature importance analysis was also performed for the binary classification model, as shown in Fig. 5. Compared to the ternary classification (Fig. 1), the top four most influential features remain the same: tempera-ture, Si/OH and Si/Al stoichiometric ratios, and Si mo-lar amount. This further confirms their critical role in determining EMT zeolite formation. For a binary clas-sification model, the SHAP values can be directly inter-preted as the contribution of each feature to predicting the classification outcome [53]. In this context, positive SHAP values indicate that a feature value favors pure-EMT formation, while negative SHAP values suggest the opposite. Fig. 5 shows that, in general, positive SHAP values are associated with high temperature and high Si/OH ratio, suggesting that larger values of the two fea-tures can promote pure-EMT formation. For Si molar amount and Si/Al ratio, high SHAP values are associ-ated with both high and low feature values, indicating a more complex relationship with EMT formation. 6Latent space  
+
+> PCA transform Inverse PCA transform
+> Original synthesis conditions Candidate synthesis conditions
+> Synthesis parameter space
+> 3375 374 28 6859
+
+a b
+
+> Physical soundness
+> Probability score
+> Dissimilarity score
+
+FIG. 6. A two-stage pipeline for discovering new synthesis conditions for EMT zeolites. (a) New candidate synthesis conditions are proposed in a dimension-reduced latent space obtained via principal component analysis (PCA). The blue circle indicates the boundary of the parameter space covered by the dataset, whereas the green circle represents the expanded parameter space explored by the proposer. (b) The proposed candidate synthesis conditions are screened to identify the most promising ones. TABLE IV. Experimentally verified synthesis conditions proposed by the ML pipeline. “Probability” is the prediction confidence score from the ML model, and “Dissimilarity” is the Euclidean distance of the synthesis condition to the dataset. “Outcome” indicates the observed zeolite framework after synthesis, but not the label predicted by the ML model. Seven features are listed explicitly. The remaining six features are the same for all six samples: Pd:Si (yes), Pd:Al (yes), Si size (2), Si:Na 2SiO 3,Al:NaAlO 2, H 2O (450). NaOH Al Si Si/OH Si/Al Time (hours) Temperature ( ◦C) Probability Dissimilarity Outcome 37.39 2.08 5.27 0.14 2.32 72.11 41.39 0.90 4.98 pure EMT 36.76 1.12 5.14 0.14 4.90 71.85 41.43 0.88 4.65 pure EMT 36.65 1.65 5.40 0.15 3.61 72.58 41.56 0.88 0.67 pure EMT 36.93 1.26 4.15 0.11 3.69 72.32 42.21 0.87 3.90 pure EMT 36.59 2.93 7.58 0.21 1.77 73.18 40.45 0.86 1.79 pure EMT 36.99 1.04 5.35 0.15 5.29 71.29 41.06 0.93 4.65 hybrid EMT 
+
+C. Discovery of New Synthesis Conditions 
+
+With the trained binary ML classifier, we aim to discover new synthesis conditions for synthesizing pure EMT zeolites. This is achieved through a two-stage pipeline consisting of a “synthesis parameters proposer” and a “synthesis feasibility evaluator”, as illustrated in Figure 6. First, the proposer generates new synthesis conditions that could potentially yield pure-EMT zeo-lites. Next, the evaluator examines the feasibility of the conditions using the trained ML classifier, supple-mented by additional validation checks. Finally, the most promising candidate synthesis conditions are selected for experimental synthesis and validation. The synthesis parameters proposer aims to generate new synthesis conditions both within and beyond the parameter bounds of the original dataset. This can be accomplished through methods such as grid search or random sampling of features beyond their observed ranges. However, this approach faces two challenges. A grid search across all 13 features produces an exponen-tially large number of candidates; subsequent evaluation of these candidates becomes computationally intensive (see Section S5 in SM for a time estimate). More criti-cally, the features exhibit strong correlations (see Fig. S1 in SM), and thus most candidates from grid search or random sampling may be chemically unrealistic or ther-modynamically infeasible. We address these challenges by proposing candidate synthesis conditions in a dimension-reduced latent space obtained via principal component analysis (PCA). This was carried out as follows (Fig. 6a). First, we trans-formed the 13-dimensional feature vectors of all data into a three-dimensional latent space using PCA by retaining the first three principal components. Next, for each of the three principal components we sampled 19 evenly spaced values spanning from 30% below the observed minimum to 30% above the observed maximum. Altogether, 6859 new candidate synthesis conditions were created. Finally, each candidate in the latent space was mapped back to the original 13-dimensional synthesis parameter space via the inverse PCA transform. Three filtering criteria were then applied to the PCA-generated populate to identify the most promising candi-date synthesis conditions: physical soundness, likelihood of producing pure EMT zeolites, and distinctiveness from known conditions in the dataset (Figure 6b). Some candi-date conditions contained unphysical parameters, such as negative Si/Al ratios. After removing these invalid cases, the remaining 3375 candidate conditions were evaluated 72 4 6 8 10  
+
+> Si/Al
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> 0.35
+> Si/OH
+> Others
+> Pure-EMT
+> New Hybrid-EMT
+> New Pure-EMT
+> FIG. 7. Distribution of the six experimentally verified synthe-sis conditions proposed by the ML model. They correspond to the new pure-EMT and new hybrid-EMT (purple diamond and green circles). Samples from the training data are also included (orange circles and gray diamonds). The number of training data appears to be less than 101 since many of them overlap in this two-dimensional plot.
+
+using the XGBoost classifier developed in Section III B to predict their likelihood of yielding pure EMT zeolites. Rather than using the binary yes/no classification, we examined the continuous probability score predicted by the model, which provides more granular information. A higher probability score indicates a greater likelihood of forming pure EMT zeolite. We retained candidates with probability scores greater than 0.85, which reduced the total to 374 candidates. We then computed Euclidean distances of each of the 374 candidates to all samples in the original dataset and used the minimum distance as the “dissimilarity score” ˜d. This score quantifies the novelty of each candidate relative to known conditions; a higher value indicates a more novel synthesis condition. Of the 374 conditions, 346 were found to have dissimilar-ity score below 0.5 and were discarded, yielding a final pool of 28 promising candidates (see Section S6 in SM for post-processing details). From the 28 candidate synthesis conditions, we se-lected the six candidates with the highest predicted prob-abilities for experimental synthesis (see Section S7 in SM for experimental details). The predicted synthesis pa-rameters for these six candidates are listed in Table IV. Remarkably, five of the six candidates successfully pro-duced pure-EMT zeolites, corresponding to an 83% suc-cess rate. The remaining candidate yielded a hybrid-EMT phase. This success rate represents a 2.6-fold im-provement over the 32% success rate achieved by the experience-guided methods used to generate the orig-inal dataset. The structural identity of the resulting EMT samples was confirmed by powder X-ray diffraction against the IZA reference EMT pattern, and scanning electron microscopy of a representative sample showed submicron aggregates of EMT nanocrystallites, consis-tent with what is typically observed for EMT prepared under OSDA-free conditions [12, 13, 48] (Section S8 in SM). Upon closer examination, we found that two of the five pure-EMT samples were synthesized under extrapo-lated conditions. Although all proposed synthesis param-eters differ from those in the dataset, most fall within the dataset’s observed ranges. For example, the Si/OH ra-tios for the six experimentally verified conditions range from 0.11 to 0.21, compared to 0.09 to 0.34 in the orig-inal dataset (Fig. 7). Nevertheless, two conditions have Si/Al ratios of 1.77 and 2.3, which fall below the dataset’s lower bound of 2.5. This observation indicates that our ML-based pipeline can successfully extrapolate be-yond the training data to discover novel synthesis condi-tions. Since Si/Al ratio is a key determinant of synthesis outcome (Figures 1 and 5), correctly predicting out-of-range Si/Al ratios represents a nontrivial and noteworthy achievement.  
+
+> D. External Validation on Literature-Reported Syntheses
+
+The experimental validation in Section III C confirms the model on new in-house syntheses, including two recipes beyond the training Si/Al range. A more strin-gent test of generalizability is whether the model trans-fers to syntheses performed by other groups, where syn-thesis conditions such as precursor choices and reaction protocols can differ from those in our in-house dataset. To probe this, we compiled 16 EMT zeolite synthesis conditions from the literature [12, 48, 54–57]. The full dataset, literature compilation strategy, the procedure for imputing descriptors not reported in the original pa-pers, and the model predictions are described in Sec-tion S9 of the SM. Because some descriptors had to be im-puted, the literature validation should be read as a par-tially imputed external evaluation across reported EMT-forming conditions rather than a fully independent test across all model inputs. It is shown in Fig. 4 that pure-EMT samples in the in-house dataset fall within a narrow range of NaOH and Si/Al values. Here, we use these two descriptors to orga-nize the literature EMT samples, which fall both within and beyond the NaOH and Si/Al ranges of the in-house dataset (Fig. 8). The gray region marks the in-house NaOH–Si/Al envelope, where the literature EMT sam-ples have a median dissimilarity score of ˜d = 2 .49, which lies within the ˜d ≈ 0.7–5 range of the in-house cases we validated experimentally. In this region, the model cor-rectly predicts 8 of 12 EMT cases (67%). The blue region marks literature EMT samples that fall outside the in-82 4 6 8 10 
+
+Si/Al         
+
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> NaOH
+> d= 39.19
+> In-house domain
+> d= 2.49
+> Extrapolation
+> Correct EMT Incorrect EMT
+> FIG. 8. Model predictions for literature-reported EMT syn-thesis conditions in the NaOH–Si/Al phase space. The gray region marks the NaOH and Si/Al envelope of the in-house dataset; the blue region marks extrapolation beyond that en-velope. The median dissimilarity score ˜dof the literature-reported EMT zeolites in each region is annotated. ˜dmea-sures the distance from a synthesis condition to the in-house dataset (see Section III C for its definition).
+
+house NaOH–Si/Al envelope, with NaOH values below 10. This is considered an extrapolation regime, as the median dissimilarity score of these cases is ˜d = 39 .19, which is approximately 14 times larger than that of the literature cases in the in-house region. The model cor-rectly predicts 3 of 4 EMT cases (75%) in this region. The higher success rate in the extrapolation region than in the in-house region may seem counterintuitive. A closer look at the four low-NaOH cases shows that the differences between the correctly and incorrectly classi-fied ones do not appear to align with NaOH or Si/Al, but rather with temperature and crystallization time: the three correct cases use 90–115 ◦C and 168–624 h, whereas the misclassified Dougnier case [56] uses 72 ◦C and only 24 h (Table S7, SM). This is broadly consistent with the feature importance analysis of the binary classifier (Fig. 5), in which temperature is the most important fea-ture and higher temperature tends to favor EMT forma-tion. That said, the small sample size (4 cases) makes the 75% rate sensitive to individual predictions and should not be over-interpreted. Even so, the model correctly identifies the majority of literature-reported EMT cases in both regions, with success rates above the 32% EMT incidence observed during the manual generation of the in-house dataset. Overall, the model’s performance across both regions suggests that it does not simply memorize the in-house recipes but captures broader relationships among syn-thesis descriptors, such as the temperature dependence noted above. A more definitive assessment, however, will require evaluation on a larger set of literature cases.  
+
+> IV. CONCLUSION
+
+We developed a closed-loop framework integrating ML and experimental synthesis to accelerate the discovery of conditions for EMT zeolite formation. By collecting and systematically analyzing 174 OSDA-free synthesis attempts, we identified temperature, Si/OH ratio, Si/Al ratio, and Si amount as the most critical parameters gov-erning EMT crystallization. Our binary ML classifica-tion model, trained on a refined subset of the data, suc-cessfully guided the experimental synthesis of five (out of six) EMT zeolites under new conditions, achieving a much higher success rate than the experience-guided ap-proach. Notably, two successful conditions extrapolate beyond the knowledge contained in the dataset. Evalua-tion against external literature further confirms that the model captures transferable relationships among synthe-sis descriptors beyond the in-house recipes, correctly pre-dicting the majority of reported EMT cases both within and beyond the training stoichiometric range. This study demonstrates that data-driven approaches, when coupled with rigorous experimental validation, can significantly improve the effectiveness of zeolite synthesis optimization. The approach of proposing synthesis con-ditions in a dimension-reduced space followed by a multi-criteria screening provides a generalizable workflow that can be applied to other zeolite frameworks and, more broadly, to other crystalline materials whose synthesis depends on a complex interplay of compositional and re-action variables. Looking forward, an iterative active learning strategy could systematically improve model ac-curacy with minimal experimental effort. This process would involve incorporating newly validated outcomes and using them to retrain models and guide subsequent experiments. We anticipate that this iterative approach will enable efficient navigation of the vast synthesis pa-rameter space and accelerate the discovery of new zeolite frameworks. While this work focuses on classifying syn-thesis outcomes, future efforts could explore the use of regression models to predict quantities such as crystal size and yield, thus enabling multi-objective optimiza-tion toward economical and environmentally sustainable synthesis routes. Beyond synthesis itself, the long-term phase stability of metastable frameworks like EMT, in-cluding their resistance to phase transformation (e.g., to FAU) and amorphization under aging or thermal treat-ment, is a critical practical consideration that warrants dedicated investigation in future work. 
+
+> DATA AND CODE AVAILABILITY
+
+The raw and cleaned experimental synthesis data, along with the code for model training and data analysis are available at the GitHub repository: 9
+
+https://github.com/Olanrewajuemmanuelabiodun/ ml_EMT_synthesis .
+
+AUTHOR CONTRIBUTIONS 
+
+E.A.O. and S.A.: model development, data analysis, writing - original draft, and writing - review. Z.N. and J.D.R.: data curation and writing - review. M.N. and J.C.P.: writing - review. M.W.: project conceptualiza-tion, data analysis, writing - original draft, writing - re-view, and supervision. 
+
+CONFLICTS OF INTEREST 
+
+There are no conflicts of interest to declare. 
+
+ACKNOWLEDGEMENTS 
+
+JDR and JCP gratefully acknowledge funding from De-partment of Energy, Office of Basic Energy Sciences, Ma-terials Science Division (Award DE-SC0021384) and ad-ditional support from the Welch Foundation (Grants E-1882, E-1794, and Award V-E-0001). Computational re-sources were provided by the Research Computing Data Core at the University of Houston and the Hefei Ad-vanced Computing Center. 
+
+[1] M. E. Davis, Ordered porous materials for emerging ap-plications, Nature 417 , 813 (2002). [2] A. Primo and H. Garcia, Zeolites as catalysts in oil re-fining, Chemical Society Reviews 43 , 7548 (2014). [3] S. Mintova, M. Jaber, and V. Valtchev, Nanosized micro-porous crystals: emerging applications, Chemical society reviews 44 , 7207 (2015). [4] Y. Li, L. Li, and J. Yu, Applications of zeolites in sus-tainable chemistry, Chem 3, 928 (2017). [5] J. Li, M. Gao, W. Yan, and J. Yu, Regulation of the Si/Al ratios and Al distributions of zeolites and their impact on properties, Chemical Science 14 , 1935 (2023). [6] S. Ma and Z.-P. Liu, Machine learning potential era of zeolite simulation, Chemical Science 13 , 5055 (2022). [7] R. E. Fletcher, S. A. Wells, K. M. Leung, P. P. Edwards, and A. Sartbaeva, Intrinsic flexibility of porous materials; theory, modelling and the flexibility window of the EMT zeolite framework, Structural Science 71 , 641 (2015). [8] S. Ghojavand, E. Dib, and S. Mintova, Flexibility in zeo-lites: origin, limits, and evaluation, Chemical Science 14 ,12430 (2023). [9] T. Ohsuna, B. Slater, F. Gao, J. Yu, Y. Sakamoto, G. Zhu, O. Terasaki, D. E. Vaughan, S. Qiu, and C. R. A. Catlow, Fine structures of zeolite-linde-l (ltl): surface structures, growth unit and defects, Chemistry–A Eu-ropean Journal 10 , 5031 (2004). [10] S. Yang, M. Lach-hab, E. Blaisten-Barojas, X. Li, and V. L. Karen, Machine learning study of the heulandite family of zeolites, Microporous and Mesoporous Materi-als 130 , 309 (2010). [11] E. Dib, E. B. Clatworthy, A. A. Paecklar, J. Grand, N. Barrier, and S. Mintova, Role of al distribution in co2 adsorption capacity in rho zeolites, The Journal of Physical Chemistry C 127 , 3 (2022). [12] E.-P. Ng, D. Chateigner, T. Bein, V. Valtchev, and S. Mintova, Capturing ultrasmall emt zeolite from template-free systems, Science 335 , 70 (2012). [13] M. Maldonado, M. D. Oleksiak, S. Chinta, and J. D. Rimer, Controlling crystal polymorphism in organic-free synthesis of na-zeolites, Journal of the American Chemi-cal Society 135 , 2641 (2013). [14] S. Morin, A. Berreghis, P. Ayrault, N. Gnep, and M. Guisnet, Dealumination of zeolites part viiiacidity and catalytic properties of hemt zeolites dealuminated by steaming, Journal of the Chemical Society, Faraday Transactions 93 , 3269 (1997). [15] M. Moliner, F. Rey, and A. Corma, Towards the ratio-nal design of efficient organic structure-directing agents for zeolite synthesis, Angewandte Chemie International Edition 52 , 13880 (2013). [16] M. D. Oleksiak and J. D. Rimer, Synthesis of zeolites in the absence of organic structure-directing agents: factors governing crystal selection and polymorphism, Reviews in Chemical Engineering 30 , 1 (2014). [17] K. Muraoka, Y. Sada, D. Miyazaki, W. Chaikittisilp, and T. Okubo, Linking synthesis and structure descriptors from a large collection of synthetic records of zeolite ma-terials, Nature Communications 10 , 4459 (2019). [18] B. Slater, J. Titiloye, F. Higgins, and S. Parker, Atomistic simulation of zeolite surfaces, Current Opinion in Solid State and Materials Science 5, 417 (2001). [19] G. M. Psofogiannakis, J. F. McCleerey, E. Jaramillo, and A. C. Van Duin, Reaxff reactive molecular dynamics sim-ulation of the hydration of cu-ssz-13 zeolite and the for-mation of cu dimers, The Journal of Physical Chemistry C 119 , 6678 (2015). [20] S. Tesson, W. Louisfrema, M. Salanne, A. Boutin, E. Fer-rage, B. Rotenberg, and V. Marry, Classical polarizable force field to study hydrated charged clays and zeolites, The Journal of Physical Chemistry C 122 , 24690 (2018). [21] A. Misturini, F. Rey, and G. Sastre, Molecular sim-ulation of biobutanol recovery using lta and cha zeo-lite nanosheets with an external surface, The Journal of Physical Chemistry C 126 , 17680 (2022). [22] F. Filippone, F. Buda, S. Iarlori, G. Moretti, and P. Porta, Structural and electronic properties of sodalite: An ab initio molecular dynamics study, The Journal of Physical Chemistry 99 , 12883 (1995). [23] R. Astala, S. M. Auerbach, and P. Monson, Density func-tional theory study of silica zeolite structures: Stabilities and mechanical properties of sod, lta, cha, mor, and mfi, The Journal of Physical Chemistry B 108 , 9208 (2004). [24] H. Shi, A. N. Migues, and S. M. Auerbach, Ab initio and classical simulations of the temperature dependence of zeolite pore sizes, Green Chemistry 16 , 875 (2014). 10 
+
+[25] J. Rey, P. Raybaud, and C. Chizallet, Ab initio simu-lation of the acid sites at the external surface of zeolite beta, ChemCatChem 9, 2176 (2017). [26] N. Kim and K. Min, Accelerated discovery of zeolite structures with superior mechanical properties via active learning, The Journal of Physical Chemistry Letters 12 ,2334 (2021). [27] M. Ducamp and F.-X. Coudert, Prediction of Thermal Properties of Zeolites through Machine Learning, The Journal of Physical Chemistry C 126 , 1651 (2022). [28] R. Gaillac, S. Chibani, and F.-X. Coudert, Speeding Up Discovery of Auxetic Zeolite Frameworks by Machine Learning, Chemistry of Materials 32 , 2653 (2020). [29] M. Wu, S. Zhang, and J. Ren, Ai-empowered digital de-sign of zeolites: Progress, challenges, and perspectives, APL Materials 13 , 10.1063/5.0253847 (2025). [30] Y. Yan, J. Li, M. Qi, X. Zhang, J. Yu, and R. Xu, Database of open-framework aluminophosphate synthe-ses: introduction and application (i), Science in China Series B: Chemistry 52 , 1734 (2009). [31] Z. Jensen, E. Kim, S. Kwon, T. Z. Gani, Y. Rom´ an-Leshkov, M. Moliner, A. Corma, and E. Olivetti, A ma-chine learning approach to zeolite synthesis enabled by automatic literature data extraction, ACS Central Sci-ence 5, 892 (2019). [32] E. Pan, S. Kwon, Z. Jensen, M. Xie, R. G´ omez-Bombarelli, M. Moliner, Y. Rom´ an-Leshkov, and E. Olivetti, ZeoSyn: A Comprehensive Zeolite Synthe-sis Dataset Enabling Machine-Learning Rationalization of Hydrothermal Parameters, ACS Central Science 10 ,729 (2024). [33] J. D. Evans and F.-X. Coudert, Predicting the mechani-cal properties of zeolite frameworks by machine learning, Chemistry of Materials 29 , 7833 (2017). [34] M. Moliner, Y. Rom´ an-Leshkov, and A. Corma, Machine learning applied to zeolite synthesis: The missing link for realizing high-throughput discovery, Accounts of Chemi-cal Research 52 , 2971 (2019). [35] B. Conroy, R. Nayak, A. L. R. Hidalgo, and G. J. Millar, Evaluation and application of machine learning princi-ples to zeolite lta synthesis, Microporous and Mesoporous Materials 335 , 111802 (2022). [36] D. Schwalbe-Koda, D. E. Widdowson, T. A. Pham, and V. A. Kurlin, Inorganic synthesis-structure maps in ze-olites with machine learning and crystallographic dis-tances, Digital Discovery 2, 1911 (2023). [37] D. A. Carr, M. Lach-hab, S. Yang, I. I. Vaisman, and E. Blaisten-Barojas, Machine learning approach for structure-based zeolite classification, Microporous and Mesoporous Materials 117 , 339 (2009). [38] S. Yang, M. Lach-hab, I. I. Vaisman, and E. Blaisten-Barojas, Identifying zeolite frameworks with a machine learning approach, The Journal of Physical Chemistry C 
+
+113 , 21721 (2009). [39] G. Raman, Forecasting low framework density zeolites from synthesis descriptors using machine learning, Jour-nal of Solid State Chemistry 327 , 124290 (2023). [40] X. Li, H. Han, N. Evangelou, N. J. Wichrowski, P. Lu, W. Xu, S.-J. Hwang, W. Zhao, C. Song, X. Guo, et al. ,Machine learning-assisted crystal engineering of a zeolite, Nature communications 14 , 3152 (2023). [41] X. Peng, R. Pan, X. Li, W. Zhong, and F. Qian, Molecu-lar descriptor-assisted interpretable machine learning: A scheme for guiding the synthesis of zeolites with target structures, Chemical Engineering Science 308 , 121378 (2025). [42] A. J. Cohen, P. Mori-S´ anchez, and W. Yang, Insights into current limitations of density functional theory, Science 
+
+321 , 792 (2008). [43] M. Wen, S. M. Blau, X. Xie, S. Dwaraknath, and K. A. Persson, Improving machine learning performance on small chemical reaction data with unsupervised con-trastive pretraining, Chemical Science 13 , 1446–1458 (2022). [44] J. Dai, S. Adhikari, and M. Wen, Uncertainty quantifica-tion and propagation in atomistic machine learning, Re-views in Chemical Engineering 10.1515/revce-2024-0028 (2024). [45] A. Gandhi and M. F. Hasan, Machine learning for the design and discovery of zeolites and porous crystalline materials, Current Opinion in Chemical Engineering 35 ,100739 (2022). [46] T. Hastie, R. Tibshirani, and J. Friedman, The elements of statistical learning: data mining, inference, and pre-diction (Springer, New York, NY, USA, 2009). [47] N. Hollmann, S. M¨ uller, L. Purucker, A. Krishnakumar, M. K¨ orfer, S. B. Hoo, R. T. Schirrmeister, and F. Hut-ter, Accurate predictions on small data with a tabular foundation model, Nature 637 , 319 (2025). [48] E.-P. Ng, H. Awala, K.-H. Tan, F. Adam, R. Retoux, and S. Mintova, EMT-type zeolite nanocrystals synthesized from rice husk, Microporous and Mesoporous Materials 
+
+204 , 204 (2015). [49] See supplemental material at [url will be inserted by publisher] for data processing procedures for the ma-chine learning models, additional results, and experimen-tal synthesis protocols (2026). [50] L. Breiman, Random forests, Machine Learning 45 , 5 (2001). [51] T. Chen and C. Guestrin, Xgboost: A scalable tree boost-ing system, in Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (2016) pp. 785–794. [52] L. Prokhorenkova, G. Gusev, A. Vorobev, A. V. Doro-gush, and A. Gulin, Catboost: unbiased boosting with categorical features, Advances in neural information pro-cessing systems 31 , 10.48550/arXiv.1706.09516 (2018). [53] S. M. Lundberg and S.-I. Lee, A unified approach to inter-preting model predictions, Advances in neural informa-tion processing systems 30 , 10.48550/arXiv.1705.07874 (2017). [54] R. Wendelbo, M. St¨ ocker, H. Junggreen, H. B. Mostad, and D. E. Akporiaye, Tumbling approach towards template-free synthesis of emt zeolite, Microporous and Mesoporous Materials 28 , 361 (1999). [55] C.-n. Wu and K.-j. Chao, Synthesis of faujasite zeolites with crown-ether templates, Journal of the Chemical So-ciety, Faraday Transactions 91 , 167 (1995). [56] F. Dougnier and J.-L. Guth, EMT zeolite synthesis: Na+ vs. OH–effect, Journal of the Chemical Society, Chemical Communications , 951 (1995). [57] V. Georgieva, A. Vicente, C. Fernandez, R. Retoux, A. Palˇ ci´ c, V. Valtchev, and S. Mintova, Control of Na-EMT zeolite synthesis by organic additives, Crystal Growth & Design 15 , 1898 (2015). Supplemental Material: Guided Synthesis of EMT Zeolites by Machine Learning 
+
+Emmanuel A. Olanrewaju, 1 Santosh Adhikari, 1 Zhiyin Niu, 1 Michael Nikolaou, 1 Jeremy C. Palmer, 1 Jeffrey D. Rimer, 1 and Mingjian Wen 1, ∗
+
+> 1
+
+William A. Brookshire Department of Chemical and Biomolecular Engineering, University of Houston, Houston, TX, 77204, USA   
+
+> ∗mjwen@uestc.edu.cn; Present address: Institute of Fundamental and Frontier Sciences, University of Electronic Science and Technology of China, Chengdu, 611731, China
+
+1S1. DATA CLEANING 
+
+The raw experimental data, as initially collected, were pre-processed to ensure consis-tency and completeness for analysis. The raw data consists of 20 different experimental measurements from 199 attempts to synthesize EMT zeolites. The data cleaning involves several steps. 
+
+• Repeated entries were removed to avoid duplication. 
+
+• Missing values were imputed using the mean of the respective feature. 
+
+• Post-synthesis features, which are unavailable before an experiment is performed, were removed. This includes features like pH value and Vmicore (cm 3/g) (micropore volume). This ensures that the model can be used for predictive purposes. The cleaned dataset consists of 174 data points with 13 features and a label indicating the synthesized outcome: pure-EMT , non-EMT , or hybrid-EMT . Fig. S1 shows a pair plot of the distribution of the features.  
+
+> S2. FEATURE VECTOR
+
+A distinct characteristic of our dataset is the presence of numerous categorical features, such as the silicon (Si) and Aluminium (Al) source used in zeolite synthesis. In Table I of the main text, categorical features are indicated by “C” in the “Type” column. Among the 174 zeolites in our dataset, each reports one of five Si sources: fumed silica, Ludox-AS40, Ludox-SM30, sodium silicate (Na 2SiO 3), or tetraethyl orthosilicate (TEOS). To encode this categorical information, we applied one-hot encoding, representing the Si source using five binary columns, each corresponding to one of the five possible sources. If a zeolite was synthesized using fumed silica, the first column was assigned a value of 1, while the remaining columns were set to 0. Similarly, if the Si source was Ludox-SM30, the third column was assigned 1, with all others set to 0, and so forth. Boolean features such as Pre-dissolution of Si and Pre-dissolution of Al, which contained either “yes” or “no” responses, were encoded such that “yes” was assigned a value of 1 and “no” was assigned 0. With these transformations, the input to our model consists of a fixed-length feature vector of size 18, representing the 13 features listed in Table I of the main text. 2TABLE S1. Comparison between canonical OSDA-free EMT synthesis routes reported in the literature [1–3] and the in-house dataset of 174 samples used in this work. Molar amounts of NaOH, Al, Si, and H 2O are reported relative to a unit cell of the gel composition. “Literature routes” values correspond to representative conditions reported in the references; “In-house dataset” values are the full ranges observed across the 174 samples. Synthesis parameter Literature routes [1–3] In-house dataset NaOH 36–37 6–111 Al ∼2 0.2–10.3 Si 5–5.15 1–15 H2O 217–240 173–650 Si/Al 2.5–2.6 0.5–25.8 Crystallization time (h) 28–36 0–384 Crystallization temperature ( °C) 28–30 30–100 Si precursor particle size (nm) not specified 2–22 Si source Na 2SiO 3
+
+Na 2SiO 3, Ludox-AS40, Ludox-SM30, fumed silica, TEOS Al source NaAlO 2 NaAlO 2, Al(OH) 3
+
+OSDA None None 
+
+S3. COMPARISON OF CLASSIFICATION MODELS 
+
+To identify the most suitable model for our classification task, we compared the perfor-mance of Random Forest (RF), XGBoost, CatBoost, and TabPFN. We randomly partitioned the dataset into training (80%), validation (10%), and test (10%) subsets. The models were independently trained and evaluated on these partitions. Table S2, Table S3, Table S4, and Table S5 summarize the classification metrics (accuracy, precision, recall, and F1-score). The results show that XGBoost achieves competitive performance compared to the other mod-els. Given its strong performance and widespread use in scientific applications, we selected XGBoost for all subsequent analyses in this work. 30             
+
+> 10
+> 20
+> Si/Al
+> 50
+> 100
+> NaOH
+> 50
+> 100
+> Temperature
+> 0
+> 5
+> 10
+> Al
+> 5
+> 10
+> 15
+> Si
+> 200
+> 400
+> 600
+> H2O
+> 10
+> 20
+> Si size
+> 0.25
+> 0.50
+> 0.75
+> Si/OH
+> 020
+> Si/Al
+> 0
+> 200
+> 400
+> Time
+> 50 100
+> NaOH
+> 50 100
+> Temperature
+> 010
+> Al
+> 510 15
+> Si
+> 250 500
+> H2O
+> 10 20
+> Si size
+> 0.25 0.50 0.75
+> Si/OH
+> 0250
+> Time
+> Hybrid-EMT Pure-EMT Non-EMT
+
+FIG. S1. Pair plot of the distributions of dataset features. Continuous features are included, whereas categorical ones are not. 
+
+S4. FEATURE IMPORTANCE ANALYSIS 
+
+To understand the relative importance of different synthesis parameters in predicting EMT zeolite formation, we employed two complementary feature importance analysis meth-4TABLE S2. Classification performance on the train set for all models for ternary classification. 
+
+XGBoost RF CatBoost TabPFN 
+
+Accuracy 0 .95 ± 0.01 0 .87 ± 0.02 0 .91 ± 0.02 0 .91 ± 0.02 Precision 0 .95 ± 0.01 0 .88 ± 0.02 0 .92 ± 0.01 0 .92 ± 0.02 Recall 0.95 ± 0.01 0 .87 ± 0.02 0 .91 ± 0.02 0 .91 ± 0.02 
+
+F1 0.95 ± 0.01 0 .87 ± 0.02 0 .91 ± 0.02 0 .92 ± 0.02 TABLE S3. Classification performance on the validation set for all models for ternary classification. 
+
+XGBoost RF CatBoost TabPFN 
+
+Accuracy 0 .77 ± 0.12 0 .76 ± 0.12 0 .78 ± 0.11 0 .75 ± 0.10 Precision 0 .80 ± 0.11 0 .78 ± 0.11 0 .81 ± 0.10 0 .78 ± 0.10 Recall 0.77 ± 0.13 0 .76 ± 0.12 0 .78 ± 0.12 0 .75 ± 0.10 
+
+F1 0.77 ± 0.13 0 .76 ± 0.12 0 .78 ± 0.12 0 .75 ± 0.10 TABLE S4. Classification performance on the train set for all models for binary classification for 101 datasets. 
+
+XGBoost RF CatBoost TabPFN 
+
+Accuracy 0 .84 ± 0.03 0 .87 ± 0.02 0 .91 ± 0.01 0 .92 ± 0.03 Precision 0 .85 ± 0.03 0 .87 ± 0.02 0 .92 ± 0.01 0 .92 ± 0.03 Recall 0.83 ± 0.03 0 .86 ± 0.02 0 .91 ± 0.02 0 .92 ± 0.03 
+
+F1 0.84 ± 0.03 0 .86 ± 0.02 0 .91 ± 0.02 0 .92 ± 0.03 
+
+ods: the mean decrease in impurity (MDI) method and SHAP (Shapley Additive Explana-tions) analysis. MDI is a method used in tree-based models, like XGBoost, that quantifies how much a feature contributes to reducing the weighted impurity (e.g., entropy) in the decision tree. A higher importance value indicates that the feature is more effective at splitting the data into purer nodes, thus playing a more significant role in the model’s predictions. While this method provides a global ranking of features, it can be biased towards high-cardinality continuous features. 5TABLE S5. Classification performance on the validation set for all models for binary classification for 101 datasets.                                      
+
+> XGBoost RF CatBoost TabPFN
+> Accuracy 0 .80 ±0.11 0 .84 ±0.10 0 .84 ±0.10 0 .82 ±0.11 Precision 0 .83 ±0.10 0 .85 ±0.10 0 .86 ±0.10 0 .83 ±0.11 Recall 0.80 ±0.11 0 .84 ±0.10 0 .84 ±0.10 0 .82 ±0.11
+> F10.79 ±0.12 0 .84 ±0.10 0 .84 ±0.10 0 .81 ±0.11
+
+SHAP, on the other hand, is a more robust, model-agnostic method based on cooperative game theory. It calculates the marginal contribution of each feature to the prediction for each individual data point, providing a more nuanced and reliable measure of feature importance. These two methods offer complementary perspectives, allowing for a more comprehensive understanding of the model’s decision-making process. The MDI analysis shows that the Si/OH ratio is a dominant feature, with an importance factor of approximately 0.5 (Fig. S2). This finding is consistent with the SHAP analysis, which also identifies the Si/OH ratio as the most impactful feature. The source of aluminum, Al(OH) 3, also emerges as a significant factor, suggesting that the choice of precursor, not just the elemental ratios, influences EMT formation. Temperature and the Si/Al ratio show comparable importance values, highlighting their synergistic effect on crystallization dynamics.  
+
+> S5. EVALUATION TIME
+
+To illustrate the challenge of exhaustively exploring the synthesis parameter space, we can consider a simple combinatorial analysis. If we sample just 20 values for each of the 13 features, the total number of candidate synthesis conditions would be 20 13 = 8 .192 × 10 16 .The trained XGBoost model takes approximately 6 × 10 −5 seconds to make a single prediction, evaluating all these candidate conditions would require approximately 4 .9 ×
+
+10 12 seconds, or about 155,000 years. This calculation highlights the impracticality of a brute-force approach and underscores the necessity of a more intelligent strategy. Machine learning models, by learning the underlying relationships between synthesis parameters and 60.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 
+
+Gain 
+
+> Al:Al(OH) 3
+> NaOH
+> Si/Al
+> Temperature
+> Al
+> Si/OH
+> Si:TEOS
+> Si:Na 2SiO 3
+> Time
+> Si
+> Pd:Si
+> Si size
+> H2O
+> Si:Ludox-SM30
+> Si:Ludox-AS40
+> Si:Fumed silica
+> Al:NaAlO 2
+> Pd:Al
+> Features
+
+FIG. S2. Synthesis parameter importance for EMT formation based on XGBoost MDI for the ternary classification model. 0.0 0.5 1.0 1.5 2.0 2.5 3.0 
+
+Gain 
+
+Si:TEOS 
+
+Time 
+
+H2O
+
+Si:Fumed silica 
+
+Pd:Al 
+
+Si:Ludox-SM30 
+
+Al:NaAlO 2
+
+Pd:Si 
+
+Al:Al(OH) 3
+
+Al 
+
+NaOH 
+
+Si/Al 
+
+Si:Na 2SiO 3
+
+Si/OH 
+
+Si:Ludox-AS40 
+
+Si 
+
+Temperature 
+
+Si size 
+
+> Features
+
+FIG. S3. Synthesis parameter importance for EMT formation based on XGBoost MDI for the binary classification model. 
+
+7outcomes, can efficiently guide the exploration of this vast parameter space, enabling the identification of promising synthesis conditions in a fraction of the time.  
+
+> S6. POST-PROCESSING OF CANDIDATE SYNTHESIS CONDITIONS
+
+To down-select candidates from the initial set of 374 predicted synthesis conditions, we applied a series of post-processing steps prior to proposing conditions for experimental val-idation. First, we resolved categorical features associated with the silicon sources. For ex-ample, silicon sources are encoded as categorical variables with five possible options, where one source takes a value of 1, and the remaining sources take values of 0 (see S2 for details). After inverse transformation of the model outputs, we retained only candidates for which the difference between the largest and second-largest silicon source values exceeded 0.6. In these cases, we assigned the silicon source with the highest value to 1 and set all other sources to 0. Candidates that did not meet this criterion (e.g., cases with values of 0.6 and 0.4 for two silicon sources) were discarded. A similar rounding procedure was applied to all remaining binary categorical features with values close to 1 (e.g., 0.9) assigned to 1 and all other values set to 0. Next, we adjusted continuous features representing discrete quantities. When the predicted value of the silicon precursor size was close to an integer, we rounded it to the nearest whole number. For example, a predicted precursor size of 1.98 was replaced with 2. Finally, after applying these manual adjustments, we recomputed the predicted proba-bilities and dissimilarity scores following the procedure described in the main text. Finally, candidates with a minimum “dissimilarity index” of 0.5 were retained. From the resulting 28 candidates, we selected the six conditions with the highest predicted probabilities for experimental validation, which are discussed in the main text. The remaining 22 candidates are reported in Table S6.  
+
+> S7. EXPERIMENTAL SYNTHESIS PROTOCOL
+
+The experimental range was expanded by varying the precursors, temperature, and syn-thesis time. The growth mixture for zeolite EMT was prepared with molar compositions of 
+
+x SiO 2 : y Al 2O3 : z NaOH : 450 H 2O. The synthesis was carried out as follows: 8TABLE S6. Remaining synthesis conditions proposed by the ML pipeline. The following features are the same for all samples: Si size (2), H 2O (450). 
+
+NaOH Al Si Pd:Si Pd:Al Si/OH Si/Al Time (hours) Temperature ( ◦C) Si:X Al:Y Probability Dissimilarity 36.50 1.84 6.03 Yes Yes 0.17 3.58 72.71 41.24 Na 2SiO 3 NaAlO 2 0.60 1.47 36.44 1.17 6.77 Yes Yes 0.19 6.07 71.50 40.32 Na 2SiO 3 NaAlO 2 0.61 2.02 36.47 0.61 8.35 Yes Yes 0.23 8.92 69.86 38.72 Na 2SiO 3 NaAlO 2 0.62 1.66 36.96 0.70 5.72 Yes Yes 0.16 6.54 70.68 40.61 Na 2SiO 3 NaAlO 2 0.62 1.98 36.50 0.94 7.98 Yes Yes 0.22 7.67 70.46 39.18 Na 2SiO 3 NaAlO 2 0.64 2.52 36.04 2.00 5.62 Yes Yes 0.16 2.78 73.83 41.96 Na 2SiO 3 NaAlO 2 0.66 7.86 36.79 1.54 7.44 Yes Yes 0.20 5.58 71.11 39.73 Na 2SiO 3 NaAlO 2 0.67 5.52 36.48 2.48 7.12 Yes Yes 0.19 2.65 73.01 40.68 Na 2SiO 3 NaAlO 2 0.69 1.34 36.73 0.78 5.52 Yes Yes 0.15 6.14 71.24 40.97 Na 2SiO 3 NaAlO 2 0.69 1.41 36.71 2.40 7.32 Yes Yes 0.20 3.05 72.45 40.32 Na 2SiO 3 NaAlO 2 0.71 2.00 36.45 2.15 7.49 Yes Yes 0.20 3.90 72.41 40.22 Na 2SiO 3 NaAlO 2 0.71 2.69 35.90 2.20 6.24 Yes Yes 0.17 2.74 73.96 41.64 Na 2SiO 3 NaAlO 2 0.72 2.13 36.79 2.51 8.16 Yes Yes 0.22 3.41 72.02 39.63 Na 2SiO 3 NaAlO 2 0.72 2.49 36.76 2.10 5.86 Yes Yes 0.16 2.73 72.75 41.33 Na 2SiO 3 NaAlO 2 0.73 7.17 36.04 1.03 4.90 Yes Yes 0.14 4.95 72.93 42.06 Na 2SiO 3 NaAlO 2 0.78 1.60 36.53 2.26 8.32 Yes Yes 0.23 4.26 71.97 39.54 Na 2SiO 3 NaAlO 2 0.79 2.67 36.56 2.59 7.95 Yes Yes 0.22 3.02 72.58 39.99 Na 2SiO 3 NaAlO 2 0.81 2.89 43.10 2.14 5.74 No No 0.14 2.60 63.44 37.25 Ludox-AS40 Al(OH) 3 0.81 6.05 36.90 1.90 5.23 Yes Yes 0.14 2.77 72.62 41.66 Na 2SiO 3 NaAlO 2 0.84 0.73 36.87 1.57 5.61 Yes Yes 0.15 4.01 72.02 41.20 Na 2SiO 3 NaAlO 2 0.84 1.95 36.67 1.01 4.31 Yes Yes 0.12 4.54 72.28 42.12 Na 2SiO 3 NaAlO 2 0.85 0.59 36.82 2.85 7.78 Yes Yes 0.21 2.17 72.62 40.09 Na 2SiO 3 NaAlO 2 0.86 1.98 
+
+1. Solution A was prepared by dissolving sodium aluminate and sodium hydroxide in deionized (DI) water in a polypropylene bottle, with stirring in an ice bath until the mixture was homogeneous. 2. Solution B was prepared by adding one of the silica sources (sodium silicate, fumed silica, or tetraethyl orthosilicate (TEOS)) to DI water in a separate polypropylene bottle. Sodium silicate was used as the nominal silica source unless otherwise stated. 3. Solution B was stirred in an ice bath until homogeneous, then added to Solution A. The resulting growth mixture was stirred in the ice bath for an additional 10 minutes. 4. The mixture was heated under static conditions in a Thermo Fisher Precision oven at a temperature between 35 and 45 ◦C. 5. The bottles were removed from the oven at various time intervals between 3 and 72 hr 9and cooled to 25 ◦C in a water bath. 6. The solid product was recovered by three cycles of centrifugation (6000 rpm for 5 min-utes using a Corning LSE centrifuge) and washing with DI water. 7. The final product was dried in air at room temperature prior to characterization. 
+
+S8. CHARACTERIZATION OF ML-GUIDED EMT SYNTHESES 
+
+a. X-ray diffraction. Powder X-ray diffraction (PXRD) patterns of dried solids were collected on a Rigaku SmartLab diffractometer with a Cu K α source (40 kV, 30 mA). 
+
+FIG. S4. XRD patterns of (A) reference EMT from the IZA database and (B)–(G) EMT synthesized under the conditions listed in Table IV of the main text. (B) 36.59 NaOH : 2.93 Al(OH) 3 : 7.58 SiO 2
+
+: 450 H 2O. (C) 36.93 NaOH : 1.26 Al(OH) 3 : 4.15 SiO 2 : 450 H 2O. (D) 36.65 NaOH : 1.65 Al(OH) 3
+
+: 5.40 SiO 2 : 450 H 2O. (E) 36.76 NaOH : 1.12 Al(OH) 3 : 5.14 SiO 2 : 450 H 2O. (F) 37.39 NaOH : 2.08 Al(OH) 3 : 5.27 SiO 2 : 450 H 2O. (G) 36.99 NaOH : 1.04 Al(OH) 3 : 5.35 SiO 2 : 450 H 2O. 
+
+b. Scanning electron microscopy. Scanning electron microscopy (SEM) images were obtained using an FEI-235 Dual-Beam Focused Ion Beam instrument operated at 15 kV and a 5 mm working distance. 10 FIG. S5. SEM image of EMT synthesized with a molar ratio of 36.9 NaOH : 1 Al(OH) 3 : 4 SiO 2 :450 H 2O, using NaAlO 2 and Na 2SiO 3 as aluminum and silica sources. The mixture was heated at 40 °C for 72 h.  
+
+> S9. EXTERNAL VALIDATION ON LITERATURE-REPORTED SYNTHESES
+
+This section provides the methodological detail supporting the literature-validation anal-ysis in Section IIID of the main manuscript: how the literature dataset was compiled and how descriptors not reported in the original papers were imputed (i.e., filled in with substi-tute values so the model can still be evaluated). 
+
+a. Literature compilation and search strategy. The dataset was compiled from the EMT zeolite synthesis literature, yielding 16 pure-EMT hydrothermal synthesis entries. Each entry corresponds to a unique gel composition reported in the source; when the same synthesis appeared in more than one publication, only one instance was kept to avoid duplication, and entries with uncertain phase assignments were excluded. The dataset, together with the model’s prediction for each entry, is listed in Table S7. 
+
+b. Handling of unreported descriptors. Several descriptors required by the model were not reported consistently in the original papers, including both numerical and categorical features. Among the numerical descriptors, the SiO 2 precursor particle size was not reported in any of the literature sources, and the crystallization time was missing in some entries (see Table I of the main manuscript for the definitions). The categorical descriptors most 11 commonly missing were whether the Si and Al precursors were pre-dissolved before synthesis. For the two categorical descriptors, we did not impute a single value; instead, when they were missing, we evaluated all possible combinations of the categorical states and averaged the resulting model predictions. For numerical descriptors, we used mean imputation: missing values were replaced by the mean of that feature computed from the in-house training dataset. For the SiO 2 particle size, which was not reported in any of the literature sources, the in-house mean is 3.25 nm; to reduce dependence on a single imputed value, we duplicated each literature row using five SiO 2 particle sizes (2, 3, 3.25, 4, and 5 nm) and report the prediction and dissimilarity averaged over the five evaluations. Because the imputed values are drawn from the in-house training dataset, they may place literature cases closer to the in-house synthesis space than they would be if the true, un-reported values were available. The literature validation should therefore be viewed as an external evaluation using the reported literature descriptors together with explicitly docu-mented assumptions for missing values, rather than a fully independent test across all model inputs. 12 TABLE S7. Experimental EMT synthesis conditions compiled from the literature and used for ex-ternal validation of the model. Only literature cases reported as pure EMT hydrothermal syntheses are included. The SiO 2 precursor particle size is not shown because it was not reported in any source and was imputed identically for all entries (see the imputation procedure described above). The “Prediction” column reports the model’s classification (“Yes” for predicted EMT, “No” for predicted non-EMT). 
+
+NaOH Al Si H2O Si/OH Si/Al Time (h) Temperature ( ◦C) Si:X Al:Y Prediction Dissimilarity Source 5.40 2.00 10.96 153.00 2.03 5.48 624.00 90.00 Na 2SiO 3 NaAlO 2 Yes 38.61 [4] 4.80 2.00 10.00 140.00 2.08 5.00 168.00 115.00 Ludox-AS40 NaAlO 2 Yes 38.83 [5] 4.00 2.00 10.00 140.00 2.50 5.00 240.00 115.00 Ludox-AS40 NaAlO 2 Yes 44.77 [5] 4.20 2.00 10.00 140.00 2.38 5.00 24.00 71.65 Na 2SiO 3 NaAlO 2 No 39.54 [6] 36.90 2.00 5.15 240.00 0.14 2.58 36.00 40.00 Na 2SiO 3 NaAlO 2 Yes 1.48 [7] 34.00 2.00 5.15 250.00 0.15 2.58 24.00 40.00 Na 2SiO 3 NaAlO 2 No 2.10 [7] 34.00 2.00 5.15 350.00 0.15 2.58 36.00 40.00 Na 2SiO 3 NaAlO 2 Yes 3.84 [7] 34.00 2.00 5.15 350.00 0.15 2.58 8.00 60.00 Na 2SiO 3 NaAlO 2 Yes 5.53 [7] 34.00 2.00 5.15 550.00 0.15 2.58 84.00 40.00 Na 2SiO 3 NaAlO 2 Yes 3.72 [7] 34.00 2.00 5.15 450.00 0.15 2.58 12.00 60.00 Na 2SiO 3 NaAlO 2 Yes 4.19 [7] 34.00 2.00 5.15 450.00 0.15 2.58 20.00 40.00 Na 2SiO 3 NaAlO 2 Yes 1.78 [7] 34.00 2.00 5.15 450.00 0.15 2.58 48.00 40.00 Na 2SiO 3 NaAlO 2 Yes 1.22 [7] 34.00 2.00 5.15 450.00 0.15 2.58 36.00 40.00 Na 2SiO 3 NaAlO 2 Yes 1.44 [7] 34.00 2.00 5.15 450.00 0.15 2.58 24.00 40.00 Na 2SiO 3 NaAlO 2 No 1.69 [7] 36.90 2.00 5.15 240.30 0.14 2.58 36.00 30.00 Na 2SiO 3 NaAlO 2 No 2.88 [1] 36.00 2.00 5.00 217.00 0.14 2.50 28.00 28.00 Na 2SiO 3 NaAlO 2 No 3.59 [2] 
+
+13 [1] E.-P. Ng, D. Chateigner, T. Bein, V. Valtchev, and S. Mintova, Capturing ultrasmall emt zeolite from template-free systems, Science 335 , 70 (2012). [2] E.-P. Ng, H. Awala, K.-H. Tan, F. Adam, R. Retoux, and S. Mintova, EMT-type zeolite nanocrystals synthesized from rice husk, Microporous and Mesoporous Materials 204 , 204 (2015). [3] M. Maldonado, M. D. Oleksiak, S. Chinta, and J. D. Rimer, Controlling crystal polymorphism in organic-free synthesis of na-zeolites, Journal of the American Chemical Society 135 , 2641 (2013). [4] R. Wendelbo, M. St¨ ocker, H. Junggreen, H. B. Mostad, and D. E. Akporiaye, Tumbling ap-proach towards template-free synthesis of emt zeolite, Microporous and Mesoporous Materials 
+
+28 , 361 (1999). [5] C.-n. Wu and K.-j. Chao, Synthesis of faujasite zeolites with crown-ether templates, Journal of the Chemical Society, Faraday Transactions 91 , 167 (1995). [6] F. Dougnier and J.-L. Guth, EMT zeolite synthesis: Na+ vs. OH–effect, Journal of the Chemical Society, Chemical Communications , 951 (1995). [7] V. Georgieva, A. Vicente, C. Fernandez, R. Retoux, A. Palˇ ci´ c, V. Valtchev, and S. Mintova, Control of Na-EMT zeolite synthesis by organic additives, Crystal Growth & Design 15 , 1898 (2015). 
+
+14

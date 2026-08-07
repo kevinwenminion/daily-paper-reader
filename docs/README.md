@@ -7,54 +7,46 @@
 
 ## 每次日报
 - 最新运行日期：2026-08-07
-- 运行时间：2026-08-07 02:10:40 UTC
+- 运行时间：2026-08-07 21:25:30 UTC
 - 运行状态：成功
-- 本次总论文数：11
+- 本次总论文数：9
 - 精读区：1
-- 速读区：10
+- 速读区：8
 
 ### 今日简报（AI）
-今日共读11篇论文，聚焦AI在材料与分子表征中的应用，精读1篇、速读10篇。  
-最值得看：光学显微AI精准识别颗粒与纤维形态（8.0分），以及物理引导扩散模型用于分子表征（7.0分）。  
-建议普通读者优先精读高分的粒子纤维表征研究，其余速读了解AI+物理建模的前沿趋势即可。
+今日共读9篇论文，精读1篇聚焦材料发现中的主动学习与多目标贝叶斯优化，速读覆盖AI显微表征、拉曼光谱基础模型及功率磁瞬态预测。最值得关注的是精读论文提出的设计空间细化策略，可高效平衡多目标冲突，另有RamanPFN以表格基础模型学习光谱结构，值得延伸探索。建议普通读者优先从材料优化方法入手，再结合光谱与显微AI工具，构建跨域智能实验思维。
 - 详情：[/202608/07/README](/202608/07/README)
 
 ### 精读区论文标签
-1. [Artificial Intelligence for the Characterization of Particles and Fibers by Optical Microscopy](/202608/07/2608.00361v1-artificial-intelligence-for-the-characterization-of-particles-and-fibers-by-optical-microscopy)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：用于颗粒与纤维光学显微图像解析的AI蒸馏框架
+1. [Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery](/202608/07/2608.04651v1-active-learning-guided-design-space-refinement-for-scalable-multi-objective-bayesian-optimization-in-materials-discovery)  
+   标签：评分：9.0/10、query:aimat-mlpot
+   evidence：主动学习引导的自适应搜索空间精化与多目标贝叶斯优化加速材料发现
 
 ### 速读区论文标签
-1. [A Physics-Informed Hybrid Neural Operator for Transient Magnetization Prediction in Power Magnetics](/202608/07/2608.02965v1-a-physics-informed-hybrid-neural-operator-for-transient-magnetization-prediction-in-power-magnetics)  
+1. [Artificial Intelligence for the Characterization of Particles and Fibers by Optical Microscopy](/202608/07/2608.00361v1-artificial-intelligence-for-the-characterization-of-particles-and-fibers-by-optical-microscopy)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：物理信息混合神经算子用于瞬态磁化预测
-2. [ED-DiT: Physics-Guided Diffusion Pretraining for Transferable Molecular Representations from Electron Density](/202608/07/2608.03260v1-ed-dit-physics-guided-diffusion-pretraining-for-transferable-molecular-representations-from-electron-density)  
+   evidence：面向光学显微镜颗粒与纤维表征的AI蒸馏框架
+2. [RamanPFN: learning from Raman spectral structure with a tabular foundation model](/202608/07/2608.02157v1-ramanpfn-learning-from-raman-spectral-structure-with-a-tabular-foundation-model)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：物理引导的扩散预训练从电子密度学习可迁移分子表示。
-3. [Visualizing Graph-to-Answer Mechanism Recovery in Materials-Science Hypothesis Generation](/202608/07/2608.04170v1-visualizing-graph-to-answer-mechanism-recovery-in-materials-science-hypothesis-generation)  
+   evidence：利用机器学习进行拉曼光谱分析以预测材料性质
+3. [A Physics-Informed Hybrid Neural Operator for Transient Magnetization Prediction in Power Magnetics](/202608/07/2608.02965v1-a-physics-informed-hybrid-neural-operator-for-transient-magnetization-prediction-in-power-magnetics)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：可视化AI在材料科学假设生成中的推理机制。
+   evidence：用神经算子预测磁性材料的瞬态磁化响应
 4. [Electron correlation in semiconductors and insulators via symbolic regression](/202608/07/2608.04291v1-electron-correlation-in-semiconductors-and-insulators-via-symbolic-regression)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：符号回归用于电子关联与准粒子能量预测
-5. [Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery](/202608/07/2608.04651v1-active-learning-guided-design-space-refinement-for-scalable-multi-objective-bayesian-optimization-in-materials-discovery)  
+   evidence：符号回归学习GW自能近似以预测复杂材料准粒子能量
+5. [An Exchange-Correlation Functional for Fast and Accurate Modeling of Ferroelectric Perovskites](/202608/07/2608.04806v1-an-exchange-correlation-functional-for-fast-and-accurate-modeling-of-ferroelectric-perovskites)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：主动学习引导自适应搜索空间精炼结合多目标贝叶斯优化,加速材料发现
-6. [CheMLFlow: An Open-Source Platform for Cheminformatics and Materials Informatics Applications](/202608/07/2608.04942v1-chemlflow-an-open-source-platform-for-cheminformatics-and-materials-informatics-applications)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：面向材料信息学的端到端机器学习工作流开源平台
-7. [TAGTorch: A PyTorch Library for Geometry, Topology, and Symmetry-Aware Machine Learning](/202608/07/2607.28755v1-tagtorch-a-pytorch-library-for-geometry-topology-and-symmetry-aware-machine-learning)  
+   evidence：面向铁电MLIP训练的交换关联泛函研究
+6. [ED-DiT: Physics-Guided Diffusion Pretraining for Transferable Molecular Representations from Electron Density](/202608/07/2608.03260v1-ed-dit-physics-guided-diffusion-pretraining-for-transferable-molecular-representations-from-electron-density)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：提供用于几何、拓扑与对称性感知机器学习的PyTorch库，可应用于材料建模。
-8. [RamanPFN: learning from Raman spectral structure with a tabular foundation model](/202608/07/2608.02157v1-ramanpfn-learning-from-raman-spectral-structure-with-a-tabular-foundation-model)  
+   evidence：基于电子密度场的自监督预训练，为电子结构相关任务提供可迁移表征
+7. [Predicting Plasticity in Two-Dimensional Foam Channel Flow Around an Obstacle](/202608/07/2608.04911v1-predicting-plasticity-in-two-dimensional-foam-channel-flow-around-an-obstacle)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：利用表格基础模型学习拉曼光谱结构，用于材料表征。
-9. [NanoMorph-3D: An End-to-End Physics-Driven Unrolling Framework for Nanomaterial Reconstruction](/202608/07/2608.03257v1-nanomorph-3d-an-end-to-end-physics-driven-unrolling-framework-for-nanomaterial-reconstruction)  
+   evidence：用监督学习预测无定形软颗粒体系中的塑性活动
+8. [Physics-Based Molecular Fingerprints from Spectral Graph Theory Provide Efficient Geometry-Aware Measures of Chemical Similarity](/202608/07/2608.05336v1-physics-based-molecular-fingerprints-from-spectral-graph-theory-provide-efficient-geometry-aware-measures-of-chemical-similarity)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：物理驱动的深度学习重建纳米材料三维结构。
-10. [Predicting Plasticity in Two-Dimensional Foam Channel Flow Around an Obstacle](/202608/07/2608.04911v1-predicting-plasticity-in-two-dimensional-foam-channel-flow-around-an-obstacle)  
-   标签：评分：6.0/10、query:aimat-mlpot
-   evidence：监督学习预测二维泡沫通道流动中的塑性行为。
+   evidence：物理启发分子指纹编码三维几何信息，可用于结构-性质的机器学习建模
 
 
 <div class="dpr-home-promo-card">

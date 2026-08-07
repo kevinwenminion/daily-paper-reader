@@ -1,0 +1,702 @@
+Title: A Physics-Informed Hybrid Neural Operator for Transient Magnetization Prediction in Power Magnetics
+
+URL Source: https://arxiv.org/pdf/2608.02965v1
+
+Published Time: Wed, 05 Aug 2026 00:19:47 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+> PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 1
+
+# A Physics-Informed Hybrid Neural Operator for Transient Magnetization Prediction in Power Magnetics 
+
+Yachao Zhu, Student Member, IEEE, Qiujie Huang, Student Member, IEEE, Sinan Li, Member, IEEE, 
+
+Yang Li, Member, IEEE, Gang Lei, Senior Member, IEEE, and Jianguo Zhu, Fellow, IEEE 
+
+Abstract —Magnetic components in high-frequency, high-power-density converters are increasingly driven by non-sinusoidal flux-density waveforms with fast transitions, minor-loop operation, dc bias, and temperature variation. Under these conditions, steady-state core-loss formulas and single-valued material curves cannot fully capture transient magnetization responses. This work proposes the Physics-Informed Hybrid Neural Operator (PI-HNO), a compact material-specific neural model with B–H energy-consistency regularization for core-loss-oriented transient magnetization prediction. Given the measured 
+
+B(t)–H(t) history, the input B(t) series over the prediction inter-val, and operating-condition information, PI-HNO predicts the 
+
+H(t) seires and the corresponding reconstructed B–H trajectory. The model integrates a local recurrent branch for boundary-state representation and rate-dependent response evolution with a Preisach-inspired global branch that extracts waveform-level hysteresis context. Evaluation on the MagNetX transient database using material-specific models for 14 ferrite materials demon-strates that PI-HNO achieves a compact trade-off between sequence accuracy and B(t)–H(t) energy consistency, with the mean and 95th percentile B(t)–H(t) energy consistency errors of 1.92% and 7.60%, respectively, using only 4777 trainable param-eters per model. Ablation studies further demonstrate that the local, global, and energy-aware regularized components provide distinct contributions to transient magnetization prediction. 
+
+Index Terms —Power magnetics, magnetic hysteresis, transient magnetization, core loss, B–H trajectory prediction, physics-informed machine learning. 
+
+I. I NTRODUCTION 
+
+# HIGH-FREQUENCY and high-power-density power con-verters enabled by wide-bandgap devices and advanced topologies impose increasing demands on magnetic compo-nents, including higher switching frequency, more complex excitation waveforms, and tighter thermal constraints [1]–[3]. Inductors and transformers directly affect converter volume, 
+
+This work is a preprint prepared for possible submission to IEEE Transac-tions on Power Electronics. Yachao Zhu and Qiujie Huang are co-first authors. (Corresponding author: Qiujie Huang.) Yachao Zhu and Gang Lei are with the School of Electrical and Data Engineering, the University of Technology Sydney, Ultimo, 2007 (e-mail:Yachao.Zhu@uts.edu.au; Gang.Lei@uts.edu.au) Qiujie Huang, Sinan Li, and Jianguo Zhu are with the School of Electrical and Computer Engineering, the University of Sydney, Darlington, NSW, 2008, Australia (e-mail:qiujie.huang@sydney.edu.au; sinan.li@sydney.edu.au; jianguo.zhu@sydney.edu.au) Yang Li was with the National Railway Research and Design In-stitute of Signal and Communication, Beijing 100070, China (e-mail: 787511208@qq.com) 
+
+core loss, temperature rise, current stress, and efficiency, mak-ing accurate magnetic material modeling essential for compact power magnetic design [4]–[6]. However, modern converter excitations often involve fast transitions, dc bias, minor-loop operation, and temperature variation, where scalar core-loss models and single-valued material curves cannot capture the transient magnetic response required for time-domain analysis. For a given flux-density trajectory B(t), the corresponding 
+
+H(t) response depends on magnetic history, reversal behavior, temperature, and rate-dependent effects, motivating compact models capable of predicting future B–H trajectories from available history and excitation information. These path-, rate-, and temperature-dependent behaviors have traditionally been described using empirical core-loss models and physics-based hysteresis formulations. Steinmetz-based models and their extensions provide efficient loss es-timation for periodic waveforms but cannot reconstruct tran-sient B–H trajectories under arbitrary excitation conditions [7]–[10]. Physics-based models, including Preisach, Jiles– Atherton, and generalized dynamic circuit models, provide improved interpretability by representing hysteresis memory and dynamic loss mechanisms [11]–[15]. However, these approaches often require material-specific parameter identi-fication and may lose accuracy when operating frequency, temperature, bias, or geometry varies. These challenges have motivated data-driven modeling of power magnetic materials. MagNet established a data foun-dation for B–H loop reconstruction and core-loss modeling, while MagNet-AI introduced neural datasheet concepts for loop prediction, loss estimation, and material recommenda-tion [2], [5]. HARDCORE further explored the time domain 
+
+H(t) reconstruction and loss estimation from reconstructed trajectories [16]. More recently, MagNetX extended transient magnetic modeling through time-domain excitation data and history-conditioned prediction, while RHINO-MAG investi-gated compact recursive temperature-aware H(t) inference under dynamic excitation [4], [17]. In parallel, hybrid physics- and data-driven learning has been developed to improve physical consistency and reduce the ambiguity of purely data-driven magnetic models. Ana-lytical core-loss-informed networks primarily focus on scalar loss prediction. In contrast, Preisach, Prandtl-Ishlinskii, and phenomenological-dynamics-based approaches encode path dependence and the multivalued nature of the B–H char-acteristics. Neural-operator approaches have further explored arXiv:2608.02965v1 [cs.LG] 3 Aug 2026 PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 2
+
+nonlinear mappings between excitation trajectories and mag-netic responses, providing potential advantages for waveform-dependent modeling [18]–[23]. However, existing methods mainly focus on closed-loop loss regression, quasi-static hys-teresis reconstruction, or constitutive mapping. A compact transient model that learns boundary-conditioned trajectory mappings while simultaneously providing accurate H(t) pre-diction, B–H energy consistency, and interpretable use of magnetization history and full-waveform B(t) information remains insufficiently explored. This challenge is particularly important for finite prediction intervals, where reconstructed 
+
+B–H trajectories may be open and closed-cycle loss evalua-tion alone is insufficient. Motivated by this gap, this work proposes the Physics-Informed Hybrid Neural Operator (PI-HNO), a compact neu-ral material model for boundary-conditioned transient B–H
+
+trajectory prediction. Unlike conventional sequence models that primarily learn pointwise temporal correlations, PI-HNO formulates transient magnetization prediction as a boundary-conditioned trajectory mapping between magnetic excitation, available history information, and future magnetic response. Given the measured magnetic history before the prediction interval, the input B(t) trajectory over the interval, and operating-condition features, PI-HNO predicts the subsequent 
+
+H(t) response while improving the B–H energy consistency of the reconstructed trajectory through physics-guided regu-larization. The proposed physics-guided framework incorporates mag-netic knowledge at three levels. First, the transient mag-netic response is formulated based on a physics-motivated decomposition of history-dependent hysteresis behavior and rate-dependent dynamic effects, which guides the design of complementary learning branches. Second, magnetic memory and path dependence are represented using a Preisach-inspired global feature-extraction mechanism. Third, an energy-aware regularization term is introduced to improve the consistency of the reconstructed B–H trajectory. Using these physics-guided representations and constraints, PI-HNO provides a compact framework for predicting transient magnetic response. The main contributions are summarized as follows: 1) A boundary-conditioned transient magnetization predic-tion framework is formulated for material-specific mod-eling, where the future H(t) response is inferred from the measured magnetic history, the input B(t) trajectory over the prediction interval, temperature, and temporal-position information. 2) A compact hybrid neural architecture is developed by integrating local recurrent state propagation and global waveform-level context extraction for transient magnetic-response prediction. The proposed design enables si-multaneous modeling of the evolution of rate-dependent response and path-dependent hysteresis behavior under diverse excitation conditions. 3) An energy-aware training objective is developed to im-prove the accumulated B–H energy consistency of the predicted trajectory. Extensive evaluations on the Mag-NetX dataset using 14 ferrite materials demonstrate that B (T) 
+
+> Start Position
+
+# ...    
+
+> Time Steps sL-10
+> H (A/m)
+
+# ...   
+
+> Time Steps
+> History
+> Future
+> Sub sequence ( Lsamples)
+> Fig. 1. Input–output arrangement of the boundary-conditioned transient H(t)
+> prediction task.
+
+PI-HNO achieves a favorable trade-off among prediction accuracy, energy consistency, and model compactness. The remainder of this work is organized as follows. Section II defines the prediction problem and presents the physical background. Section III introduces the proposed PI-HNO and its energy-aware learning formulation. Section IV describes the experimental setup and evaluation metrics. Section V presents and discusses the comparative and ablation results. Conclusions are drawn in Section VI. II. PROBLEM FORMULATION AND PHYSICAL BACKGROUND 
+
+A. Boundary-Conditioned Transient H(t) Prediction 
+
+The transient hysteresis prediction task is formulated as a boundary-conditioned trajectory mapping problem. As shown in Fig. 1, each transient B–H sequence contains L sampled time steps. A prediction boundary s divides the sequence into a measured-history interval, 0 ≤ t < s , and a prediction interval, s ≤ t < L . Before the boundary, both B(t) and H(t)
+
+are available and provide information about the magnetic state reached by the material. Over the prediction interval, the input 
+
+B(t) trajectory is known, whereas the corresponding H(t)
+
+response is withheld from the model and used only as the training target or evaluation reference. The objective is to learn a nonlinear trajectory mapping from the measured magnetic history, the complete excitation trajectory, and operating conditions to the future magnetization response: 
+
+Hpred (t) = Gθ
+
+ B(t), H hist (t), T , s ≤ t < L, (1) where Gθ denotes the learned nonlinear mapping from the in-put magnetic trajectories and operating conditions to the future magnetization response. Here, Hhist (t) represents the mea-sured magnetic history before the prediction boundary, and the complete B(t) trajectory includes both the measured-history and prediction intervals. Explicit frequency and waveform-periodicity labels are not provided as separate inputs. PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 31) Reversible wall displacement                          
+
+> Magnetic
+> core
+> +
+> -𝑖 𝑝 𝑡 → 𝐻 𝑡 ≃ 𝑁 𝑖 𝑚 𝑡 𝑙 𝑒
+> B(t) 𝐴 𝑒 𝑖 𝑝 𝑡 → 𝐻 𝑡 ≃ 𝑁 𝑖 𝑚 𝑡 𝑙 𝑒 H(t)
+> Magnetizing current
+> Core induced voltage
+> Thermal condition
+> Taffects the path -
+> dependent response 𝑣 𝑠 𝑡 ≅ 𝑁𝐴 𝑒
+> 𝑑𝐵 𝑡 𝑑𝑡 𝑣 𝑠 𝑡 ≅ 𝑁𝐴 𝑒
+> 𝑑𝐵 𝑡 𝑑𝑡 𝛥𝑥
+> 2) Pinning/depinning
+> Pinning Site
+> Equilibrium Pinned Depinned
+> 3) Irreversible displacement
+> Pre -DW jump Post -DW jump
+> 4) Magnetization rotation
+> Magnetized Unmagnetized
+> Global Eddy -Current Effect
+> Local eddy -current effect
+> associated with moving
+> domain walls
+> Wall motion
+> (a) Magnetic -core excitation and B -H characterization
+> (b) Microscopic domain evolution
+> (c) Macroscopic dynamic effects
+
+## +     
+
+> Low H field 𝐻 t
+> Localized eddy current
+> Fig. 2. Physical interpretation of the magnetic response: (a) magnetic-core excitation and winding-level B–Hcharacterization; (b) microscopic domain evolution involving domain-wall motion and domain rotation; and (c) macroscopic dynamic effects associated with global and local eddy-current.
+
+The amount of measured history is controlled by the known-history ratio as follows: 
+
+ρ = sL , (2) where a smaller ρ corresponds to a less available magnetiza-tion history and a longer prediction interval, while a larger ρ
+
+corresponds to more available history and a shorter prediction interval. The known-history ratio is varied in the experiments to evaluate the proposed model under different levels of available magnetic-history information. 
+
+B. Hysteresis Memory and Energy Consistency 
+
+The transient magnetic response considered in this work arises from complex interactions among the excitation wave-form, magnetization history, and rate-dependent physical mechanisms. As illustrated in Fig. 2, the measured electrical quantities are converted into macroscopic B(t)–H(t) trajec-tories, where the resulting magnetic response contains both history-dependent hysteresis behavior and transient dynamic effects. The macroscopic B–H variables used in this work are ob-tained from winding-level measurements based on the standard lumped-core approximation. For the two-winding magnetic characterization setup, the flux density is reconstructed from the secondary-side voltage, while the magnetic field strength is derived from the primary-side magnetizing current [4]: 
+
+B(t) = B(t0) + 1
+
+n2Ae
+
+Z tt0
+
+vs(τ ) d τ, H(t) ≃ n1ip(t)
+
+ℓe
+
+,
+
+(3) where vs(t) and ip(t) denote the measured winding voltage and magnetizing current, respectively. n1, n2, Ae, and ℓe
+
+represent the winding turns, effective core area, and magnetic path length. These relations establish the connection between electrical measurements and macroscopic magnetic trajecto-ries, but they do not imply a unique instantaneous mapping between B(t) and H(t).At the material level, the magnetic flux density is related to the magnetic field and magnetization by 
+
+B(t) = μ0
+
+H(t) + M (t), (4) where M (t) represents the internal magnetization state. Unlike linear magnetic materials, the evolution of M (t) in soft mag-netic cores depends not only on the instantaneous flux density, but also on the previously experienced excitation trajectory. This memory effect arises from microscopic processes, includ-ing domain-wall displacement and magnetization rotation, that involve both reversible and irreversible mechanisms [13]. Consequently, identical instantaneous operating points in the B–H plane may lead to different subsequent magnetic responses when the underlying excitation histories differ. As illustrated in Fig. 2(b), reversal points, flux-density extrema, dc bias, waveform asymmetry, and major and minor-loop evolution can modify the internal magnetic state and in turn influence future magnetization trajectories. This path depen-dence explains why transient magnetization prediction requires not only the instantaneous excitation B(t), but also sufficient information describing the previous magnetization history. In addition to hysteresis memory, transient excitation intro-duces rate-dependent magnetic effects beyond the quasi-static hysteresis. A time-varying flux density induces eddy currents within the magnetic core, generating electrical fields that mod-ify the measured magnetic field response. Moreover, delayed magnetic relaxation associated with domain-wall dynamics contributes to excess-loss-related dynamic behavior under high-frequency or rapidly varying excitation [11]. Therefore, the transient field response can be conceptually interpreted as: 
+
+H(t) = Hhys 
+
+ B(t), ξ (t), T  + Hdyn (t), (5) where ξ(t) denotes the internal magnetic state, Hhys repre-sents the history-dependent hysteretic contribution, and Hdyn 
+
+represents rate-dependent dynamic effects. In practical mea-surements, the individual contributions cannot be uniquely separated, because hysteresis evolution and dynamic effects PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 4
+
+are strongly coupled in the observed B–H trajectory. Instead, this interpretation provides the physical motivation for incor-porating both long-range magnetic history and local excitation variation into transient prediction models. The predicted H(t) response together with the input B(t)
+
+trajectory defines a reconstructed B–H path over the pre-diction interval. Therefore, evaluating transient magnetization prediction requires not only point-wise agreement in H(t), but also the consistency of the accumulated B–H work along the reconstructed trajectory. For a closed periodic hysteresis loop, the contour integral H H dB represents the dissipated core-loss energy density per cycle. In contrast, the boundary-conditioned prediction interval considered in this work generally forms an open trajectory C, as follows: 
+
+WC =
+
+Z
+
+> C
+
+H dB. (6) For an open trajectory, WC includes both recoverable magnetic work variation and dissipative contributions, and therefore it is not interpreted as a direct core-loss measurement. Instead, the difference between the predicted and measured values of WC
+
+is used as an energy-consistency measure of the reconstructed trajectory. This trajectory-level constraint complements the point-wise H(t) prediction error and encourages physically consistent transient magnetization prediction. III. T HE PROPOSED PHYSICS -I NFORMED HYBRID 
+
+NEURAL OPERATOR 
+
+This section presents PI-HNO for boundary-conditioned transient B–H trajectory prediction. The model learns aboundary-conditioned trajectory operator that maps the mea-sured magnetization history, the complete input B(t) excita-tion trajectory, and temperature for the future H(t) response. To achieve this trajectory-level prediction, PI-HNO combines a local recurrent branch for boundary-state representation and rate-dependent response evolution, a Preisach-inspired global branch for waveform-level hysteresis context extraction, and an energy-aware regularization term to improve the accumu-lated B–H energy consistency of the reconstructed trajectory. 
+
+A. Architecture Overview and Physics-Guided Decomposition 
+
+Fig. 3 illustrates the overall architecture of PI-HNO. Moti-vated by the physical mechanisms discussed in Section II-A, the proposed architecture incorporates a physics-guided de-composition of transient magnetic response into two comple-mentary learning branches. Rather than explicitly identifying separate physical components, these branches are designed to learn representations related to history-dependent hysteresis behavior and rate-dependent magnetic dynamics.  
+
+> •
+
+The global branch is designed to extract waveform-level hysteresis context from the complete B(t) trajectory. In-spired by the memory-weighting concept of the Preisach model, this branch learns path-dependent magnetic infor-mation associated with features such as ascending and descending flux-density trajectories, reversal points, and minor-loop evolution.  
+
+> •
+
+The local recurrent branch is designed to learn the boundary-conditioned evolution of dynamic responses. It utilizes the measured B(t)–H(t) history before the prediction interval and the step-to-step variation of the input B(t) trajectory to propagate rate-dependent mag-netic behavior across the prediction boundary. Through this physics-guided architecture design, PI-HNO incorporates magnetic memory and dynamic-response infor-mation into the learning process rather than relying on a purely empirical input–output mapping. The representations learned from the local and global branches are jointly fused to predict the future Hpred (t) sequence. During training, an energy-aware regularization term is further introduced to improve the accumulated B–H energy consistency of the predicted trajectory. 
+
+B. Local Recurrent Branch for Dynamic Field Response 
+
+The local branch is designed to learn the boundary-conditioned evolution of rate-dependent magnetic response un-der time-varying flux-density excitation. Following the phys-ical interpretation discussed in Section II-A, the transient magnetic response contains both history-dependent hystere-sis behavior and rate-dependent dynamic effects. The local branch does not explicitly identify analytical eddy-current or excess-loss components. Instead, it learns an equivalent dynamic representation from measured magnetic trajectories. The observed B(t)–H(t) history provides the magnetic state information at the prediction boundary, while the input B(t)
+
+waveforms over the prediction interval and their step-to-step variation determine the subsequent evolution of the excitation. A GRU encoder–decoder structure is adopted because its gated recurrence provides a compact discrete-time representation of relaxation-type dynamics, in which the internal state is up-dated based on the current excitation while retaining relevant information from previous states. 
+
+1) History GRU: The history GRU reads the measured 
+
+B(t) and H(t) sequences before the prediction boundary and compresses them into a hidden-state representation hhist . This representation provides initial magnetic-state information for future prediction, including the current field strength, the flux-density variation trend, remanent-state-related information, and reversal events in the measured history, thereby helping identify the active region of the hysteresis trajectory. The use of a gated recurrent update is motivated by the relaxation-type behavior commonly observed in rate-dependent magnetization dynamics. An equivalent first-order relaxation model for an internal dynamic state can be ex-pressed as: 
+
+τt
+
+dh(t)dt = heq (xt) − h(t), (7) where h(t) represents an equivalent internal dynamic state, 
+
+heq (xt) is the excitation-dependent equilibrium state, xt de-notes local excitation features, e.g., Bt, ∆Bt, and T . τt rep-resents an effective relaxation time constant. Using a forward-Euler discretization, (7) becomes: 
+
+ht = (1 − ηt)ht−1 + ηtheq (xt), ηt = ∆tτt
+
+. (8) PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 5Fusion & Output Input 
+
+Local Branch  - Physics -Informed GRU  
+
+> History GRU
+
+Future GRU 
+
+# ++
+
+# ++ 
+
+> Output Projection
+> MLP
+
+Global Branch  - Preisach -Inspired Transformer  
+
+> Input
+> Projection Multi -Head
+> Self -Attention
+
+Start Position 
+
+Future Position  
+
+> Future Position
+> Projection
+
+Global 
+
+Energy -Aware 
+
+Regularisation ∮ 𝐻 ⋅ 𝑑 𝐵 ≥ 0ℒ𝑝 ℎ𝑦 𝑠 ℒ𝑝 ℎ𝑦 𝑠 
+
+penality penality ℒ𝑝 ℎ𝑦 𝑠 penality 
+
+Historical ,Historical ,  
+
+> Mean Pooling
+> h1
+> h2
+> hN
+> ... +
+> h1
+> h2
+> hN
+> ... +
+> avg avg
+
+Output 
+
+> ReLu ReLu
+> ReLu ReLu
+
+𝐵 t𝐻 t𝐵 t𝐵 future , Δ𝐵        
+
+> tanh
+> ×
+> ×+
+> ×
+> σ
+> 1-
+> σtanh
+> ×
+> ×+
+> ×
+> σ
+> 1-
+> σ
+> ×
+> ×+
+> ×
+> σ
+> 1-
+> σtanh
+> ×
+> ×+
+> ×
+> σ
+> 1-
+> σtanh
+
+ℎlocal tℎpos ℎtemp ℎin it 
+
+> Output
+> Projection
+
+# ++ℎhist 𝐻 pre d t𝐵 tFuture Future 𝑣 global (t)
+
+> ReLu ReLu
+> MLP
+> ReLu ReLu ReLu
+
+Temperature 𝑇 Temperature 𝑇   
+
+> Temperature
+> Projection MLP
+> Start Position
+> Projection MLP
+> Fig. 3. Architecture of the proposed PI-HNO.
+
+This update shares the same weighted form as the GRU state equation, 
+
+ht = (1 − zt) ⊙ ht−1 + zt ⊙ ˜ht, (9) where the update gate zt controls the contribution of previous states and current excitation information, and ˜ht denotes the candidate hidden state determined by the current input. This analogy provides a physics-guided interpretation of the GRU update mechanism as a flexible discrete-time representation for rate-dependent magnetic response, rather than a direct analytical model of individual physical mechanisms such as eddy-current diffusion or domain-wall motion. 
+
+2) Initial Hidden State Conditioning: The initial state for future prediction cannot be determined solely from instanta-neous magnetic variables because similar local magnetization states may exhibit different subsequent responses under differ-ent operating conditions. In particular, temperature variations can influence permeability, coercivity, conductivity, and relax-ation behavior. In addition, the start-position feature identifies the location of the prediction boundary input waveform, allow-ing the model to distinguish repeated local excitation patterns that occur at different stages of the magnetization trajectory. Therefore, the temperature T and start-position feature are projected through two multilayer perceptrons and added to the hidden-state representation obtained from the history GRU: 
+
+hinit = hhist + htemp + hpos , (10) where htemp and hpos denote the learned projections of temperature and start position, respectively. The resulting state 
+
+hinit initializes the future GRU, enabling the predicted re-sponse to incorporate temperature-dependent material behavior while using the start-position feature as contextual information for the prediction boundary. 
+
+3) Future GRU: The future GRU uses the same gated recurrent structure as the history GRU to propagate the learned dynamic representation over the prediction horizon. It is initialized by hinit , which provides the boundary magnetic state inferred from the measured B(t)–H(t) history. Beyond this boundary, the future response is driven by the input 
+
+B(t) trajectory. Therefore, at each prediction step, the future GRU receives the input flux density B(t), its step-to-step increment ∆B(t), and a learned temporal-position embedding. The value of B(t) specifies the instantaneous flux-density operating point, while ∆B(t) provides information about the local direction and rate of flux-density variation. Including both inputs allows the future GRU to account for the fact that rate-dependent magnetic behavior is influenced not only by the instantaneous flux-density level, but also by how rapidly the excitation changes and the magnetic state accumulated from previous excitation history. With these in-puts, the future GRU sequentially updates the hidden state and produces the local representation hlocal (t). This representation encodes the rate-dependent magnetic response conditioned on the measured boundary state, the future excitation trajectory, and its local variation, and is subsequently fused with the global hysteresis representation for future H(t) prediction. PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 6
+
+> Fig. 4. Preisach-inspired global attention mechanism for extracting hysteresis-related waveform context.
+
+C. Global Attention Branch for Quasi-Static Hysteresis Con-text 
+
+The local recurrent branch propagates the rate-dependent dynamic response step by step, but the quasi-static hysteresis component requires a broader description of the excitation history. As discussed in Section II-B, hysteresis loss is path-dependent. It is affected by reversal points, flux-density ex-trema, dc flux-density offset, waveform asymmetry, and major-or minor-loop operation. These long-range waveform features can lead to different H(t) responses even when the local values of B(t) and ∆B(t) are similar. A natural way to represent path-dependent hysteresis mem-ory is the Preisach model, which describes the quasi-static hysteretic response as a weighted superposition of elementary hysteresis units: 
+
+Hhys (t) = 
+
+Z Z 
+
+> α≥β
+
+μ(α, β ) γαβ [B]( t) d α dβ, (11) where γαβ [·] denotes an elementary hysteresis operator with switching thresholds α and β, and μ(α, β ) represents the Preisach density function. This formulation describes hystere-sis memory through the weighted aggregation of hysteron states over the Preisach plane. Motivated by the memory aggregation concept underlying Preisach-type hysteresis descriptions, PI-HNO introduces a Transformer-based global branch, as illustrated in Fig. 4. The branch does not explicitly identify the Preisach density or implement physical hysterons. Instead, it employs multi-head self-attention as a data-driven memory aggregation mecha-nism, in which the learned attention weights capture the relevance of different portions of the excitation trajectory to predict the transient magnetic response. For a projected flux-density sequence, the attention weight from query position q
+
+to key position k is 
+
+Aqk = exp  Qq KT 
+
+> k
+
+/√dk
+
+PNℓ=1 exp  Qq KT 
+
+> ℓ
+
+/√dk
+
+ , (12) and the corresponding attention output zq is 
+
+zq =
+
+> N
+
+X
+
+> k=1
+
+Aqk Vk. (13) Here, q denotes the query position at which the attention output is computed, and k denotes the key-value position being attended to. Qq , Kk, and Vk are the query, key, and value vectors obtained through learned linear projections of the input embedding, respectively. dk is the dimension of the key vector, which is used to scale the dot-product similarity. Aqk is the normalized attention weight that measures the contribution of the position k to position q. Therefore, the attention output can be regarded as a data-driven analog of Preisach-type weighted superposition, where learned weights over sampled positions of the input B(t) waveform provide a discrete representation of the path-dependent magnetization context. Following this interpretation, the global branch extracts the path-dependent magnetization context from the complete input 
+
+B(t) trajectory. The B(t) sequence and the broadcast start-position feature are projected and passed through the self-attention block, where different portions of the excitation waveform are compared directly. Mean pooling over the resulting time-step representations produces the global vector 
+
+vglobal , which summarizes branch information, reversal loca-tions, flux-density extrema, dc offset, and minor-loop struc-ture. This quasi-static context complements the local dynamic branch by distinguishing prediction segments with similar instantaneous B(t) and ∆B(t) but different magnetization histories. 
+
+D. Branch Fusion and Output Layer 
+
+The local and global branches provide complementary representations for future H(t) prediction. The local branch produces a time-dependent representation hlocal (t) through se-quential GRU updates, reflecting rate-dependent dynamic field behavior. In contrast, the global branch produces vglobal (t)
+
+from the complete input B(t) trajectory, providing sequence-level context for quasi-static, path-dependent magnetization. As shown in Fig. 3, these two representations are combined by additive fusion before the final output projection: 
+
+u(t) = hlocal (t) + vglobal (t), (14) 
+
+Hpred (t) = MLP out (u(t)) . (15) This additive fusion is motivated by the loss-separation picture discussed in Section II-B, in which the measured field response can be interpreted as the combined effect of quasi-static hysteresis and dynamic eddy-current. In PI-HNO, these components are not explicitly identified as analytical field terms. Instead, the local and global branches learn equivalent physics-guided representations that are summed in the latent space and mapped to the predicted future Hpred (t) sequence. After the output projection, Hpred (t) and the input B(t) tra-jectory form the predicted B–H trajectory over the prediction interval. During training, the energy-aware regularization term shown in Fig. 3 penalizes inconsistency in the accumulated B–
+
+H energy of this trajectory. This regularization is applied only during training. For the inference, the model directly outputs 
+
+Hpred (t) from the measured history, input B(t) trajectory, temperature, and temporal-position features. PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 7
+
+E. Energy-Aware Training Objective 
+
+The model is trained by combining pointwise waveform matching with a soft B–H energy-consistency regularization term: 
+
+L = Lnorm + λphys Lphys , (16) where Lnorm is the smooth-L1 loss between Hpred (t) and the measured reference Hmeas (t) in normalized units, and λphys 
+
+weights the B–H energy-consistency term. The energy-consistency term is computed after converting the normalized B and H values back to physical units. Using the input B(t) trajectory over the prediction interval, the path integral of H dB is approximated by the trapezoidal rule for both the predicted and measured B–H trajectories. The resulting open-path quantities, denoted as Wpred and 
+
+Wmeas , are used to regularize B– H trajectory consistency rather than to directly evaluate closed-cycle core loss. Since the prediction interval generally corresponds to an open B–H path rather than a closed hysteresis loop, this energy consistency is imposed only as a soft regularization: 
+
+Lphys = Wpred − Wmeas 
+
+max  |Wmeas |, ϵ  + γ max  0, −Wpred 
+
+, (17) where the first term penalizes inconsistency between the predicted and measured accumulated B–H energy, the second term introduces a one-sided penalty for negative accumulated energy, ϵ avoids numerical instability when the reference energy approaches zero, and γ controls the strength of this penalty. This composite regularization preserves supervision from the measured H(t) sequence while encouraging a phys-ically consistent reconstructed B–H trajectories. Therefore, the proposed energy term should be interpreted as a trajectory-level physical regularization rather than a direct loss-prediction objective. It constrains the predicted magneti-zation path to preserve the energy-related characteristics of the measured response. IV. E XPERIMENTAL SETUP AND EVALUATION METRICS 
+
+A. Dataset and Prediction-Sequence Construction 
+
+The experiments use transient magnetic data from MagNetX [2], [4], following the history-conditioned prediction formula-tion defined in Section II. MagNetX measures B(t) and H(t)
+
+using a two-winding magnetic-characterization setup, where 
+
+B(t) is obtained from secondary-side voltage integration and 
+
+H(t) is obtained from primary-side current measurement. The original transient measurements are collected under randomly varying duty-cycle and frequency-transition excitations. The sampling window is adjusted based on the excitation frequency to capture multiple waveform cycles, with each measurement containing 100,000 samples and a 20-MHz bandwidth limit. Subsequently, it is down-sampled to 10,000 samples by aver-aging every ten consecutive samples [4]. The evaluated material set contains 14 magnetic materials: 3C90, 3C92, 3C94, 3C95, 3E6, 3F4, 77, 78, N27, N30, N49, N87, FEC014, and T37. Most materials include excitation frequencies of 50, 80, 100, 200, 300, 400, 600, and 800 kHz, except that 50 and 80 kHz are not available for N49. The measured temperatures are 25, 50, and 70 ◦C. For the experiments in this work, the down-sampled tran-sient waveforms are further organized into fixed-length se-quences with L = 1000 time steps, consistent with the notation in (2). For each sequence, the prediction boundary 
+
+s is selected according to the test-only known-history ratios 
+
+ρ ∈ { 0.1, 0.5, 0.9}. The same sequence construction is used for all evaluated models, so differences in performance arise from model structures rather than from different input horizons or waveform samples. 
+
+B. Training, Validation, and Testing Setup 
+
+The training, validation, and testing datasets are constructed separately for each material from the processed MagNetX transient measurements. This material-specific formulation is adopted because different magnetic materials exhibit distinct hysteresis characteristics, dynamic magnetic behaviors, and temperature-dependent responses. Therefore, this work focuses on developing compact transient magnetization models tai-lored to individual materials, rather than a single universal model across heterogeneous magnetic materials. Within each material, the proposed model is evaluated under diverse ex-citation waveforms, frequency conditions, temperatures, and available magnetic-history lengths. For each frequency-temperature group, the measured B(t),
+
+H(t), and temperature waveforms are first screened to re-move invalid samples with inconsistent incremental magnetic responses. The remaining waveforms are then sampled with a fixed random seed and divided into nonoverlapping 1000-time-step sequences. The resulting material-wise datasets contain aligned B, H, and temperature arrays for supervised training. For training, each 1000-time-step sequence is further di-vided into local prediction segments. Within each segment, the most recent m = 100 samples before the prediction boundary are used as the measured B(t)–H(t) history for the history GRU, while the subsequent samples provide the prediction target for the future GRU. The complete 1000-time-step B(t) sequence is retained as the input to the global branch. For materials showing weaker validation performance in the low-Bpp region, additional low-Bpp training sequences are included to improve coverage of small-signal transient behavior. This data augmentation is determined solely from the corresponding training and validation results and does not involve the test data. A validation subset is held out from the training sequences and is used exclusively for model selection, early stopping, and hyperparameter tuning. The test sequences remain independent throughout training and validation and are used only for final performance evaluation. For the test-only known-history ratios 
+
+ρ ∈ { 0.1, 0.5, 0.9}, test sequences are constructed according to the corresponding prediction boundary s = ρL . The same test set for each ρ is applied to all evaluated models within each material, ensuring a consistent comparison under different available-history conditions. All comparison models are trained and evaluated us-ing the same material-specific data construction, train-ing/validation/testing splits, input B(t) trajectories and evalu-ation metrics, ensuring that performance differences primarily PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 8
+
+reflect the model architecture rather than in experimental settings. 
+
+C. Implementation Details of PI-HNO 
+
+The history GRU has a hidden width of 8 and one layer, and the future GRU uses the same hidden width and depth. The global branch is a single-layer Transformer with width 8, two attention heads, and feed-forward width 64. The temperature and start-position projection MLPs use sizes 1–8–8, the future-position projection uses sizes 1–8, and the output projection MLP uses sizes 8–128–1 with a dropout rate of 0.1. For training, each 1000-time-step training sequence is di-vided into five consecutive nonoverlapping 200-time-step local training segments. In each segment, the first 100 time steps provide the measured history to the history GRU, and the last 100 time steps form the prediction target for the future GRU. The complete 1000-time-step B(t) sequence serves as the global branch input for all five local segments. The start-position feature is the segment starting index normalized by the sequence length, and the future-position features are the normalized indices of the 100 target time steps. Training minimizes the composite objective in Section III-E, with λphys = 0 .1, γ = 0 .01 , and ϵ = 10 −6. A batch size of 64 is used for at most 1000 epochs with the AdamW optimizer and a one-cycle learning-rate schedule with a peak learning rate of 10 −2. The weight decay is 5 × 10 −4, the gradient norm is clipped at 0.5, and an exponential moving average with decay 0.999 is used for validation. Training stops when the validation loss does not improve for 80 consecutive epochs. 
+
+D. Comparison Models and Ablation Settings 
+
+To evaluate the proposed PI-HNO, six comparison models are implemented under the same data construction and evalua-tion procedure. These models are selected to cover major cat-egories of transient magnetic modeling approaches, including sequence-to-sequence recurrent models, convolutional neural models, physics-inspired neural architectures, and attention-based sequence models. Existing neural operator approaches have primarily been developed to learn nonlinear mappings be-tween input and output functions, with an emphasis on general operator approximation, discretization-independent learning, or continuous field modeling. In contrast, this work focuses on compact , boundary-conditioned prediction of transient magnetization trajectories under material-specific operating conditions, with computational efficiency and trajectory recon-struction accuracy as the primary objectives. Therefore, task-relevant magnetic response prediction models are selected as the primary references to provide meaningful, and computa-tionally comparable baselines. The comparison models include the sequence-to-sequence MagLearn2 model [24], an LSTM model based on the MagNet Challenge 2 demonstration setting [4], the residual dilated-convolution HARDCORE model for time-domain H(t) and loss estimation [16], the magnetization-mechanism-inspired neural network MMINN [22], a GRU-only model, and a Transformer-only model. The GRU-only model is configured with a parameter count close to that of PI-HNO to evaluate                     
+
+> TABLE I CONFIGURATIONS OF PI-HNO AND THE REFERENCE MODELS .
+> Model Structure
+> PI-HNO GRU(8) ×2 + Transformer(8 ,2) ×1 + MLP(128)
+> MagLearn2 2LSTM(128) ×3 + MLP(256 ,128)
+> LSTM 2LSTM(12) ×1 + MLP(26 ,8,4)
+> HARDCORE TCN(5 ,12 ,8,1; k=9) + MLP(11 ,8)
+> MMINN RNN(30) + MLP(30)
+> GRU GRU(15) ×2 + MLP(128)
+> TF TF(8 ,2) ×1 + MLP(64)
+
+the contribution of the proposed hybrid architecture beyond model size. In contrast, the Transformer-only model uses the same Transformer width, head count, and depth as the global branch of PI-HNO with an independent output head to evaluate the contribution of the local recurrent branch. The model configurations are summarized in Table I. All comparison models are trained and evaluated under the same material-specific setting using identical training, validation, and testing procedures, input B(t) trajectories, and evaluation metrics. The ablation study is designed to identify the contribution of each major architectural or conditioning component in PI-HNO. All ablation variants use the same dataset construction, training setup, and evaluation metrics as the full model, except for the stated modification. As shown in Fig. 5, five variants are evaluated. A1 removes the global branch to test the contribution of sequence-level hysteresis context beyond the local measured history. A2 removes the local recurrent branch to test the role of local dynamic-state propagation and boundary-state information. A3 removes the incremental ∆B
+
+input to assess the importance of local flux-density variation for rate-dependent field prediction. A4 removes the future GRU to test whether the magnetic state must be propagated sequentially along the input B(t) trajectory. A5 changes how temperature and start-position information are used by feeding these scalar conditions directly to the future GRU rather than using them to initialize the hidden state, thereby conditioning the location rather than removing the conditions entirely. 
+
+E. Evaluation Metrics 
+
+Four metrics are used to evaluate complementary aspects of the predicted transient magnetization response. The nor-malized sequence error Eseq measures the overall waveform agreement between the predicted and measured H(t) se-quences. The peak-field error, EHpk , evaluates whether the model correctly predicts the maximum field magnitude, which is relevant to the magnetic saturation margin and current-stress estimation. The relative B–H energy consistency error Eene 
+
+measures the consistency of the accumulated B–H work along the predicted trajectory. This quantity corresponds to core-loss evaluation only when the reconstructed trajectory forms a closed cycle. For the open trajectories considered in this work, it is used as a trajectory-level energy consistency measure. The energy-sign mismatch rate ηsgn counts the fraction of test sequences for which the predicted and measured accumulated 
+
+B–H work has opposite signs, indicating an inconsistent direc-tion of accumulated B–H work over the prediction interval. As PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 9Local Branch  - GRU 
+
+History  GRU 
+
+Temperature 
+
+Projection MLP 
+
+Start Position 
+
+Projection  MLP 
+
+Future 
+
+GRU ++
+
+Global Branch  - Transformer 
+
+Future  Position 
+
+Projection 𝛥𝐵 𝛥𝐵 
+
+# +
+
+A1 
+
+A2 
+
+A5 
+
+A3 
+
+A4  
+
+> Fig. 5. The visualization of ablation variants A1–A5 of PI-HNO.
+
+defined in Section II, s is the prediction boundary determined by the known-history ratio in (2). All metrics are computed over the prediction interval k = s, . . . , L − 1. For clarity, the sequence index is omitted in the following definitions. For a given test sequence, Hmeas ,k , Hpred ,k , and Bk denote the measured field strength, predicted field strength, and input flux density at time step k, respectively. The normalized sequence error is 
+
+Eseq =
+
+r 1
+
+L − s
+
+PL−1 
+
+> k=s
+
+(Hpred ,k − Hmeas ,k )2
+
+max 
+
+r 1
+
+L − s
+
+PL−1 
+
+> k=s
+
+H2meas ,k , ϵ 
+
+ × 100% . (18) This metric measures the pointwise waveform error over the prediction horizon. The peak-field error is 
+
+EHpk =
+
+max  
+
+> s≤k≤L−1
+
+|Hpred ,k | − max  
+
+> s≤k≤L−1
+
+|Hmeas ,k |
+
+max 
+
+
+
+max  
+
+> s≤k≤L−1
+
+|Hmeas ,k | , ϵ 
+
+ × 100% .
+
+(19) This metric evaluates the predicted maximum field magnitude. For implementation, the open-path quantity in (6) is eval-uated over the prediction interval using the trapezoidal rule. For the predicted trajectory, 
+
+Wpred =
+
+> L−2
+
+X
+
+> k=s
+
+Hpred ,k +1 + Hpred ,k 
+
+2 (Bk+1 − Bk) . (20) The measured counterpart Wmeas is obtained by replacing 
+
+Hpred ,k with Hmeas ,k in (20). Since the prediction interval generally forms an open B–H trajectory, these quantities are not interpreted as closed-cycle core-loss energy. Their discrepancy is instead used as an energy-related consistency measure that complements the point-wise sequence error in 
+
+H(t). The relative energy error is 
+
+Eene = |Wpred − Wmeas |
+
+max( SE , ϵ W ) × 100% , (21) where SE is the absolute accumulated-energy scale of the test sequence. This metric evaluates the consistency of the accumulated B–H work along the predicted trajectory. For an evaluation pool containing Nseq test sequences, the energy-sign mismatch rate is 
+
+ηsgn = 1
+
+Nseq 
+
+> Nseq
+
+X
+
+> j=1
+
+1
+
+h
+
+W (j)pred W (j)meas < 0
+
+i
+
+× 100% , (22) where 1[·] is the indicator function. This diagnostic identifies cases where the predicted accumulated work has the opposite sign to the measured reference. For each material, all valid test-sequence evaluations are pooled across the evaluated known-history ratios, frequency levels, and temperatures. The distributions of Eseq and Eene 
+
+are summarized by their mean and 95th-percentile values, 
+
+EHpk is reported by its mean value, and ηsgn is reported as the proportion of sign-mismatched test sequences. Overall results are obtained by taking the unweighted arithmetic mean of the corresponding material-level statistics across the 14 materials. V. R ESULTS AND DISCUSSION 
+
+This section presents the experimental results for PI-HNO and discusses its prediction accuracy, energy consistency, comparisons with baseline models, ablation results, and model compactness. All results are obtained using the dataset con-struction, training setup, and evaluation metrics described in Section IV. 
+
+A. Overall Prediction Performance 
+
+Table II summarizes the material-wise prediction perfor-mance of PI-HNO. The overall statistics are computed as unweighted averages of the 14 material-level results. Across all evaluated materials, PI-HNO achieves a mean sequence and energy errors of 13.40% and 1.92%, respectively, with corresponding 95th-percentile values of 31.39% and 7.60%. The mean peak-field error is 6.12%, and the energy-sign mis-match rate is 1.91%, indicating that most predicted trajectories preserve the direction of accumulated B–H work over the prediction interval. The material-wise results show that the difficulty of se-quence prediction varies noticeably across materials. The lowest mean sequence errors are obtained for 3C95, FEC014, T37, and 3F4, all below 10%, whereas N30, 3C92, N87, and 3E6 show larger mean sequence errors above 17%. The 95th-percentile sequence error follows a similar trend, with N30 and N87 yielding the largest values. In contrast, the energy error remains relatively low for most materials: the mean energy error is below 2.5% for 12 of the 14 materials, and below 1.3% for 3C92, 3C95, 3E6, and T37. The main exception is N49, which has the highest mean and 95th-percentile energy errors of 4.08% and 16.36%, respectively, and also the highest PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 10                                                                                                  
+
+> TABLE II MATERIAL -WISE AND OVERALL ERROR FOR SEQUENCE AND ENERGY OF
+> PI-HNO
+> Material Sequence Error Energy Error Peak Field Energy Sign
+> Mean (%) 95th (%) Mean (%) 95th (%) (%) (%) 3C90 10.72 27.84 1.66 6.67 8.58 1.47 3C92 18.46 38.15 1.07 3.93 7.83 2.42 3C94 13.51 39.07 1.90 7.44 4.76 1.19 3C95 7.31 16.56 1.13 4.54 3.86 0.90 3E6 17.37 36.45 1.27 5.40 6.97 1.63 3F4 9.84 24.39 3.01 9.40 3.10 1.63 77 14.01 31.79 1.51 5.46 8.24 2.25 78 13.54 30.32 2.49 9.75 5.69 1.59 N27 14.94 32.35 1.76 7.06 8.84 3.25 N30 20.41 47.97 1.86 7.92 6.74 2.16 N49 12.61 27.70 4.08 16.36 6.61 4.13 N87 17.45 44.24 2.07 7.88 5.96 1.70 FEC014 8.33 22.63 1.92 9.12 3.52 1.38 T37 9.10 19.97 1.17 5.48 4.95 1.08 Average 13.40 31.39 1.92 7.60 6.12 1.91
+
+energy-sign mismatch rate of 4.13%. This may be partly related to its different frequency coverage, since the 50 and 80 kHz conditions are not available for N49. Fig. 6 shows representative predictions for 3C90, 3C95, 3E6, and T37. The upper plots compare the measured, pre-dicted, and historical H(t) sequences, while the lower plots show selected predicted and measured B–H segments. The predictions follow the main waveform trends and turning points, and the corresponding B–H segments preserve the measured loop direction and branch location. These examples visually support the sequence and energy-error statistics in Table II. The difference between sequence-error and energy-error trends shows that waveform fitting and accumulated-energy consistency are complementary criteria that ensure the mea-sured B–H path is well followed to reproduce the accumulated energy, even when the point-wise sequence error varies across materials. 
+
+B. Comparison With Baseline Models 
+
+Table III compares PI-HNO with six baseline models under the same data construction, training procedure, evaluation metrics, and aggregation method. Among the evaluated mod-els, MagLearn2 achieves the lowest overall sequence errors, with mean and 95th-percentile values of 12.88% and 28.47%, respectively. The corresponding values of PI-HNO are 13.40% and 31.39%, respectively, indicating that PI-HNO does not achieve the best performance in terms of point-wise wave-form fitting alone. However, transient magnetization modeling requires not only accurate H(t) sequence prediction but also physically consistent reconstruction of the corresponding B–
+
+H trajectory, which is further evaluated through the B–H
+
+energy consistency and model compactness metrics. The advantage of PI-HNO is more evident in energy-related metrics. It achieves the lowest mean and 95th-percentile en-ergy errors, at 1.92% and 7.60%, respectively, whereas Ma-gLearn2 gives 4.06% and 16.46%. The energy-sign mismatch rate is also lower for PI-HNO than for all baseline models.                                                       
+
+> TABLE III OVERALL SEQUENCE ,ENERGY ,PEAK -FIELD ,AND ENERGY -SIGN ERRORS COMPARED WITH BASELINE MODELS .
+> Model Sequence Error Energy Error Param. Size Peak Field Error Energy Sign Mismatch
+> Mean (%) 95th (%) Mean (%) 95th (%) (%) (%) PI-HNO 13.40 31.39 1.92 7.60 4777 6.12 1.91 MagLearn2 12.88 28.47 4.06 16.46 860929 5.67 8.39 LSTM 35.25 81.79 6.11 24.07 2399 18.86 7.95 HARDCORE 69.67 156.31 6.94 25.09 1734 20.15 18.51 MMINN 23.83 60.33 7.27 32.21 1084 9.85 15.27 GRU 18.44 46.17 3.68 16.62 4758 6.49 8.79 TF 364.92 930.32 23.43 87.68 2105 27.99 28.55
+
+These results indicate that the proposed physics-guided ar-chitecture and energy-aware training improve the consistency of the accumulated B–H work, even when MagLearn2 gives slightly lower pointwise sequence errors. Model compactness provides another important distinction. PI-HNO uses only 4777 trainable parameters, which is ap-proximately 1/180 of the parameter count of MagLearn2. The GRU baseline has a comparable parameter count of 4758. However, its mean and 95th-percentile sequence errors increase to 18.44% and 46.17%, respectively, while its mean and 95th-percentile B–H energy consistency errors increase to 3.68% and 16.62%. This comparison indicates that the per-formance of PI-HNO is not achieved simply through increased model capacity, but through the integration of local dynamic-state propagation, global hysteresis-context extraction, and B–
+
+H energy-consistency regularization. The remaining baseline models exhibit larger errors, particularly in the 95th-percentile cases, suggesting that compact architectures without the com-bined dynamic, hysteresis-memory, and trajectory-consistency representations provide less favorable performance under the evaluated transient magnetization prediction conditions. The large sequence error of HARDCORE mainly reflects a task mismatch: it was designed for steady-state core-loss estimation from complete period B(t) waveforms, where the reconstructed H(t) curve serves as an intermediate representa-tion for B–H area integration and residual loss correction [16]. Its full-cycle, circular-padding CNN structure is therefore less suited to boundary-conditioned prediction over finite, possibly open B–H trajectories. Fig. 7 further compares the material-level 95th-percentile sequence and energy errors for PI-HNO with those of the three strongest baseline models. For the 95th-percentile sequence error, the material-level comparison shows noticeable varia-tion across materials. MagLearn2 gives lower 95th-percentile sequence errors for several materials, such as 3C94, 3F4, N30, and FEC014, whereas PI-HNO is lower for 3C90, 77, 78, and T37. The two models therefore show comparable but material-dependent sequence-prediction behavior, rather than one model uniformly dominating the other. In contrast, the LSTM and GRU baselines reach or exceed the 50% display cap for multiple materials, indicating weaker control of the largest sequence errors under the same evaluation setting. The material-level energy comparison shows a clearer trend. PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 11 0 200 400 600 800  
+
+> Time Steps
+> −10
+> 0
+> 10
+> 20 Measured
+> Predicted
+> History
+
+3C90            
+
+> 020
+> 0.00
+> 0.05
+> 0.10
+> 020 020 020
+> 0200 400 600 800
+> Time Steps
+> −10
+> 0
+> 10
+> 20
+
+3C95           
+
+> 025
+> 0.0
+> 0.1
+> 025 025 025
+> 0200 400 600 800
+> Time Steps
+> −15
+> −10
+> −5
+
+3E6            
+
+> −10 0
+> −0.2
+> −0.1
+> −10 0−10 0−10 0
+> 0200 400 600 800
+> Time Steps
+> −15
+> −10
+> −5
+> 0
+
+T37              
+
+> −10 0
+> −0.15
+> −0.10
+> −0.05
+> −10 0−10 0−10 0
+> H (A/m) B (T)
+> H(A/m)
+> H (A/m) B (T)
+> H(A/m)
+> H (A/m) B (T)
+> H(A/m)
+> H (A/m) B (T)
+> H(A/m)
+> Fig. 6. Representative future H(t)prediction results for 3C90, 3C95, 3E6, and T37.
+
+MagLearn2 exhibits large 95th-percentile energy errors for several materials, including 3C90, 78, N27, and N49, with the 3C90 value exceeding the 50% display cap. In contrast, the 95th-percentile energy error of PI-HNO remains below 20% for all 14 materials. This material-wise behavior supports the aggregate results in Table III: PI-HNO does not always minimize pointwise sequence error, but it provides a more con-sistent balance between future H(t) prediction, accumulated-energy accuracy, and parameter efficiency. 
+
+C. Ablation Study and Physical Interpretation 
+
+Table IV reports the ablation results for the variants defined in Fig. 5. All variants are evaluated using the same dataset construction, training setup, and metrics as the full model. Each ablation increases the reported errors relative to PI-HNO, indicating that the tested components contribute complemen-tary information to the transient B–H prediction. Removing the global branch (A1) reduces the parameter size from 4777 to 2241, but increases the mean sequence error from 13.40% to 17.77% and the 95th-percentile sequence error from 31.39% to 42.19%. The mean and 95th-percentile energy errors also increased from 1.92% and 7.60% to 2.86% and 9.61%, respectively. The degradation suggests that the complete B(t) trajectory provides additional magnetic-history information relevant to the magnetization process. Physically, this is consistent with the path-dependent nature of quasi-static hysteresis: reversal locations, flux-density extrema, dc offset, and minor-loop context cannot be fully recovered from a short local history alone. Removing the local recurrent branch (A2) produces the largest peak-field error and energy-sign mismatch rate among PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 12 3C90 3C94 3E6 3F4 77 78 N27 N30 N49 N87 3C92 3C95 FEC014 T37                                                               
+
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> Sequence Error 95 Percentile (%)  ▴Exceeds cap
+> 3C90 3C94 3E6 3F4 77 78 N27 N30 N49 N87 3C92 3C95 FEC014 T37
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> Energy Error 95 Percentile (%)  ▴Exceeds cap
+> PI-HNO MagLearn2 LSTM GRU
+> Fig. 7. Material-level 95th-percentile sequence (top) and energy (bottom) errors between PI-HNO and three overall best reference models. The axis limits are capped at 50%. TABLE IV OVERALL ERROR FOR THE SEQUENCE AND ENERGY OF THE ABLATION STUDY .
+> Variant Sequence Error Energy Error Param. Size Peak Field Error Energy Sign Mismatch
+> Mean (%) 95th (%) Mean (%) 95th (%) (%) (%) PI-HNO 13.40 31.39 1.92 7.60 4777 6.12 1.91 A1 17.77 42.19 2.86 9.61 2241 6.78 2.18 A2 20.42 49.10 3.45 12.50 3817 17.80 5.57 A3 17.53 40.09 3.73 12.66 4777 7.15 2.94 A4 19.01 43.65 3.47 12.18 4665 7.71 2.77 A5 24.83 75.68 3.26 12.49 4649 7.22 2.31
+
+the ablations, at 17.80% and 5.57%, respectively. It also increases the 95th-percentile sequence and energy errors to 49.10% and 12.50%. This indicates that the local branch is essential for initializing the boundary magnetic state and preserving the rate-dependent eddy currents behavior over the subsequent excitation interval. Without this local dynamic state, the model loses accuracy in the field amplitude and is more likely to predict the wrong direction of accumulated magnetization. Removing the incremental ∆B input (A3) gives the lowest mean sequence error among the ablated variants. Still, it produces the largest mean and 95th-percentile B–H energy consistency errors, at 3.73% and 12.66%, respectively. This behavior is physically meaningful. The instantaneous value of 
+
+B(t) identifies the operating point on the flux-density axis, whereas ∆B provides information on the direction of local variation and the excitation rate. Removing ∆B therefore reduces the model’s ability to capture transient magnetic effects associated with changing flux-density excitation. As a result, the predicted waveform can still achieve relatively small point-wise errors, while the accumulated B–H work along the reconstructed trajectory becomes less consistent. Removing the future GRU (A4) raises the mean sequence error to 19.01% and the 95th-percentile energy error to 12.18%. The increased errors indicate that H(t) prediction requires sequential magnetic-state propagation along the input 
+
+B(t) trajectory, rather than a direct B(t)-to-H(t) mapping. This is consistent with dynamic hysteresis, which the instan-taneous field depends on both the current flux density and the previously accumulated hysteretic state. Finally, bypassing temperature- and start-position-conditioned hidden-state initialization (A5) gives the largest sequence degradation, with mean and 95th-percentile sequence errors of 24.83% and 75.68%, respectively. Since temperature and start-position information are still provided directly to the future GRU in this variant, the result does not imply that these inputs are unimportant. Rather, it shows that their placement is important. In this architecture, temperature-dependent material behavior and prediction-boundary context are more effectively introduced via the initial hidden state than as stepwise future inputs. Overall, the ablation results support the intended division of roles in PI-HNO. The global attention branch supplies a quasi-static hysteresis context. The local recurrent branch propagates rate-dependent dynamic response. The ∆B input provides lo-cal excitation-change information. The future GRU maintains the evolving prediction state, and the conditioning projections initialize the model with temperature and boundary-position context. The full model gives the best overall balance of se-PREPRINT PREPARED FOR POSSIBLE SUBMISSION TO IEEE TRANSACTIONS ON POWER ELECTRONICS 13 
+
+quence accuracy, accumulated-energy consistency, peak-field prediction, and the directionality of energy dissipation. VI. C ONCLUSION 
+
+This work proposed PI-HNO, a compact physics-informed material-specific neural model for core-loss-oriented transient magnetization prediction. Given the complete B(t) excita-tion trajectory, the recent H(t) history before the predic-tion interval, temperature, and operating-condition informa-tion, PI-HNO predicts the subsequent H(t) response and the corresponding reconstructed B–H trajectory. The pro-posed framework incorporates magnetic knowledge through a physics-guided decomposition of transient magnetic re-sponse, a Preisach-inspired global representation for captur-ing hysteresis-related waveform context, and a B–H energy-consistency regularization term during training. Specifically, the local recurrent branch learns a boundary-conditioned rep-resentation of rate-dependent magnetic response, while the global branch exploits the memory aggregation principle of Preisach hysteresis to extract long-range excitation dependen-cies from the complete B(t) trajectory. Evaluation using material-specific models for 14 ferrite materials from the MagNetX transient dataset demonstrated that PI-HNO achieved average sequence and accumulated-energy consistency errors of 13.40% and 1.92%, respectively, with corresponding 95th-percentile errors of 31.39% and 7.60%. These results were obtained with only 4777 trainable parameters per material-specific model, demonstrating the compactness of the proposed architecture for transient mag-netization modeling. The ablation study further demonstrated that the proposed architectural components and conditioning strategies provide complementary contributions to prediction accuracy and accumulated-energy consistency, supporting the effectiveness of the physics-guided design. Future work will focus on embedding PI-HNO into transient electromagnetic and circuit-field simulation workflowsand val-idating its impact on device-level loss prediction, thermal assessment, and high-frequency magnetic component opti-mization across a broader range of excitation and operating conditions. REFERENCES [1] W. Roshen, “Ferrite core loss for power magnetic components design,” 
+
+IEEE Transactions on Magnetics , vol. 27, no. 6, pp. 4407–4415, 1991. [2] H. Li, D. Serrano, T. Guillod, S. Wang, E. Dogariu, A. Nadler, M. Luo, V. Bansal, N. K. Jha, Y. Chen et al. , “How magnet: Machine learning framework for modeling power magnetic material characteristics,” IEEE Transactions on Power Electronics , vol. 38, no. 12, pp. 15 829–15 853, 2023. [3] D. Serrano, H. Li, S. Wang, T. Guillod, M. Luo, V. Bansal, N. K. Jha, Y. Chen, C. R. Sullivan, and M. Chen, “Why magnet: Quantifying the complexity of modeling power magnetic material characteristics,” IEEE Transactions on Power Electronics , vol. 38, no. 11, pp. 14 292–14 316, 2023. [4] S. Wang, H. Kwon, H. Li, T. Guillod, H. Wouters, C. R. Sullivan, and M. Chen, “Magnetx: Data-driven time-domain foundation models for power magnetics in transient,” IEEE Transactions on Power Electronics ,2026. [5] H. Li, D. Serrano, S. Wang, and M. Chen, “Magnet-ai: Neural network as datasheet for magnetics modeling and material recommendation,” IEEE Transactions on Power Electronics , vol. 38, no. 12, pp. 15 854–15 869, 2023. [6] Y. Teng, Y. Wei, Y. Li, X. Guo, and Y. Li, “An overview of current source converters: State-of-the-art and future trends,” IEEE Transactions on Power Electronics , 2026. [7] C. P. Steinmetz, “On the law of hysteresis,” Transactions of the American Institute of Electrical Engineers , vol. 9, no. 1, pp. 1–64, 1892. [8] J. Reinert, A. Brockmeyer, and R. W. De Doncker, “Calculation of losses in ferro-and ferrimagnetic materials based on the modified steinmetz equation,” IEEE Transactions on Industry applications , vol. 37, no. 4, pp. 1055–1061, 2001. [9] L. Jieli, T. Abdallah, and C. R. Sullivan, “Improved calculation of core loss with nonsinusoidal waveforms,” in Conference record of the 2001 IEEE industry applications conference. 36th IAS annual meeting (Cat. No. 01CH37248) , vol. 4, 2001, pp. 2203–2210. [10] K. Venkatachalam, C. R. Sullivan, T. Abdallah, and H. Tacca, “Accurate prediction of ferrite core loss with nonsinusoidal waveforms using only steinmetz parameters,” in 2002 IEEE Workshop on Computers in Power Electronics, 2002. Proceedings. IEEE, 2002, pp. 36–41. [11] G. Bertotti, “General properties of power losses in soft ferromagnetic materials,” IEEE Transactions on magnetics , vol. 24, no. 1, pp. 621–630, 1988. [12] F. Preisach, “ ¨ Uber die magnetische nachwirkung,” Zeitschrift f¨ ur physik ,vol. 94, no. 5, pp. 277–302, 1935. [13] D. C. Jiles and D. L. Atherton, “Theory of ferromagnetic hysteresis,” 
+
+Journal of magnetism and magnetic materials , vol. 61, no. 1-2, pp. 48– 60, 1986. [14] J. G. Zhu, S. Hui, and V. Ramsden, “A generalized dynamic circuit model of magnetic cores for low-and high-frequency applications. i. theoretical calculation of the equivalent core loss resistance,” IEEE Transactions on Power Electronics , vol. 11, no. 2, pp. 246–250, 1996. [15] S. Hui, J. G. Zhu, and V. Ramsden, “A generalized dynamic circuit model of magnetic cores for low-and high-frequency applications. ii. circuit model formulation and implementation,” IEEE Transactions on Power Electronics , vol. 11, no. 2, pp. 251–259, 1996. [16] W. Kirchg¨ assner, N. F¨ orster, T. Piepenbrock, O. Schweins, and O. Wallscheid, “Hardcore: H-field and power loss estimation for ar-bitrary waveforms with residual, dilated convolutional neural networks in ferrite cores,” IEEE Transactions on Power Electronics , vol. 40, no. 2, pp. 3326–3335, 2024. [17] H. Vater, O. Schweins, L. H¨ olsch, W. Kirchg¨ assner, T. Piepenbrock, and O. Wallscheid, “Rhino-mag: Recursive h-field inference based on observed magnetic flux under dynamic excitation,” arXiv preprint arXiv:2603.29745 , 2026. [18] N. Rajput, H. B. Sandhibigraha, N. Agrawal, and V. M. Iyer, “An empirical model informed neural network core loss predictor for soft magnetic materials,” IEEE Transactions on Power Electronics , 2025. [19] Y. Xiao, C. Li, and Z. Zheng, “A magnetic core loss model based on physics-informed neural network with cross-attention,” IEEE Transac-tions on Power Electronics , vol. 41, no. 1, pp. 92–96, 2026. [20] A. Chandra, T. Kapoor, B. Daniels, M. Curti, K. Tiels, D. M. Tar-takovsky, and E. A. Lomonova, “Generalizable models of magnetic hys-teresis via physics-aware recurrent neural networks,” Computer Physics Communications , vol. 314, p. 109650, 2025. [21] A. Chandra, B. Daniels, M. Curti, K. Tiels, and E. A. Lomonova, “Mag-netic hysteresis modeling with neural operators,” IEEE Transactions on Magnetics , vol. 61, no. 1, pp. 1–11, 2024. [22] Q. Huang, Y. Li, J. Zhu, and S. Li, “Magnetization mechanism-inspired neural networks for core loss estimation,” IEEE Transactions on Power Electronics , vol. 39, no. 12, pp. 16 382–16 390, 2024. [23] Q. Huang, Y. Li, Y. Dou, Y. Li, J. Zhu, and S. Li, “History-dependent prandtl-ishlinskii neural network for quasi-static core loss prediction under arbitrary excitation waveforms,” IEEE Transactions on Power Electronics , 2025. [24] “MagLearn2,” Open-source software repository, accessed: Jul. 12, 2026. [Online]. Available: https://github.com/JunWang-Bristol/MagLearn2

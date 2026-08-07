@@ -1,0 +1,285 @@
+Title: Visualizing Graph-to-Answer Mechanism Recovery in Materials-Science Hypothesis Generation
+
+URL Source: https://arxiv.org/pdf/2608.04170v1
+
+Published Time: Thu, 06 Aug 2026 00:11:17 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# Visualizing Graph-to-Answer Mechanism Recovery in Materials-Science Hypothesis Generation 
+
+Shashwat Sourav 1,2,3,4 * Subhadeep Pal 5† Markus J. Buehler 5,6,7 
+
+Sanjay Das 2 Fiona Y. Wang 8 Dominik So ´ os 9,2 Tirthankar Ghosal 2
+
+> 1
+
+Department of Physics, Washington University in St. Louis 2Oak Ridge National Laboratory 3Lawrence Berkeley National Laboratory 
+
+> 4
+
+UniverseTBD 5Department of Civil and Environmental Engineering, Massachusetts Institute of Technology 
+
+> 6
+
+Department of Mechanical Engineering, Massachusetts Institute of Technology 
+
+> 7
+
+Schwarzman College of Computing, Massachusetts Institute of Technology 
+
+> 8
+
+Department of Biological Engineering, Massachusetts Institute of Technology 9Department of Computer Science, Old Dominion University 
+
+ABSTRACT 
+
+AI co-scientists can generate fluent materials-science hypotheses, but fluency does not show that an answer preserves a scientifically meaningful mechanism. We present a graph-to-answer mechanism-tracing case study for Graph-PRefLexOR-8B, a Qwen3-8B model adapted to expose distinct stages for brainstorming, graph con-struction, pattern extraction, and synthesis. We organize seman-tic backtracking, graph corruption, activation-based recovery mea-surements, and layer-by-token-region grids into a visual diagnos-tic workflow for inspecting this pathway. Across 100 open-ended materials-science questions, final answers remain closest to the model’s own structured stages, especially synthesis. Under graph corruption, a full sweep over 37 residual-stream checkpoints—the embedding output and 36 transformer blocks—shows little mecha-nism recovery in the earlier transition region at layers 7–10, recov-ery instead concentrates in late synthesis and answer-start regions around layers 30 and 36. The workflow is intended to help scientists and model developers identify where a generated hypothesis loses or regains mechanism support before it is passed to downstream experimental planning. 
+
+Index Terms: AI for science, mechanistic interpretability, visual analytics, activation patching, graph reasoning, materials science, hypothesis generation. 
+
+1 INTRODUCTION 
+
+A useful materials-science hypothesis is not just a plausible sen-tence. It usually has a causal form: a problem or bottleneck mo-tivates an intervention, the intervention changes a mechanism, the mechanism affects a target property, and the property leads to an expected outcome [1, 6, 3, 5]. This structure matters because gen-erated scientific answers can sound fluent while leaving the cen-tral mechanism unsupported. A model may mention an interface, a polymer additive, a crosslinking process, or an improved tough-ness target but still fail to show which relation makes the proposed intervention scientifically plausible. We treat this as a visual model-auditing task. Here, “visual” refers to linked static views of the reasoning trace, corruption ef-fects, and the full layer-by-token-region recovery landscape. These views support analytical comparison, but the current contribution is not an interactive visual-analytics interface or a user study. Existing language models can produce long chain-of-thought-style explana-tions, yet the visible trace is not guaranteed to be faithful to the fi-nal answer [15, 4, 11, 2]. Knowledge graphs and graph-augmented 
+
+> *
+
+e-mail: s.shashwat@wustl.edu 
+
+> †
+
+e-mail: spu8516@mit.edu 
+
+generation make entities and relations more explicit [9, 14], but they are often treated as external context rather than as an intermediate object that can be perturbed and compared with downstream model behavior. This leaves a gap between the readable trace shown to a scientist and the internal representations associated with the final answer. We study this gap using Graph-PRefLexOR-8B, an 8B graph-native reasoning model initialized from Qwen3-8B and adapted to produce explicit, sentinel-delimited scientific reasoning stages [8]. Qwen3-8B later appears as the matched backbone baseline, it is not a second version of Graph-PRefLexOR. The model produces the following staged trace: 
+
+<brainstorm> → <graph> → <graph json> 
+
+→ <patterns> → <synthesis> → answer (1) This staged output gives us visible objects to compare and do per-turbations. The main question we are investigating is: where does a graph-structured scientific mechanism become recoverable inside the model’s answer pathway? 
+
+Contribution: We introduce a visual diagnostic workflow for graph-native scientific reasoning models. It links three ques-tions: (i) does the final answer remain semantically tied to the visible reasoning stages, (ii) does corrupting the graph dam-age mechanism content even when the answer remains fluent, and (iii) where does the mechanism-recovery signal concen-trate across layers and token regions? 
+
+Intended use in automated science. The intended users are scientists supervising an AI hypothesis generator and model devel-opers diagnosing it. The workflow provides a human checkpoint before a generated hypothesis is promoted to literature search, sim-ulation, or experiment selection. A user can compare corruption conditions, locate whether recovery is diffuse or concentrated, and then inspect the corresponding graph and synthesis text. A hypothe-sis with a fluent answer but weak mechanism support can be flagged for regeneration, abstention, or domain-expert review. The heatmap is therefore not only a presentation device: it helps determine which stage and layer region warrants closer investigation and prevents a conclusion from resting on a few selected layers. Our analysis combines three levels of evidence. First, seman-tic backtracking [12] asks whether the final answer is closest to the model’s own reasoning trace or to another reference text. We use this only as a consistency check, not as causal evidence. Sec-ond, graph corruptions test whether removing, replacing, or shuf-fling the graph stage weakens the scientific mechanism in the final answer. Third, activation patching tests where clean internal states restore mechanism content in a corrupted run [7, 13, 16]. The key visualization is a full layer-by-token-region recovery grid over 37 residual-stream checkpoints (the embedding output plus 36 trans-arXiv:2608.04170v1 [cs.CL] 4 Aug 2026 Figure 1: Graph-to-answer mechanism-tracing workflow. The linked views compare a clean structured trace with graph-corrupted runs and summarize where mechanism information is recoverable across layers and token regions. The current paper uses these as static diagnostic views rather than as an interactive interface. former blocks) and all main trace regions. This grid is important because it avoids selecting layers after the fact. Across 100 materials-science questions, we observed that the full recovery grid shows layers 7-10 (which show a representational transition between reasoning and answering), do not recover the mechanism under patching. Mechanism recovery appears later, es-pecially in synthesis and answer-start regions near layers 30 and 36. This suggests that graph reasoning is not simply copied into the an-swer, it is transformed into answer-ready mechanism content late in the network. 
+
+2 RELATED WORK AND POSITIONING 
+
+Reasoning traces and faithfulness. 
+
+Chain-of-thought prompting can improve reasoning perfor-mance [15], but visible reasoning should not be treated as a di-rect explanation of the model’s internal computation. Prior work shows that chain-of-thought can be incomplete or unfaithful to the answer [4, 11, 2]. In this work we take this information into ac-count and use visible graph traces as inspectable hypotheses about the model’s reasoning. Finally, we test them with perturbation and patching. 
+
+Graph-structured scientific reasoning. Graph-based representa-tions are natural for scientific explanation because they make enti-ties, relations, and mechanisms explicit. Graph retrieval and graph-augmented generation have been used to improve factual grounding and relational reasoning [9, 14, 8]. In our setting we have the graph as not only an input artifact, but an intermediate model-generated stage whose influence on the final answer can be visualized and tested. 
+
+Mechanistic interpretability and activation patching. Mechanis-tic interpretability asks which internal model states are associated with a behavior rather than treating the model only as an input– output system. Activation patching provides one intervention-based test: run the model normally, deliberately corrupt part of the com-putation, restore a clean internal state at one location, and measure whether the behavior recovers [7, 13, 16]. The residual stream is the running vector representation passed from one transformer block to the next. Patching conclusions can change with the corruption, metric, and patch site, so we show the full layer-by-region land-scape and compare it with matched controls rather than interpreting a single selected layer. 
+
+Visual diagnostic contribution and scope. The visual contribu-tion is a coordinated set of static diagnostic views: readable stage traces, corruption-strength summaries, and recovery heatmaps in-dexed by model layer and token region. The heatmaps expose patterns that aggregate scores hide, including whether recovery is broad or localized, whether the same location persists across cor-ruptions, and whether a previously hypothesized transition region actually restores mechanism content. We use the term visual di-agnostic workflow rather than claim a complete interactive visual-analytics system. Building an interface that supports filtering, case retrieval, linked selection, and prospective evaluation with scientists is future work. 
+
+3 MODEL , D ATA , AND ANALYSIS TASK 
+
+Graph-PRefLexOR-8B is initialized from Qwen3-8B and adapted to produce structured scientific reasoning traces [8]. We use this model for three practical reasons. First, its sentinel-delimited 
+
+<graph> , <patterns> , and <synthesis> stages provide in-spectable intermediate objects. Second, its released weights per-mit hidden-state analysis that is not possible with closed API mod-els. Third, the 8B model is the strongest scale evaluated in the prior Graph-PRefLexOR study while remaining feasible for a full layer-by-region sweep. Qwen3-8B is used as the matched base-model comparison because it is the backbone from which Graph-PRefLexOR-8B was adapted and already supports an explicit think-ing mode. This selection supports a controlled case study, it does not establish that Qwen is uniquely suitable or that the result trans-fers to Claude, GPT, or Llama models. We reuse the public 100-question evaluation set introduced with Graph-PRefLexOR [8]. The set is not a standard materials-science benchmark. It was curated from published materials sci-ence and mechanics literature to probe five forms of open-ended reasoning: cross-domain mapping, causal multiscale reasoning, hidden-variable identification, model abstraction and breakdown, and tradeoff or non-monotonicity reasoning. Reusing it allows the tracing analysis to be compared directly with the model’s prior answer- and trace-level evaluation. The benchmark and training data are separate, but both the domain and question count limit the scope of our conclusions. Each question is designed to require a mechanism path rather than a single factual answer. We represent the intended answer structure as 
+
+pi → fi → ui → mi → ti → oi,
+
+where pi is the problem context, fi the failure mode, ui the interven-tion, mi the mechanism, ti the target property, and oi the expected outcome. 
+
+Analysis requirements. The workflow is organized around three requirements. 
+
+Requirement 1 (Coverage and comparison). The visual sum-mary should expose the full layer-by-token-region recovery land-scape rather than a few selected layers. Activation-patching conclu-sions can depend on the metric, corruption, and patch site [16]. We therefore sweep all residual-stream checkpoints and the main trace regions and summarize the result in Figure 3 and Table 1. A reader uses the grid in three passes: compare columns to identify the af-fected trace stage, compare rows to distinguish early transition from late recovery, and compare corruption panels to determine whether the pattern persists when graph content is absent or misleading. 
+
+Requirement 2 (Mechanism specificity). The score should test whether the directed scientific mechanism is restored, not merely whether the patched answer remains fluent or close to the clean answer in embedding space. We therefore define mechanism-F1 over extracted directed relations (Section 5.2) and separately show that high answer similarity can coexist with mechanism damage (Section 6.1). 
+
+Requirement 3 (Matched controls). Recovery should be inter-preted relative to controls because injecting a clean representation can alter output even when it is not mechanism-specific. We com-pare graph corruptions, non-target layers, random-region patching, and clean-run sensitivity checks (Section 6.4). These comparisons support a localized-recoverability claim under the stated interven-tion and metric, they do not by themselves identify a complete neuron- or head-level circuit. 
+
+4 SEMANTIC BACKTRACKING AS A CONSISTENCY CHECK 
+
+We first ask a descriptive question: which visible text is closest in meaning to the final answer? We embed the final response and each candidate source with the same sentence-embedding model, nor-malize the vectors, and compute cosine similarity [10]. The candi-date with the highest similarity is called the semantic backtracking source. For Qwen3-8B, the candidates are its own thinking trace, the Graph-PRefLexOR-8B final answer, and Graph-PRefLexOR-8B’s <brainstorm> , <graph> , <patterns> , and <synthesis> 
+
+stages. For Graph-PRefLexOR-8B, we perform the symmetric comparison using its own structured stages and the corresponding Qwen3-8B outputs. This is only a consistency check: semantic proximity does not establish that one text caused another. The result is asymmetric. Qwen3-8B final answers are closest to their own thinking trace in 16 of 100 cases, whereas Graph-Figure 2: Edge-level corruption strength. No-graph and wrong-graph corruptions remove the clean directed graph structure, while shuffled-graph preserves only small entity overlap and little directed-edge structure. 
+
+PRefLexOR-8B final answers are closest to one of their own struc-tured stages in 92 of 100 cases, most often <synthesis> . This motivates the intervention-based analysis below: when the graph is damaged, where does mechanism-related information become re-coverable along the graph-to-synthesis-to-answer pathway? 
+
+5 MECHANISM RECOVERY WORKFLOW 
+
+5.1 Graph corruptions 
+
+To analyze the dependency of the model on structural information, we proposed three variants of graph corruption alongwith the clean baseline native to the graph (Figure 2). These variants manipu-late the reasoning trace as follows: (1) no-graph, where the graph stage is completely removed, (2) wrong-graph, where the graph is replaced by an unrelated question’s graph, and (3) shuffled-graph, where edges are permuted to preserve a graph-like syntax while severing directed causal relations. Quantitative validation of these structural interventions, as depicted in Figure 2 confirms significant topological degradation. Specifically, directed-edge F1 scores fall to 0.000 for both the no-graph and wrong-graph setups, and to 0.085 for the shuffled-graph condition, with the latter maintaining a base-line entity overlap of 0.178. These verified structural degradations establish a rigorous framework for evaluating the causal impact of graph-structured reasoning on final model generations. 
+
+5.2 Mechanism-F1 
+
+To quantitatively track the survival and transmission of structural knowledge within the model, we require an explicit metric that operates over graph topologies rather than raw text surfaces. To achieve this, we introduce an edge-level extraction approach to map free-text generations back onto a structured, ground-truth reference space. Let Eref  
+
+> i
+
+denote the reference mechanism path for question i,represented as a set of directed typed edges over the path fields 
+
+p, f , u, m,t, o. For an answer y, we extract a generated edge set 
+
+E(y) after lower-casing, punctuation removal, stage-tag stripping, and simple lexical canonicalization. Directionality is preserved. We compute 
+
+P(y) = |E(y) ∩ Eref  
+
+> i
+
+||E(y)| + ε , Q(y) = |E(y) ∩ Eref  
+
+> i
+
+||Eref  
+
+> i
+
+| + ε ,
+
+and 
+
+M(y) = 2P(y)Q(y)
+
+P(y) + Q(y) + ε .
+
+Thus M(y) measures edge-level agreement with a question-level mechanism reference, not merely similarity to the clean model an-swer. We use ε = 10 −8 for numerical stability. We report the manual validation of this extractor together with the robustness controls in Section 6.4. Thus M(y) measures edge-level agreement with a question-level mechanism reference, not merely similarity to the clean model answer. We use ε = 10 −8 for numerical stability. We report the manual validation of this extrac-tor together with the robustness controls in Section 6.4. 
+
+5.3 Activation patching 
+
+Activation patching compares a clean run with a deliberately cor-rupted run. At one selected layer and token region, the corrupted internal state is replaced with the corresponding clean state, the rest of the corrupted computation is left unchanged. If the downstream mechanism score improves, that location contains information that is recoverable under this intervention. This is a localized interven-tion test, not proof that the selected state is the model’s only causal route. For question i, let yclean  
+
+> i
+
+be the clean answer and ycorr  
+
+> i
+
+the answer after a graph corruption. We patch clean residual-stream activations into the corrupted run at layer ℓ and token region r:
+
+hpatch  
+
+> i,ℓ, r
+
+← hclean  
+
+> i,ℓ, r
+
+.
+
+All other token positions and layers remain from the corrupted run. Token regions correspond to <graph> , <patterns> ,
+
+<synthesis> , and answer-start spans. The patched run produces ypatch  
+
+> i,ℓ, r
+
+. Recovery is 
+
+Ri,ℓ, r = M(ypatch  
+
+> i,ℓ, r
+
+) − M(ycorr  
+
+> i
+
+)
+
+M(yclean  
+
+> i
+
+) − M(ycorr  
+
+> i
+
+) + ε .
+
+Values near zero indicate little recovery, values near one indicate recovery close to the clean run. We do not clip negative values. We separately test the implementation with a strict identity con-trol, in which the same cached activation is written back at the same layer and token position under deterministic generation; the results are reported in Table 2.  
+
+> Graph-to-Answer Circuit Tracing Question type: cross-domain mapping
+
+Question (abridged). Biological immune systems and multi-agent AI frameworks both address open-ended problems through division of labor. Analyze where the analogy breaks down mechanistically, then propose one concrete capability next-generation multi-agent scientific systems would need to achieve adaptive, long-horizon robustness. 
+
+<graph> stage (causal structure). Agent Experience → Dy-namic Memory Encoding (hierarchical consolidation), Dy-namic Memory Encoding → Adaptive Strategy Refinement (feedback-driven learning), Adaptive Strategy Refinement →
+
+Long-horizon Robustness ↑.
+
+<synthesis> stage. Next-generation multi-agent systems can achieve adaptive, long-horizon robustness by adopting a dy-namic memory encoding and retrieval mechanism analogous to immune memory formation. Through feedback-driven up-dates and distributed knowledge sharing, the system evolves its response strategies over time. 
+
+Final answer (clean run). The proposed capability is a decen-tralized, hierarchical memory architecture that allows agents to store experiences, extract causal patterns, and iteratively refine strategies based on task feedback — directly mirroring B-cell memory consolidation after antigen exposure. Table 1: Full-sweep bootstrap summary over all 100 questions. Late layers are {30 , 36 }, control layers are {3, 15 , 25 , 33 }.                      
+
+> Corruption Late–control 95% CI Result
+> No graph +0.237 [+ 0.208 ,+0.265 ]p<0.001 Wrong graph +0.262 [+ 0.229 ,+0.294 ]p<0.001 Shuffled graph +0.224 [+ 0.197 ,+0.252 ]p<0.001
+> Graph-to-Answer Circuit Tracing continued
+
+Corrupted run (wrong-graph corruption: graph replaced with an unrelated question’s graph). The proposed capability is a hierarchical, distributed communication protocol. . . The an-swer mentions communication structure but loses the memory-encoding mechanism chain. 
+
+Mechanism-F1 recovery at layer 36, synthesis-stage patch: 
+
+R = 0.70 . Under this corruption and recovery metric, the layer-36 synthesis intervention restores much of the measured mech-anism content. This result is consistent with localized recov-erability in the <synthesis> -to-answer pathway, it does not establish that this is the model’s only or complete causal route. 
+
+This intervention-based analysis produces a recovery map show-ing where mechanism-related information is most recoverable un-der the specified corruption and metric. 
+
+6 RESULTS 
+
+6.1 Embedding similarity hides mechanism damage 
+
+Graph corruptions often leave the final answer close to the clean an-swer in the embedding space. However, mechanism-F1 and graph-edge support drop under the same corruptions. This shows why a visualization based only on final-answer semantic similarity is mis-leading: the answer can remain fluent while the causal mechanism path collapses. Figure 2 and the corruption-strength panel provide the sanity check that these graph perturbations break directed graph structure rather than simply rephrasing it. 
+
+6.2 Full layer-by-region recovery landscape 
+
+Figure 3 shows the full layer-by-token-region mechanism recovery grids for no-graph and wrong-graph corruptions over all 100 ques-tions. The shuffled-graph grid shows the same qualitative pattern and is included in the supplemental material. The orange region marks layers 7-10, which were identified by a reasoning-answer di-vergence bump in an earlier representation analysis. The red region marks late layers 30 and 36. The full grid shows that the transition region is not where mechanism content is recovered. Recovery re-mains near zero across layers 7-10. In contrast, recovery increases in late layers, especially for synthesis-stage and answer-start to-kens. The shuffled-graph grid shows the same qualitative pattern. This result changes our interpretation of layers 7-10. They are not a storage location for the final answer mechanism. Rather, they appear to be a representational transition region where reasoning and answer states begin to separate. The recoverable mechanism appears later, after the graph structure has been transformed into synthesis and answer-start representations. 
+
+6.3 Late layers outperform control layers 
+
+Table 1 summarizes the full-sweep result with paired bootstrap resampling over all 100 questions. Late layers {30 , 36 } recover more mechanism-F1 than control layers for all three corruptions: no graph ( ∆ = + 0.237), wrong graph ( ∆ = + 0.262), and shuffled graph ( ∆ = + 0.224). The corresponding transition-vs-control com-parisons are not positive, supporting the distinction between transi-tion and recovery.            
+
+> Table 2: Implementation checks for deterministic inference and strict identity patching on the diagnostic example. The identity patch writes the same cached activation back at the same layer and token posi-tion.
+> Check Compared output Result
+> Fixed-token repeat All token logits Exact match; maximum absolute difference =0Deterministic gen-eration Token sequence and decoded text Both identical Strict identity patch Logits, sequence, and decoded text All identical; maximum absolute logit difference
+> =0
+
+6.4 Negative controls, identity check, and extractor val-idation 
+
+Figure 4 shows a negative control. If recovery were caused by in-jecting arbitrary clean activations, random-region patching would recover similar mechanism content. Instead, targeted late-layer synthesis patching recovers substantially more mechanism-F1 than a random-region control. This supports the claim that recovery is localized to the graph-to-synthesis-to-answer pathway rather than being a generic clean-activation effect. To check that the recovery results were not produced by the in-tervention code, we ran three implementation checks (Table 2). Re-peating the fixed-token forward pass produced exactly the same log-its. Two greedy generations also produced the same token sequence and decoded text. We then cached the residual-stream activation at the tested layer and token position and wrote that same tensor back during an otherwise identical generation. No logit entries changed, the maximum absolute logit difference was zero, and the generated sequence and text remained unchanged. The patching operation is therefore neutral when the activation, its position, and the gener-ation trajectory are held fixed. This result also changes how we interpret the earlier clean-run sensitivity check. The broader same-question condition changed mechanism-F1 by −0.234 on average, compared with −0.379 for the random-question condition. These values are not strict identity-patch effects: the same-tensor identity replacement leaves the output unchanged. The nonzero changes must therefore come from another part of the broader interven-tion or scoring procedure, rather than from the activation overwrite alone. We retain these results as sensitivity controls, but do not use them as evidence that the patching hook itself damages the model’s output. Finally, Figure 5 reports a manual audit of 30 generated answers. The extractor obtains a precision of 0.689, a recall of 0.515, and an F1 score of 0.567. It captures central mechanism terms more reli-ably than fields such as the problem context and intervention, and it can miss relations expressed through paraphrases. We therefore use mechanism-F1 only for relative comparisons among matched clean, corrupted, and patched runs, rather than as an absolute measure of scientific correctness. We also performed a trace-faithfulness audit, where we evaluated 15 examples with a structured reviewer sheet that asked whether the final answer mechanism was supported by the visible <graph> 
+
+and <synthesis> stages. This audit was done using Claude Fable 5 as the judge. It is used as a qualitative check on the automatic mechanism-F1 score. The audit marked 15/15 examples as sup-ported and 15/15 as faithful, but 5/15 as partial. The partial cases reveal two recurring issues: an underspecified mediator and solu-tion steps stated in synthesis but not fully derived from the graph. The audit also identified false negatives in automatic mechanism-F1 caused by lexical mismatch between equivalent causal connectives. We therefore report mechanism-F1 as a relative recovery proxy, not (a) No-graph corruption         
+
+> (b) Wrong-graph corruption
+> Figure 3: Full layer-by-token-region recovery grids over all 100 questions. Orange outlines mark transition layers 7-10, red outlines mark late layers 30 and 36, dashed gray outlines mark control layers. (a) Under no-graph corruption, recovery is concentrated in late synthesis and answer-start regions, especially layer 36. (b) Under wrong-graph corruption, the same pattern holds even when the model receives graph-like text from the wrong question. Across both settings, layers 7–10 show little mechanism recovery. To read the grid, compare token-region columns within a row, then compare early, control, and late rows across corruption panels. The persistent late synthesis/answer-start concentration is the main visual pattern.
+> Figure 4: Negative control for patching specificity. Targeted late-layer synthesis patching recovers more mechanism-F1 than random-region patching under wrong-graph corruption ( ∆= + 0.365 , 95% CI
+> [+ 0.245 ,+0.475 ],p<0.001 ).
+
+as an absolute measure of trace faithfulness. 
+
+7 DISCUSSION 
+
+The main finding is a separation between representational transition and measured mechanism recovery. Layers 7–10 were previously highlighted because reasoning and answer representations begin to diverge there, but the full recovery grid shows little recovery in that region. Recovery instead concentrates in late synthesis and answer-start regions. A single selected-layer plot would make this distinc-tion easy to miss, the full grid exposes both the negative result in the transition region and the repeated late-layer pattern across cor-ruptions.   
+
+> Figure 5: Mechanism-F1 extractor validation. A 30-example audit gives precision 0.689, recall 0.515, and F1 0.567. The extractor most reliably captures mechanism terms, so we use mechanism-F1 as a relative recovery proxy rather than an absolute correctness measure.
+
+How the visual workflow supports auditing. The intended workflow begins with an answer that may appear plausible. A sci-entist first checks whether graph corruption damages its directed mechanism while leaving surface similarity high. The recovery grid then answers three diagnostic questions: which trace stage carries the strongest recoverable signal, whether that signal is localized or diffuse across layers, and whether it persists across different cor-ruptions. The user can follow a suspicious or high-recovery cell back to the corresponding graph, synthesis, and generated answer. Aggregate scores cannot support this case-level navigation or reveal whether a mean effect is driven by one narrow region. The current paper demonstrates these analytical views statically, an interactive system with filtering, linked selection, and side-by-side trace com-parison is a natural next step. 
+
+Implications for AutoSci. In an automated-science pipeline, this workflow is most useful as a human-controlled gate between Table 3: Trace-faithfulness audit over 15 examples. The audit is used as a qualitative check using Claude Fable 5.      
+
+> Audit item Count
+> Answer mechanism supported by graph/synthesis 15/15 Answer causal chain faithful to visible reasoning 15/15 Partial / underspecified trace 5/15 Fully supported without partial flag 10/15
+
+hypothesis generation and costly downstream action. A fluent hy-pothesis whose mechanism collapses under graph perturbation can be regenerated or routed to expert review. A stable, localized pat-tern can guide model debugging, targeted data collection, or the placement of monitoring probes. The present results do not auto-matically repair a hypothesis or decide whether it is scientifically true. They narrow the search: they show where the model’s graph-to-answer pathway deserves inspection and provide evidence that answer-level similarity alone is insufficient. The relevant questions are therefore not only “Does the answer sound right?” but also “Does its mechanism survive perturbation, where is that mechanism recoverable, and is it supported by the visible trace?” 
+
+8 LIMITATIONS 
+
+This is a single-model, single-domain case study over 100 ques-tions. The results should not be generalized to other model fami-lies, scientific domains, larger benchmarks, or closed models with-out replication. The benchmark is intentionally open-ended and mechanism-focused rather than a standard field benchmark, and its construction may shape the observed effects. Mechanism-F1 is a relative proxy, not a measure of experi-mental truth. The automatic extractor has precision 0.689, recall 0.515, and F1 0.567, so missed paraphrases or relations can alter recovery estimates. The 15-example trace audit is preliminary and model-judged rather than an independent materials-expert study. A stronger validation would use blinded human comparisons of late-versus transition-layer outputs and an alternative relation score. The intervention result is conditional on the corruption, residual-stream location, token alignment, decoding procedure, and nor-malization. A strict identity patch was neutral: writing the same cached activation back at the same layer and token position left the logits, generated sequence, and text unchanged. Broader same-question and random-question sensitivity checks still produced nonzero changes, showing that transfers between different compu-tational trajectories can affect the output. We therefore claim lo-calized recoverability under a specified intervention and metric, not the discovery of a complete head-, neuron-, or circuit-level mecha-nism. Exact token alignment remains important because removing or replacing the graph can change the length and position of later regions. Finally, the current visual contribution consists of static diagnos-tic views. We have not evaluated an interactive interface or mea-sured whether these views improve scientists’ decisions. A future study should implement linked trace/heatmap inspection and eval-uate whether domain experts detect unsupported hypotheses more accurately or efficiently. 
+
+9 CONCLUSION 
+
+We presented a visual diagnostic workflow for tracing graph-to-answer mechanism recovery in materials-science hypothesis gen-eration. The workflow links readable reasoning stages, controlled graph corruptions, mechanism-sensitive scoring, and full layer-by-token-region recovery grids. In this Graph-PRefLexOR-8B case study, layers 7–10 behave as a representational transition zone, whereas the strongest measured recovery appears later in synthe-sis and answer-start regions. The practical implication for auditable AI co-scientists is not that a heatmap proves scientific correctness, but that it provides a human checkpoint: plausible answers can be tested for mechanism damage, localized for closer inspection, and routed for regeneration or expert review before downstream action. 
+
+ACKNOWLEDGMENTS 
+
+This work was supported by the U.S. Department of Energy, Of-fice of Science, Office of Advanced Scientific Computing Research and Office of Basic Energy Sciences, Scientific Discovery through Advanced Computing (SciDAC) program under the FORUM-AI project. This work was primarily performed at the Oak Ridge Na-tional Laboratory, which is managed by UT-Battelle, LLC, for the U.S. DOE under the contract No. DE-AC05-00OR22725. 
+
+10 USE OF LARGE LANGUAGE MODELS 
+
+Large language models (LLMs) were used for evaluation and ques-tion refinement. All LLM-generated materials and outputs were reviewed, filtered, and analyzed by the authors. 
+
+REFERENCES                                                                  
+
+> [1] A. Agrawal and A. Choudhary. Perspective: Materials informatics and big data: Realization of the fourth paradigm of science in materials science. APL Materials , 4(5):053208, 2016. doi: 10.1063/1.4946894 1[2] O. Bentham, N. Stringham, and A. Marasovi´ c. Chain-of-Thought Unfaithfulness as Disguised Accuracy. arXiv e-prints , p. arXiv:2402.14897, Feb. 2024. doi: 10.48550/arXiv.2402.14897 1, 3[3] S. Kumbhar, V. Mishra, K. Coutinho, D. Handa, A. Iquebal, and C. Baral. Hypothesis Generation for Materials Discovery and De-sign Using Goal-Driven and Constraint-Guided LLM Agents. arXiv e-prints , p. arXiv:2501.13299, Jan. 2025. doi: 10.48550/arXiv.2501. 13299 1 [4] T. Lanham, A. Chen, A. Radhakrishnan, B. Steiner, C. Deni-son, D. Hernandez, D. Li, E. Durmus, E. Hubinger, J. Kernion, K. Lukoˇ si¯ ut˙ e, K. Nguyen, N. Cheng, N. Joseph, N. Schiefer, O. Rausch, R. Larson, S. McCandlish, S. Kundu, S. Kadavath, S. Yang, T. Henighan, T. Maxwell, T. Telleen-Lawton, T. Hume, Z. Hatfield-Dodds, J. Kaplan, J. Brauner, S. R. Bowman, and E. Perez. Measuring Faithfulness in Chain-of-Thought Reasoning. arXiv e-prints , p. arXiv:2307.13702, July 2023. doi: 10.48550/arXiv.2307. 13702 1, 3 [5] Q. Liu, M. P. Polak, S. Y. Kim, M. A. A. Shuvo, H. S. Deodhar, J. Han, D. Morgan, and H. Oh. Beyond designer’s knowledge: Generating materials design hypotheses via a large language model. Acta Mate-rialia , 297:121307, Sept. 2025. doi: 10.1016/j.actamat.2025.121307 1[6] D. L. McDowell and R. A. LeSar. The need for microstructure informatics in process-structure-property relations. MRS Bulletin ,41(8):587–593, Aug. 2016. doi: 10.1557/mrs.2016.163 1 [7] K. Meng, D. Bau, A. Andonian, and Y. Belinkov. Locating and Edit-ing Factual Associations in GPT. arXiv e-prints , p. arXiv:2202.05262, Feb. 2022. doi: 10.48550/arXiv.2202.05262 1, 3 [8] S. Pal, S. Sourav, T. Ghosal, and M. J. Buehler. Graph-Native Reinforcement Learning Enables Traceable Scientific Hypothesis Generation through Conceptual Recombination. arXiv e-prints , p. arXiv:2607.00924, July 2026. doi: 10.48550/arXiv.2607.00924 1, 3[9] S. Pan, L. Luo, Y. Wang, C. Chen, J. Wang, and X. Wu. Unifying Large Language Models and Knowledge Graphs: A Roadmap. arXiv e-prints , p. arXiv:2306.08302, June 2023. doi: 10.48550/arXiv.2306. 08302 1, 3 [10] H. Steck, C. Ekanadham, and N. Kallus. Is Cosine-Similarity of Embeddings Really About Similarity? arXiv e-prints ,p. arXiv:2403.05440, Mar. 2024. doi: 10.48550/arXiv.2403.05440 3
+
+[11] M. Turpin, J. Michael, E. Perez, and S. R. Bowman. Language Mod-els Don’t Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting. arXiv e-prints , p. arXiv:2305.04388, May 2023. doi: 10.48550/arXiv.2305.04388 1, 3 [12] S. Ugare, R. Gumaste, T. Suresh, G. Singh, and S. Misailovic. IterGen: Iterative Semantic-aware Structured LLM Generation with Backtrack-ing. arXiv e-prints , p. arXiv:2410.07295, Oct. 2024. doi: 10.48550/ arXiv.2410.07295 1 [13] K. Wang, A. Variengien, A. Conmy, B. Shlegeris, and J. Steinhardt. Interpretability in the wild: A circuit for indirect object identification in gpt-2 small. arXiv preprint arXiv:2211.00593 , 2022. 1, 3 [14] L. Wang, C. Ma, X. Feng, Z. Zhang, H. Yang, J. Zhang, Z. Chen, J. Tang, X. Chen, Y. Lin, et al. A survey on large language models with some insights on their capabilities and limitations. arXiv preprint arXiv:2305.10601 , 2023. 1, 3 [15] J. Wei, X. Wang, D. Schuurmans, M. Bosma, B. Ichter, F. Xia, E. Chi, Q. Le, and D. Zhou. Chain-of-thought prompting elicits reasoning in large language models. Advances in Neural Information Processing Systems , 35:24824–24837, 2022. 1, 3 [16] F. Zhang, N. Nanda, et al. Towards best practices of activation patching in language models: Metrics and methods. arXiv preprint arXiv:2309.16042 , 2023. 1, 3

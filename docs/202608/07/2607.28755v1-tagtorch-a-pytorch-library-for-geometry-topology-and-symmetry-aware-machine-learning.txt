@@ -1,0 +1,238 @@
+Title: TAGTorch: A PyTorch Library for Geometry, Topology, and Symmetry-Aware Machine Learning
+
+URL Source: https://arxiv.org/pdf/2607.28755v1
+
+Published Time: Mon, 03 Aug 2026 00:05:36 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+# TAGTorch: A PyTorch Library for Geometry, Topology, and Symmetry-Aware Machine Learning 
+
+Brendan Kennedy 
+
+Pacific Northwest National Laboratory 
+
+Tegan Emerson 
+
+Pacific Northwest National Laboratory, University of Texas at El Paso 
+
+Gregory Roek 
+
+Pacific Northwest National Laboratory 
+
+Emilie Purvine 
+
+Pacific Northwest National Laboratory 
+
+Henry Kvinge henry.kvinge@pnnl.gov 
+
+University of Washington, Pacific Northwest National Laboratory 
+
+Abstract 
+
+Over the last decade, neural networks have been applied to an increasingly diverse range of applications, including data with rich geometric, topological, or symmetry-related struc-ture. As a result, researchers have increasingly drawn inspiration from topology, alge-bra, and geometry. Despite this rich algorithmic development, the supporting software ecosystem remains fragmented. Many important methods exist only as research proto-types in unmaintained repositories. We address this by introducing Topology, Algebra, and Geometry Torch ( TAGTorch ), an open-source, PyTorch-based library that unifies tools inspired by topology, algebra, and geometry, including data-preprocessing methods, archi-tectures, training techniques, and model analysis tools. We describe the design philosophy of TAGTorch and then discuss its current architecture and capabilities, highlighting areas where it can fill gaps in the current software ecosystem. We conclude with a discussion of our future development priorities for the library. 
+
+Keywords: Software, Equivariance, TAG algorithms, Topological data analysis, Geomet-ric deep learning 
+
+1. Introduction 
+
+The rapid improvement of neural network per-formance on tasks in natural language and com-puter vision has triggered an explosion in appli-cations of deep learning to more complex sci-entific settings. Many of these feature data with complex structure, symmetries, or geom-etry motivating domain-aware models that ben-efit from specialized mathematical priors. These can range from group equivariant layer types to input features extracted via topological data analysis. At the same time, the science of deep arXiv:2607.28755v1 [cs.LG] 30 Jul 2026 Kennedy Emerson Roek Purvine Kvinge 
+
+learning has advanced considerably in the last decade with complex analytical tools now available to understand the behavior and learn-ing dynamics of neural networks. As model internals and the learning process they evolve from are intrinsically mathematical, this field of research has also borrowed heavily from mathematics. Examples include the use of intrinsic dimension statistics to understand the process of learning (Ansuini et al., 2019; Joshi et al., 2026), weight symmetries to better understand loss landscape structure (Simsek et al., 2021; Ainsworth et al., 2022; Godfrey et al., 2022), and geometric notions of feature structure such as superposition (Elhage et al., 2022) and the linear representation hypothesis (Park et al., 2023). This transfer of methods and ideas from mathematics to machine learning has been valuable to both communities. Machine learning has received an influx of new ways of looking at models and data and mathematics has been exposed to a host of problems that have the potential to motivate new research directions. But mathematics differs from machine learning in some important ways, one being the role of software. Software remains the bedrock of progress in machine learning. Even work that is primarily theory-based often includes experiments as a way to validate results. Because of this, the success of a machine learning field depends on the software that is available to support it. What software is available for a researcher interested in using mathematically-inspired tools in AI development? The answer varies considerably based on what area one focuses on. There are some mature, well-maintained libraries with large user-bases. For example, the e3nn library captures a range of methods for building SO (3)-equivariant architectures for molecular modeling (Geiger and Smidt, 2022). Another example is PyTorch Geometric ,a package aimed at building graph neural networks for learning on structured data (Fey and Lenssen, 2019). While these packages are often effective within the scope that they support they can be hard to work with outside their intended uses. Considerable work might be required to extract a base method (e.g., an equivariance layer construction) from a domain-specific set up (e.g., molecular modeling). This can make it hard to leverage these tools for applications with novel data types or tasks. As another example, chaining together multiple tools in a single workflow (e.g., topological data analysis features with an equivariant architecture) usually requires using several different libraries, leading to potential dependency conflicts. To address this, we introduce Topology, Algebra, and Geometry Torch ( TAGTorch )1, a PyTorch-based library that provides implementations of mathematically-inspired methods in deep learning, particularly those based on the fields of topology, algebra, and geometry. The motivating goals of TAGTorch are the following. (1) TAGTorch is a single entry point to a diverse assortment of TAG-related methods while remaining maximally domain agnostic to accommodate new applications. (2) TAGTorch is designed to minimize the barrier to entry for non-mathematicians. (3) TAGTorch has a mathematically-informed foundation and structure making it extensible to future developments in the field. (4) Where strong and mature libraries exist, TAGTorch uses these rather than replicating capabilities. In this paper we discuss these and other design goals of TAGTorch , including our strategy of prioritizing one method over another for integration. We also describe our plans to include a strong visualization component to help users without an extensive background build robust  
+
+> 1. https://github.com/hkvinge/tagtorch
+> 2TAGTorch: Geometry, Topology, and Symmetry-Aware Machine Learning
+
+intuition for the methods. Finally, we give a brief overview of some of the capabilities that currently exist in TAGTorch . Since TAGTorch is still in the early stages of development, we also outline priority features that we are actively planning to integrate in the future. In summary, our contributions include the following. 
+
+• We introduce TAGTorch , a PyTorch-based library that makes mathematical tools for AI development accessible to users beyond experts in machine learning and mathe-matics. 
+
+• We describe the design principles that inform TAGTorch development. 
+
+• Finally, we describe the features currently in TAGTorch , as well as features that will be added in the near future. 
+
+2. Related work 
+
+Ideas from the fields of topology, algebra, and geometry have spurred a range of fruitful research directions in deep learning. Many of these are supported by software libraries that enable efficient experimentation by the community. Examples include e3nn which is specialized to O(3), SO (3), and E(3) symmetries of points in R3 (Geiger and Smidt, 2022), 
+
+escnn which captures planar symmetries on grids via E(n)-equivariant steerable CNNs (Cesa et al., 2022; Weiler and Cesa, 2019). Also notable is cuEquivariance which provides low-level tensor operations to support equivariant layers (NVIDIA Corporation, 2025). Be-yond equivariance specifically, PyTorch-Geometric (PyG) is one of the most prominent libraries for geometric deep learning, focusing on learning on graphs (Fey and Lenssen, 2019). Other geometry specific libraries include Geomstats which provides support for sev-eral core geometric constructions (Miolane et al., 2020a,b; Guigui et al., 2023; Le Brigant et al., 2023; Pereira et al., 2025) and Geoopt which provides manifold optimizers (Kochurov et al., 2020). The field of topological data analysis (TDA) and topological deep learning has its own ecosystem. Of these scikit-tda is most similar to TAGTorch (Saul and Tralie, 2019). It primarily provides wrappers for other libraries, exposing lots of different packages to users in a convenient format. GUDHI is a well-established, open-source library (Maria et al., 2014). 
+
+Topology Toolkit (TTK) contains TDA tools for data in dimensions 2 and 3 (Tierny et al., 2017). Finally, Teaspoon is a TDA package for studying dynamics and time-series data (Khasawneh et al., 2025). Lastly, there is an emerging ecosystem of interpretability libraries. Among the most prominent of these is TransformerLens , which contains a range of tools for analysis of transformer-based language models drawn from mechanistic interpretability (Nanda and Bloom, 2022). Other important libraries include NNsight (Fiotto-Kaufman et al., 2025) which aims to enable analysis of model internals at a large scale and SAELens (Bloom et al., 2024) which is primarily aimed at providing support for sparse autoencoders on language models. 
+
+3. Design Goals 
+
+TAGTorch aims to eventually organize and centralize existing tools from the fields of geo-metric deep learning, topological deep learning and topological data analysis, representation 
+
+> 3
+
+Kennedy Emerson Roek Purvine Kvinge Load and process 
+
+scientific datasets 
+
+escnn 
+
+e3nn 
+
+tagtorch.nn.modules 
+
+> tagtorch.topology
+> tagtorch.symmetries
+
+tagtorch.transforms 
+
+tagtorch.nn 
+
+tagtorch.data 
+
+> Models can be specified through YAML or
+> plaintext file formats, or defined as objects
+> Transforms specified
+> with torch modules
+
+Sanity checks, data exploration, 
+
+visualization utilizing symmetry 
+
+and topology tools 
+
+tagtorch.plot 
+
+> Plots and interactive widgets can be
+> generated at each stage in the workflow
+
+Symmetry Analysis 
+
+Representation Analysis 
+
+tagtorch.model_properties 
+
+tagtorch.flows 
+
+> Loading scientific data files into data structures
+> Configuring Data Transform Pipelines
+> End -to -end scientific data processing, model
+> specification, training, symmetry analysis
+> Wrappers for scientific libraries and data loaders,
+> data parsing and conversion into data structures
+
+Figure 1: A diagram of the current structure of TAGTorch . This will be a starting point upon which we will build out specific capabilities. geometry, model symmetries, loss landscape geometry, and mathematical interpretability techniques. We particularly hope to implement missing links and engineer high-level flows to reduce the barrier to entry into the world of TAG and deep learning. Our strategy blends an appreciation for the wide array of exciting research in the space, as well as closing gaps and building bridges between communities and sub-fields. By building this package, we aim to start a community-wide initiative for contributing new methods to a centralized project, which will amplify individual research efforts and ease direct comparisons, evaluations, and applications of methods in the TAG toolbox. 
+
+3.1. Organizing and centralizing existing tools 
+
+As a community, there are many scattered implementations of algorithms and specialized tools that all operate on universal mathematical constructions. However, reconciling these implementations runs into the issue that there is significant heterogeneity in verbiage and formalisms used across software packages. Some of this comes from the fact that the im-plementations originate from different disciplines (e.g., mathematics vs. physics). Some arises from the applications that the implementations are geared toward. In either case, the consequence is it can take some work to translate between tools, even when they operate within an identical mathematical framework. To make this concrete, consider the example of representation theory, which serves as the foundation for equivariant neural networks. Each group has a well-defined set of isomorphism classes of irreducible linear representations (Serre et al., 1977; Fulton and 
+
+4TAGTorch: Geometry, Topology, and Symmetry-Aware Machine Learning 
+
+Harris, 2013). These serve as universal building blocks for all symmetries of the group. They also provide a unifying grammar for understanding and comparing different approaches to equivariant machine learning that leverage that group. However, it is very hard to see these connections at the level of software. Beyond the fact that the current ecosystem fails to elevate structure that could help unify different implementations, the field also suffers from maladies common to any grow-ing research area. This includes situations where the only implementations of algorithms are often one-off, unmaintained research repositories. These sometimes allow replication, but they usually lack the engineering necessary to provide a general capability to a larger community. In this space, TAGTorch aims to amplify existing works and contextualize them within a common framework. This will involve: 
+
+• Implementing methods within a well-engineered software architecture, which stan-dardizes access points to methods, uses abstractions and object-oriented program-ming, and adds extensive testing for robustness and improvements to efficiency. 
+
+• Defining abstractions such that the myriad formalisms used across subfields and soft-ware packages can be interacted with in a standardized way (e.g., a universal language for irreducible representations). 
+
+• Connecting methods to the PyTorch ecosystem. This unifying backend brings methods into contact with sophisticated training capabilities and optimizations, evaluation utilities, and methods from other deep learning disciplines such as computer vision or natural language processing. 
+
+3.2. Implementation of New Methods 
+
+In cases where methods lack accepted implementations from the community, our goal will be to add them to TAGTorch . We will aim to do this in a way that aligns them with com-peting approaches. For example, when a new tool for analyzing representation geometry appears, it will be added alongside existing representation geometry tools aligning available hyperparameters, assumptions on input data, etc. as much as reasonably possible. By aim-ing for implementation alignment, we hope to make it easy to compare competing methods without the friction of having to integrate a new code base with different assumptions and formalisms. 
+
+3.3. Reducing the Barrier to Entry 
+
+Centralizing and rounding out the TAG toolbox only goes so far in terms of making a tool that can be of use to a wider community. We aim for TAGTorch to occupy a shared space between fundamental and applied science, connecting real data and use cases to researchers in deep learning and mathematics. This is a symbiotic relationship: fundamental science often develops in a closed community, leveraging data that is useful for innovation but untethered from the domain sciences which are, in theory, benefiting from this novel research; meanwhile, domain scientists may not be aware of relevant methods coming from the machine learning community. This divergence is compounded by the lack of unifying software. 
+
+> 5Kennedy Emerson Roek Purvine Kvinge
+
+To reduce the barrier to entry for domain scientists into the world of TAG-flavored AI tools, and in turn drive AI research with real applications, TAGTorch provides high-level workflows that help “connect the dots” between distinct phases in the research cycle, from data processing and transformation, visualization, building mathematically-aware architec-tures, and training and evaluating models informed by the geometry of data. 
+
+3.4. Extensibility 
+
+Ultimately the success of TAGTorch will largely depend on community engagement, both in terms of feedback on the package, but also direct contributions. We have made two major design choices to try and encourage this. First, we have implemented object-oriented design principles in various modules in the package. With this, contributors can add new function-ality to the package with minimal changes required to the codebase, adhering to the encap-sulation principle of software architecture. Designed class hierarchies in TAGTorch include: data loaders and processors, which currently are wrappers around other libraries’ data load-ing capabilities; torch data transforms using methods from topological and symmetry-based analysis; equivariant torch architectures; and implementations of groups and group actions for symmetry analysis. Each of these can be integrated into stable, package-level flows that implement multiple steps in analysis, modeling, and evaluation. 
+
+4. Design and Architecture 
+
+4.1. A standardized API for data transforms 
+
+Transforms are central in modern mathematics. As category theory tells us, we should focus on the morphisms, not the objects. Transforms are also central to the world of traditional deep learning and PyTorch, deep learning essentially being the process of composing many simple transformations together. Beyond that, familiar transforms like augmentation, muta-tion, and sampling are integrated into workflows in popular libraries, including ‘torchvision‘ (Marcel and Rodriguez, 2010) and ‘torch-geometric‘ (Fey and Lenssen, 2019). PyTorch-compatible transform layers can be directly integrated into data loaders and training and evaluation processes. In TAGTorch , we use the notion of a transform to incorporate many central capabili-ties within a single framework. Currently, the library includes topological transforms and data symmetries, but we will add weight symmetries and representation statistics as well. Workflows in TAG require non-trivial transformations among data types, particularly when working with graphical data. TAGTorch combines native implementations of common graph utilities with imports of standard libraries. 
+
+4.2. Visualization and interactive utilities 
+
+It is non-trivial to interpret data and train models without strong intuition. This is partic-ularly true when techniques are built on methods from graduate level mathematics. For in-stance, equivariant architectures are generally harder to interpret than their non-equivariant counterparts, especially if one does not have some basic intuition about representation the-ory. 
+
+> 6TAGTorch: Geometry, Topology, and Symmetry-Aware Machine Learning
+
+In some cases, specific types of visualizations can be leveraged to aid in intuition build-ing. In TAGTorch , some methods will be supported by custom visualization procedures. One feature that is currently in development is a visualization pipeline that helps a user understand parameter choice in persistence homology (Figure 2 in the Appendix). In this particular instance, the user can generate visualizations that show the impact of differ-ent hyperparameter choices (specifically density floor and ϵ-net which filter out points and maximum distance and maximum number of neighbors which filter out edges). 
+
+5. Capabilities 
+
+In this section we outline TAGTorch ’s current functionality as well as functionality in devel-opment. 
+
+5.1. Symmetry and Equivariance 
+
+We have taken a mathematics-first approach to building symmetry and equivariance ca-pabilities in TAGTorch . This means starting with groups, then defining actions and linear representations of these groups on specific datatypes, and then moving to downstream func-tionality. By building up from algebraic foundations, we make the package more extensible. We have protocols that define a class interface to build a new action or representation for an existing group. These are all currently in the tagtorch.symmetry module. This frame-work also helps us to connect different packages that use the same underlying groups and representations but use different syntax to invoke them. For example, e3nn and escnn both utilize the same underlying mathematics, but you would not know this from looking at the way the code is set up. We hope to smooth out these differences. Beyond these foundations, we have started by including basic functionality such as incorporating symmetry actions into a dataloader for convenient augmentation. We have also elevated some of the best resources for equivariant architectures, including e3nn (Geiger and Smidt, 2022) and escnn (Weiler and Cesa, 2019; Cesa et al., 2022), making these easily callable from within TAGTorch . Other equivariant architectures that we consider essential are those associated with sets, such as DeepSets (Zaheer et al., 2017) and Set Transformer (Lee et al., 2019). We plan to also include other prominent methods in equivariant learning that are not architectural, such as frame averaging methods (Puny et al., 2021; Ma et al., 2024) and methods which promote a softer inductive bias toward equivariance (Finzi et al., 2021). 
+
+5.2. Topology 
+
+Our ambition is to include two types of topology-inspired tools in TAGTorch . The first are tools coming from topological data analysis. These involve extraction of topological statistics from data either for input features to a downstream neural network or as a tool for analyzing training or inference data. TAGTorch already includes the Euler characteristic transform (ECT) (Turner et al., 2014) and basic persistent homology capabilities. We aim to eventually include skeletonization via Morse theory approaches (Gyulassy et al., 2007), Mapper (Singh et al., 2007), standard topological vectorizations, zig-zag persistence (Carlsson and de Silva, 2010), and sheaf-theoretic methods (Curry, 2014). In the longer 
+
+> 7Kennedy Emerson Roek Purvine Kvinge
+
+term we also plan to include support for topology-aware layers (Papamarkou et al., 2024) which is a different flavor of topology-inspired tool. As noted in Section 2, there are several mature Python-based software packages for TDA. Our goal with TAGTorch is to utilize these where possible, including extra functionality where it will make integration into PyTorch-based workflows easier. In certain cases, where no maintained tool is available, we plan to provide our own implementations. Beyond the algorithms themselves, we also provide resources for hyperparameter opti-mization. This includes identifying the specific parameters most relevant to a given dataset, maximizing the information extracted under a restricted compute budget, and rapidly vi-sualising simplicial complexes for qualitative analysis/validation (identifying data points excluded as outliers, included/excluded edges and triangles, etc.). 
+
+5.3. Model Properties 
+
+One fundamental area where development has been limited is our TAGTorch.model properties 
+
+modules which will include mathematical tools for better understanding neural networks. This will include functions to estimate intrinsic dimension (Camastra and Staiano, 2016), functions for analyzing representation geometry (Lin and Kriegeskorte, 2024), functions for representation similarity comparison (Klabunde et al., 2025), and functions to measure other mathematical properties of a model. At present we have a function for calculating the group empirical equivariance deviation (Kvinge et al., 2022) which measures the extent to which a neural network is equivariant. 
+
+6. Conclusion 
+
+In addition to providing new, cross-disciplinary capabilities, TAGTorch is a vehicle for in-terdisciplinary cohesion and the sharing of methods, utilities, and common practices. Much as other disciplines in machine learning have benefited from centralized software and model sharing software (e.g., torch hub 2, HuggingFace 3, or torchvision 4), the communities focused on developing and applying TAG methods will benefit from having comprehensive method implementations integrated into the PyTorch ecosystem, continuously updated by the pack-age maintainers and supported by contributions from the community. 
+
+TAGTorch is in its early stages, and will continue evolving in terms of content and user flows but maintain the initial structures and architecture described here. These structures will create simple, accessible means for community members to contribute to the package, taking advantage of abstractions to add support for new models, data structures and trans-forms, tools for model property analysis, and visual tools. Completed implementations are highlighted by topological and symmetry-based transforms, a unifying implementation and formalism for implementing symmetries in PyTorch, interactive tools for visualizing data and applying persistent homology, and wrapper functions and classes around existing python libraries for equivariant architectures. At the same time, TAGTorch is actively being fleshed out beyond the initial architecture and structural design. Active areas of development include: (1) implementations of new    
+
+> 2. https://pytorch.org/hub/
+> 3. https://huggingface.co/
+> 4. https://docs.pytorch.org/vision/stable/index.html
+> 8TAGTorch: Geometry, Topology, and Symmetry-Aware Machine Learning
+
+equivariant architectures beyond the wrapper functionality we provide for e3nn and escnn ;(2) interactive Graph User Interfaces (GUI) for managing human-in-the-loop workflows, such as hyperparameter tuning; and (3) specific flows for data loading and processing and model development. By open-sourcing TAGTorch , we invite the community to contribute to these and other areas in the package, adding diversity to the present implementations and providing a platform for others to use and extend their work. 
+
+References 
+
+Samuel K Ainsworth, Jonathan Hayase, and Siddhartha Srinivasa. Git re-basin: Merging models modulo permutation symmetries. arXiv preprint arXiv:2209.04836 , 2022. Alessio Ansuini, Alessandro Laio, Jakob H Macke, and Davide Zoccolan. Intrinsic dimen-sion of data representations in deep neural networks. Advances in Neural Information Processing Systems , 32, 2019. Joseph Bloom, Curt Tigges, Anthony Duong, and David Chanin. Saelens. https://github. com/decoderesearch/SAELens , 2024. Francesco Camastra and Antonino Staiano. Intrinsic dimension estimation: Advances and open problems. Information Sciences , 328:26–41, 2016. Gunnar Carlsson and Vin de Silva. Zigzag persistence. Foundations of Computational Mathematics , 10(4):367–405, 2010. doi: 10.1007/s10208-010-9066-0. Gabriele Cesa, Leon Lang, and Maurice Weiler. A program to build E(N)-equivariant steerable CNNs. In International Conference on Learning Representations , 2022. URL 
+
+https://openreview.net/forum?id=WE4qe9xlnQw .Justin Curry. Sheaves, Cosheaves and Applications . University of Pennsylvania, 2014. Nelson Elhage, Tristan Hume, Catherine Olsson, Nicholas Schiefer, Tom Henighan, Shauna Kravec, Zac Hatfield-Dodds, Robert Lasenby, Dawn Drain, Carol Chen, et al. Toy models of superposition. arXiv preprint arXiv:2209.10652 , 2022. Matthias Fey and Jan Eric Lenssen. Fast graph representation learning with pytorch geo-metric. arXiv preprint arXiv:1903.02428 , 2019. Marc Finzi, Gregory Benton, and Andrew G Wilson. Residual pathway priors for soft equivariance constraints. Advances in Neural Information Processing Systems , 34:30037– 30049, 2021. Jaden Fiotto-Kaufman, Alexander Loftus, Eric Todd, Jannik Brinkmann, Koyena Pal, Dmitrii Troitskii, Michael Ripa, Adam Belfki, Can Rager, Caden Juang, et al. Nnsight and ndif: Democratizing access to open-weight foundation model internals. In Interna-tional Conference on Learning Representations , volume 2025, pages 92337–92370, 2025. William Fulton and Joe Harris. Representation theory: a first course . Springer Science & Business Media, 2013. 
+
+> 9Kennedy Emerson Roek Purvine Kvinge
+
+Mario Geiger and Tess Smidt. e3nn: Euclidean neural networks. arXiv preprint arXiv:2207.09453 , 2022. Charles Godfrey, Davis Brown, Tegan Emerson, and Henry Kvinge. On the symmetries of deep learning models and their internal representations. Advances in Neural Information Processing Systems , 35:11893–11905, 2022. Nicolas Guigui, Nina Miolane, Xavier Pennec, et al. Introduction to riemannian ge-ometry and geometric statistics: from basic theory to implementation with geom-stats. Foundations and Trends in Machine Learning , 16(3):329–493, 2023. URL 
+
+https://www.nowpublishers.com/article/Details/MAL-098 .Attila Gyulassy, Vijay Natarajan, Valerio Pascucci, Peer-Timo Bremer, and Bernd Hamann. Efficient computation of morse-smale complexes for three-dimensional scalar functions. 
+
+IEEE Transactions on Visualization and Computer Graphics , 13(6):1440–1447, 2007. Abhinav Joshi, Divyanshu Bhatt, and Ashutosh Modi. Geometry of decision making in language models. Advances in Neural Information Processing Systems , 38:144139–144196, 2026. Firas A. Khasawneh, Elizabeth Munch, Danielle Barnes, Max M. Chumley, ˙Ismail G¨ uzel, Audun D. Myers, Sunia Tanweer, Sarah Tymochko, and Melih Yesilli. Teaspoon: Apython package for topological signal processing. Journal of Open Source Software , 10 (107):7243, March 2025. ISSN 2475-9066. doi: 10.21105/joss.07243. Max Klabunde, Tobias Schumacher, Markus Strohmaier, and Florian Lemmerich. Similarity of neural network models: A survey of functional and representational measures. ACM Computing Surveys , 57(9):1–52, 2025. Max Kochurov, Rasul Karimov, and Serge Kozlukov. Geoopt: Riemannian optimization in pytorch, 2020. Henry Kvinge, Tegan Emerson, Grayson Jorgenson, Scott Vasquez, Tim Doster, and Jesse Lew. In what ways are deep neural networks invariant and how should we measure this? 
+
+Advances in Neural Information Processing Systems , 35:32816–32829, 2022. Alice Le Brigant, Jules Deschamps, Antoine Collas, and Nina Miolane. Parametric informa-tion geometry with the package geomstats. ACM Transactions on Mathematical Software ,49(4):1–26, 2023. Juho Lee, Yoonho Lee, Jungtaek Kim, Adam Kosiorek, Seungjin Choi, and Yee Whye Teh. Set transformer: A framework for attention-based permutation-invariant neural networks. In International conference on machine learning , pages 3744–3753. PMLR, 2019. Baihan Lin and Nikolaus Kriegeskorte. The topology and geometry of neural representa-tions. Proceedings of the National Academy of Sciences , 121(42):e2317881121, 2024. George Ma, Yifei Wang, Derek Lim, Stefanie Jegelka, and Yisen Wang. A canonicaliza-tion perspective on invariant and equivariant learning. Advances in Neural Information Processing Systems , 37:60936–60979, 2024. 
+
+> 10 TAGTorch: Geometry, Topology, and Symmetry-Aware Machine Learning
+
+S´ ebastien Marcel and Yann Rodriguez. Torchvision the machine-vision package of torch. In 
+
+Proceedings of the 18th ACM international conference on Multimedia , pages 1485–1488, 2010. Cl´ ement Maria, Jean-Daniel Boissonnat, Marc Glisse, and Mariette Yvinec. The gudhi library: Simplicial complexes and persistent homology. In International congress on mathematical software , pages 167–174. Springer, 2014. Nina Miolane, Nicolas Guigui, Alice Le Brigant, Johan Mathe, Benjamin Hou, Yann Thanwerdas, Stefan Heyder, Olivier Peltre, Niklas Koep, Hadi Zaatiti, Hatem Hajri, Yann Cabanes, Thomas Gerald, Paul Chauchat, Christian Shewmake, Daniel Brooks, Bernhard Kainz, Claire Donnat, Susan Holmes, and Xavier Pennec. Geomstats: A python package for riemannian geometry in machine learning. Journal of Machine Learning Research , 21 (223):1–9, 2020a. URL http://jmlr.org/papers/v21/19-027.html .Nina Miolane, Nicolas Guigui, Hadi Zaatiti, Christian Shewmake, Hatem Hajri, Daniel Brooks, Alice Le Brigant, Johan Mathe, Benjamin Hou, Yann Thanwerdas, et al. In-troduction to geometric learning in python with geomstats. SciPy 2020-19th Python in Science Conference , pages 48–57, 2020b. URL https://proceedings.scipy.org/ articles/Majora-342d178e-007.pdf .Neel Nanda and Joseph Bloom. Transformerlens. https://github.com/ TransformerLensOrg/TransformerLens , 2022. NVIDIA Corporation. cuequivariance, 2025. URL https://github.com/NVIDIA/ cuEquivariance .Theodore Papamarkou, Tolga Birdal, Michael Bronstein, Gunnar Carlsson, Justin Curry, Yue Gao, Mustafa Hajij, Roland Kwitt, Pietro Li` o, Paolo Di Lorenzo, et al. Posi-tion paper: Challenges and opportunities in topological deep learning. arXiv preprint arXiv:2402.08871 , 2, 2024. Kiho Park, Yo Joong Choe, and Victor Veitch. The linear representation hypothesis and the geometry of large language models. arXiv preprint arXiv:2311.03658 , 2023. Lu´ ıs F Pereira, Alice Le Brigant, Adele Myers, Emmanuel Hartman, Amil Khan, Malik Tuerkoen, Trey Dold, Mengyang Gu, Pablo Su´ arez-Serrato, and Nina Miolane. Learn-ing from landmarks, curves, surfaces, and shapes in geomstats. ACM Transactions on Mathematical Software , 2025. Omri Puny, Matan Atzmon, Heli Ben-Hamu, Ishan Misra, Aditya Grover, Edward J Smith, and Yaron Lipman. Frame averaging for invariant and equivariant network design. arXiv preprint arXiv:2110.03336 , 2021. Nathaniel Saul and Chris Tralie. Scikit-tda: Topological data analysis for python, 2019. URL https://doi.org/10.5281/zenodo.2533369 .Jean-Pierre Serre et al. Linear representations of finite groups , volume 42. Springer, 1977. 
+
+> 11 Kennedy Emerson Roek Purvine Kvinge
+
+Berfin Simsek, Fran¸ cois Ged, Arthur Jacot, Francesco Spadaro, Cl´ ement Hongler, Wulfram Gerstner, and Johanni Brea. Geometry of the loss landscape in overparameterized neural networks: Symmetries and invariances. In International Conference on Machine Learning ,pages 9722–9732. PMLR, 2021. Gurjeet Singh, Facundo M´ emoli, and Gunnar Carlsson. Topological methods for the analysis of high dimensional data sets and 3d object recognition. In Symposium on Point-Based Graphics , pages 91–100. Eurographics Association, 2007. doi: 10.2312/SPBG/SPBG07/ 091-100. Julien Tierny, Guillaume Favelier, Joshua A Levine, Charles Gueunet, and Michael Michaux. The topology toolkit. IEEE transactions on visualization and computer graph-ics , 24(1):832–842, 2017. Katharine Turner, Sayan Mukherjee, and Doug M Boyer. Persistent homology transform for modeling shapes and surfaces. Information and Inference: A Journal of the IMA , 3 (4):310–344, 2014. Maurice Weiler and Gabriele Cesa. General E(2)-Equivariant Steerable CNNs. In Con-ference on Neural Information Processing Systems (NeurIPS) , 2019. URL https: //arxiv.org/abs/1911.08251 .Manzil Zaheer, Satwik Kottur, Siamak Ravanbakhsh, Barnabas Poczos, Russ R Salakhut-dinov, and Alexander J Smola. Deep sets. Advances in neural information processing systems , 30, 2017. 
+
+Appendix A. Workflows and Interactive Applications 
+
+A.0.1. Interactive widgets for hyperparameter optimization 
+
+In many cases, data visualization provides valuable signal that can help a model devel-oper evaluate goodness of fit, guide the design of data augmentation or transformation, and model design. In TAGTorch , we are developing a suite of end-to-end methods for tying data visualization to model development. In particular, the initial release of TAGTorch fea-tures an interactive Graphical User Interface for selecting hyperparameters when applying persistent homology. 
+
+A.0.2. Building equivariant neural network models 
+
+There is a diverse collection of strategies for building equivariance into neural networks, spanning data transformation and augmentation to designing structurally equivariant ar-chitectures. TAGTorch is designed to provide a unified access point to tools and model definitions in other packages in the community and implements other architectures. But defining networks is only half the battle — significant domain knowledge and practical expertise, gained through years of familiarity with the research topic and underlying math-ematics, make configuring models complex, often requiring experimentation and matching model design and specification to data types and modeling tasks. 
+
+> 12 TAGTorch: Geometry, Topology, and Symmetry-Aware Machine Learning
+
+Figure 2: TAGTorch enables Human-in-the-Loop (HIL) workflows that are necessary to tune the process of topological data transforms. As it matures, TAGTorch will support model specification through serialized configs (e.g., JSON or YAML files), defining model sizes, layer types, and preprocessing. Doing so will allow internal and community contributors to add configurations that define “recipes” for building networks specifically suited to certain data modalities and modeling objectives. The other half of TAG and deep learning is training models. As with all model train-ing, this requires expertise with hyperparameter tuning, tricks of the trade, and knowing which metrics and indicators of a well-trained model. Training workflows in TAGTorch will integrate with established training libraries and utilities in PyTorch, as well as specialized hyperparameter tuning software, pairing equivariant architectures and training procedures with traditional deep learning infrastructure.

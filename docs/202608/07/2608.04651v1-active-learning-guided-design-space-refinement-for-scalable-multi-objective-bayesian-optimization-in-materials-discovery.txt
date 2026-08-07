@@ -1,0 +1,268 @@
+Title: Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery
+
+URL Source: https://arxiv.org/pdf/2608.04651v1
+
+Published Time: Thu, 06 Aug 2026 00:44:42 GMT
+
+Number of Pages: 19
+
+Markdown Content:
+# Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery 
+
+## Ntagiantas A. +, Tsilimidos P. +, Giannakopoulos G., Rekatsinas C. *, Krokidas P. * §
+
+National Centre for Scientific Research “Demokritos” 
+
+> +
+
+Shared first authorship; *Shared last authorship; §Corresponding Author: p.krokidas@iit.demokritos.gr 
+
+## August 6, 2026 
+
+Abstract 
+
+Advanced materials discovery increasingly relies on machine learning and Bayesian opti-mization to explore large discrete design spaces under limited evaluation budgets. However, conventional Bayesian optimization (BO) can become inefficient as candidate spaces grow, often evaluating low-value regions before reaching informative areas. We propose an active-learning (AL)-guided adaptive search-space refinement framework combined with multi-objective BO to accelerate materials optimization while preserving Pareto-relevant regions. We evaluate the approach on CH 4/N 2 separation in covalent–organic frameworks and pressure-vessel design with material-direction stress components and thickness objectives. Results show that the AL-guided refinement reduces the candidate space by approximately half while preserving more than 99 percent of the original hypervolume. The reduced-space strategy improves early convergence and cumulative Pareto-front discovery from the BO, demonstrating efficient large-scale materials optimization across constrained autonomous materials discovery settings. 
+
+# 1 Introduction 
+
+The rapid expansion of computational materials databases and high-throughput simulation techniques has fundamentally transformed the discovery and optimization of advanced materials. Machine learning (ML) and data-driven methodologies now enable the exploration of increasingly large design spaces across applications including gas separation, catalysis, energy storage, and adsorption-based processes. At the same time, the growing complexity and dimensionality of modern materials datasets introduce significant challenges for efficient optimization, particularly when candidate evaluation remains computationally demanding. As accessible materials spaces continue to expand, identifying promising candidates under limited computational budgets has become a major challenge in autonomous materials discovery. Bayesian optimization (BO) has emerged as an effective approach for data-efficient optimization in materials science[ 1 , 5 , 12 ] because it can guide exploration using probabilistic surrogate models and uncertainty-aware acquisition strategies. Unlike conventional optimization techniques, BO 1arXiv:2608.04651v1 [cs.LG] 5 Aug 2026 balances exploration and exploitation while operating under restricted evaluation budgets, making it attractive for expensive scientific optimization problems. Recent applications have demonstrated the potential of BO to accelerate nanoporous-material screening, molecular discovery, adsorption optimization, and multi-objective materials engineering[ 11 , 14 , 17 , 19 , 30 , 34 ] while reducing the number of computationally expensive evaluations required to identify promising solutions[ 15 , 20 , 27 ]. Despite these advantages, the scalability of conventional BO remains a major limitation in ultra-large design spaces. As the number of candidate materials increases, the optimization process often becomes progressively less efficient and may require many evaluations before converging toward high-performing regions. In practice, a significant fraction of computational effort can be allocated to low-value candidates that contribute minimally to the final optimization outcome. This issue becomes even more pronounced in multi-objective settings, where competing objectives must be balanced while maintaining diversity across the Pareto front[ 2 , 7 , 8, 9 , 25 , 26 ]. Consequently, the computational cost associated with large-scale optimization can become prohibitive, limiting the practical applicability of conventional BO frameworks in autonomous materials discovery pipelines. To improve optimization efficiency in large-scale scientific problems, recent research has increasingly explored the integration of active learning strategies with adaptive exploration mechanisms. By iteratively identifying informative candidate regions, active learning approaches can reduce redundant evaluations and focus computational resources on areas that are more likely to contain high-performing solutions[ 3, 4 , 6 , 20 , 21 , 22 , 23 ]. In materials optimization, adaptive refinement strategies are particularly appealing because they can reduce the effective search space before expensive optimization stages. Such approaches may substantially reduce unnecessary exploration in large candidate spaces. Nevertheless, existing workflows often emphasize either predictive modeling or optimization perfor-mance independently, without explicitly incorporating adaptive search-space refinement as a central component of the optimization process. Many large-scale optimization frameworks continue to rely on full-space exploration strategies that become increasingly inefficient as candidate spaces and objective complexity grow. This limitation is particularly relevant in modern materials discovery settings, where optimization frequently involves competing objectives, expensive evaluations, and large candidate pools derived from high-throughput computational screening pipelines. Inspired by recent works that deal with narrowing the initial search space of BO methods [ 32 , 33 ], in this work, we introduce an adaptive search-space refinement framework for improving the scalability and search focus of Bayesian optimization in materials discovery applications[ 10 , 11 , 14 , 15 , 16 ,17 , 18 , 19 ]. The framework uses active learning as the candidate-space partitioning component, specifically a density-aware variant developed by some of the authors, density-aware greedy sampling (DAGS)[ 31 ]; the subsequent reduction and optimization strategy is developed here to support multi-objective materials search. In this workflow, active-learning-informed partitions are used to retain candidate regions enriched in high-performing and Pareto-relevant materials, and the resulting reduced space is then passed to Bayesian optimization as a focused warm-start search space. This allows expensive evaluations to be concentrated on promising trade-off regions rather than distributed uniformly across the full design space. We assess the methodology across two optimization problems: CH 4/N 2 separation in covalent–organic frameworks under PSA operating conditions and pressure-vessel design involving material-direction stress components and thickness objectives. Performance is evaluated in terms of convergence behavior, optimization quality, search-space reduction, and Pareto-front discovery. The results demonstrate that adaptive search-space refinement can reduce the candidate-space size while maintaining competitive Pareto-front quality 2across diverse materials optimization tasks, highlighting its potential for focused large-scale materials discovery workflows. 
+
+# 2 Methodology 
+
+## 2.1 Problem Formulation 
+
+The optimization problems considered in this work are formulated as expensive black-box materials optimization tasks[ 1], where the objective functions are not analytically accessible and each evaluation may require significant computational resources. Let X ⊂ Rd denote the design space of candidate materials described by d-dimensional feature vectors, and let f (x) represent the objective function associated with a candidate material x ∈ X .
+
+Single-objective optimization. In the single-objective setting, the goal is to identify the material configuration that maximizes the target property under a limited evaluation budget, 
+
+x∗ = arg max  
+
+> x∈X
+
+f (x), (1) while minimizing the number of costly evaluations required during optimization. 
+
+Multi-objective optimization. For multi-objective optimization problems, the objective extends to simultaneously optimizing multiple competing properties, 
+
+f (x) = [ f1(x), f 2(x), . . . , f m(x)] , (2) where m denotes the number of objectives. Pareto dominance is defined as 
+
+x(a) ≻ x(b) ⇐⇒ 
+
+
+
+∀j ∈ { 1, . . . , m }, f j (x(a)) ≥ fj (x(b))
+
+
+
+∧
+
+
+
+∃j : fj (x(a)) > f j (x(b))
+
+
+
+. (3) The Pareto-optimal set is therefore 
+
+P = {x ∈ X | ∄x′ ∈ X : x′ ≻ x}. (4) In such settings, the optimization process aims to identify Pareto-optimal solutions that achieve favorable trade-offs among competing objectives rather than a single globally optimal point. This formulation is particularly relevant in materials discovery applications, where improving one property often degrades another, resulting in complex objective landscapes and highly nonlinear trade-offs. The proposed framework is designed for large-scale optimization scenarios in which the candidate space may contain tens of thousands of possible material configurations. Under these conditions, exhaustive exploration becomes computationally impractical, motivating adaptive strategies that focus the search process on informative and high-value regions of the design space. 
+
+## 2.2 Bayesian Optimization 
+
+Bayesian optimization[ 1 , 5] was employed as the primary optimization workflow because of its ability to operate efficiently under limited evaluation budgets while accounting for uncertainty during 3search. The optimization procedure relies on a probabilistic surrogate model that approximates the underlying objective function using previously evaluated samples. At each iteration, the surrogate model is updated with newly acquired observations and then used to guide the selection of future candidate evaluations. Gaussian process (GP) models were used as surrogate functions[ 5 ] because they provide predictive uncertainty estimates alongside objective predictions. Given a set of evaluated samples, the GP surrogate models the posterior distribution of the objective function and enables the computation of acquisition functions that balance exploration and exploitation: 
+
+Dt = {(xi, y i)}ti=1 , (5) 
+
+f (x) ∼ GP  μ(x), k (x, x ′) , (6) 
+
+f (x) | D t ∼ N  μt(x), σ 2 
+
+> t
+
+(x) . (7) For single-objective optimization tasks, expected improvement (EI)[ 5 ] was used to prioritize candidate points with high expected performance relative to the current best observation. The Expected Improvement acquisition function is defined as EI( x) = E max  f (x) − f +, 0 , (8) where f + denotes the best observed objective value. In the multi-objective setting, acquisition strategies were designed to improve Pareto-front discovery while maintaining diversity among candidate solutions. For multi-objective optimization, the Hypervolume Improvement[2, 8, 9] is defined as HVI( x) = HV ( Pt ∪ { x}) − HV ( Pt) , (9) where Pt denotes the current Pareto set approximation. In particular, the optimization process focused on maximizing hypervolume improvement to efficiently explore trade-offs among competing objectives. In all reported multi-objective experiments, candidate selection was implemented using the batch noisy expected hypervolume improvement acquisition function, qNEHVI, as provided by BoTorch. The same acquisition strategy and candidate-pool size were used for both the full-space and reduced-space BO configurations. The next candidate is selected according to 
+
+xt+1 = arg max  
+
+> x
+
+α(x), (10) where α(x) denotes the acquisition function. In practice, the optimization proceeds iteratively by updating the Gaussian process surrogate after each expensive objective evaluation. The poste-rior predictive distribution is subsequently used to optimize the acquisition function, balancing exploration of uncertain regions and exploitation of high-performing candidates. This sequential decision-making process continues until the predefined evaluation budget is exhausted. Overall, the BO workflow proceeds as observations → GP surrogate → posterior prediction → acquisition evaluation → next candidate point. Although BO is highly sample-efficient compared with conventional optimization methods, its performance can deteriorate as candidate-space size increases[ 12 , 17 , 19 ]. In large-scale materials 4Figure 1: Overall workflow of the proposed DAGS-guided Bayesian optimization framework. The diagram summarizes adaptive refinement, informative sample transfer, and warm-start Bayesian optimization. optimization problems, many evaluations may be allocated to low-performing candidate regions before convergence toward informative areas is achieved. This limitation motivates the integration of adaptive search-space refinement within the optimization workflow. Alternative global optimization algorithms, such as Particle Swarm Optimization (PSO) and Genetic Algorithms (GA), have also been applied in expensive optimization problems. However, unlike Bayesian optimization, these ap-proaches do not explicitly exploit probabilistic surrogate uncertainty, resulting in substantially larger evaluation budgets in high-cost optimization scenarios[ 12 ]. The overall DAGS-guided refinement and warm-start BO workflow is summarized in Figure 1. 
+
+## 2.3 DAGS-Based Space Refinement 
+
+To improve optimization scalability, an adaptive DAGS-based refinement strategy was incorporated before the main BO stage. The primary objective of this component is to progressively learn a more accurate partition of the search space while preserving regions that are likely to contain high-performing candidate solutions. At each refinement iteration k, the candidate space evolves as 
+
+Xk ⊂ X k−1, (11) with 
+
+|X k| < |X k−1|. (12) 5The corresponding reduction ratio is defined as 
+
+Rk = 1 − |X k||X 0| , (13) which summarizes the progression from the full space X0 to the reduced space Xk through a measurable reduction metric. Rather than optimizing directly over the full candidate space, the proposed methodology first applies an iterative filtering procedure that partitions the design space into informative and non-informative regions using classification-based active learning[ 3, 4 , 6 ]. Candidate samples predicted to belong to low-performing regions are discarded only after completion of the refinement stage, when the final classifier is applied to the entire candidate space to construct the reduced search space. The refinement process operates iteratively using a progressively expanding labeled set. After completion of the refinement iterations, the final classifier is applied once to the entire candidate space in order to construct the reduced search space. At each refinement iteration, a single XGBoost classifier is trained on the progressively expanding labeled set to distinguish promising from non-promising candidate regions. The classifier produces a probability estimate for every candidate in the current pool, which is subsequently used for uncertainty-guided querying, pseudo-label assignment, and reduced-space construction. This adaptive reduction strategy enables the optimization workflow to avoid unnecessary evaluations in regions that are unlikely to contribute to the final Pareto set or optimal-solution discovery. As a result, the effective complexity of the optimization problem is substantially reduced while maintaining access to informative candidate regions. 
+
+## 2.4 Classification-Based Active Learning 
+
+The refinement stage combines a single XGBoost classifier with the DAGS active-learning query mechanism. The classifier estimates the probability that each candidate belongs to the promis-ing class, whereas DAGS determines which unlabeled candidate should be evaluated next using probability-based uncertainty together with the candidate-space sampling mechanism. The newly obtained oracle label is added to the labeled set, and the XGBoost model is retrained at the next refinement iteration. For each objective, a benefit-oriented normalized value zj (x) ∈ [0 , 1] is computed so that a larger value is always better: 
+
+zj (x) = 
+
+
+
+fj (x) − f min 
+
+> j
+
+f max  
+
+> j
+
+− f min 
+
+> j
+
+, for maximization ,f max  
+
+> j
+
+− fj (x)
+
+f max  
+
+> j
+
+− f min 
+
+> j
+
+, for minimization .
+
+(14) 6The Pareto-aware proxy components are then defined as 
+
+smean (x) = 1
+
+m
+
+> m
+
+X
+
+> j=1
+
+zj (x), (15) 
+
+sworst (x) = min  
+
+> j
+
+zj (x), (16) 
+
+sideal (x) = 1 − ∥1 − z(x)∥2
+
+√m , (17) 
+
+sgeo (x) = 
+
+
+
+> m
+
+Y
+
+> j=1
+
+max {zj (x), ε }
+
+
+
+> 1/m
+
+. (18) The final proxy score is 
+
+s(x) = 0 .35 smean (x) + 0 .25 sworst (x) + 0 .25 sideal (x) + 0 .15 sgeo (x). (19) The mean component rewards overall objective quality, the worst-objective component penalizes strongly unbalanced candidates, the ideal-point component favors candidates close to the all-objective ideal vector, and the geometric component promotes balanced simultaneous performance. The score is used only as a dense screening proxy; true Pareto dominance is used exclusively for evaluation and is not used to construct the reduced space. A percentile threshold is then computed as 
+
+τ = Qp ({s(x) : x ∈ X 0}) , (20) where Qp denotes the p-th percentile of the proxy-score distribution over the complete offline candidate set X0. In all reported experiments, p = 90. Binary labels are assigned as 
+
+y(x) = 
+
+(
+
+1, s(x) ≥ τ, 
+
+0, s(x) < τ. (21) This establishes the refinement flow from scalarized scoring to percentile thresholding and binary label assignment. The initial labeled set contained 16 candidates and was balanced across the positive and negative proxy classes. This controlled initialization prevented the highly imbalanced upper-percentile labeling rule from producing a single-class training set. Both the global percentile threshold and balanced initialization are feasible here because the experiments use offline benchmark datasets with objective values already available for all candidates. In a genuinely online application, proxy scores for unevaluated candidates could not be computed without oracle access, and the labeling strategy would require an online approximation or adaptive threshold. A single XGBoost classifier CXGB is used throughout the refinement stage. Given a candidate x,the classifier estimates the probability that the candidate belongs to the high-performing class: 
+
+p(x) = P (y = 1 | x; CXGB ). (22) This probability is used both as a predictive ranking signal and as the basis for uncertainty estimation. Using a single classifier ensures that the refinement mechanism is consistent across datasets and avoids variation caused by combining heterogeneous predictive models. 7Prediction uncertainty[4] is computed directly from the XGBoost positive-class probability: 
+
+u(x) = p(x) (1 − p(x)) , (23) which is maximized at p(x) = 0 .5, corresponding to candidates located near the current classification boundary. For oracle querying, DAGS combines model-boundary information with feature-space novelty and local-density information. Candidate novelty is estimated from its distance to the currently labeled samples, while a prediction-space term reflects the distance of its probability prediction from the labels already represented in the labeled set. A nearest-neighbour density term discourages repeated selection of nearly redundant candidates. The selected query is therefore not determined solely by 
+
+p(x)(1 − p(x)), but by the density-aware DAGS acquisition rule applied to the current candidate pool. Pseudo-labels were assigned only to highly confident positive predictions according to 
+
+p(x) ≥ λh, (24) where λh = 0 .90. Candidates satisfying this condition were incorporated as pseudo-labeled training samples during subsequent classifier updates. Pseudo-labeled candidates were used only for subsequent classifier fitting. They were not counted as oracle-evaluated samples and were not transferred to the BO warm-start set unless they had also been explicitly queried. Only oracle-queried candidates were included in DDAGS .The reduced candidate set at iteration k + 1 is defined as 
+
+Xk+1 = Xpred ∪ X model ∪ X unc ∪ X conf ∪ X query , (25) The reduced candidate space is constructed by retaining five complementary categories of candidates: (i) candidates predicted as promising by the classifier, (ii) candidates with high classifier confidence, (iii) candidates with high predictive uncertainty, (iv) high-confidence pseudo-labeled candidates, and (v) all oracle-queried samples. The union of these subsets forms the final reduced search space used by the subsequent warm-start Bayesian optimization stage. The uncertainty-retention component is percentile-capped: only candidates whose uncertainty lies above the 65th percentile are retained by this criterion. This prevents uncertainty-based preservation from retaining the entire decision-boundary region and thereby undermining the intended space reduction. This hybrid retention mechanism preserves classifier-positive predictions, candidates with high classifier probability, candidates satisfying the capped uncertainty criterion, high-confidence predic-tions, and all oracle-queried samples. The combined strategy reduces the probability of eliminating Pareto-relevant candidates during adaptive filtering. 82.5 Materials Datasets and Objectives 
+
+The proposed framework was evaluated on two distinct optimization benchmarks to assess its scalability, robustness, and generalization capability across different objective landscapes and search-space characteristics. The first benchmark corresponds to the design optimization of a high-pressure composite vessel and comprises 52,272 Bouligand CFRP laminate configurations generated specifically for this study. The design space is defined by five discrete parameters governing the laminate stacking sequence: starting ply angle (0 :5: 175 ◦), inter-ply pitch (5 :5:55 ◦), ply count (8 :1: 40), symmetry flag 0, 1, and ply-thickness mode 1, 2. Full enumeration of the resulting 36 × 11 × 33 × 2 × 2 combinations produced 52,272 unique laminate designs. For each configuration, a CFRP pressure vessel consisting of a cylindrical body with spherical end caps, a diameter of 165 mm, and a half-length of 350 mm was simulated under an internal pressure of 62.5 MPa using Abaqus/CAE. The vessel was modeled using S8R and STRI65 shell elements, with symmetry boundary conditions and unidirectional IM7/8551 orthotropic CFRP plies incorporating Hashin damage initiation [ 29 ]. The resulting material-direction stress components and total vessel-wall thickness were used to define a three-objective minimization problem: 
+
+f1(x) = S11 (x), (26) 
+
+f2(x) = S22 (x), (27) 
+
+f3(x) = T (x), (28) where S11 and S22 denote the stress components along the material directions and T represents the total vessel-wall thickness. The second benchmark consists of a large-scale covalent–organic frameworks (COFs) [ 13 ] dataset containing 69,839 candidate structures described by 43 structural, topological, and physicochemical descriptors [ 28 ]. These include porosity-related properties, adsorption thermodynamics, geometrical cell parameters, and elemental composition features. The descriptors were generated from atomistic simulations and structural characterization, providing a physically grounded representation of each COF candidate. For this benchmark, the optimization focuses on methane adsorption performance under pressure-swing adsorption (PSA) operating conditions [ 28 ]. The multi-objective optimization problem is defined as max  
+
+> x
+
+F(x) = [ f1(x), f 2(x)] , (29) where 
+
+f1(x) = HighUptake mol (x), (30) 
+
+f2(x) = DelCapacity( x). (31) Here, HighUptake mol denotes the high-pressure methane uptake, while DelCapacity represents the methane deliverable capacity. Related Bayesian optimization approaches have also been applied to gas-uptake prediction in nanoporous materials [ 24 ]. Under the raw maximization formulation, the COF dataset contains 78 true Pareto-optimal solutions, resulting in a more complex multi-objective landscape than the pressure-vessel benchmark. 92.6 Integrated Optimization Workflow and Evaluation Protocol 
+
+To evaluate the effectiveness of the proposed framework, two optimization configurations were examined: full-space Bayesian optimization and reduced-space Bayesian optimization guided by the proposed adaptive refinement stage. In the baseline full-space setting, Bayesian optimization was directly applied to the complete candidate space without any prior refinement, serving as the primary reference for assessing optimization quality and computational scalability. In the reduced-space setting, the optimization was preceded by the proposed DAGS-based refinement process, which iteratively filters the search space through classification-guided active learning. The resulting reduced candidate subset was subsequently used for Bayesian optimization, with informative samples collected during the DAGS refinement stage transferred as initial observations: 
+
+Dref 0 = DDAGS . (32) The optimization process then proceeds iteratively as 
+
+Dt = D0 ∪ { (xi, y i)}ti=1 , (33) where D0 = Dref 0 denotes the initialization set inherited from the DAGS refinement stage. This integration establishes the two-stage refinement-to-optimization workflow illustrated in Figure 1, in which low-cost classifier predictions guide the allocation of expensive objective evaluations. The refinement stage used 16 initial labeled points and a candidate pool of 8,000 candidates. The positive-class threshold was the 90th percentile, the positive-probability threshold was 0.90, the classifier-probability retention percentile was 50, and the uncertainty retention percentile was 65. The XGBoost classifier was updated for three DAGS iterations on the pressure-vessel benchmark and five DAGS iterations on the COF benchmark. Both configurations used an identical budget of 150 new BO evaluations, while the DAGS-guided configuration additionally reused the oracle-evaluated samples acquired during the refinement stage as warm-start observations. The resulting warm starts contained approximately 19 queried observations for the pressure-vessel benchmark and 21 for the COF benchmark, compared with five initial observations and 150 BO evaluations for Full BO. Performance was evaluated using optimization-quality and search-space-retention metrics. For multi-objective tasks, hypervolume (HV)[2, 7, 25] was used as the primary convergence metric: HV ret = HV( Xk)HV( X0) , (34) while Pareto preservation and top-performing candidate retention were measured as 
+
+Pret = |P k||P 0| , (35) and 
+
+Tret = |T k||T 0| . (36) 10 All experiments were implemented in Python using BoTorch, GPyTorch, XGBoost, and scikit-learn under consistent computational settings to ensure fair comparison across all optimization strategies. The complete DAGS-guided refinement and warm-start BO procedure is summarized step by step in Table 1. Table 1: Algorithm 1. Overall DAGS-guided Bayesian optimization workflow. Step Operation 1 Input full candidate space X0 and evaluation budget. 2 Construct a balanced initial labeled set containing high-value and low-value proxy classes, and retrieve their oracle objective values. 3 Compute direction-aware normalized objective values and the Pareto-aware proxy score. 4 Train the XGBoost classifier to distinguish promising and non-promising candidates. 5 Use DAGS to query an uncertainty-guided informative candidate for oracle labeling. 6 Assign pseudo-labels to high-confidence candidates. 7 After the final refinement iteration, construct the reduced candidate space by retaining classifier-positive, high-confidence, uncertain, and queried samples. 8 Repeat refinement until the stopping criterion is reached. 9 Transfer informative samples DDAGS to BO. 10 Warm-start qNEHVI Bayesian optimization on Xreduced .11 Return the final Pareto-front approximation. 
+
+# 3 Results 
+
+We first evaluate the effect of the adaptive refinement stage on the two benchmark settings by quantifying how much of the original design space is removed and how much useful optimization information is retained. Table 2 summarizes the reduction ratio for each dataset together with retention metrics that measure whether high-value regions are preserved, including Pareto-front retention and hypervolume retention. These metrics indicate whether the reduced candidate spaces remain representative of the original optimization landscape before the subsequent Bayesian optimization stage is analyzed in detail. Table 2: Summary of DAGS-guided optimization performance across datasets. Values are averaged across ten independent runs. Pareto-AUC improvements are reported relative to full-space Bayesian optimization.                  
+
+> Dataset Reduction Pareto Ret. HV Ret. Pareto-AUC Imp. Pressure vessel 49.6% 69.9% 99.6% 1562 →2123 CH 4/N 2COFs 44.2% 87.8% 99.5% 2547 →3199
+
+All experiments were repeated across ten independent random seeds, and results are reported as mean ± one standard deviation. No formal claims of statistical significance are made unless supported by an explicitly reported paired test. 11 3.1 Adaptive Search-Space Refinement 
+
+The first set of experiments evaluates the ability of the proposed DAGS-guided refinement stage to reduce the search space while preserving the most informative candidate solutions before Bayesian optimization is performed. Rather than directly assessing optimization performance, this analysis investigates whether the adaptive reduction mechanism can eliminate low-value regions without compromising the quality of the remaining candidate space. Figure 2 summarizes the average reduction ratio together with the preservation of three complemen-tary quality indicators across ten independent runs for both benchmarks: panel (a) presents the CH 4/N 2 COF adsorption dataset, and panel (b) presents the pressure-vessel benchmark. 
+
+Figure 2: DAGS search-space reduction and information retention for (a) the COF benchmark and (b) the pressure-vessel benchmark. Bars represent the mean over ten independent runs, while error bars indicate one standard deviation. For the pressure-vessel benchmark shown in Figure 2(b), the proposed refinement removed ap-proximately 49.6% of the original search space while preserving 69.9% of the true Pareto-optimal solutions, 97.3% of the top-ranked candidates, and 99.6% of the original hypervolume. Despite eliminating nearly half of the candidate space, the retained subset maintained almost the entire optimization landscape, indicating that the discarded solutions predominantly corresponded to low-quality design regions. A similar behavior was observed for the CH 4/N 2 adsorption optimization problem shown in Fig-ure 2(a). In this case, the adaptive refinement reduced the search space by approximately 44.2%, while preserving 87.8% of the Pareto-optimal solutions, 74.4% of the top-performing candidates, and 99.5% of the original hypervolume. Although the Pareto-front geometry differs substantially from that of the pressure-vessel benchmark, the refinement process consistently retained the most informative regions of the objective space. An important observation is that hypervolume preservation remained above 99% for both opti-mization problems, despite the substantial reduction of the candidate space. Since hypervolume 12 simultaneously captures both convergence and diversity of the Pareto front, these results indicate that the proposed refinement removes largely redundant regions while maintaining the overall Pareto-front structure required for subsequent optimization. Across both datasets, DAGS removed a substantial fraction of the candidates while retaining more than 99% of the original hypervolume. This indicates that the refinement predominantly removes objective-space redundancy while maintaining an information-rich candidate set for subsequent BO. 
+
+## 3.2 Hypervolume Convergence 
+
+The second experiment evaluates the effect of the proposed refinement on the convergence behavior of Bayesian optimization. Figure 3 compares conventional full-space Bayesian optimization and the proposed DAGS-guided warm-start strategy for (a) the pressure-vessel benchmark and (b) the CH 4/N 2 COF adsorption dataset. Results correspond to the mean performance over ten independent optimization runs, while the shaded regions represent one standard deviation. 
+
+(a) Pressure-vessel benchmark (b) COF benchmark Figure 3: Hypervolume convergence of Full BO and DAGS-guided warm-start Bayesian optimization for (a) the pressure-vessel benchmark and (b) the COF benchmark. Curves represent the mean over ten independent runs, while shaded regions indicate one standard deviation. Both methods use 150 new BO evaluations; the warm-start curves additionally reuse oracle-evaluated DAGS samples. For the pressure-vessel optimization problem shown in Figure 3(a), the proposed framework exhibits faster convergence during the early optimization iterations. Since Bayesian optimization is initialized using informative samples collected during the adaptive refinement stage, the Gaussian process surrogate begins from a substantially more representative approximation of the objective landscape. Consequently, the warm-start optimization reaches comparable hypervolume values after fewer BO-stage iterations. This comparison concerns the 150-evaluation BO stage; the additional oracle evaluations incurred during DAGS refinement are reported separately. As optimization progresses, both approaches converge towards similar final hypervolume values. Nevertheless, the proposed framework consistently maintains a slight performance advantage while requiring fewer exploratory BO-stage iterations during the early stages of the optimization process. In the pressure vessel benchmark, the DAGS-guided strategy reaches near-plateau hypervolume 13 (a) Pressure-vessel benchmark (b) COF benchmark Figure 4: Pareto discovery of Full BO and DAGS-guided warm-start Bayesian optimization for (a) the pressure-vessel benchmark and (b) the COF benchmark. Curves represent the mean cumulative number of discovered Pareto-optimal solutions over ten independent runs, while shaded regions indicate one standard deviation. Both methods use 150 new BO evaluations; the warm-start curves additionally reuse oracle-evaluated DAGS samples. within roughly the first 20–30 BO iterations, whereas the full-space baseline requires approximately 40–50 iterations to reach comparable values. This behavior indicates that the adaptive refinement primarily accelerates BO-stage convergence rather than merely improving the final solution quality. The same trend is observed for the CH 4/N 2 adsorption optimization problem shown in Figure 3(b). Although the difference in final hypervolume is relatively modest, the proposed warm-start strategy reaches competitive hypervolume values substantially earlier than conventional Bayesian optimiza-tion. These observations demonstrate that transferring informative samples from the adaptive refinement stage enables Bayesian optimization to focus its BO-stage search on promising regions of the design space, allowing faster convergence toward high-quality Pareto approximations within the fixed 150-evaluation BO stage. 
+
+## 3.3 Pareto-Front Discovery 
+
+While hypervolume measures the overall quality of the obtained Pareto approximation, it does not explicitly quantify the optimizer’s ability to identify true Pareto-optimal solutions. Therefore, the next experiment evaluates the cumulative number of true Pareto points discovered throughout the optimization process. Figure 4 presents the average Pareto discovery curves over ten independent runs for (a) the pressure-vessel benchmark and (b) the CH 4/N 2 COF adsorption dataset. For both optimization problems, the proposed DAGS-guided warm-start strategy consistently discovers Pareto-optimal solutions at a faster rate than conventional Bayesian optimization. 14 Figure 5: Pareto discovery area under the curve (Pareto-AUC) for (a) the pressure-vessel benchmark and (b) the COF benchmark. Bars represent the mean over ten independent runs, while error bars indicate one standard deviation. For the pressure-vessel benchmark shown in Figure 4(a), the DAGS-guided strategy maintains a higher mean cumulative Pareto-discovery trajectory over most of the evaluation budget. Similarly, in the CH 4/N 2 adsorption dataset shown in Figure 4(b), the proposed method identifies informa-tive Pareto-optimal candidates considerably earlier and continues to outperform the conventional optimizer during most of the optimization trajectory. This behavior indicates that the adaptive refinement stage successfully concentrates the optimization process around highly informative candidate regions before Bayesian optimization begins. Rather than allocating evaluations to low-value areas of the search space, the optimizer is immediately directed toward regions exhibiting a substantially higher probability of containing Pareto-optimal solutions. To provide a quantitative assessment of the overall optimization trajectory, the area under the Pareto discovery curve (Pareto-AUC) was computed for each optimization run. As illustrated in Figure 5, the proposed framework consistently achieves larger Pareto-AUC values for (a) the pressure-vessel benchmark and (b) the CH 4/N 2 COF adsorption problem. Specifically, the average Pareto-AUC increases from approximately 1562 to 2123 for the pressure vessel benchmark and from 2547 to 3199 for the CH 4/N 2 adsorption dataset, confirming that the proposed refinement improves Pareto discovery throughout the entire optimization process rather than only at convergence. Collectively, the hypervolume and Pareto discovery analyses indicate that the proposed refinement improves both optimization speed and solution discovery. Although final hypervolume improvements remain moderate, the substantially larger Pareto-AUC values demonstrate that informative solutions are identified considerably earlier during optimization. 15 One of the main objectives of this work is to evaluate whether the proposed framework general-izes across optimization problems with substantially different characteristics. The pressure vessel benchmark represents a constrained engineering design optimization problem with three competing objectives, whereas the CH 4/N 2 adsorption dataset corresponds to a large-scale materials discov-ery problem involving nearly seventy thousand candidate covalent–organic frameworks and two adsorption-related objectives. Despite these fundamental differences in search-space structure, objective behavior, and Pareto-front geometry, the proposed framework exhibits remarkably consistent behavior across both domains. In both cases, the adaptive refinement successfully eliminates nearly half of the candidate space while preserving almost the entire hypervolume of the original design space. Furthermore, warm-start Bayesian optimization consistently accelerates convergence and discovers a larger number of Pareto-optimal solutions under an identical budget of 150 new BO evaluations, while additionally reusing oracle-evaluated DAGS samples as warm-start observations. 
+
+# 4 Discussion 
+
+We presented an active-learning-guided adaptive search-space refinement framework for scalable materials optimization. The approach combines single-classifier XGBoost prediction, DAGS-guided active learning, probability-based uncertainty, high-confidence pseudo-labeling, Pareto-aware proxy scoring, and warm-start multi-objective Bayesian optimization. Across the pressure vessel and CH 4/N 2 COF benchmarks, the framework reduced the search space by approximately 45–50% while preserving more than 99% of the original hypervolume. The DAGS-guided warm-start strategy also improved cumulative Pareto discovery, increasing Pareto-AUC from 1562 to 2123 for the pressure vessel benchmark and from 2547 to 3199 for the COF dataset. These results support adaptive Bayesian search as a promising direction for scalable autonomous materials discovery under limited evaluation budgets. The proposed framework addresses a key scalability limitation of conventional Bayesian optimization by introducing an adaptive refinement stage that reduces the effective candidate space before expensive optimization. By combining classification-based active learning[ 3 , 4, 6], high-confidence pseudo-labeling, and reduced-space BO, the method reallocates computational effort from low-value regions toward regions with higher likelihood of contributing to optimal or Pareto-optimal solutions. The observed improvements originate from the ability of the adaptive refinement stage to bias the Bayesian optimization process toward regions with higher Pareto density while preserving uncertainty around the classification boundary. Consequently, the GP surrogate spends fewer evaluations exploring uninformative regions and allocates more evaluations to candidate solutions with higher expected hypervolume contribution. This explains why the largest gains appear in early convergence and cumulative Pareto discovery rather than only in final hypervolume. The expected advantages are most pronounced in large candidate pools, where full-space BO may spend many evaluations identifying informative regions. In contrast, the proposed approach uses low-cost XGBoost predictions and pseudo-label-assisted refinement to progressively filter the design space. This strategy can improve BO-stage convergence and search focus while retaining access to high-performing candidates in materials discovery workflows[ 11 , 14 , 18 , 19 ]. The transfer of 16 informative refinement samples into the BO stage further leverages knowledge collected before expensive optimization, improving search efficiency in large spaces. The framework also introduces practical trade-offs. Aggressive filtering may remove candidates that later prove valuable, particularly when early labels are noisy or performance thresholds are poorly calibrated. XGBoost probability-based uncertainty, DAGS query selection, and high-confidence pseudo-labeling are used to balance reduction aggressiveness against Pareto-region preservation. Future work should investigate adaptive thresholding, uncertainty-calibrated filtering criteria, and theoretical bounds on Pareto-set retention under classifier-driven space reduction. The reported convergence advantage should be interpreted as improved BO-stage efficiency rather than a reduction in total oracle evaluations, because the warm-start configuration additionally uses the samples queried during DAGS refinement. 
+
+# 5 Data Availability 
+
+The datasets used in the current study are available in the zenodo repository, at https://zenodo. org/uploads/21389978 .
+
+# 6 Code Availability 
+
+The underlying code for this study is available in the GitHub repository. 
+
+# References 
+
+[1] Frazier, P. I. (2018). A tutorial on Bayesian optimization. arXiv preprint arXiv:1807.02811. [2] Park, K., Song, C., Park, J., & Ryu, S. (2023). Multi-objective Bayesian optimization for the design of nacre-inspired composites: optimizing and understanding biomimetics through AI. 
+
+Materials Horizons , 10(10), 4329–4343. [3] Di Fiore, F., Nardelli, M., & Mainini, L. (2023). Active learning and Bayesian optimization: A unified perspective to learn with a goal. arXiv preprint arXiv:2303.01560. [4] Hvarfner, C., Hellsten, E., Hutter, F., & Nardi, L. (2023). Self-correcting Bayesian optimization through Bayesian active learning. Advances in Neural Information Processing Systems , 36, 79173–79199. [5] Snoek, J., Larochelle, H., & Adams, R. P. (2012). Practical Bayesian optimization of machine learning algorithms. Advances in Neural Information Processing Systems , 25. [6] Khatamsaz, D., Vela, B., Singh, P., Johnson, D. D., Allaire, D., & Arr´ oyave, R. (2023). Bayesian optimization with active learning of design constraints using an entropy-based approach. npj Computational Materials , 9(1), 49. 17 [7] Khatamsaz, D., Vela, B., Singh, P., Johnson, D. D., Allaire, D., & Arr´ oyave, R. (2022). Multi-objective materials Bayesian optimization with active learning of design constraints: Design of ductile refractory multi-principal-element alloys. Acta Materialia , 236, 118133. [8] Ozaki, R., Ishikawa, K., Kanzaki, Y., Takeno, S., Takeuchi, I., & Karasuyama, M. (2024). Multi-objective Bayesian optimization with active preference learning. In Proceedings of the AAAI Conference on Artificial Intelligence (Vol. 38, No. 13, pp. 14490–14498). [9] Mart´ ın, L. A., & Garrido-Merch´ an, E. C. (2021). Many objective Bayesian optimization. arXiv preprint arXiv:2107.04126. [10] Zhang, Y., Apley, D. W., & Chen, W. (2020). Bayesian optimization for materials design with mixed quantitative and qualitative variables. Scientific Reports , 10(1), 4924. [11] Zuo, Y., Qin, M., Chen, C., Ye, W., Li, X., Luo, J., & Ong, S. P. (2021). Accelerating materials discovery with Bayesian optimization and graph deep learning. Materials Today , 51, 126–135. [12] Kotthoff, L., Wahab, H., & Johnson, P. (2021). Bayesian optimization in materials science: a survey. arXiv preprint arXiv:2108.00002. [13] Cˆ ot´ e, A. P., Benin, A. I., Ockwig, N. W., O’Keeffe, M., Matzger, A. J., & Yaghi, O. M. (2005). Porous, crystalline, covalent organic frameworks. Science , 310(5751), 1166–1170. [14] Chitturi, S. R., Ramdas, A., Wu, Y., Rohr, B., Ermon, S., Dionne, J., et al. (2024). Targeted materials discovery using Bayesian algorithm execution. npj Computational Materials , 10(1), 156. [15] Liang, Q., Gongora, A. E., Ren, Z., Tiihonen, A., Liu, Z., Sun, S., et al. (2021). Benchmarking the performance of Bayesian optimization across multiple experimental materials science domains. npj Computational Materials , 7(1), 188. [16] Krokidas, P., Gkatsis, V., Theocharis, J., & Giannakopoulos, G. (2025). Navigating materials design spaces with efficient Bayesian optimization: a case study in functionalized nanoporous materials. Digital Discovery , 4(12), 3753–3763. [17] Jin, Y., & Kumar, P. V. (2023). Bayesian optimisation for efficient material discovery: a mini review. Nanoscale , 15(26), 10975–10984. [18] Qian, X., Yoon, B. J., Arr´ oyave, R., Qian, X., & Dougherty, E. R. (2023). Knowledge-driven learning, optimization, and experimental design under uncertainty for materials discovery. 
+
+Patterns , 4(11). [19] Arr´ oyave, R., Khatamsaz, D., Vela, B., Couperthwaite, R., Molkeri, A., Singh, P., et al. (2022). A perspective on Bayesian methods applied to materials discovery and design. MRS Communications , 12(6), 1037–1049. [20] Lei, B., Kirk, T. Q., Bhattacharya, A., Pati, D., Qian, X., Arroyave, R., & Mallick, B. K. (2021). Bayesian optimization with adaptive surrogate models for automated experimental design. npj Computational Materials , 7(1), 194. [21] Wang, Y., Iyer, A., Chen, W., & Rondinelli, J. M. (2020). Featureless adaptive optimization accelerates functional electronic materials design. Applied Physics Reviews , 7(4). 18 [22] Chen, J., Ou, P., Chang, Y., Zhang, H., Li, X. Y., Sargent, E. H., & Chen, W. (2025). Adaptive uncertainty-aware deep learning for materials discovery with high-dimensional design inputs. In International Design Engineering Technical Conferences and Computers and Information in Engineering Conference (Vol. 89237, p. V03BT03A004). [23] Chen, J., Ou, P., Chang, Y., Zhang, H., Li, X. Y., Sargent, E. H., & Chen, W. (2026). Materials discovery using uncertainty-aware constrained Bayesian optimization with representation learning of high-dimensional inputs. Journal of Mechanical Design , 148(2), 021707. [24] Chowdhury, C. (2024). Bayesian optimization for efficient prediction of gas uptake in nanoporous materials. ChemPhysChem , 25(16), e202300850. [25] Solomou, A., Zhao, G., Boluki, S., Joy, J. K., Qian, X., Karaman, I., et al. (2018). Multi-objective Bayesian materials discovery: Application on the discovery of precipitation strengthened NiTi shape memory alloys through micromechanical modeling. Materials & Design , 160, 810–827. [26] Wei, Q., Wang, Y., Yang, G., Li, T., Yu, S., Dong, Z., & Zhang, T. Y. (2025). Discovering novel lead-free solder alloy by multi-objective Bayesian active learning with experimental uncertainty. 
+
+npj Computational Materials , 11(1), 10. [27] Wang, K., & Dowling, A. W. (2022). Bayesian optimization for chemical products and functional materials. Current Opinion in Chemical Engineering , 36, 100728. [28] Mercado, R., Fu, R. S., Yakutovich, A. V., Talirz, L., Haranczyk, M., & Smit, B. (2018). In silico design of 2D and 3D covalent organic frameworks for methane storage applications. 
+
+Chemistry of Materials , 30(15), 5069–5086. [29] Hashin, Z. (1980). Failure criteria for unidirectional fiber composites. Journal of Applied Mechanics , 47(2), 329–334. [30] Loutas, T., Oikonomou, A., & Rekatsinas, C. (2025). Bio-inspired discontinuous composite materials with a machine learning optimized architecture. Composite Structures , 351, 118597. [31] Gkatsis, V., Maratos, P., Rekatsinas, C., Giannakopoulos, G., & Krokidas, P. (2025). Density-aware active learning for materials discovery: a case study on functionalized nanoporous materials. Physical Chemistry Chemical Physics , 27(43), 23152–23165. [32] Siemenn, A. E., Ren, Z., Li, Q. & Buonassisi, T. (2023). Fast Bayesian optimization of Needle-in-a-Haystack problems using zooming memory-based initialization (ZoMBI). npj Computational Materials , 9 (1). [33] Wei, Y., Zhuang, V. Soedarmadji, S. & Sui, Y. (2024). Scalable Bayesian Optimization via Focalized Sparse Gaussian Processes. Advances in Neural Information Processing Systems , 37 1–25. [34] Krokidas, P., Rekatsinas, C., Sioros, V., Chatziathanasiou, G. M., Papia, E.-M., & Giannakopou-los, G. (2026). Frugal Bayesian optimization: Scalable surrogates for data- and resource-limited discovery. arXiv preprint arXiv:2607.29225. 19

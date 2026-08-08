@@ -1,0 +1,1129 @@
+Title: When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design
+
+URL Source: https://arxiv.org/pdf/2608.01378v1
+
+Published Time: Tue, 04 Aug 2026 01:29:30 GMT
+
+Number of Pages: 47
+
+Markdown Content:
+# When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design 
+
+Shuangxiu (Max) Ma 1, ∗ Wenhe (Zachary) Zhao 21William G. Lowrie Department of Chemical and Biomolecular Engineering, The Ohio State University, Columbus, Ohio 43210, United States 
+
+> 2
+
+Department of Physics, The Ohio State University, Columbus, Ohio 43210, United States July 31, 2026 
+
+Abstract 
+
+Design campaigns in chemistry, materials science, and machine learning share a bottleneck: determining how good a candidate truly is requires an expensive evaluation—an experiment, a first-principles simulation, or a full training run. Machine-learning surrogates that predict these outcomes are now used not only to propose candidates but increasingly to grade them, and even to feed their own predictions back into the search as though they were measurements. Here we establish, through mathematical analysis validated on three exhaustively ground-truthed design tasks, when this practice is safe, what any certificate of safety must cost, and when the substitution provably pays. We first show that predictive accuracy cannot anchor trust: near-perfect R2 is compatible with worst-possible selections, and screening N candidates inflates the over-prediction at the selected candidate by a quantifiable “selection tax” with matching upper and lower bounds. Safety instead follows from an architectural rule—predictions may propose and train without restriction, but every certified conclusion must rest on true evaluations—which we prove is sufficient with no assumptions on the surrogate, and necessary in the sense that admitting predictions into certification with the standing of measurements opens a deterministic self-confirmation failure mode. We then derive the minimal criterion under which a model may act as an oracle (rank preservation, not accuracy), show that trust must be purchased through selection-aware audits that are provably optimal in query complexity—no audit design of any kind can certify deployed selection quality with asymptotically fewer oracle queries—and prove a dichotomy specifying exactly when audited surrogates reduce certified evaluation cost (tabular fixed menus: never; generative search: by the screening factor, conditional on the audit). Experimentally, across 432 surrogate fits spanning six task–regime conditions, the audit statistic derived here—a deployment-simulating measurement, cheap by construction—tracks deployed search performance at Spearman rank correlation 0 .89–0 .99 at measurement budgets and 0 .80–0 .94 at the prescribed 120-round audit budget (NAS-Bench-201, biased data: 0 .97, 95% CI 0 .95–0 .98), while the rank correlation of R2 with deployed regret falls as low as 0 .33 (0 .08–0 .54); and audited screening reduces certified oracle cost by a measured factor of 25 with audit and training amortized (14 × all-in at a 100-design campaign). 
+
+> ∗
+
+Corresponding author: ma.2061@osu.edu 
+
+1arXiv:2608.01378v1 [cs.LG] 2 Aug 2026 1 Introduction 
+
+Whether the object of a search is a CO 2-capture sorbent, a catalyst formulation, a protein binder, or a neural-network architecture, the governing economics are the same: candidates are cheap to enumerate and expensive to evaluate. The evaluation—wet-lab synthesis and characterization, a density-functional-theory calculation, a docking campaign, or training a network to convergence— plays the role of an oracle , and its cost sets the pace of discovery. The universal accelerant is a 
+
+surrogate : a machine-learning model ˆf trained to approximate the oracle f , cheap enough to score millions of candidates in the time a single true evaluation takes. 1–3 
+
+Surrogates entered these workflows as proposal engines that rank candidates for the oracle’s attention. Their role has quietly expanded. Surrogate scores are reported as outcomes; searches terminate because the surrogate is confident; and surrogate predictions— pseudo-labels —are inserted into training sets and replay buffers as though they were measurements. The stakes of this expansion are no longer hypothetical. The largest ML-driven materials campaign to date screened millions of candidate crystals by predicted stability, 19 and an autonomous laboratory guided by those rankings reported dozens of novel compounds synthesized in weeks; 20 independent re-examination of the same evidence concluded that most of the claimed successes were misidentified or already known, 21,22 acorrection issued not by better accuracy metrics but by expert re-audit of the pipeline’s actual top picks. The field’s own benchmarking has since documented the underlying pattern: models ranked best by average error are demonstrably not the models that make the best discovery decisions. 23 The hazards are individually documented across machine learning as well. Optimization pressure exploits the errors of learned objectives, 1,4 repeated sampling against imperfect verifiers saturates and then degrades, 5 hyperparameter tuning routinely overfits its own validation signal, 24 and selected results systematically disappoint—the optimizer’s curse of decision analysis 6 and the winner’s curse of auction theory, 7 whose bias-correction machinery is an active research area of its own. 25,26 What has been missing is a unified, quantitative treatment with guarantees. Three questions define the gap. First, safety : under what conditions can a search that consumes surrogate predictions—including its own pseudo-labels—still deliver conclusions with statistical warranties? Second, verification :what must it cost to check that a given surrogate is trustworthy for a given deployment, and how should that check be designed? Third, economics : does the substitution of surrogate for oracle ever reduce the number of true evaluations required to reach a certified result, or only the number required to reach a claimed one? This paper answers all three questions. The theoretical framework (Section 2, with complete proofs in the Supporting Information) establishes: (i) sharp separations showing that accuracy metrics are structurally blind to decision quality, including matching upper and lower bounds on the selection tax that argmax screening levies on any imperfect predictor; (ii) a separation principle —proposal and certification must draw on disjoint information—that is provably sufficient, with an explicit probability-one failure construction showing that no guarantee of its kind survives admitting predictions as measurements; (iii) the oracle cost of certified search, governed by the density of near-ties rather than by global difficulty; (iv) an oracle admissibility theory identifying rank preservation as the exact criterion for surrogate-as-oracle use, together with the audit designs that can and cannot verify it at a profit—including a universal lower bound proving that the selection-aware (champion) audit is optimal among all audit designs for this guarantee; and (v) a dichotomy resolving the economics, with an explicit, conditional, and gracefully degrading cost separation for audited surrogates, robust to oracle noise through an explicit value slack. The experimental program (Sections 3 and 4) validates the framework’s deployment-facing predictions on three design tasks for which we hold exhaustive ground truth—1,728 hyperparameter configurations evaluated by actually training every model, and the 15,625 architectures of NAS-Bench-201 8—so 2that audits and deployments can be scored against exact answers rather than estimates. A closing budget study prices the remaining free parameter, the labels themselves: with training labels and audit rounds drawn from one oracle ledger, it maps where in the (learning, certification) budget plane each license becomes earnable, which labeling policies get there cheapest, and what model error actually costs at the point of selection (Section 4.6). Beyond the individual results, the paper advances a methodological position: trust in a surrogate is not a property of the model but a measured, perishable relationship between a model, a task, and a deployment—earned through audits that imitate the deployment, and voided by retraining or distribution drift. Figure 1 summarizes the framework. 
+
+Figure 1: The certified surrogate-use framework. Information flows through two pipes with distinct privileges. The proposal pipe (green) may consume anything—oracle labels, its own pseudo-labels, arbitrary retraining—and controls only what is tried next. The certification pipe (orange) computes confidence intervals, eliminations, stopping decisions, and reported values from oracle evaluations alone; surrogate output never enters it (red dashed arrow; Theorems 4 and 5). Trust in the surrogate itself is established by a selection-aware audit (violet): repeatedly draw a candidate pool, let the surrogate select its champion, verify champions with the oracle, and issue a license—a certified value floor and inversion rate—that expires on retraining or drift. 32 Theoretical Framework 
+
+Formal statements at full generality, all proofs, and the constants suppressed below appear in SI Sections S1–S7; each theorem here cites its SI counterpart. Three passes of adversarial proof review (by reviewers distinct from the drafting process; see Section 3.4) and a suite of machine-checked numerical verifications accompany the theory. 
+
+2.1 Setting and Definitions 
+
+A design task consists of a candidate space X , a true objective f : X → [0 , B ] accessible only through costly evaluations (exact or sub-Gaussian noisy), and a surrogate ˆf : X → R of arbitrary provenance. A search screens candidate pools and selects by the surrogate: for a pool C ⊆ X , the 
+
+champion is ˆ x = arg max x∈C ˆf (x). Decision quality is measured by regret , rC = max x∈C f (x) − f (ˆ x): the true value forgone by trusting the surrogate’s choice, a quantity visible only to the oracle. We write e+(x) = [ ˆf (x) − f (x)] + for over-prediction (“false optimism”) and ∆ x = max x′ f (x′) − f (x)for a candidate’s gap to the best. Two deployment goals are distinguished throughout, because their economics differ qualitatively: fixed-menu selection (certify the best of a given finite list) and 
+
+generative search (produce some design certified to exceed a quality bar, with unlimited cheap candidate draws). 
+
+2.2 Predictive Accuracy Does Not Control Decision Quality 
+
+The default trust signals for surrogates are aggregate accuracy metrics. A search, however, does not consume its surrogate on average; it consumes it at one adversarially selected point—the top of the surrogate’s own ranking. This mismatch admits exact statements. 
+
+Theorem 1 (accuracy is neither sufficient nor necessary; SI Thm. S3.1) . For every ϵ > 0 there exist 
+
+(f, ˆf ) with R2(f, ˆf ) ≥ 1 − ϵ whose champion is a worst-possible candidate (regret equal to the full range of f ); and there exist (f, ˆf ) with R2 arbitrarily negative whose champion is exactly optimal. 
+
+Theorem 2 (equal error, opposite outcomes; SI Thm. S3.2) . For every ∆ > 0 and pool size N > 4
+
+there exist surrogates ˆfA, ˆfB with identical mean squared error whose regrets are, respectively, 0
+
+and ∆ (maximal). The distinguishing information resides entirely in the upper tail of e+, which aggregate metrics suppress and selection amplifies. 
+
+The amplification is itself a law rather than a tendency: 
+
+Theorem 3 (the selection tax; SI Thm. S3.3) . If prediction errors are mean-zero and σ-sub-Gaussian, then screening N candidates inflates expected false optimism at the champion to at most 2σ√ln N ;and there are instances with i.i.d. Gaussian errors on which it is at least (1 −1/e ) σ Φ−1(1 −1/N ). The √ln N growth is therefore exact in order: even an unbiased surrogate, screened widely, systematically over-promises at the top. 
+
+Together, Theorems 1–3 imply that any safety argument beginning “the surrogate is accurate, therefore. . . ” is unsound at its first step. Safety must come from elsewhere. 
+
+2.3 The Separation Principle 
+
+Every datum in a search serves one of two functions. Proposal : choosing what to try next, training models, generating candidates. Certification : concluding—which candidates are eliminated, when the search stops, what value is reported, and with what warranty. Our central architectural result 4is that restricting certification to oracle-derived statistics is exactly the right boundary: sufficient for safety with no assumptions on the surrogate, and necessary in the precise sense of Theorem 5 below—pseudo-labels admitted with the standing of measurements admit a deterministic failure mode. What the necessity result does not exclude is calibrated or width-inflated use of model output inside certification with oracle-labeled calibration (the selection-conditional conformal route discussed in the SI); the theorem closes the door on treating predictions as data, not on every use of predictions. 
+
+Theorem 4 (invariance; SI Thm. S5.1) . Consider any search whose certification statistics (anytime-valid confidence intervals, eliminations, stopping rules, reported results) are computed from oracle evaluations only, while its proposal machinery—including surrogates trained on arbitrary pseudo-labels—is unrestricted. Then with probability at least 1 − δ, every certified conclusion is correct (the certified champion is optimal; an ε-certified output is within ε of optimal), uniformly over all surrogate behaviors , including adversarial ones constructed with knowledge of f . Surrogate error can waste oracle budget; it cannot corrupt a certificate. 
+
+Theorem 5 (necessity: contaminated certification fails; SI Thm. S5.2) . Conversely, call a pro-tocol contaminated if accepted pseudo-labels enter its certification statistics with the standing of measurements. There exist a protocol of this class, a two-candidate task, and a surrogate such that the protocol certifies the wrong candidate with probability one , at zero oracle cost, its confidence generated entirely by the model’s agreement with itself—so no guarantee of Theorem 4’s form can hold for any contaminated class containing this behavior. 
+
+Theorem 5 formalizes self-confirmation as a deterministic failure mode rather than misfortune, and closes a loophole with practical teeth: a surrogate cannot participate in the decision to trust the surrogate—which will return as the license-renewal rule in Section 2.5. 
+
+2.4 The Oracle Cost of Certified Search 
+
+Given the separation principle, the price of certainty is set not by a task’s global difficulty but by its close races .
+
+Theorem 6 (per-candidate cost; SI Thm. S5.4) . In certified elimination search with σ-noisy oracles, a candidate with gap ∆x is eliminated after O σ2∆−2 
+
+> x
+
+log( N/δ ) evaluations, and the eventual winner requires only enough precision to defeat its closest rival. 
+
+Theorem 7 (three cost regimes; SI Thm. S5.5) . If the fraction of candidates within u of optimal is bounded by Cu α (a margin condition), the total certified cost to precision ε scales as ε−(2 −α) for 
+
+α < 2, as log(1 /ε ) for α = 2 , and is independent of ε for α > 2: beyond a fixed ambiguous core of genuinely contested candidates, additional precision is free. 
+
+Practically, Theorem 7 converts an early measurement of a task’s gap distribution into a forecast of its oracle budget—before the campaign is run. 
+
+2.5 Oracle Admissibility: Criteria, Audits, and Licenses 
+
+When may the surrogate itself act as the oracle? We answer in three parts: the criterion, the impossibility of verifying it retail, and the audit that verifies it wholesale. 
+
+Theorem 8 (the criterion is ordinal; SI Thm. S6.1) . A surrogate’s selections are within ε of optimal on every candidate pool if and only if it never inverts the order of two candidates whose true values differ by more than ε. Rank preservation on separated pairs is thus the exact entrance criterion for oracle duty; numerical accuracy enters only insofar as it purchases order. 
+
+5This is the criterion the learning-to-rank school of offline design has independently converged on from the training side. 9
+
+Theorem 9 (no profitable retail verification; SI Thm. S6.2) . Certifying that the surrogate resolved one contested comparison correctly requires, in oracle evaluations, as much as resolving that comparison with the oracle directly. Trust therefore cannot be bought per decision; it must be amortized. 
+
+The proof is a change-of-measure lower bound in the tradition of best-arm identification. 10,11 
+
+Theorem 10 (the audit–deployment gap, and its repair; SI Thm. S6.3) . Let p be the fraction of candidates a surrogate over-predicts beyond tolerance, as measured by a conventional audit on random samples. Under argmax deployment over pools of N candidates, the probability that the 
+
+champion is such a candidate can reach Θ(min(1 , N p )) , with a matching construction: selection seeks out precisely the errors the audit certified as rare. Consequently, guaranteeing deployed failure 
+
+ρ from passive audits costs Ω( N/ρ ) oracle evaluations—whereas a selection-aware audit , which repeatedly draws a pool, lets the surrogate select, and verifies only champions, certifies the deployed failure rate directly with O(ρ−1 log(1 /δ )) evaluations. 
+
+Audit the workflow, not the distribution. 
+
+Theorem 11 (one-sided licenses; SI Thm. S6.6) . An audit certifying only the one-sided property “over-predicts by more than τ on at most a fraction p of candidates” yields a no-disappointment guarantee : with probability at least 1 − N p , the true value of any selected candidate is at least its predicted value minus τ .
+
+This is the cheapest useful license, and it grounds the common practice of conservative surrogate modeling 1,12–14 in a checkable certificate rather than a training heuristic. Licenses are perishable: they bind one trained model to one candidate distribution, degrade in proportion to distribution drift, and—by Theorem 5—cannot be renewed by the surrogate’s own labels. 
+
+2.6 The Economics of Surrogate Use 
+
+Certification consumes only oracle data; can surrogates nevertheless reduce the certified bill? The answer is a dichotomy that turns on the deployment goal, and it resolves what we regard as the central open question of surrogate-driven design. 
+
+Theorem 12 (strict-improvement dichotomy; SI Thms. S7.1–S7.3) . (a) For fixed-menu selection in the tabular model (candidates carry no shared structure), no use of pseudo-labels can reduce certified oracle cost: every menu item requires its own oracle evidence. (b) For generative search to a quality bar met by a fraction pv of candidates, any oracle-only algorithm requires Ω(1 /p v) evaluations per certified design, whereas screening M free candidates through a surrogate holding a selection-aware license and verifying only champions certifies designs at that bar for O(1) evaluations each, audit and training amortized—a Θ( M/ log(1 /ρ )) separation, conditional on the audit passing , with graceful degradation to the lower bound otherwise. 
+
+The part-(b) baseline is classical (quantile bandits 15,16 ); part (a)’s tabular qualifier matters— structured classes (linear, RKHS) escape the tabular floor and remain the open problem of SI Section S10. The separation is thus real but never free: it is exactly as large as the audit says it is. Where multi-fidelity optimization frameworks assume a bound on the cheap signal’s error, 17,27 
+
+and proxy-assisted best-arm methods assume a known bias or correlation structure, 28,29 the present 6framework measures the cheap signal’s deployed quality and prices the measurement. The guarantee also survives oracle noise without extra audit rounds: a noisy audit licenses the same quantile with an explicit value slack of order σplog(1 /ρ ) (SI Thm. S7.9). 
+
+Theorem 13 (ranking audits: champion versus pairwise; SI Thms. S7.4–S7.5) . For the ordinal criterion of Theorem 8, auditing random candidate pairs for inversions carries a deployment blind spot of exactly Θ( N 2): failures requiring two rare candidates to co-occur in a pool are priced by the pairwise audit at the product of their rarities. Auditing the champion —one fresh candidate against the winner of an independent pool, two oracle calls per round—has a blind spot of exactly Θ( N ),provably tight. 
+
+Concretely, the two statistics are: qinv , the probability that an ordered i.i.d. pair is inverted by the surrogate despite an ε-separation in true value; and qsel , the probability that one fresh draw beats the champion of an independent pool by more than ε—each measurable at two oracle calls per round (formal definitions in SI Section S7). The audit statistic, not the audit budget, determines what an audit can see; the same principle underlies risk-limiting election audits. 18 
+
+Theorem 14 (no audit design does better; SI Thm. S7.7) . The champion audit’s Θ( N ) price is intrinsic rather than an artifact of the two statistics above: any auditor—adaptive, randomized, informed of the surrogate and the candidate distribution, drawing candidates at will—that certifies deployed selection failure below ρ0, and that retains an even chance of passing a designated perfectly safe instance (one on which the surrogate’s mistakes are provably harmless), must spend Ω( N/ρ 0)
+
+oracle queries in the worst case. Selection-aware champion auditing is therefore optimal among all 
+
+audit designs for this guarantee, up to a log(1 /δ ) factor. Remark 15 (what qsel does and does not measure) . Theorem 14 is a statement about query complexity :no audit design certifies deployed selection quality with asymptotically fewer oracle calls. It is not a claim that N q δ(qsel ) is the tightest attainable numerical certificate, and the distinction matters in practice. By construction qsel counts a fresh draw that beats the champion whether or not the surrogate would itself have selected that draw had it been in the pool. Restricting the count to draws the surrogate ranks below the champion—the only ones that can witness a regret failure— yields a smaller statistic q∗ 
+
+> sel
+
+≤ qsel , so the certificate reported here is conservative. Two consequences deserve emphasis. First, the certificate does not vanish for a perfect selector: a surrogate whose scores are the true values has regret identically zero at every N and every ε, yet its qsel is strictly positive whenever the value distribution has mass above the champion. The certified bound is therefore a property of the audit statistic together with the landscape, and must not be read as a property of the landscape alone—in particular, a bound exceeding ρ0 for an idealized surrogate does not establish that the guarantee is unattainable on that population. Second, whenever ground truth is exhaustively available, the deployed failure probability is directly estimable at no additional oracle cost, and that direct estimate should be reported alongside the certificate; on the benchmark landscapes we have examined the certificate runs several-fold above it. Live campaigns, where the pool-best is never observed, are precisely the regime in which the conservative certificate is the only available instrument, and are the regime Theorem 14 addresses. This remark governs the reading of every empirical saturation reported below, in particular Figure 4(c): where the certificate does not reach a license level at any budget, the correct conclusion is that this statistic does not earn it at these settings, never that no selector could. Value licenses (Theorem 12b) escape the N -floor only because they certify a different, weaker object—which is precisely why the framework recommends them. 73 Methods 
+
+3.1 Ground-Truthed Design Tasks 
+
+Testing statements about certified search requires tasks whose ground truth is known exhaustively, so that deployed failure, regret, and audit validity can be scored exactly rather than estimated. We constructed or adopted three. Task 1 (HPO-GBM): all 1,152 configurations of a gradient-boosting regressor (learning rate, tree count, depth, subsampling, leaf size, feature fraction) evaluated by 3-fold cross-validation on the diabetes clinical dataset; the oracle for each configuration is an actual training run. Task 2 (HPO-SVM): all 576 configurations of a support-vector classifier (kernel family and degree, C, γ, coef 0, class weighting) evaluated identically on the breast-cancer dataset. Task 3 (NAS-Bench-201): the complete benchmark of 15,625 convolutional cells with trained accuracies on CIFAR-10; 8 validation accuracy serves as the search objective and held-out test accuracy is reported for selections, following standard NAS practice. Across tasks the oracle tables comprise 17,353 real training outcomes. Decision tolerances ε = τ were fixed at 5% of the objective range (Tasks 1–2) and 2 accuracy points (Task 3) before experiments were run. 
+
+3.2 Surrogate Models and Training Regimes 
+
+Surrogate zoos span the model classes used as performance predictors in practice: random forests, extremely randomized trees, gradient boosting, k-nearest neighbors, ridge regression, and a conser-vative (quantile-0 .2) gradient-boosting variant, each fit at multiple training sizes (40–160 labeled candidates on Tasks 1–2, 100–400 on Task 3) and seeds; configurations are featurized by log-scaled numeric encodings (Tasks 1–2) or one-hot cell operations (Task 3). Each zoo is trained under two regimes: representative (training candidates sampled uniformly) and biased (training candidates restricted to the below-median half of the objective), the latter reproducing the data condition of offline model-based design, 2 where surrogates must extrapolate toward the optimum. 
+
+3.3 Audit and Deployment Protocols 
+
+Deployment is simulated as argmax selection over pools of N i.i.d. candidates, N ∈ { 3, 10 , 30 , 100 ,
+
+300 , 1000 }, with 3,000–6,000 replicate pools per condition. Passive audits estimate the marginal over-prediction rate p on uniform samples; selection-aware audits estimate the deployed failure rate on champions, and the champion-inversion statistic qsel is estimated from independent (pool, fresh-draw) pairs at two oracle calls per round, exactly as licensed by Theorem 13. Verified-search experiments run recommendation loops with a shared warm-up (40 oracle evaluations) under four proposal policies (random; representative-trained RF; biased-trained ridge; and no-verification trust), 20 seeds each: at every budget the recommendation is the best empirical mean among oracle-evaluated candidates —the separation principle’s constraint on where conclusions come from—and we report its true regret. (This exercises the invariance of recommendation validity to proposal quality; it does not run the full certified-elimination protocol of Theorem 6, whose stopping rules and certificates are exercised in the verification suite.) Screening experiments measure oracle evaluations per certified-good design at the top-1% quality bar ( M = 100), comparing oracle-only search against licensed screening with single-champion verification. 
+
+3.4 Verification of Theoretical Results and Reproducibility 
+
+Every proof passed three adversarial review passes conducted separately from drafting (37 defects surfaced—incorrect constants, overclaimed quantifiers, proof gaps—all repaired, none fatal to a 8statement). Every theorem with checkable content is exercised by committed numerical tests (50+ checks across four suites: exact counterexample algebra; empirical anytime coverage under adversarial querying; the deterministic self-confirmation trace of Theorem 5; exhaustive verification of the ordinal equivalence over all pools of small spaces; Monte Carlo agreement of the selection-tax construction to three decimals; the audit lower-bound construction of Theorem 14; and the noisy-license slack of SI Thm. S7.9, including the asymmetric-noise counterexample that makes the slack necessary). All ground-truth tables, experiment code, and verification scripts are provided with the SI; every figure regenerates from committed code with fixed seeds, and a v2 replication in a fresh environment re-ran every suite end-to-end, reproducing all reported statistics to the third decimal. 
+
+# 4 Results and Discussion 
+
+4.1 The Selection Tax Is Real, Bounded, and a Property of the Individual Fit 
+
+Figure 2 shows the deployed failure rate—the probability that the champion of an N -wide screen is over-predicted beyond tolerance—across surrogates, pool sizes, training regimes, and ten independent fits per condition on Task 1. (Terminology, fixed throughout this section: deployed failure q is this champion over-prediction probability; the champion-inversion rate qsel of Theorem 13 is the ε-regret audit statistic, a fresh draw beating the champion; a license violation is a breach of a certified value floor. Table S1 in the SI collects all symbols.) Three observations. First, the worst-case law of Theorem 10 was never violated in any of the several hundred (fit, regime, N ) cells measured across the three tasks. Second, the audited marginal rate says remarkably little about deployed risk, in either direction : interpolating surrogates (random forest, k-NN) audited at p up to 0 .33 deploy at failure rates that fall to zero as N grows—the audit overstates risk by an order of magnitude—while the linear ridge surrogate splits, fit by fit, between the same benign decay and near-certain deployed failure (Figure 2c,d). Twin ridge fits on Task 2—same recipe, same regime, audited at p = 0 .247 and p = 0 .252—deployed at failure 0 .000 and 1 .000 respectively at N = 1000. Third, therefore, the error–selection alignment that decides whether the tax bites is not a property of the model class, the training regime, or the audited rate, but of the individual fit on the individual task: the same ridge recipe is bimodal on Tasks 1–2 yet deterministically catastrophic on Task 3, reaching 95% deployed failure at N = 100 and 100% at N = 1000 in both training regimes, its linear extrapolation systematically optimistic in the combinatorial architecture space. Reputation does not transfer; recipes do not transfer; only an audit of the deployed fit discriminates—which is the empirical face of the per-fit licensing that Theorems 10 and 11 prescribe. 9Figure 2: The selection tax measured on Task 1 (hyperparameter optimization; oracle = actual model training; ten fits per condition, train size 120). (a,b) Mean deployed failure at the selected configuration versus screen width N , under representative and below-median (offline model-based-optimization 2) training data. Hollow circles at the left edge: mean audited marginal rate p; dashed curve: the worst-case law 1 − (1 − p)N at the ridge surrogate’s audited p, never violated. (c,d) The same data disaggregated for the ridge surrogate: each line is one fit, colored by the worst deployed failure it ever reaches (gray: stays below 0 .2; amber: peaks between 0 .2 and 0 .5; red: exceeds 0 .5). The narrow strip to the left of each panel plots every fit’s audited marginal rate p on the same 
+
+vertical scale, colored by the same outcome: under representative data (c) all ten audited rates sit in one tight band (0 .28–0 .33) while four fits climb to deployed failure ≈ 1, five fall below 0 .01, and one settles at 0 .13; under biased data (d) the audited band is 0 .12–0 .17 while every fit’s risk peaks at moderate N (up to 0 .48, a 3 .5× understatement) before decaying. The audit cannot tell the fits apart; deployment can—the audit–deployment gap of Theorem 10 realized fit by fit. A license must therefore attach to the deployed fit, not to the recipe, and must be selection-aware to see the difference. 10 4.2 Audit Design Determines What an Audit Can See 
+
+The two-sided failure of passive auditing predicted by Theorem 10 appears cleanly in practice. On Task 1, certifying a deployed failure target of ρ = 1% at N = 100 by passive means requires certifying p ≤ 10 −4—impossible for a conservative surrogate whose true marginal rate was p = 0 .048 even though its deployment was measured perfectly safe (deployed failure 0 .000); the passive audit thus rejects a safe deployment. Conversely, the marginal rate does not even determine the direction 
+
+of deployed risk: the Task-2 ridge twins of Section 4.1 audit at 0 .247 versus 0 .252 yet deploy at failure 0 .000 versus 1 .000, and on Task 1 the benign k-NN carries a higher mean audited rate (0 .33) than the dangerous ridge (0 .31). What distinguishes safe from malign lives in where the errors sit relative to the selection, which uniform sampling never probes; the champion audit reads it off in two oracle calls per round. The selection-aware audit resolved every case correctly at two oracle calls per round. (Cost accounting: certifying q ≤ ρ = 1% at δ = 0 .05 needs O(ρ−1 log(1 /δ )) ≈ 300 audit rounds by Theorem 10; the 15,000 rounds our experiment spent is the measurement budget used to estimate deployed rates to three decimals for validation, not the license cost.) The practical rule is the one Theorems 10 and 14 prove: an audit must sample the deployment workflow—pools, selection, champions—rather than the data distribution, a prescription that parallels the ballot-comparison versus ballot-polling distinction in election auditing. 18 The rule also separates the audit license from its nearest deployed alternative: a one-sided marginal split-conformal floor, 12 given the same 120 oracle calls and the same nominal 0 .20 level, is honest on fresh random candidates but violated on up to 99% of deployments at the champion (16 configurations, Tasks 1 and 3; audit license: at most 15% in every one)—marginal calibration prices errors where selection does not look (SI Section S8.6). 
+
+4.3 Which Diagnostic Predicts Deployed Performance 
+
+Across an expanded zoo of 432 fits covering all three tasks (six model families × three training sizes 
+
+× four seeds, per regime per task), we correlated three candidate diagnostics with deployed regret at 
+
+N = 100: pool R2, the pairwise ε-margin inversion rate qinv (the audit target implied by Theorem 8), and the champion-inversion rate qsel (the statistic licensed by Theorem 13). All uncertainty intervals are bootstrap 95% CIs over fits. The deployment-calibrated statistic dominates in all six task–regime conditions, with Spearman correlations of 0 .89–0 .99 (Task 1: 0.96 representative, 0 .99 biased; NAS-Bench-201: 0 .96 representative, 0 .97 [0 .95–0 .98] biased; Task 2: 0 .89 in both regimes). R2
+
+remains serviceable on the smooth, low-dimensional hyperparameter tasks (0 .59–0 .80) but collapses on the combinatorial benchmark in both regimes (0 .38 [0 .13–0 .59] representative; 0 .33 [0 .08–0 .54] biased)—confidence intervals disjoint from qsel ’s. The pairwise rate qinv sits between the two (0 .56– 0.86), consistent with its Θ( N 2)-versus-Θ( N ) disadvantage (Theorem 13). Two qualifications keep this claim honest. First, at the measurement budgets above, qsel is itself a Monte Carlo probe of the deployment law it tracks—high correlation is calibration, not clairvoyance; the substantive finding is that a statistic measurable as an audit tracks deployment while the field’s accuracy diagnostics do not. Second, at the practical audit budget the framework actually prescribes ( Ta = 120 rounds, as in the drift study), the correlation attenuates to 0 .80–0 .94 across the six conditions yet still dominates R2 in every one—most sharply on the combinatorial benchmark (0 .80 [0 .70–0 .86] versus 0.33 [0 .08–0 .54], CIs disjoint; SI Section S8.2). The one attenuation in the full-budget table—Task 2, where every diagnostic weakens and qsel falls to 0 .89—has a structural explanation the theory anticipates: 24 .8% of that pool lies within ε of the optimum (versus 8 .4% on Task 1 and 2 .5% on Task 3), so deployed regret is compressed toward zero and every ranking-based correlation attenuates; in margin-condition terms (Theorem 7), heavily tied tasks are exactly the ones where selection 11 matters least. Where surrogates are deployed on the search spaces and data conditions they actually face, the field’s default diagnostic ranges from serviceable to nearly uninformative—and one cannot tell which from the diagnostic itself—while the deployment-calibrated statistic, measurable at two oracle calls per audit round, is consistently the closest thing to sufficient that we measured. 
+
+4.4 Licenses Hold, and Must Be Earned Per Fit 
+
+The no-disappointment license of Theorem 11 held in every deployment of a certified-conservative surrogate: on Task 1, two 160-label quantile fits audited at one-sided rates 0 .075 and 0 .130 violated their floors on at most 0 .027 and 0 .081 of deployments at N = 3, below each fit’s own audited rate at every N and decaying to 0 .000 by N = 1000 (Figure S2). The instructive failure is the license that was not earned: on Task 2, one of two fits of the same quantile-0 .2 recipe—identical architecture, hyperparameters, and training protocol—audited at a one-sided rate of p = 0 .116 and violated its would-be guarantee on 30% of deployments at N = 100, while its sibling fit ( p = 0 .090) deployed cleanly. Conservatism is a training heuristic; the license is a measurement, and it attaches to the fit, not the recipe. Licenses also survive contact with real drift—by expiring and being cheaply re-earned, exactly as the theory prescribes. We audited CIFAR-10-trained surrogates on NAS-Bench-201 under the quantile license of Theorem 12b ( M = 100, ρ = δ = 0 .05: Ta = 120 oracle calls per license), then deployed the same fits against two genuinely drifted objectives, the CIFAR-100 and ImageNet16-120 validation accuracies of the same architectures. Every one of 12 home licenses held (violation rates 0 .03–0 .10 against the 4 ρ = 0 .20 ceiling), and every one of 24 licenses renewed against the drifted truth at the same 120-call cost also held (0 .06–0 .13)—renewal costs no more than the original audit and amortizes over the campaign it re-licenses. Shifting the candidate generator instead of the objective tells the same story at the distribution margin: with drift of exactly known total variation toward weak architectures, the worst-case M β transfer bound is already vacuous at 
+
+β = 0 .03 while measured stale-license violations first breach the ceiling only at β ≈ 0.2—and renewal under the drifted generator restored validity in 48 of 48 cases (SI Section S8.5). Licenses void on drift not because they fail gracefully but because β is unobservable; renewal is the measurement that replaces the unmeasurable bound. The objective drift itself delivers one more verdict against global diagnostics: the surrogate’s global rank correlation with the drifted objectives, 0 .61–0 .69, is indistinguishable from the 0 .59–0 .70 it scores against the audited objective itself—the global diagnostic does not even register the change of truth—yet its champions remain ∼87th-percentile architectures under those objectives, and the champion-inversion statistic qsel , re-measured at two oracle calls per round, correctly reports the preserved top-of-ranking quality (0 .08 under all three truths, SI Section S8.4). A global correlation cannot see the top of the ranking, which is the only thing selection deploys; the deployment-calibrated audit prices exactly that, in either direction. 
+
+4.5 The Measured Economics of Audited Surrogate Use 
+
+Both halves of the dichotomy (Theorem 12) are visible in the data. In the verified search loop (Figure 3), surrogate-guided proposals reached the target recommendation quality in 94 oracle evaluations against 204 for random search—a 2 .2× saving—while the deliberately biased surrogate cost efficiency throughout most of the budget (its mean recommendation regret stays above random’s until ≈320 of the 340 calls) but never the validity of the oracle-grounded recommendation, exactly the damage containment Theorem 4 promises. (Running the full certified-elimination protocol on the same task prices the difference between recommendations and certificates: ε-certificates at 5% of the range cost a mean of 480 ,555 oracle calls—correct in 10 of 10 runs—against 340 calls for 12 the uncertified recommendation loop; SI Section S8.7.) Removing verification inverted the picture: the trusted biased surrogate claimed an objective of 0 .43 and delivered 0 .34—a claim–delivery gap of 22% of the objective range, on a selection whose true regret was 38% of that range—at the moment the verified pipelines were delivering certified values at par. In the screening experiments, licensed screening certified top-1% designs on NAS-Bench-201 for 25 × fewer oracle evaluations than random-draw oracle-only search (33 × on Task 1), with champions averaging 87 .1% test accuracy against a global optimum of 89 .2% at one verification each—the conditional separation of Theorem 12b realized at M = 100, with the audit itself certifying the condition. Two accounting caveats belong beside these factors. First, they amortize the audit ( Ta = 120 calls) and the 200 training labels to zero; all-in, a Task-3 campaign certifying T designs pays 1 /0.253 + 320 /T oracle calls per certified-good design—6 × cheaper than the baseline at T = 25, 14 × at T = 100, 23 × at 
+
+T = 1000, approaching 25 × asymptotically—with the crossover already at T ≈ 4 designs. Second, the oracle-only baseline is the Ω(1 /p v) random-draw bound, minimax in the i.i.d.-marks model but blind to exploitable structure in f ; structure-exploiting oracle-only searches (Bayesian optimization, successive halving) could close part of the gap, so the factors quantify licensed screening against unassisted draws, not against the best conceivable oracle-only practice. 
+
+Figure 3: Oracle-grounded recommendation quality versus cumulative oracle cost (Task 1; 20 replicates; band, interquartile range). Surrogate proposals halve the oracle cost of reaching target recommendation quality; a biased surrogate’s proposals are initially worse than random, yet the validity of the oracle-grounded recommendation is untouched (Theorem 4). Trusting either surrogate without verification (dotted) delivers less than claimed. (The certified protocol proper is priced in SI Section S8.7.) 
+
+4.6 Budgeting Labels between Learning and Certification 
+
+The preceding subsections price certified search given a surrogate. This one opens the ledger one step earlier. Every oracle call in a campaign buys one of two different goods: training labels buy a better selector (they lower the deployed failure rate qsel the audit will measure), while audit rounds 
+
+buy certainty about the selector (they improve nothing, but without them nothing is certified). Writing m for training labels and Ta for audit rounds at two calls each, the total cost of a license at 13 deployed failure ρ decomposes as 
+
+B(ρ) = m∗(π, ρ ) + 2 Tmin (N, ρ, δ ), Tmin = min { T : N ¯qδ(0 , T ) ≤ ρ } ≈ Nρ ln 1 
+
+> δ
+
+, (1) where ¯ qδ(k, T ) is the one-sided binomial (Clopper–Pearson) upper confidence limit and m∗(π, ρ ) is the number of labels the labeling policy π needs before the certificate becomes earnable. The second term is a floor: it is identical for every policy and every model, cannot be reduced by any audit design (Theorem 14), and spending beyond it buys nothing (SI Section S8.9, Proposition S8.1). All strategy therefore lives in the first term, and the empirical question is what that term looks like. We measured the full plane on ground-truthed synthetic landscapes of three difficulties (a fat-plateau optimum with deceptive mid-value decoys; 12,000 candidates; N = 100, ρ = 0 .10, 
+
+δ = 0 .05, ε at 5% of range; protocols and landscape constructions in SI Section S8.9). At every grid point ( m, T a)—32 training checkpoints × 20 audit depths—the map in Figure 4 reports the 
+
+strongest certificate earnable there , N ¯qδ(events , T a), with each license level a contour. The map’s shape classifies the campaign’s regime at a glance. On an easy landscape (two descriptors) the contours are flat: the learning curve saturates within a few hundred labels and only the promise costs anything—the campaign is audit-limited everywhere. Lifting the same landscape to eight dimensions (six nuisance descriptors) bends each contour into an L: a vertical training wall meets the horizontal audit floor, the corner is that license’s cheapest budget split (600 labels + 6 ,742 audit calls = 7 ,342 total at ρ = 0 .10 under uniform labeling), and both costs bind. And on a landscape with near-tied peaks—the crowded-race geometry of Section 2.4—the target contours never enter the plane at any budget: the field saturates at ≈ 0.73, the value the champion-audit statistic returns there even for a surrogate scoring at the truth, so no amount of either labeling or auditing moves it. Remark 15 governs how that saturation may be read. It is a joint property of the statistic and the landscape and not a demonstration that the guarantee is unattainable on this population; a perfect selector has zero regret here as everywhere, and restricting the count to draws the surrogate would have passed over sends the saturation level toward zero at no additional oracle cost. What the panel does establish is operational and is the reason we show it: at these settings, with this statistic, no budget split earns the license, so a campaign in this regime should reach for a tighter estimator where ground truth allows one, and otherwise respecify ( ε, N , or ρ) rather than spend. 
+
+Figure 4: The budget plane: strongest earnable certificate over (training labels, audit calls), license levels as contours; one color scale. (a) Easy landscape: flat contours—audit-limited everywhere; only the promise costs. (b) Hard landscape (six nuisance descriptors): L-shaped contours—learning wall meets audit floor; the corner is the cheapest license. (c) Crowded race (near-tied peaks): no contour at any budget—the certificate saturates above every license level, so no budget split earns one. Panel (c) reports the champion-audit statistic of Section 3.3, which does not vanish for a perfect selector (Remark 15); the saturation is therefore a property of that statistic together with the landscape and is not evidence that the guarantee is unattainable on this population. 14 Where both walls bind, the labeling policy moves the vertical one—and it moves it in a direction that inverts optimization intuition (Figure 5a). Racing four policies at equal budgets, the pure exploitation rule—label where the model predicts the top, the batch analogue of standard Bayesian-optimization acquisition—was the most expensive route to a license on every landscape tested: 3 ×
+
+the labels of uniform sampling at the ρ = 0 .10 corner (1,800 vs. 600), with the same audit depth, and on the two-descriptor multimodal landscape its certified bound moved backward twice as labels accumulated (decoy lock-in: runs that latched onto a deceptive region densified it while the true plateau stayed unmodeled). Uniform and uncertainty sampling certified cheapest throughout. The mechanism is the paper’s central asymmetry one level up: the license prices the global ordering at the top of the landscape—including the suppression of every rival region —and exploitation never purchases refutation. Acquisition rules built to find the maximum are not built to certify the selector. The three licenses also part company here (Figure 5b): the honesty and value-floor licenses are earned within ∼250 audit calls at every training level, while the selection license costs 5,990 calls and is unearnable below 400 labels at any audit depth—a ∼24 × spread that makes the selection tax of Section 2.4 legible directly in budget coordinates, and shows that only the selection promise couples to the labeling policy at all. 
+
+Figure 5: (a) Certified deployed bound versus training labels for four labeling policies (hard landscape; three seeds, min–max bands). Exploitation-style acquisition is the most expensive license-earner; uniform and uncertainty sampling reach the audit-resolution floor first. (b) Audit calls required to earn each license versus training labels (uniform policy): honesty and value-floor licenses cost ∼250 calls; the selection license costs 5 ,990 and requires ≥400 labels at any audit depth. Finally, we asked what model accuracy is actually worth by manufacturing it: perfect predictions corrupted by overestimating a fraction f of candidates by s (overestimation being the failure mode selection amplifies), gridded over ( f, s ) (Figure 6a). The license’s accuracy currency is not the fraction of labels that are right: sub-ε overestimates were free at every rate tested (up to 20% of all candidates), while the ρ = 0 .10 boundary sits at s ≈ 1.2–2 .3 ε across two decades of f —a nearly horizontal line whose message is that error size at the point of selection , in units of ε, is what a license buys and loses. A model wrong by ε on 5% of its candidates is licensed as-is (certified bound 0 .051). When a model does fail, the repair bill depends almost entirely on where one repairs (Figure 6b): correcting predictions in order of predicted value—verifying one’s champions and writing down the truth—restored the license after 50–530 corrections, while random correction 15 failed to restore any tested case within 6 ,400; a ≥12–130 × asymmetry. Champion verification, the framework’s audit primitive, reappears as its cheapest repair policy. 
+
+Figure 6: (a) Damage map: strongest certificate under controlled corruption (fraction of candidates overestimated × error size in units of ε). Sub-ε errors are free at any rate; the license boundary tracks error size, not accuracy percentage; the starred case ( ε-sized errors on 5% of candidates) is licensed as-is. (b) Repair bill: labels corrected until the license is restored, fixing highest-predicted candidates first versus at random (error = 2 ε). Three budget rules follow, each attached to a measurement above. The audit-to-training ratio is a diagnostic: audit-heavy means the claim is the bottleneck (weaken N or ρ, or fall back to the 
+
+∼250-call one-sided licenses), training-heavy means the problem is. The floor in Eq. (1) cannot be negotiated, only the promise can. And the practice landscape collapses onto a single dial— how much verification does this model still owe? —with measure-everything proposal loops (Bayesian optimization among them) at one end, paying full price because they never deploy trust; licensed screening at one verification per batch at the other; and a refused license sending the model back to propose-and-verify. The dichotomy of Theorem 12 says when crossing that dial pays; the budget plane above says what the crossing costs. 
+
+4.7 Practical Guidance 
+
+The results compose into an operating doctrine whose every clause is a theorem with an experiment attached: train on anything; certify only with clean oracle statistics; audit where the search actually points; re-audit when anything moves. Table 1 maps each theoretical prediction to its measurement. For practitioners the doctrine concretizes as: report only oracle-verified values; treat R2 as a development diagnostic, never a deployment one; before trusting a surrogate as a selector, run the champion audit at two oracle calls per round and size the license to the intended screen width N ;prefer one-sided (conservative) licenses when the reported value matters more than the discovery rate; and void any license upon retraining or a shift in the candidate generator. None of these steps requires assumptions about the surrogate’s architecture or training— which is what makes them enforceable as review criteria for third-party models. 16 Table 1: Theoretical predictions and their measurements across the three ground-truthed tasks.                                                
+
+> Prediction (theorem) Measurement Task Deployed failure ≤1−(1 −p)N, tight only under error–selection alignment (Thm 10) no violations in any cell; alignment is per-fit: twin ridge fits at p≈0.25 deploy at
+> q= 0 .000 and q= 1 .000; NB201 ridge de-terministically at q= 1 .0 in both regimes 1, 2, 3 Passive audits err in both di-rections; champion audits correct (Thms 10, 14) safe deployment rejected ( p=0.048,
+> q= 0 .000); malign twin indistinguishable passively; selection-aware audit correct in every case 1, 2 Accuracy decoupled from deployment (Thms 1–3)
+> R2flat while deployed failure spans 0 →
+> 1.01, 2, 3
+> qsel is the deployment-calibrated diag-nostic (Thm 13) Spearman with regret 0 .89–0 .99 in all six task–regime cells (432 fits); NB201 biased: 0.97 vs 0 .56 ( qinv ) vs 0 .33 ( R2); qsel ’s CI disjoint from both others 1, 2, 3 No-disappointment license, per-fit (Thm 11) holds at all Nwhen earned; same recipe passes one fit ( p= 0 .090), fails the other (p= 0 .116 →30% violations) 1, 2 Validity invariant to proposal quality (Thm 4) 2.2×oracle saving from good proposals; biased proposals cost efficiency only; un-verified trust claims 0 .43, delivers 0 .34 1Conditional screening separation (Thm 12) 25 ×(Task 3) and 33 ×(Task 1) certified-cost reduction at M= 100 1, 3
+
+# 5 Conclusions 
+
+We have given a quantitative account of trust in machine-learning surrogates for design: accuracy cannot anchor it (Theorems 1–3); an information-flow architecture secures it unconditionally, and treating predictions as measurements admits a deterministic self-confirmation failure (Theorems 4–5); its price is set by close races (Theorems 6–7); the criterion for a model to act as an oracle is ordinal, verifiable only wholesale, and only by audits that imitate deployment—a design that is provably optimal among all audits (Theorems 8–11, 14); and the substitution pays, by a factor as large as the screening ratio, exactly when the goal is generative and the audit passes—and, in the tabular model, never for fixed menus (Theorems 12–13). The framework’s deployment-facing predictions were confirmed on 17,353 real training outcomes across three tasks, including a community benchmark on which the framework’s audit statistic tracks deployed performance at rank correlation ≥ 0.95 while the field’s default diagnostic falls as low as 0 .33; across all 432 fits and six task–regime conditions the audit statistic never fell below 0 .89 at measurement budgets, nor below 0 .80 at the prescribed 120-round audit budget. The closing budget study prices what remains free: the region of the (training, auditing) budget plane in which a certificate is earnable is L-shaped, its two walls being the learning curve and the irreducible audit floor; acquisition-style labeling is the most expensive route to a license; and model error is priced at the point of selection, in units of ε, not in accuracy points—with champion verification doubling as the cheapest repair policy when a license is lost. Two limitations bound the claims. The guarantees cover single-decision (pool and generative) searches, a boundary that now sits exactly at credit assignment: the policy-selection form of the sequential problem—certifying the best of K candidate policies from real episode returns while world models and critics propose freely—follows from the pool theorems (SI Section S5.1, including 17 a formal replay-buffer contamination result), whereas certifying a policy improvement step, where a trusted error propagates through later decisions, remains open. And the strict-improvement license certifies values rather than regret; regret-type separations in structured model classes remain open. Both are treated in the SI. The framework itself is domain-agnostic and assumption-light, and its audits are cheap by construction; applying it as a standardized review instrument to published surrogates in fields where oracles are costly and training corpora are biased—computational screening for carbon capture and catalysis prominent among them—is the natural next step, and the subject of ongoing work. 
+
+# Acknowledgements 
+
+The authors gratefully acknowledge the Ohio Supercomputer Center (OSC) and the Department of Materials Science and Engineering at the Massachusetts Institute of Technology for computational resources. 
+
+# Code and Data Availability 
+
+The audit protocols, license certificates and passport generator described here are implemented in ModelAssay , open-source software available at https://github.com/MAXMA-OSU/Modelassay .The repository also carries the experiment code, the exhaustive ground-truth tables used in Section 4, and the verification scripts of Section S12, so that every number reported in this paper and its Supporting Information can be recomputed independently. 
+
+# Supporting Information Available 
+
+Complete formal statements and proofs of all theorems, with the main-text correspondence noted at each result (Sections S1–S7); extended experimental details, additional figures and per-task data tables (Section S8); the positioning of each result against prior literature (Section S9); limitations and open problems, with a closing summary (Sections S10 and S11); and the verification methodology, including adversarial proof review and the full suite of machine-checked numerical tests (Section S12). 18 Supporting Information 
+
+When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design 
+
+This Supporting Information contains the complete formal setting, all theorem statements with full proofs (main-text references resolve dynamically to the S-numbering below), extended experimental details and figures, theorem-by-theorem novelty positioning, and the verification methodology. Code, exhaustive ground-truth tables, and verification scripts are provided as ancillary files with this submission. 
+
+# S1 Setting and notation 
+
+X is a finite candidate pool, |X | = N ≥ 2; the true objective is f : X → [0 , B ]; a surrogate is any ˆf : X → R, of arbitrary provenance. Ties in argmaxes are broken by a fixed order unless stated otherwise. When the oracle is noisy, a query of x returns f (x) + η with η mean-zero σ-sub-Gaussian, independent across queries; formally we use the pre-sampled array (“stack of rewards”) model: an array ( ηx,k )x∈X ,k ≥1 of independent noise variables, independent of algorithmic randomness, with the k-th query of x returning f (x) + ηx,k 50 . Table S1 collects the recurring notation. Table S1: Notation used throughout. 
+
+Symbol Meaning 
+
+X , N candidate pool; its size (or the deployment pool size, per context) 
+
+f , B true objective (oracle), f : X → [0 , B ]ˆf surrogate, ˆf : X → R
+
+x⋆, ˆ x true maximizer; surrogate champion arg max ˆfr(ˆ x) simple regret f (x⋆) − f (ˆ x)
+
+e+(x), e−(x) over-/under-prediction [ ˆf (x) − f (x)] +, [ f (x) − ˆf (x)] +
+
+∆x gap to the best, f (x⋆) − f (x)
+
+σ, δ noise scale; confidence parameter 
+
+ε, τ decision tolerance; over-prediction tolerance 
+
+D, M candidate distribution; screening pool size (generative setting) 
+
+p, q audited marginal bad-rate; deployed (champion) bad-rate 
+
+qinv , qsel pairwise ε-inversion rate; champion-inversion rate 
+
+pv , ρ, ρ0 good-mass at level v; license rates 
+
+# S2 Preliminaries (known results, restated with attribution) 
+
+The results in this section are not contributions; each carries its canonical citation and is used later. 
+
+Proposition S2.1 (regret decomposition; horizon-1 case of 46 , Lemma 3.1; expectation version in 6).
+
+For any f, ˆf and maximizers x⋆, ˆx,
+
+f (x⋆) − f (ˆ x) = [f (x⋆) − ˆf (x⋆)] 
+
+| {z } 
+
+> underestimation at x⋆
+
++ [ ˆf (x⋆) − ˆf (ˆ x)] 
+
+| {z }
+
+> ≤0
+
++ [ ˆf (ˆ x) − f (ˆ x)] 
+
+| {z } 
+
+> overestimation at ˆx
+
+,
+
+hence r(ˆ x) ≤ e−(x⋆) + e+(ˆ x).Proof. The display is an identity; the middle bracket is ≤ 0 since ˆ x maximizes ˆf ; bound the remaining terms by their positive parts. 19 Proposition S2.2 (simulation lemma; 33,49 ). If two discounted MDPs share transitions and ∥ˆr −
+
+r∥∞ ≤ ϵr, then ∥ ˆQ⋆ − Q⋆∥∞ ≤ ϵr/(1 − γ).
+
+Proposition S2.3 (half-gap action stability; stated in 40 ; policy-loss form in 57 ). If ∥ ˆQ − Q⋆∥∞ <
+
+∆( s)/2, the greedy action under ˆQ at s is optimal. 
+
+Proposition S2.4 (interval certificate; LUCB stopping rule with ϵ = 0 47 ; UGapE certificate 41 ;contrapositive of action elimination 39 ; cf. Hoeffding races 53 ). If f (x) ∈ [L(x), U (x)] for all x ∈ X 
+
+simultaneously and L(˜ x) > max x̸=˜ x U (x), then ˜x = x⋆ uniquely. Proof. For x̸ = ˜ x: f (x) ≤ U (x) < L (˜ x) ≤ f (˜ x). 
+
+# S3 Prediction accuracy versus decision quality 
+
+The phenomenon that accuracy does not control decisions is documented empirically and in adjacent theory 1,35,38,51 ; the following statements pin it down sharply. 
+
+Theorem S3.1 (R2 neither sufficient nor necessary) . Let R2(f, ˆf ) = 1 −       
+
+> P
+> x(f(x)−ˆf(x)) 2
+> P
+> x(f(x)−¯f)2
+
+over the pool. (i) For every ε ∈ (0 , 1) , β > 0, and every even N ≥ 4(1 + β)2/ε , there is a pool of size N and a pair (f, ˆf ) with R2 ≥ 1 − ε and r(ˆ x) = B, the full range of f .(ii) For every M > 0 there is a pair on a pool of size 2 with r(ˆ x) = 0 and R2 ≤ − M .Proof. (i) Near-perfect R2, worst-possible champion. Let f = 1 on half the pool and 0 on the other half, so ¯f = 12 , P
+
+> x
+
+(f − ¯f )2 = N/ 4, and B = 1. Set ˆf = f everywhere except at one zero-valued candidate x0, where ˆf (x0) = 1 + β. The only error is at x0, so 
+
+R2 = 1 − (1 + β)2
+
+N/ 4 = 1 − 4(1 + β)2
+
+N ≥ 1 − ε. (S1) Yet ˆf (x0) = 1 + β strictly exceeds every other prediction, so ˆ x = x0 uniquely, and r(ˆ x) = 1 − 0 = B.
+
+(ii) Arbitrarily negative R2, perfect champion. Take the two-point pool f = (0 , 1) and ˆf = c f =(0 , c ) with c > 1. The ranking is preserved, so r(ˆ x) = 0, while ¯f = 12 gives 
+
+R2 = 1 − (c − 1) 2
+
+1/2 = 1 − 2( c − 1) 2 −−−→ 
+
+> c→∞
+
+−∞ ; (S2) 
+
+c = 1 + p(M + 1) /2 achieves R2 ≤ − M .
+
+Theorem S3.2 (equal MSE, opposite outcomes) . Fix ∆ > 0, N > 4, and a ∈ (∆ /√N , ∆/2) 
+
+(nonempty since N > 4). Let f (x1) = ∆ and f ≡ 0 elsewhere. There are surrogates ˆfA, ˆfB with identical MSE a2 such that r(ˆ xA) = 0 and r(ˆ xB ) = ∆ (maximal). Proof. Surrogate A: errors everywhere, decision perfect. Let ˆfA = f + a s with arbitrary signs 
+
+s(x) ∈ {± 1}, so MSE( ˆfA) = a2. Since a < ∆/2, ˆfA(x1) ≥ ∆ − a > a ≥ ˆfA(x) (x̸ = x1), (S3) so ˆ xA = x1 and r(ˆ xA) = 0. 
+
+Surrogate B: one error, decision maximal. Let ˆfB = f except at a single xj , j̸ = 1, where ˆfB (xj ) = a√N . Then MSE( ˆfB ) = ( a√N )2/N = a2, identical to A; but a√N > ∆ strictly, so ˆxB = xj with f (xj ) = 0 and r(ˆ xB ) = ∆. The distinguishing information sits entirely in the upper tail of e+, which the aggregate suppresses. 20 Theorem S3.3 (extreme-value amplification; matching bounds) . If the errors ε(x) = ˆf (x) − f (x)
+
+are mean-zero and σ-sub-Gaussian (any dependence), then for N ≥ 2
+
+E[e+(ˆ x)] ≤ E(max  
+
+> x
+
+ε(x)) +
+
+ ≤ σp2 ln( N + 1) ≤ 2σ√ln N . (S4) 
+
+Conversely, on the flat instance f ≡ c with ε(x) i.i.d. N (0 , σ 2), e+(ˆ x) = [max x ε(x)] + a.s. and for all N ≥ 2
+
+E[e+(ˆ x)] ≥
+
+
+
+1 − 1
+
+> e
+
+
+
+σ Φ−1
+
+1 − 1
+
+> N
+
+
+
+, Φ−1
+
+1 − 1
+
+> N
+
+
+
+≥ √ln N (N ≥ 43) . (S5) 
+
+Proof. Upper bound. Pointwise, e+(ˆ x) ≤ [max x ε(x)] + = max( ε(x1), . . . , ε (xN ), 0), a maximum of 
+
+N + 1 σ-sub-Gaussian variables, whose mean is at most σp2 ln( N + 1); 34 and ln( N + 1) ≤ 2 ln N
+
+for N ≥ 2, giving (S4). 
+
+Lower bound. On the flat instance ˆ x = arg max x ε(x). With tN = σΦ−1(1 − 1/N ) ≥ 0 for N ≥ 2, P
+
+
+
+max  
+
+> x
+
+ε(x) ≥ tN
+
+
+
+= 1 −
+
+
+
+1 − 1
+
+> N
+
+N
+
+≥ 1 − 1 
+
+> e
+
+, [max] + ≥ tN 1{max ≥ tN }, (S6) and taking expectations gives the first claim of (S5). For the numeric claim, the Gaussian tail bound 1 − Φ( t) ≥ φ(t) t/ (1 + t2) at t = √ln N reduces it to √N ≥ √2π (1 + ln N )/√ln N , which holds for all N ≥ 43 (verified programmatically). 
+
+Remark S3.4 . Lineage: winner’s curse 7, optimizer’s curse 6, post-selection inference 32 . With correlated errors, ln N is replaced by metric entropy (Sudakov/Dudley), the rigorous form of an “effective candidate count.” 
+
+# S4 The certification framework 
+
+Separation principle. Labels serve two roles: proposal (what to try next; training surrogates) and certification (what to trust; when to stop; what to output with a warranty). Surrogate labels may serve the first role without restriction; certification statistics are computed from oracle labels only. Theorems S5.1 and S5.2 prove this boundary is exactly right. At each round t the learner selects xt ∈ X by an arbitrary measurable rule and either queries the oracle ( Gt = O, cost 1), records a pseudo-label ˆft(xt) ( Gt = L, cost 0, ˆft arbitrary), or stops with a recommendation. Let nt(x) count oracle queries of x and ˆ μt(x) their sample mean. 
+
+Definition S4.1 (admissible confidence system) . Intervals [Lt(x), U t(x)] , measurable w.r.t. the oracle-labeled history only, are δ-admissible if P( ∀t ≥ 1, ∀x ∈ X : f (x) ∈ [Lt(x), U t(x)]) ≥ 1 − δ.Call this event G.
+
+Lemma S4.2 (tabular instantiation; construction standard 39,44 ). Under the noise model of Sec-tion S1, define for nt(x) = k ≥ 1
+
+rk = σ
+
+q 2 
+
+> k
+
+ln   π2N k 2
+
+> 3δ
+
+, [Lt(x), U t(x)] = ˆ μt(x) ± rnt(x),
+
+and [0 , B ] while nt(x) = 0 . This system is δ-admissible regardless of the adaptive rule deciding which candidate is queried when, and regardless of any use of pseudo-labels elsewhere. Proof. On the pre-sampled array fix ( x, k ); Hoeffding gives Pr( |¯ηx,k | ≥ rk) ≤ 2 exp( −kr 2
+
+> k
+
+/2σ2) = 6δ/ (π2N k 2). Union over k ≥ 1 ( P k−2 = π2/6) and over x bounds the bad event B by δ. B is defined on the array alone, so its probability is algorithm-independent; on Bc every realized sample mean is within rnt(x) of f (x), and unqueried candidates are covered by [0 , B ]. 21 Remark S4.3 . Sharper law-of-the-iterated-logarithm radii 42,43 can replace rk; all downstream results use only δ-admissibility. For structured pools (linear/RKHS f ), self-normalized bounds 30,37 give admissible systems whose widths shrink jointly across candidates, removing the tabular one-query-per-candidate floor. 
+
+# S5 Main results: safe selective pseudo-labeling over pools 
+
+Theorem S5.1 (certification is invariant to arbitrary pseudo-labeling) . Fix δ ∈ (0 , 1) and a δ-admissible system with ˆμt(x) ∈ [Lt(x), U t(x)] (e.g. the midpoint system of Lemma S4.2). Consider any algorithm whose proposal rule, surrogates, pseudo-labeling policy, and query schedule are arbitrary measurable functions of the whole history, subject only to: (1) it outputs ˆxout flagged certified only when Lt(ˆ xout ) > max x̸=ˆ xout Ut(x) or when ˆxout is the unique non-eliminated candidate, and flagged 
+
+ε-optimal only when every non-eliminated candidate has interval width ≤ ε/ 2 and ˆxout maximizes 
+
+ˆμt among them (all queried at least once); (2) eliminations only remove candidates x with Ut(x) <
+
+max x′ Lt(x′) at removal time. Then with probability at least 1 − δ: every candidate ever flagged 
+
+certified is x⋆; x⋆ is never eliminated; and an ε-optimal output satisfies f (ˆ xout ) ≥ f (x⋆) − ε.Proof. Work on the coverage event G, whose probability is ≥ 1 − δ independently of the algorithm 
+
+(Lemma S4.2: the bad event lives on the pre-sampled array, which pseudo-labels never touch). 
+
+Step 1 (certificates are correct). The certificate case is exactly Proposition S2.4. 
+
+Step 2 ( x⋆ survives). Eliminating x⋆ at time t would require Ut(x⋆) < L t(x′) ≤ f (x′) for some 
+
+x′, while on G also Ut(x⋆) ≥ f (x⋆) ≥ f (x′) — a contradiction. Hence the unique survivor, if that stopping rule fires, is x⋆.
+
+Step 3 ( ε-optimal outputs). Let At be the non-eliminated set at stopping; by Step 2, x⋆ ∈ At,and every interval has width ≤ ε/ 2. Chaining the interval bounds through the empirical means, 
+
+f (ˆ xout ) ≥ Lt(ˆ xout ) ≥ ˆμt(ˆ xout ) − ε 
+
+> 2
+
+≥ ˆμt(x⋆) − ε 
+
+> 2
+
+≥ Lt(x⋆) − ε 
+
+> 2
+
+≥ f (x⋆) − ε. (S7) 
+
+Theorem S5.2 (contaminated certification can fail with probability one) . Call a protocol contami-nated if accepted pseudo-labels enter its certification statistics with the same standing as oracle labels (intervals of width w(k) → 0 centered at the running mean of all accepted labels) and it certifies via 
+
+L > max U . There exists an algorithm of this class (accepting pseudo-labels unconditionally while uncertified), a two-candidate noiseless instance, and a surrogate such that with probability one it certifies the suboptimal candidate and stops with regret B > 0 after zero oracle calls. Consequently no guarantee of the form of Theorem S5.1 — quantifying over all label policies — can hold for any contaminated class containing this behavior. Proof. X = {x1, x 2}, f = (0 , B ), ˆf = ( B, 0); accept one pseudo-label per candidate per round. After 
+
+k rounds the means are exactly ( B, 0); once w(k) < B/ 2 the certificate B − w(k) > w (k) fires for 
+
+x1. Deterministic; regret B; zero oracle calls. 
+
+Lemma S5.3 (log inversion) . For a, b > 0 with 4a√b ≥ e: every k ≥ 4a ln(4 a√b) satisfies 
+
+k ≥ a ln( bk 2).Proof. With L = ln(4 a√b) ≥ 1, k0 = 4 aL : a ln( bk 20 ) = 2 a[L + ln L] ≤ 4aL = k0; and k − a ln( bk 2) is increasing for k ≥ 2a, while k0 ≥ 4a.
+
+Theorem S5.4 (oracle complexity of certified elimination) . Run Gated-SE : in phases, every non-eliminated candidate below target precision receives one oracle query; certified-suboptimal 
+
+22 candidates are eliminated; stop at the ε-rule or when one candidate survives; pseudo-labels are used arbitrarily for proposal only. Assume a unique maximizer (with ties, replace ¯∆x⋆ below by ε/ 4). Set ¯∆x = 14 max(∆ x, ε ) for suboptimal x and ¯∆x⋆ = 14 max(∆ min , ε ), ∆min = min {∆x : ∆ x > 0}.With probability ≥ 1 − δ, Gated-SE stops with a certified or ε-optimal recommendation and each candidate’s oracle-query count satisfies, whenever 8σ2
+
+> ¯∆2
+> x
+
+q π2N 
+
+> 3δ
+
+≥ e,
+
+n(x) ≤ 1 + 8σ2
+
+¯∆2
+
+> x
+
+ln 
+
+ 8σ2
+
+¯∆2
+
+> x
+
+q π2N
+
+> 3δ
+
+
+
+.
+
+Proof. Correctness is Theorem S5.1; it remains to count queries on G.
+
+Step 1 (when a suboptimal x leaves the queried set). With all active candidates at k queries, x is certified suboptimal once rk < ∆x/4, because then ˆμ(x⋆) − ˆμ(x) ≥ ∆x − 2rk > 2rk. (S8) If x⋆ froze earlier at radius r⋆ ≤ ε/ 4: for ∆ x ≥ ε, elimination needs ∆ x > 2r⋆ + 2 rk, which is implied by 2 r⋆ ≤ ε/ 2 ≤ ∆x/2 together with rk < ∆x/4; for ∆ x < ε the width trigger rk ≤ ε/ 4 bounds the count instead. Every candidate also stops being queried at rk ≤ ε/ 4 regardless. 
+
+Step 2 (inverting the radius). By Step 1, x is queried only while rk ≥ ¯∆x, i.e. while 
+
+k ≤ 2σ2
+
+¯∆2
+
+> x
+
+ln 
+
+ π2N k 2
+
+3δ
+
+
+
+, (S9) which Lemma S5.3 (with a = 2 σ2/ ¯∆2
+
+> x
+
+, b = π2N/ (3 δ)) inverts into the stated bound on n(x). 
+
+Step 3 (the winner). x⋆ is queried only until its last competitor is eliminated (the phase count solving rk < ∆min /4) or until its own width trigger fires, whichever is first — giving ¯∆x⋆ = 14 max(∆ min , ε ). 
+
+Theorem S5.5 (oracle complexity under an α-margin law) . Assume additionally #{x : 0 < ∆x ≤
+
+u} ≤ N min(1 , Cu α) for all u > 0, a unique maximizer, at least one suboptimal candidate, and the proviso of Theorem S5.4 for all x. Let u⋆ = C−1/α and Λ = max x ln(8 σ2 ¯∆−2
+
+> x
+
+pπ2N/ (3 δ)) . On G
+
+the total cost satisfies Cost ≤ N + 8 σ2Λ S with 
+
+S ≤ Ssub + 16 N C 2/α + 16 max(∆ min , ε )−2, 16 max(∆ min , ε )−2 ≤ 16( N C )2/α ,
+
+and, for ε < u ⋆,
+
+Ssub ≤ 32 N C 
+
+2 − α εα−2 (α < 2) , 32 N C ln u⋆
+
+ε (α = 2) , 32 N C 2/α 
+
+α − 2 (α > 2) .
+
+In particular the cost is ε-independent for α > 2: only an ambiguous core requires high precision, and the winner needs only ∆min -precision because eliminating its last competitor fires the single-survivor stop. Proof. Step 1 (layer-cake form of the cost sum). Since ¯∆−2 
+
+> x
+
+= R ∞ 
+
+> ¯∆x
+
+2u−3 du ,
+
+Ssub =
+
+Z ∞
+
+> ε/ 4
+
+2u−3 #{x̸ = x⋆ : ¯∆x < u } du, #{·} ≤ N min  1, C (4 u)α (u > ε/ 4) . (S10) The maximizer contributes its own term 16 max(∆ min , ε )−2, and the margin law forces ∆ min ≥
+
+(N C )−1/α (otherwise # {0 < ∆ ≤ u} ≤ N Cu α < 1). 23 Step 2 (split at the saturation point u⋆/4). The saturated tail of (S10) gives 2N
+
+Z ∞
+
+> u⋆/4
+
+u−3 du = 16 N C 2/α , (S11) while the head evaluates, in the three regimes of α, to 2N C 4α
+
+Z u⋆/4
+
+> ε/ 4
+
+uα−3 du =
+
+
+
+32 N C 
+
+2 − α εα−2 (α < 2) ,
+
+32 N C ln u⋆
+
+ε (α = 2) ,
+
+32 N C 2/α 
+
+α − 2 (α > 2) ,
+
+(S12) using 2 N C 4α(u⋆/4) α−2/(α − 2) = 32 N C 2/α /(α − 2) in the last case. 
+
+Remark S5.6 (honest limitation) . Every candidate needs ≥ 1 oracle query in the tabular model, so Cost ≥ N and pseudo-labels cannot reduce certified oracle complexity here; their provable value must come from structured classes (see Section S10). Theorems S5.1–S5.5 establish the conjecture of the project’s theory notes in the pool setting with the influence term equal to zero. 
+
+S5.1 Sequential decisions: finite policy classes 
+
+The main-text limitation “the guarantees cover single-decision searches” deserves a precise boundary. The policy-selection form of the sequential problem—choose the best of K candidate policies, controllers, prompts, or agent configurations by running real episodes—is already covered by the pool theorems, because an episode return is an oracle call. The genuinely open form is per-step credit assignment inside a policy’s learning; we close the first and formalize why the second is the right name for what remains. 
+
+Corollary S5.7 (policy-level invariance and cost) . Consider an episodic environment with returns in [0 , B ] and a finite policy class Π = {π1, . . . , π K }; executing π for one episode returns G(π) with 
+
+E[G(π)] = J(π) and G(π) − J(π) sub-Gaussian with scale σ ≤ B/ 2, independent across episodes. A 
+
+pseudo-rollout is any surrogate-generated return estimate: a learned world model’s simulated episode, a critic’s value prediction, an offline model’s score. Identify X = Π , f = J, one oracle query = one real episode (pre-sampled array indexed by policy and episode count). Then Theorems S5.1, S5.4, and S5.5 hold verbatim with N = K:(i) any agent whose proposal machinery—world models, critics, pseudo-rollouts, replay reweighting, arbitrary retraining—is unrestricted, but whose certification statistics (per-policy intervals, eliminations, stopping, the reported policy and value) are computed from real episode returns only, certifies a truly best (or ε-best) policy with probability ≥ 1 − δ, uniformly over surrogate behavior; (ii) each policy costs O(σ2∆−2 
+
+> π
+
+log( K/δ )) real episodes, and under an α-margin law on the J-gaps the three cost regimes of Theorem S5.5 hold. Proof. Immediate specialization: bounded returns are σ-sub-Gaussian with σ ≤ B/ 2 (Hoeffding’s lemma), the pre-sampled array of Section S1 is indexed by ( π, k ), and pseudo-rollouts enter the protocol of Section S4 exactly as pseudo-labels ( Gt = L records), which never touch the array. 24 Proposition S5.8 (replay-buffer contamination, formal) . Call a certification scheme contaminated 
+
+if it maintains, for each candidate policy, a value estimate computed from a buffer in which surrogate-generated returns (model-based rollouts, critic-relabeled rewards) enter with the same standing as real episode returns, with interval widths w(k) → 0 in the total (real + surrogate) count k, and it certifies via the rule L > max U . There exist a scheme of this class (accepting one model rollout per policy per round while uncertified), a two-policy, one-step episodic instance ( J = (0 , B ), deterministic returns), and a world model (predicting returns (B, 0) ) such that the scheme certifies the wrong policy with probability one after zero real episodes. Consequently no guarantee of the form of Corollary S5.7(i) can hold for any contaminated class containing this behavior. Proof. The instance is the construction of Theorem S5.2 with candidates = policies and pseudo-labels = model rollouts: buffer means are deterministically ( B, 0), so once w(k) < B/ 2 the certificate fires for the J = 0 policy. 
+
+Remark S5.9 (what remains open) . Corollary S5.7 treats whole-episode returns as atomic oracle calls, which sidesteps compounding model error (the 1 /(1 − γ)-factor regime of the simulation lemma, Proposition S2.2). The open problem is the fine-grained version: certifying a policy improvement 
+
+step from real transitions only while the proposal machinery relabels rewards—i.e., credit assignment, not selection. Proposition S5.8 shows the separation principle is already non-negotiable there. 
+
+# S6 Oracle admissibility: when may a model act as the oracle? 
+
+A criterion K( ˆf , f ) is admissible if it is (A1) decision-sufficient, (A2) checkable from oracle data at cost sublinear in the decisions it licenses, and (A3) robust to the search adaptively seeking the surrogate’s errors. 
+
+Theorem S6.1 (the minimal criterion is ordinal) . For a pool C ⊆ X let rC ( ˆf ) = max x∈C f (x) −
+
+min ˆx∈arg max C ˆf f (ˆ x) (worst-case tie-breaking). For any ε ≥ 0:
+
+sup 
+
+> ∅̸=C⊆X
+
+rC ( ˆf ) ≤ ε ⇐⇒ ∀x, y ∈ X : f (x) − f (y) > ε ⇒ ˆf (x) > ˆf (y).
+
+For ε = 0 : decision-safety on every pool is exactly strict order preservation (equivalently ˆf = g ◦ f
+
+for strictly increasing g when f is injective). Proof. (⇐) For any pool C and any ˆf -maximizer ˆ x: if f (x⋆C ) − f (ˆ x) > ε then ˆf (x⋆C ) > ˆf (ˆ x), contradicting maximality ( x⋆C ∈ C). ( ⇒) If f (x) − f (y) > ε with ˆf (y) ≥ ˆf (x), the pool {x, y } has y
+
+among the ˆf -maximizers and r{x,y } = f (x) − f (y) > ε .
+
+Theorem S6.2 (no per-decision certification at a profit) . Oracle queries return f (·) + N (0 , σ 2). Fix a pair {x, y } with ˆf (x) > ˆf (y) and tolerance ε ≥ 0. A certifier is any adaptive procedure outputting 
+
+safe / unsafe such that for every f : f (y) − f (x) > ε ⇒ Pf (safe ) ≤ δ < 1/2 (soundness). If on some instance f0 with f0(x) − f0(y) = ∆ > 0 it outputs safe with probability ≥ 1/2, then 
+
+Ef0 [Nx + Ny] ≥ 2σ2(1 − 2δ)2
+
+(∆ + ε)2 .
+
+Since deciding the comparison directly costs O(σ2∆−2 log(1 /δ )) , certification at tolerance ε = O(∆) 
+
+costs, up to constants and a log factor, as much as not using the surrogate at all. 
+
+25 Proof. Step 1 (an indistinguishable unsafe alternative). Let f1 = f0 except f1(x) = f0(x)−(∆+ ε+γ); then f1(y) − f1(x) = ε + γ > ε , so soundness forces P f1 (safe ) ≤ δ.
+
+Step 2 (change of measure). Transcript laws under f0 and f1 differ only at queries of x, with per-query KL (∆ + ε + γ)2/2σ2; the divergence decomposition for adaptively sampled, stopped experiments 10 gives KL = Ef0 [Nx] (∆ + ε + γ)2
+
+2σ2 (S13) (trivially true if infinite). By Pinsker, 12 − δ ≤ dTV ≤ pKL /2, so KL ≥ (1 − 2δ)2/2 and 
+
+Ef0 [Nx] ≥ σ2(1 − 2δ)2
+
+(∆ + ε + γ)2 ; (S14) let γ → 0. 
+
+Step 3 (symmetrize and sharpen). The symmetric alternative raising f (y) bounds E[Ny] identi-cally, giving the display. For a certifier that is also complete at level δ, Bretagnolle–Huber yields KL ≥ ln(1 /4δ), recovering the log(1 /δ ) scaling. 
+
+Theorem S6.3 (audit–deploy amplification; the selection tax) . A fixed ˆf is audited, then deployed: a pool of N i.i.d. candidates Xi ∼ D is screened and ˆx = arg max i ˆf (Xi) selected. Call x bad if 
+
+ˆf (x) − f (x) > τ (τ ≥ 0) and let p = P X∼D(X bad ). For the audit-cost claims assume a noiseless oracle (with σ-noise, per-query costs multiply by O(σ2/γ 2 
+
+> τ
+
+· log) for a separation margin γτ ). (i) 
+
+Always P(ˆ x bad ) ≤ 1 − (1 − p)N ≤ N p . (ii) For every p ∈ (0 , 1) , N , there exist f, ˆf , D with 
+
+P(ˆ x bad ) = 1 − (1 − p)N ≥ (1 − 1 
+
+> e
+
+) min(1 , N p ): the deployed failure rate is Θ(min(1 , N p )) worst-case. (iii) To guarantee deployed failure ≤ ρ from a passive audit (audit points i.i.d. from D) one must certify p ≲ ρ/N , which requires Ω( N/ρ ) oracle queries; a selection-aware audit — repeatedly draw a pool, select with ˆf , verify only the selected point — certifies the deployed rate directly with 
+
+O(ρ−1 log(1 /δ )) oracle queries. Selection-aware auditing is cheaper by a factor N .Proof. (i) Union ceiling. {ˆx bad } ⊆ {∃ i : Xi bad }, an i.i.d. union. 
+
+(ii) Matching construction. Take D uniform on [0 , 1], G ⊂ [0 , 1] of measure p, f ≡ 0, and ˆf = ( τ + 1) 1G. A candidate is bad iff it lies in G; if any pool member lands in G the argmax is in 
+
+G (strictly largest ˆf ), else the selected point is good. Hence P(ˆ x bad) = 1 − (1 − p)N ≥ 1 − e−N p ≥
+
+
+
+1 − 1
+
+> e
+
+
+
+min(1 , N p ), (S15) the last step by concavity against the chord on [0 , 1] and monotonicity beyond. 
+
+(iii) Audit costs. Requiring 1 − (1 − p)N ≤ ρ forces p ≤ 1 − (1 − ρ)1/N ≤ ρN (1 + O(ρ)). For the passive lower bound, argue by hitting: fix ˆf = ( τ + 1) 1G with μ(G) = 2 ρ/N ; instance f0 has 
+
+f = τ + 1 on G (nothing bad, safe), instance f1 has f = 0 on G (deployed failure > ρ for ρ ≤ 1/2, unsafe). Audit samples ( X, f (X)) are identical under f0, f 1 unless X ∈ G (probability 2 ρ/N per sample), so distinguishing with constant advantage needs m = Ω( N/ρ ) samples. (An active auditor could query inside G; auditing where the surrogate’s stakes are is precisely the targeted design whose canonical form is the selection-aware audit, and Theorem S7.7 below closes the remaining loophole by bounding every design.) For the selection-aware audit, rounds are i.i.d. Ber( q) with exactly the deployed q; a Chernoff test certifies q ≤ ρ in O(ρ−1 log(1 /δ )) rounds, one oracle call each. 
+
+Remark S6.4 (license expiry) . The license binds a fixed ˆf and a fixed D. Retraining voids it (the surrogate cannot renew its own license — Theorem S5.2); proposal-distribution drift β = dTV (D′, D )degrades it additively, ≤ ρ + N β , via dTV (D′⊗ N , D ⊗N ) ≤ N β .26 Corollary S6.5 (rank-audit version) . With qinv = P (X,X ′)∼D2
+
+ f (X) − f (X′) > ε, ˆf (X′) ≥ ˆf (X)
+
+(ordered pairs), an i.i.d. pool of size N satisfies 
+
+P( rpool > ε ) ≤ N (N − 1) qinv (S16) 
+
+(Theorem S6.1 on the pool, then a union over ordered pairs), and Ω( N q inv ) is attainable ( D places mass π on a point with maximal f and minimal ˆf ; qinv = Θ( π) while failure = Θ(min(1 , N π )) ). Both questions this bound raises are settled in Section S7: the N 2 amplification is exactly attained (Theorem S7.5), and the champion audit is a cheap selection-aware ordinal audit with tax exactly 
+
+Θ( N ) (Theorem S7.4), which no audit design of any kind can improve upon beyond constants and the log(1 /δ ) factor (Theorem S7.7). 
+
+Theorem S6.6 (one-sided admissibility: pessimism as a checkable license) . (i) If e+(x) ≤ τ for all 
+
+x ∈ C, then rC ≤ e−(x⋆C ) + τ and f (ˆ x) ≥ ˆf (ˆ x) − τ (no-disappointment). (ii) If PX∼D(e+(X) >τ ) ≤ p, then for an i.i.d. pool of size N , with probability ≥ 1 − N p both conclusions of (i) hold at the pool level. The factor N is unavoidable by Theorem S6.3(ii) (whose construction is one-sided and defeats the no-disappointment clause; its regret clause is vacuous there), and the selection-aware audit of Theorem S6.3(iii) certifies the deployed rate at O(ρ−1 log(1 /δ )) .Proof. (i) Proposition S2.1 with e+(ˆ x) ≤ τ ; and f (ˆ x) ≥ ˆf (ˆ x) − e+(ˆ x). (ii) Union bound over the pool, then (i). 
+
+S6.1 The admissibility scorecard                         
+
+> Criterion Verdict Governing result
+> High R2/ low MSE rejected Thms S3.1, S3.2 Marginal calibration rejected (blind to selection) Thms S3.3, S6.3(ii) Model’s own confidence rejected outright Thm S5.2 Per-decision verification sound but unprofitable Thm S6.2
+> ε-margin rank preservation the exact minimal criterion Thm S6.1; tax N–N2(Cor. S6.5) One-sided no-over-praise (τ, p )cheapest usable license Thm S6.6 Passive i.i.d. audit understates risk by factor NThm S6.3(ii)(iii) Selection-aware audit + ex-piry recommended license Thm S6.3(iii), Rmk S6.4
+
+Conclusion of the admissibility theory. A usable “may serve as oracle” criterion exists, but only in one shape, and that shape is forced: an ordinal or one-sided property (Thms S6.1, S6.6), certified by a selection-aware audit (Thm S6.3(iii)), carrying an expiry (Rmk S6.4), with all certification statistics oracle-only (Thms S5.1, S5.2). 
+
+# S7 Strict improvement and the ordinal audit gap 
+
+This section settles the two questions raised by Corollary S6.5 and Remark S5.6, and establishes a universal audit-design lower bound (Theorem S7.7) and a noisy-oracle license (Theorem S7.9). Expanded prose companions are included in the ancillary code release; the statements and proofs given here are complete. 27 S7.1 Strict improvement: the dichotomy 
+
+For fixed-menu argmax certification the tabular floor (remark after Thm S5.4) forbids any oracle-cost reduction from pseudo-labels. The generative goal behaves oppositely. Candidates are drawn freely (cost 0) i.i.d. from D; the goal is a design xout with a (1 −δ)-certificate that f (xout ) ≥ v,where pv = Pr X∼D(f (X) ≥ v). In the i.i.d.-marks information model (distinct atoms carry i.i.d. Bernoulli( pv) marks independent of the identity sequence; values revealed only by querying; joint soundness Pr( certified ∧ f (xout ) < v ) ≤ δ): 
+
+Theorem S7.1 (oracle-only lower bound; the bound itself is classical — quantile bandits 15,16 ,cf. 65 ). For pv ≤ 1/2, any δ-sound oracle-only algorithm succeeding with probability ≥ 1/2 has 
+
+E[# queries ] ≥ ( 12 − 2δ)/p v.Proof. Let G be the event that some queried candidate is good, and Q the number of distinct queried candidates with marks B1, B 2, . . . in query order. 
+
+Step 1 (success implies a good query). Split the success event three ways: queried-and-good (⊆ G); certified-and-bad (probability ≤ δ by joint soundness); and unqueried-and-good. For the last, an unqueried candidate’s mark is independent of the transcript, so P(unqueried ∧ good) =  
+
+> pv
+> 1−pv
+
+P(unqueried ∧ bad) ≤ pv 
+
+> 1−pv
+
+δ ≤ δ for pv ≤ 12 . Hence 12 ≤ P( G) + 2 δ.
+
+Step 2 (previsible union bound). The event {Q ≥ k} is decided before the k-th mark is seen (marks are independent of the identity sequence), so P( Q ≥ k, B k=1) = pvP( Q ≥ k) and P( G) ≤ X
+
+> k≥1
+
+P( Q ≥ k, B k = 1) = pv
+
+X
+
+> k≥1
+
+P( Q ≥ k) = pv E[Q]. (S17) Combining the steps, E[Q] ≥ ( 12 − 2δ)/p v; total queries dominate Q.
+
+Theorem S7.2 (licensed screening) . Fix ρ ∈ (0 , 1/4] , δ ∈ (0 , 1) , Ta ≥ (2 /ρ ) log(1 /δ ). Audit: for 
+
+t ≤ Ta draw an M -pool, query the oracle at its champion, record Yt = f (ˆ xt); set ˆv = the ⌈2ρT a⌉-th smallest Yt. Then with probability ≥ 1 − δ over the audit, every future deployment (pools i.i.d. from the audited D, ˆf and M fixed) satisfies Pr( f (champion ) < ˆv) ≤ 4ρ, at amortized certified cost 1 + ( Ta + L)/T oracle calls per design ( L = surrogate-training labels). If ˆf is ε-margin order-preserving (Thm S6.1), ˆv reaches the (1 − log(1 /ρ )/M )-quantile of f minus ε: good-mass level 
+
+pv ≍ log(1 /ρ )/M .Proof. Let Y have the champion-value law, so the audit records i.i.d. copies Y1, . . . , Y Ta .
+
+Step 1 (a fixed threshold). Set u⋆ = sup {v : P( Y < v ) ≤ 4ρ}; right-continuity of CDFs gives P( Y ≤ u⋆) ≥ 4ρ.
+
+Step 2 (a bad license forces a rare binomial event). Suppose P( Y < ˆv) > 4ρ. Then ˆ v > u ⋆,so every sample ≤ u⋆ lies strictly below the ⌈2ρT a⌉-th order statistic, giving # {t : Yt ≤ u⋆} ≤ ⌈2ρT a⌉ − 1 < 2ρT a (ties only shrink the count). But that count stochastically dominates Bin( Ta, 4ρ), and by the multiplicative Chernoff lower tail, PBin( Ta, 4ρ) < 2ρT a
+
+ = P Bin < 12 μ ≤ e−μ/ 8 = e−ρT a/2 ≤ δ for Ta ≥ 2 
+
+> ρ
+
+log 1 
+
+> δ
+
+. (S18) So with probability ≥ 1 − δ over the audit, P( Y < ˆv) ≤ 4ρ.
+
+Step 3 (deployment). Future champions are fresh copies of Y (same D, ˆf , M ; pools independent), giving the display; costs are by construction. For a σ-noisy oracle the license carries an explicit slack at no extra rounds — Theorem S7.9 below. 
+
+Step 4 (the level the license reaches, final clause). Let q = q1−c/M be the (1 − c/M )-quantile of 
+
+f (X), X ∼ D, with c = log(1 /ρ ). The pool max falls below q with probability (1 −c/M )M ≤ e−c = ρ;28 if ˆf is ε-margin order-preserving the champion is within ε of its pool max (Theorem S6.1), so P( Y < q − ε) ≤ ρ. Hence # {t : Yt < q − ε} is stochastically dominated by Bin( Ta, ρ ), and ˆ v < q − ε
+
+requires that count to reach ⌈2ρT a⌉ ≥ 2ρT a, twice its mean; by the multiplicative Chernoff upper tail this has probability at most e−ρT a/3 ≤ δ2/3. So with probability ≥ 1 − δ2/3 over the audit, ˆv ≥ q1−log(1 /ρ )/M − ε: the license sits at good-mass level pv ≍ log(1 /ρ )/M .
+
+Corollary S7.3 (separation; the dichotomy) . At level pv ≍ log(1 /ρ )/M : oracle-only cost per certified design is Ω( M/ log(1 /ρ )) (Thm S7.1); the licensed pipeline pays (1+( Ta+L)/T )/(1 −4ρ) → 1/(1 −4ρ)
+
+per certified-good design — a Θ( M/ log(1 /ρ )) separation, conditional on the audit passing , with graceful degradation otherwise, in the following precise sense: the 4ρ validity of the license (Thm S7.2) holds for any surrogate, with no order-preservation assumption; what degrades is only the level ˆ v,for which no lower bound is claimed absent order preservation — a weak surrogate passes its audit honestly and certifies a weak floor, alerting the operator rather than deceiving them. Pseudo-labels pay exactly when the goal is “find and certify a good design,” never when it is “certify the best of this menu.” 
+
+S7.2 The ordinal audit gap: Θ( N ) vs Θ( N 2)
+
+Pool X1, . . . , X N i.i.d. ∼ D; champion ˆ x = arg max i ˆf (Xi); failure event FAIL =
+
+n
+
+max  
+
+> i
+
+f (Xi) − f (ˆ x) > ε 
+
+o
+
+. (S19) Two audit statistics, each measurable at 2 oracle calls per round (the second pits a fresh draw against the champion of an independent m-pool): 
+
+qinv = P (X,X ′)∼D2
+
+ f (X) − f (X′) > ε, ˆf (X′) ≥ ˆf (X), (S20) 
+
+qsel (m) = P  f (X′) > f (ˆ xm) + ε. (S21) 
+
+Theorem S7.4 (champion audits: tax Θ( N )) . Always P(FAIL) ≤ N q sel (N − 1) ; and a one-atom trap family ( π ≤ 1/2; f constant on the ordinary region) attains P(FAIL) ≥ (1 − 1/e ) min  1, (N −
+
+1) qsel (N − 1) .Proof. Upper bound. FAIL = ∪i≤N Ai with Ai = {f (Xi) > f (ˆ x) + ε}. On Ai we have Xi̸ = ˆ x, and removing a non-champion from a pool does not change the champion (the argmax of ˆf under a fixed tie order over a set S ∋ ˆx is still ˆ x for any S′ = S \ { z}, z̸ = ˆ x). Hence on Ai, ˆ x equals the champion of the ( N −1)-pool {Xj }j̸ =i, which is independent of Xi, so P( Ai) ≤ qsel (N − 1); union over i. (The shape is an exchangeability argument familiar from record values and conformal rank statistics; 31 the audit statement appears new.) 
+
+Tightness. Fix π ∈ (0 , 1/2]. Let D put mass π on an atom w with f (w) = B, ˆf (w) = −1, and mass 1 − π on a region R with f constant at B − ε − γ on R and ˆf ∈ (0 , 1) arbitrary there. The champion is never w when any R-point is present; if w lands in the pool alongside at least one 
+
+R-point, the pool max is w while the champion sits in R: regret ε + γ, failure. Hence P(FAIL) ≥ 1 − (1 − π)N − πN , qsel (m) = π(1 − πm) ≤ π, (S22) and for π ≤ 1/2 the πN correction is absorbed into the stated constant (checked over the full grid in the companion script). 29 Theorem S7.5 (pairwise audits: tax Θ( N 2)) . Always P(FAIL) ≤ N (N − 1) qinv . Conversely, for every N and all small πa, π b > 0 there are instances with qinv = πaπb exactly and 
+
+P(FAIL) ≥ 115 min(1 , N π a) min(1 , N π b), (S23) 
+
+so the upper bound is tight up to constants (numerically the sharp constant is (1 − 1/e )2). Proof. Construction. Fix 0 < δ ′′ < ε . D has three parts: atom a of mass πa with f (a) = 2 ε + δ′′ ,ˆf (a) = 1; atom b of mass πb with f (b) = 0, ˆf (b) = 2; and ordinary mass 1 − πa − πb with f ∈ [0 , δ ′′ ]and ˆf ∈ (0 , 1) order-preserving there. 
+
+Step 1 ( qinv is exactly the product). The only ordered pair with f -gap > ε and an inversion is (a, b ): pairs ( a, ord) have the gap but no inversion ( ˆf (a) = 1 > ˆf (ord)); pairs (ord , b ) and (ord , ord ′)have f -gaps ≤ δ′′ < ε . Hence qinv = πaπb.
+
+Step 2 (failure is exactly co-occurrence). If b is present the champion is b ( ˆf (b) = 2 is the global max); the pool max exceeds f (b) + ε iff a is also present (ordinary values are within δ′′ < ε of 
+
+f (b) = 0). If b is absent, the champion is a if present (pool max, regret 0) or the ordinary ˆf -max = ordinary f -max (regret 0). So P(FAIL) = P( a ∈ ∧ b ∈) =: J with, by inclusion–exclusion, 
+
+J = 1 − (1 − πa)N − (1 − πb)N + (1 − πa − πb)N . (S24) 
+
+Step 3 (the constant). The presence events are negatively correlated, so no naive product bound applies; instead use the exact integral identity (differentiate (S24) twice; J = 0 on the axes) 
+
+J = N (N − 1) 
+
+Z πb
+
+> 0
+
+Z πa
+
+> 0
+
+(1 − s − t)N −2 ds dt ≥ N (N − 1) πaπb (1 − πa − πb)N −2. (S25) For N π a, N π b ≤ 1 and N ≥ 2: N (N − 1) ≥ N 2/2 and (1 − πa − πb)N −2 ≥ (1 − 2/N )N −2 ≥ e−2, so 
+
+J ≥ 12e2 (N π a)( N π b) ≥ 115 min(1 , N π a) min(1 , N π b). Failure is a joint event priced by qinv at product 
+
+mass—the ordinal winner’s curse, one order higher. 
+
+Corollary S7.6 (what to audit) . For end-guarantee P(FAIL) ≤ ρ0: champion audits need qsel ≤
+
+ρ0/N (O(( N/ρ 0) log(1 /δ )) rounds); pairwise audits need qinv ≤ ρ0/N 2 (Theorem S7.5 is tight) — a robust factor-N separation between the two designs (precedent for “the audit statistic sets the audit cost”: risk-limiting election audits, ballot-comparison vs ballot-polling 18 ). One caveat: qsel 
+
+also contains genuine fresh-improvement mass ( Θ(1 /N ) even for a perfect surrogate), which is why the dichotomy of Section S7 licenses values rather than regret. The second caveat — that the guarantee so far concerns one audit design rather than all of them — is removed by Theorem S7.7: the champion audit’s total oracle cost is optimal among all designs, so the Θ( N ) tax is a property of the ordinal guarantee itself. 
+
+S7.3 A universal lower bound for ordinal-license audits, and the noisy-oracle license 
+
+Theorem S7.7 (no audit design certifies deployed selection quality in o(N/ρ 0) oracle queries) . Fix 
+
+ε ∈ (0 , B ), ρ0 ∈ (0 , 1/4] , δ ∈ [0 , 1/2) , and N ≥ log 2(2 /ρ 0). An auditor is any adaptive procedure that may draw candidates from a known D at no cost, evaluate a known, fixed ˆf anywhere at no cost, query the oracle f at drawn points at unit cost, and output pass or reject . Call it sound if on every instance with P(FAIL) ≥ ρ0 (deployment as in (S19) ) it passes with probability at most δ.There is a family of instances, sharing one surrogate and one candidate distribution and containing 
+
+30 a single perfectly safe member f0 (deployed failure 0 at every N ), on which every sound auditor spends 
+
+Ef0 [# oracle queries ] ≥  Pf0 (pass ) − δj N
+
+> 4ρ0
+
+k
+
+. (S26) 
+
+In particular, call an auditor nontrivial for the family if it passes the safe instance f0 with probability at least 1/2—an auditor failing this cannot license even a deployment on which the surrogate’s mistakes are provably harmless; every sound, nontrivial auditor spends at least ( 12 − δ)⌊N/ (4 ρ0)⌋
+
+expected oracle queries. Consequently an audit spending c oracle calls per round needs Ω( N/ (cρ 0)) 
+
+rounds, and the champion audit of Corollary S7.6 is optimal among all audit designs for the ordinal (regret) guarantee, up to the log(1 /δ ) factor. The bound holds a fortiori for noisy oracles. Proof. Construction. X = [0 , 1], D uniform. Fix the surrogate across all instances: ˆf = −1 on [0 , 12 ] (demoted region) and ˆf (x) = x on ( 12 , 1]. Partition [0 , 12 ] into K = ⌊N/ (4 ρ0)⌋ cells C1, . . . , C K
+
+of mass π = 2 ρ0/N each (feasible since Kπ ≤ 12 ). Instances: f0 ≡ 0, and fj = B · 1{Cj } for 
+
+j = 1 , . . . , K .
+
+Step 1 ( f0 is perfectly safe; each fj is unsafe). f0 is constant, so pool regret is identically 0 and deployed failure is 0 at every N : f0 is the family’s safe member. Under fj , the champion lies in [0 , 12 ] only when all N draws land there, probability 2 −N ≤ ρ0/2 by the assumption on N . If the pool hits Cj and the champion is outside [0 , 12 ], the pool max is B while f (ˆ x) = 0: failure. Hence, using 1 − (1 − π)N ≥ N π (1 − N π/ 2), P(FAIL) ≥ 1 − (1 − π)N  − 2−N ≥ 2ρ0(1 − ρ0) − ρ0 
+
+> 2
+
+≥ ρ0 (ρ0 ≤ 14 ), (S27) so soundness forces P fj (pass ) ≤ δ for every j.
+
+Step 2 (indistinguishability). All instances share D and ˆf , and fj agrees with f0 outside Cj .Couple runs of the auditor under f0 and fj (same internal randomness, same draws): transcripts coincide until the first oracle query lands in Cj . With Tj = {some oracle query lands in Cj },
+
+Pfj (pass ) − Pf0 (pass ) ≤ Pf0 (Tj ) =⇒ Pf0 (Tj ) ≥ Pf0 (pass ) − δ for every j. (S28) 
+
+Step 3 (counting). The cells are disjoint, so P 
+
+> j
+
+1{Tj } ≤ Q, the total number of oracle queries. Taking expectations under f0 and summing (S28) over j gives K Pf0 (pass ) − δ ≤ Ef0 [Q], which is (S26); the nontrivial case substitutes P f0 (pass ) ≥ 12 .
+
+Remark S7.8 . The auditor is granted free draws and full knowledge of D and ˆf , and the bound still holds: all K cells look identical through ( D, ˆf ), so hitting the live cell cannot be planned—the construction is the one-atom trap of Theorem S7.4 hidden among K interchangeable locations, and no query strategy beats blind search over them. For N < log 2(2 /ρ 0) a bound of the same character holds with K = ⌊βN/ (2 ρ0)⌋, β = ( ρ0/2) 1/N ; the stated regime is the deployment-relevant one. On the completeness condition: the statement pins it to the family’s safe member f0, which is what the coupling uses; the bound persists verbatim under any weaker completeness notion (e.g., “pass instances with deployed failure ≤ ρ0/2”) as long as it covers f0—and f0 is the canonical safe instance of the family, indistinguishable from the others through ( D, ˆf ); an auditor that rejects it half the time licenses nothing on this family. 
+
+Theorem S7.9 (noisy-oracle screening license: slack, not rounds) . In the setting of Theorem S7.2, let each audit query instead return ˜Yt = f (ˆ xt) + ηt with ηt independent, mean-zero, σ-sub-Gaussian, and keep the audit unchanged ( ˆv = the ⌈2ρT a⌉-th smallest ˜Yt; Ta ≥ (2 /ρ ) log(1 /δ )). Then for any slack γ > 0, with probability ≥ 1 − δ over the audit, every future deployment satisfies 
+
+P f (champion) < ˆv − γ ≤ 4ρ + e−γ2/(2 σ2). (S29) 31 In particular γ = σp2 ln(1 /ρ ) gives level 5ρ at no increase in audit rounds; averaging r repeated queries per champion shrinks the slack like 1/√r.Proof. Let Y be the champion-value law and ˜Y = Y + η; the audit samples are i.i.d. copies of ˜Y ,so Theorem S7.2 applied verbatim to the law of ˜Y yields an audit event of probability ≥ 1 − δ on which P( ˜Y ′ < ˆv) ≤ 4ρ for a fresh copy ˜Y ′. For any fixed v and a fresh deployment champion with value Y ′ and hypothetical audit noise η′,
+
+{Y ′ < v − γ} ⊆ { Y ′ + η′ < v } ∪ { η′ > γ } =⇒ P( Y ′ < v − γ) ≤ P( ˜Y ′ < v ) + e−γ2/(2 σ2). (S30) Apply at v = ˆ v (a function of the audit alone, independent of the fresh draw) and intersect with the audit event. 
+
+Remark S7.10 (how much slack is necessary) . For symmetric noise, γ = 0 remains valid at a constant-factor inflation: every point of Y -mass below v sends at least half its noise mass below 
+
+v, so P( ˜Y < v ) ≥ 12 P( Y < v ) and the no-slack license holds at level 8 ρ. For general mean-zero sub-Gaussian noise the slack is necessary: with an atom of Y -mass 4 .5ρ just below the license value and two-point noise taking −s with probability q and + sq/ (1 −q) otherwise ( s ≈ a(1 −q)/q ), the rare deep drops park below the license level while both atoms are lifted above it, and P( Y < ˆv) = 1 ≫ 4ρ
+
+with constant probability while (S29) holds throughout (numerical witness in the verification suite, Section S12). Quantiles, unlike means, do not concentrate without a margin; the theorem prices the margin explicitly and distribution-freely. 
+
+# S8 Extended experimental details and results 
+
+All experiments use oracles that are real trainings with exactly known ground truth, brute-forced once: Task 1 — 1,152 gradient-boosting configurations (3-fold CV on the diabetes dataset); Task 2 — 576 SVM configurations (breast-cancer data); Task 3 — all 15,625 NAS-Bench-201 architectures. Surrogates are standard performance predictors fit on 40–160 labeled configurations (Tasks 1–2) or 100–400 (Task 3). All scripts, tables, and figure generators ship in the ancillary code release (experiments/ ); every number in the paper regenerates from committed scripts with fixed seeds. 32 Theory prediction Measured Task(s) 
+
+Selection tax q ≤ 1 − (1 − p)N ,biting iff errors align with selection (Thm S6.3) never violated in any (fit, regime, N ) cell; alignment is per-fit: Task-2 ridge twins at p=0 .247 /0.252 deploy at 
+
+q=0 .000 /1.000; ten-fit Task-1 panels in Fig. 2 of the main text Tasks 1–2 Passive audits fail both direc-tions; selection-aware audit correct (Thms S6.3(iii), S7.7) passive rejects a safe deploy-ment ( p=0 .048, q=0 .000) and cannot separate the malign twin; champion-verification au-dit licenses correctly in every case Tasks 1–2 Accuracy ⊥ deployed failure (Thms S3.1–S3.3) 
+
+R2 flat while deployed failure spans 0 → 1.0Tasks 1–3 One-sided license (Thm S6.6) holds; and the same quan-tile recipe passes Task 1, fails Task 2 in one fit ( p=0 .116 →
+
+30% disappointment) — li-censes are per-fit, per-task Tasks 1–2 Verified proposals save oracle calls without touching validity (Thm S5.1) 94 vs 204 calls to equal ver-ified quality (2 .2×); contami-nated variant claims 0.43, de-livers 0.34 Task 1 (loop) Screening separation (Cor. S7.3) ∼ 33 × at M =100 (RF cham-pion good-rate 0 .33 at the top-1% level; training labels amor-tized) Task 1 Champion statistic is the deployment-calibrated diagnostic (Cor. S7.6) Spearman with deployed regret 0.89–0 .99 in all six task–regime cells; see Section S8.2 Tasks 1–3 
+
+S8.1 The selection tax, fit by fit 
+
+The v1 headline figure reported one fit per condition; v2 re-ran the Task-1 tax with ten independent fits per (regime, model) at train size 120 and disaggregates the ridge fits in the main-text figure. Facts quoted in the main text, all machine-checked by the verification suite (Section S12): the worst-case law is never violated; interpolating surrogates are benign at every N in both regimes (mean q(1000) ≤ 10 −3 at mean audited p up to 0 .33); the ridge fits are bimodal—under representative training, four of ten fits exceed q(1000) = 0 .97 while five sit below 0 .01, at audited rates within 
+
+±0.03 of one another; under biased training the same recipe peaks at mid-N (mean q(30) = 0 .31) and decays. The per-fit split, not the regime, carries the deployment risk on this task; on Task 3 the same recipe is deterministically catastrophic in both regimes. Together the three tasks span the full spectrum the theory allows—benign, bimodal, deterministic—which is exactly why no audit of the recipe (or the regime) can substitute for an audit of the fit. Figure S1 summarizes decision quality by model family and regime on this task, and Figure S2 shows the one-sided (no-disappointment) license check for the conservative surrogate. 33 Figure S1: Surrogate-zoo decision quality on Task 1: mean regret of the selected configuration at 
+
+N = 100, by model family and training regime. 
+
+Figure S2: The one-sided (no-disappointment) license on Task 1, per fit (two 160-label quantile fits): measured violation rates stay below each fit’s audited one-sided rate at every N and decay to zero; dashed curve, the min(1 , N p ) ceiling at the mean audited rate. 
+
+S8.2 The six-condition diagnostic study 
+
+The expanded diagnostic study covers all three tasks × both regimes: six families × three training sizes × four seeds = 72 fits per condition, 432 total (bootstrap 95% CIs over fits). Spearman correlation with deployed regret at N = 100: 34 Condition qsel qinv R2                  
+
+> Task 1 / representative 0.96 [0 .91–0 .98] 0.86 [0 .77–0 .90] 0.80 [0 .68–0 .87] Task 1 / biased 0.99 [0 .97–1 .00] 0.78 [0 .64–0 .86] 0.76 [0 .62–0 .85] Task 2 / representative 0.89 [0 .81–0 .94] 0.68 [0 .50–0 .80] 0.59 [0 .39–0 .74] Task 2 / biased 0.89 [0 .78–0 .96] 0.68 [0 .50–0 .81] 0.64 [0 .45–0 .78] Task 3 / representative 0.96 [0 .92–0 .98] 0.77 [0 .65–0 .84] 0.38 [0 .13–0 .59] Task 3 / biased 0.97 [0 .95–0 .98] 0.56 [0 .36–0 .71] 0.33 [0 .08–0 .54]
+
+A practical-budget replication re-estimates qsel for every fit from exactly Ta = 120 audit rounds (two oracle calls each, binomial noise ±0.03) drawn independently of the evaluation pools: the Spearman correlations become 0 .94 /0.90 (Task 1, biased/representative), 0 .83 /0.81 (Task 2), and 0.80 /0.90 (Task 3)—attenuated by estimation noise, still the best diagnostic in all six conditions, and still CI-disjoint from R2 on the combinatorial benchmark ([0 .70 , 0.86] vs [0 .08 , 0.54] biased; [0 .84 , 0.94] vs [0 .13 , 0.59] representative). The champion statistic dominates in every condition at both budgets; its one attenuation in the full-budget table (Task 2, 0 .89) tracks the near-tie structure of that pool (24 .8% of configurations within ε of the optimum, versus 8 .4% on Task 1 and 2 .5% on Task 3), which compresses deployed regret toward zero—the margin-condition regime (Thm S5.5, α
+
+large) in which selection matters least. One honest neutral: on smooth tasks under representative data, R2 and inversion rates remain serviceable; the collapse of R2 is specific to the combinatorial benchmark, and one cannot tell from the diagnostic itself when it will occur. (An earlier 10-fit pilot on the biased NB201 zoo gave 0 .99 /0.85 /0.37; the expanded study supersedes it.) Figure S3 shows the Task-2 replication of the model-family comparison. 
+
+Figure S3: Task 2 replication (SVM on breast-cancer data; 576 real trainings): mean regret of the selected configuration by model family and training regime. 
+
+S8.3 NAS-Bench-201 
+
+On the community benchmark (all 15,625 architectures with real trained accuracies; CIFAR-10 validation as the search oracle, ε = τ = 2 accuracy points) every phenomenon replicates and two sharpen. (i) The champion statistic qsel correlates with deployed regret at ≥ 0.96 in both regimes while R2 collapses in both (Section S8.2)—on a recognized benchmark, accuracy is close 35 to uninformative about deployed performance. (ii) The linear surrogate’s deployed failure reaches 0.95 at N = 100 and 1 .0 at N = 1000 even with representative training data : across our three tasks, benign-versus-malign error alignment is a (fit, task, data) property that only an audit can determine. (iii) Audited screening achieves a 25 × measured cost separation at M = 100, with champions averaging 87 .1% test accuracy against a global best of 89 .2% at one verification call per design. 
+
+S8.4 Licenses under objective drift 
+
+NAS-Bench-201 carries trained validation accuracies for the same 15,625 architectures on three datasets, which supplies real objective drift: a surrogate trained and audited against CIFAR-10 validation accuracy can be deployed against the CIFAR-100 or ImageNet16-120 objective, with the ground truth of both known exhaustively. Protocol: three surrogate families (random forest, GBM, ridge) × four seeds, 200 CIFAR-10 training labels each; quantile licenses per Theorem S7.2 at M = 100, ρ = 0 .05, δ = 0 .05 ( Ta = 120 champion audits per license); violation rates measured on 20,000 fresh deployment pools. Because the champion depends only on the surrogate, selections are identical across objectives; what drifts is the truth the license answers to.                      
+
+> home (CIFAR-10) CIFAR-100 ImageNet16-120 license violation rate (bound 4 ρ= 0 .20) 0.03–0 .10 ——renewed-license violation rate ( Ta= 120 calls) —0.06–0 .13 0.08–0 .13 champion percentile under that objective 0.79–0 .94 0.80–0 .94 0.78–0 .93 global Spearman( ˆf , objective) 0.59–0 .70 0.61–0 .69 0.61–0 .66
+> qsel re-measured against that objective 0.04–0 .15 0.04–0 .13 0.03–0 .14
+
+Three observations. (i) Every license held: 12 of 12 at home and 24 of 24 after renewal, all below the 4 ρ ceiling—and a renewal costs the same 120 oracle calls as the original audit, amortized over every decision the renewed license covers. (ii) The license value does not transfer (it is denominated in the audited objective); the license procedure does—which is the operational content of license expiry: void on drift, re-earn cheaply. (iii) On this benchmark family, the global diagnostic is blind to the drift: the surrogate’s global Spearman is ∼0.64 whether scored against the audited objective (0 .59–0 .70) or the drifted ones (0 .61–0 .69 and 0 .61–0 .66; the objectives themselves remain rank-correlated at 0 .93–0 .97), while champions remain ∼87th percentile and qsel ∼0.08 under all three truths: a mid-range global correlation is again close to uninformative about deployment, here underselling it, complementing the overselling failure on the biased-regime study. The audit statistic prices what matters—the top of the ranking under selection—in both directions, at two oracle calls per round. 
+
+S8.5 Candidate-distribution drift and license renewal 
+
+Remark S6.4 bounds license degradation under proposal-distribution drift additively by M β ,
+
+β = dTV (D′, D )—a worst-case bound that is vacuous at deployment pool sizes for any non-trivial drift. This experiment measures what actually happens, with β known exactly: D′ = (1 −w)D +w Unif( A), where A is the adverse (weak) third of NB201 (34 .5% of cells with ≥2 none operations; mean accuracy 0 .647 vs. 0 .689 global), so dTV (D′, D ) = w(1 − | A|/n ) exactly. Twelve licensed fits (R1 protocol), four drift weights; we test the adverse direction only, since drift toward stronger candidates can only raise champion values and therefore only slackens this one-sided license: 36 drift weight w 0.05 0.15 0.30 0.60                      
+
+> β=dTV (D′, D )0.033 0.098 0.197 0.393 transfer bound min(1 ,4ρ+M β )1.01.01.01.0stale-license violation (12 fits) 0.07–0 .18 0.06–0 .19 0.07–0 .22 0.08–0 .27 renewed-license violation 0.06–0 .18 0.06–0 .15 0.06–0 .16 0.06–0 .12
+
+Home violations: 0.06–0 .17, all within the 4 ρ = 0 .20 ceiling. Three observations. (i) The worst-case M β bound is uninformative at every tested drift (it saturates at 1 already for β = 0 .033), yet measured stale-license degradation is gradual: the ceiling is first breached only at β ≈ 0.2 (max 0.218), reaching 0 .27 at β = 0 .39. The gap has a structural reason: the champion is the max of 
+
+M draws, so mixing weak candidates into the pool rarely changes the argmax until the mixture dominates. (ii) Renewal under D′ (the same Ta = 120-call audit, pools drawn from D′) restored validity at every weight: 48 of 48 renewed licenses within the ceiling. (iii) Since β is unobservable in practice while renewal is cheap, the operational content of Remark S6.4 is not the bound but the doctrine: treat licenses as void on drift and re-earn them. 
+
+S8.6 Comparison with a marginal conformal floor 
+
+The simplest deployed alternative to the audit license is a one-sided marginal split-conformal floor: 12 
+
+label ncal i.i.d. candidates, take the ⌈(ncal +1)(1 −α)⌉-th smallest over-prediction score q, and attach the floor L(x) = ˆf (x) − q to any candidate. We compare at matched oracle cost and matched nominal level ( ncal = Ta = 120; α = 4 ρ = 0 .2; 16 configurations: Tasks 1 and 3 × RF/ridge × both regimes × 2 seeds). On fresh candidates from the calibration distribution the conformal floor behaves exactly as advertised (miscoverage 0 .12–0 .23 around the nominal 0 .20 across the 16 configurations). At the champion of an M = 100 screen—the only candidate a screening campaign acts on—its violation rate ranged from 0 .00 to 0 .99 (Task 1 mean 0 .35; Task 3 mean 0 .48; worst configuration: biased-trained ridge on NB201, 0 .99), while the champion-audit license held at 0 .04–0 .15 in every configuration, against the same 0 .20 guarantee. Tightness does not rescue the marginal floor either: in the 6 of 16 configurations where it happened to remain valid at champions, its mean floor sat at the 0 .68 quantile of f against the audit floor’s 0 .84—the audit was both the valid and the tighter certificate. This is Theorem S6.3’s audit–deployment gap acting on a certificate : marginal calibration, like marginal auditing, prices errors where selection does not look. Selection-conditional conformal methods 13 repair exactly this and remain the natural machinery to import where their exchangeability requirements hold (Section S10); the audit license achieves selection-validity with marginal-conformal simplicity. 
+
+S8.7 The measured price of certificates 
+
+To complement the recommendation loop of Fig. 3 with the certified protocol it deliberately is not, we ran vectorized Gated-SE (Theorem S5.4) on the full 1,152-config Task-1 table with σ = 0 .05 noisy queries, δ = 0 .1 (10 seeds per tolerance). At ε = 5% of the objective range, every run returned a correct ε-certificate (10/10; mean certified regret 0 .000) at a mean cost of 480 ,555 oracle calls; at ε = 10%, 10/10 correct at 274 ,144 calls. Against the 340-call uncertified recommendation loop, the certificate premium is three orders of magnitude (1 ,413 × at ε = 5%)—the tabular floor and near-tie core (Theorem S5.5; 8 .4% of this pool lies within ε of the optimum) made concrete, and the quantitative case for the licensed generative route of Theorem S7.2, which buys its guarantees per 
+
+campaign rather than per menu .37 S8.8 Which fits go malign? Label-free predictors 
+
+Section S8.1 documented that malignancy is a per-fit property; open problem (5) asks which fit-level quantities predict it. As a seed, we computed four deployment-label-free predictors for 120 Task-1 fits (ridge and GBM, train size 120, 30 seeds × both regimes; 27 malign fits with q(1000) > 0.5): the mean feature-space distance of the fit’s top-10 ranked candidates to the nearest training point; the champion prediction’s overshoot above the largest training label; the top-10’s Mahalanobis distance from the training distribution; and the top-10 predicted-value spread.                      
+
+> AUC for malign ( q(1000) >0.5) top-dist overshoot Mahalanobis top-spread ridge fits ( n= 60, 20 malign) 0.97 0.996 0.93 0.62 GBM fits ( n= 60, 7 malign) 0.35 0.37 0.44 0.53 pooled ( n= 120) 0.64 0.65 0.70 0.56
+
+The result is sharply two-sided. For the linear family, extrapolation geometry is almost sufficient: a ridge fit whose top-ranked candidates sit far from its training data, or whose champion prediction overshoots everything it has seen, is almost surely malign (AUC 0 .97–0 .996); conversely, benign ridge fits are the ones whose top-ranked candidates sit at training points. For tree ensembles the same geometry carries no usable signal in this sample (AUC 0 .35–0 .53 with only 7 malign GBM fits; Mann–Whitney p ≥ 0.19): their malignancy arises from over-fit optimism at the very top of the ranking rather than geometric extrapolation, and none of the four quantities detects it here. We report this exploratory finding (one task, one training size) as evidence that per-fit alignment admits model-specific precursors but, so far, no model-agnostic one—which is precisely the gap the model-agnostic selection-aware audit fills at two oracle calls per round. 
+
+S8.9 The label budget: landscapes, policies and damage protocols 
+
+This section gives the complete protocols behind Section 4.6, and records the one formal statement that study rests on. 
+
+Proposition S8.1 (The audit term of the budget is a floor) . Fix N ≥ 2, ρ ∈ (0 , 1) , δ ∈ (0 , 1) ,and let a license be issued iff N ¯qδ(KT , T ) ≤ ρ, where KT is the number of regret events in T
+
+champion-audit rounds and ¯qδ the one-sided binomial upper confidence limit. Then (i) no outcome with T < T min := min {T : N ¯qδ(0 , T ) ≤ ρ} issues the license, for any surrogate, so every campaign pays at least 2Tmin audit calls; (ii) Tmin ≤ ⌈ ln(1 /δ )/ ln(1 /(1 − ρ/N )) ⌉ = ( N/ρ ) ln(1 /δ ) (1 + O(ρ/N )) ;and (iii) no alternative audit design certifies the same deployed-failure guarantee below order N/ρ 
+
+calls. Proof. (i) is monotonicity of ¯ qδ(k, T ) in k: the bound at k = 0 is the best achievable at depth 
+
+T , so if even it exceeds ρ/N no event count can pass. (ii) At k = 0 the Clopper–Pearson limit solves (1 − ¯q)T = δ, giving ¯ qδ(0 , T ) = 1 − δ1/T ; solving N (1 − δ1/T ) ≤ ρ yields the stated T . (iii) is Theorem 14 (the universal audit lower bound of Section S7), which applies to arbitrary audit designs. 
+
+Landscapes. All studies use tables of 12 ,000 candidates with descriptors drawn uniformly from [0 , 1] d and a noiseless oracle. The feasible landscape places a flat-topped optimum (a plateau of height 120 and radius 0 .16 in the first two descriptors, Gaussian falloff of scale 0 .004 outside it) against three deceptive mid-value decoys (Gaussian peaks of heights 95, 90, 85 and scales 0 .012, 0.010, 0 .015) plus a low-amplitude sinusoidal texture (amplitude 3); its top-ε set has mass ≈0.10, 38 and the champion-audit statistic returns 0 .037 for a surrogate scoring at the truth, which is the floor the maps in Figure 4 approach from above. The easy variant uses d = 2; the hard variant appends six independent nuisance descriptors ( d = 8) that leave the oracle unchanged. The crowded-race 
+
+landscape (called infeasible in versions up to v10, a name we withdraw) replaces the plateau with near-tied narrow peaks (heights 100 /80 /70 /60, sinusoidal amplitude 25), for which the champion-audit statistic returns ≈0.73 even for a surrogate scoring at the truth, at the same ( ε, N, ρ ). Per Remark 15 that number bounds what this statistic can certify here; it does not bound what a selector can achieve, since regret for a perfect selector is zero on this landscape as on every other. Throughout, N = 100, ρ = 0 .10, δ = 0 .05, and ε = τ at 5% of the oracle range. 
+
+Policies and evaluation. Policies label in batches of 100 (first batch uniform), to 3 ,200 labels, three seeds: uniform (random batches); exploit-top (label the highest-predicted unlabeled candidates under a 120-tree random forest refit each batch); uncertainty (largest tree-ensemble spread); hybrid 
+
+(half exploit, half uniform). At each checkpoint a 200-tree random forest is fit to the labeled set (predictions on labeled candidates replaced by their labels), and its selector is audited by the champion audit for 8 ,000 rounds. Verdicts at smaller audit depths are evaluated on the audit’s prefix, which is distributionally identical to a shorter audit because rounds are i.i.d.; this makes the full budget plane cost one audit per checkpoint. Certified bounds reported are N ¯qδ(events , T a); budget-plane maps average three seeds and smooth for display only (log-domain Gaussian, σ = 0 .8grid cells); all quoted numbers are unsmoothed. 
+
+Frontier measurements. On the hard landscape, labels-to-earnable at ρ ∈ { 0.30 , 0.15 , 0.10 , 0.05 }
+
+were 200 /200 /400 /800 (uniform), 200 /200 /400 /800 (uncertainty), 400 /800 /1,600 /3,200 (hybrid), and 800 /1,600 /1,600 /3,200 (exploit-top), against audit floors 2 Tmin = 1 ,996 /3,992 /5,990 /11 ,980; the cheapest ρ = 0 .10 license on the dense grid is 600 + 6 ,742 = 7 ,342 calls (uniform) versus 1,800 + 6 ,742 = 8 ,542 (exploit-top). On the easy landscape every policy is within 2% of the audit-only floor. On the crowded-race landscape no policy improves the bound at any budget: by Proposition S8.1(i) no outcome below Tmin issues a license, and above it the statistic is already saturated at its idealized-surrogate value, so labeling cannot help. 
+
+Damage and repair protocols. Starting from perfect predictions on the easy landscape, a fraction f ∈ { 0.005 , . . . , 0.20 } of candidates is overestimated by s ∈ { 0.5, 1, 2, 4, 8} × ε (three seeds). The certified bound stays at the intrinsic floor for s ≤ ε at every f tested; the ρ = 0 .10 boundary lies at s ≈ 1.2–2 .3 ε across two decades of f ; the case ( f, s ) = (0 .05 , ε ) certifies at bound 0 .051 after 
+
+≈3,800 rounds. For failing models ( s = 2 ε), predictions are corrected (set to oracle values, one call each) in doubling batches under two orders—decreasing predicted value (“verify the champions”) versus uniformly at random—until the license is restored: 50–530 corrections suffice under the targeted order (rising with f ), while random correction restored no tested case within 6 ,400. 
+
+# S9 Relation to prior work 
+
+This section separates what is classical from what we claim, result by result, and states explicitly where an adjacent literature requires differentiation. We take the most conservative reading available in every case: where a result is standard in another setting, we say so and cite it, and we claim only the assembly. 39 S9.1 Classical or known results, cited and not claimed 
+
+Certificates and elimination rules (Prop. S2.4) are LUCB/UGapE/action-elimination 39,41,47 ; the 
+
+δ/t 2 schedule and its LIL sharpenings 39,42–44 ; the regret decomposition 6,46 ; simulation lemma and action-gap stability 40,49,57 ; sub-Gaussian maxima and winner’s-curse lineage 6,7,32,34 ; the change-of-measure technique of Theorem S6.2 10,52 ; the upper bound of Theorem S6.3(i) is an elementary union bound. 
+
+S9.2 Adjacent work requiring explicit differentiation 
+
+• Theorem S6.1. Sufficiency of exact order preservation for whole-space argmax is Theorem 1 of 9;ranking-error upper bounds on regret appear in 51 . The pool-uniform, ε-margin if-and-only-if 
+
+was not found; we position it as a clarifying lemma, not a headline. 
+
+• Theorem S6.2. Verification-versus-identification equivalence is known for structured bandits 11 ;sequential tests for “is this arm best” with matching lower bounds exist 10,48 . Our framing (auditing an external surrogate’s decision, tolerance inflating the effective gap) was not found stated; the mathematical content is standard. 
+
+• Theorem S6.6. Highest-overlap neighborhood. Conformal selection controls FDR among prediction-selected units 12 ; selection-conditional conformal coverage — including top-K and hence argmax selection — delivers one-sided post-selection bounds with exchangeable calibration and no union-bound N -factor 13 ; coverage for designed/selected candidates under feedback covari-ate shift exists for MBO 14 . What remains ours is only the assumption-light packaging (abstract audited rate p, explicit N p deployed-error accounting, license framing); where exchangeability holds, the machinery of 13 is the sharper instrument and should be preferred. 
+
+• Theorem S6.3. The qualitative phenomenon — selection amplifies rare over-estimates — is the opti-mizer’s curse 6 and appears empirically in verifier-based resampling 5 and reward-overoptimization studies 4,31 ; deployment-simulating evaluation has been advocated empirically 60 ; audit-cost lower bounds of a different origin appear in 58 . Not found anywhere: the matching worst-case construction making Θ(min(1 , N p )) tight as a function of an audited failure rate , and the Ω( N/ρ )-versus-O(ρ−1 log(1 /δ )) oracle-query separation between passive and selection-aware audit designs. These two elements are the defensible core of Theorem S6.3. 
+
+S9.3 The claimed contributions 
+
+1. The separation-principle pair (Thms S5.1, S5.2): a certification architecture provably invariant to arbitrary pseudo-label bias, with a probability-one failure construction showing the architecture is necessary, in an adaptive inverse-design loop where the surrogate’s own outputs re-enter as labels. Four-component check (adaptive search; surrogate labels inserted as observations; decision-stability abstention; regret–cost guarantee under adaptive selection): no located paper has all four. Nearest, three of four each: 55 (no labels entering the learner), 45 (uncertainty gate, not decision stability), MF-GP-UCB 17 (given physical fidelities, not the loop’s own surrogate), CARE 59 (no guarantee). 2. The margin-law oracle-complexity bound for certified search over a finite pool in three regimes (Thm S5.5); condition and technique known in adjacent settings 36,40,54,56 , this statement not found assembled. 3. The audit–deploy separation of Theorem S6.3(ii)(iii), as above. 40 4. Sharp two-directional statements of the accuracy/decision separations (Thm S3.1; known in spirit 35,38,51 ). No literature search can establish the absence of prior work, and these claims should be read as the outcome of a systematic but finite one; the search protocol is released with the project materials so that its scope can be judged. 
+
+S9.4 Positioning of the strict-improvement results 
+
+Theorem S7.1 is known: the Ω(1 /p v) lower bound is classical quantile-bandit territory; 15,16 the verifiable-versus-unverifiable distinction of 65 is the closest conceptual neighbor for audit-conditioning. Theorem S7.2 is a recombination: calibration rates and abstention are Learn-then-Test and selective-guarantee territory 61,64 , selection-conditional validity is 13 ; nearest single relatives are 28 (cheap LLM judge + limited human audits; no quantile license, no separation) and MF-GP-UCB 17 (assumes 
+
+the cheap-signal error bound that we audit ). For Corollary S7.3 we located no counterpart: no screened-versus-unscreened certified-oracle-cost separation with a matching baseline lower bound appears in cascades, virtual screening (enrichment factors are never converted to budget theorems), conformal selection, multi-fidelity BO, or best-of-n; nearest neighbor requiring differentiation: 62 
+
+(audit cost of a screen’s missed recall — same 1 /p family, different certified object). The ingredients of Theorem S7.4 are classical — record values and exchangeability — while the audit statement itself we did not find. For the tightness half of Theorem S7.5 we located no Θ( N 2) matching-gap statement in learning-to-rank regret transfer (pairwise-to-listwise bounds are one-directional 63 ), noisy max-finding, or selective inference. The prescription of Corollary S7.6 appears to be new, with 18 as precedent. One further neighbor deserves explicit treatment: conformal candidate certification for offline MBO 66 attaches calibrated one-sided lower bounds to proposed designs, but its guarantee is, by that paper’s own statement, marginal over a fresh candidate and does not imply post-selection validity conditional on selection — i.e., it is the non-selection-aware ancestor of our Theorem S7.2 licenses, and its explicit disclaimer marks precisely the gap the selection-aware audit fills. 
+
+S9.5 Proxy-assisted bandits and winner’s-curse corrections 
+
+Five further neighbors require differentiation. (1) 29 (PROBE): fixed-confidence best-arm identifi-cation where every costly pull is paired with a cheap correlated proxy of known marginal mean; control-variate analysis attains near-oracle sample complexity. Differentiation: fixed-menu iden-tification with an assumed proxy model versus our generative-goal certification with a measured 
+
+license; their guarantee consumes proxy correlation as an input, our audit outputs it. (2) 67 (MLA-UCB): cumulative-regret bandits with ML-generated surrogate rewards, provably robust to arbitrary surrogate-mean misalignment. Differentiation: regret minimization versus certification; no license object. (3) 25 and 26 : analytic and order-statistic corrections for the optimizer’s-curse bias of a selected maximum — the estimation-side complement of Theorem S3.3’s worst-case bounds (they de-bias the reported value; we bound and audit the deployed failure). (4) 27 : instance-optimal multi-fidelity best-arm identification — the sharpest form of the assumed-fidelity paradigm that Theorem S7.2 replaces with a measured one. (5) 68 and the inflated-argmax line 69 : post-selection inference and stability for selected winners — inference on the winner’s value after selection, com-plementary to our pre-deployment licensing of the selector . For Theorem S7.7, no lower bound over arbitrary audit designs for a deployed-selection guarantee was located in the property-testing, active-testing 70 , or safety-evaluation 58 literatures; the nearest results bound passive-sample audits only. Theorem S7.9’s slack-not-rounds form was not found; noisy-quantile analyses assume margins rather than price them. 41 S10 Limitations and open problems 
+
+The theory presented here settles five questions: strict improvement for value targets (the dichotomy of Section S7); the ordinal audit gap, Θ( N ) against Θ( N 2), tight; the audit-design floor, in the strong total-query form of Theorem S7.7 rather than merely over two-call designs; the noisy-oracle license (Theorem S7.9); and the policy-selection half of the sequential extension, with the replay-buffer contamination result made formal (Section S5.1). Five questions remain open. (1) 
+
+regret-type strict improvement in structured classes (linear/RKHS) — the tabular floor of Remark S5.6 forbids it in pools, and Theorem S7.2 licenses values, not regret; this is the main prize. (2) Credit assignment : certifying a policy improvement step (not a selection among K
+
+fixed policies) from real transitions only, in the compounding-error regime (Remark S5.9); the selection half is settled by Corollary S5.7. (3) Sharper selection-conditional licenses by importing 13 
+
+into the loop, where exchangeability survives adaptivity. (4) Constants: the gap between the ( 12 − δ)⌊N/ 4ρ0⌋ floor of Theorem S7.7 and the champion audit’s O(( N/ρ 0) log(1 /δ )) upper bound, and noise-optimal audit designs interpolating between Theorem S7.9’s slack and repeated-query averaging. (5) A distributional theory of the per-fit benign/malign bimodality documented in Section S8.1: which fit-level quantities of a trained surrogate predict its alignment? Section S8.8 gives a first empirical answer— extrapolation geometry is nearly sufficient for linear fits (AUC up to 0 .996) yet carries no signal for tree ensembles—so the open problem sharpens to: is there a model-agnostic, deployment-label-free precursor of malignancy, or is the audit’s model-agnosticism essential? Our guarantees are for the single-decision (pool/generative) setting; results are distribution-free but finite-sample constants are not optimized; the strict-improvement license certifies values , not regret, and all cost gains are conditional on audits passing — we view the conditionality as a feature (trust is measured, never assumed), but it means no unconditional speedup is claimed. 
+
+# S11 Conclusion 
+
+Train on anything; certify only with clean oracle statistics; audit where the search actually points; re-audit when anything moves. Each clause of that sentence is now a theorem with an experiment attached. The framework converts “is this surrogate good enough to trust?” from a judgment call about accuracy into a measurable, license-shaped question — one we intend to ask, next, of surrogate models proposed across the design sciences. 
+
+# S12 Verification methodology 
+
+Every proof passed three passes of adversarial review, each conducted separately from the drafting pass and charged with refuting the statements rather than confirming them (37 defects surfaced and repaired across the theory documents — incorrect constants, an overclaimed quantifier, two proof gaps, one broken construction — none fatal to a theorem statement). Every checkable claim is exercised by committed scripts (four verification suites in the accompanying code release; more than 50 checks, all passing), including: exact algebra of Theorems S3.1–S3.3; empirical anytime coverage of Lemma S4.2 under an adversarial adaptive query rule; the deterministic failure trace of Theorem S5.2; exhaustive verification of the Theorem S6.1 equivalence over all pools of small ground sets; Monte-Carlo agreement of Theorem S6.3(ii) to three decimals; the cost-regime behavior of Theorem S5.5 (a simulation caught and fixed a looseness in its first draft); the unsafe-instance parameters and hitting-probability identity of Theorem S7.7; and the noisy-license slack of Theorem S7.9, where the 42 verification loop caught a wrong first draft of the necessity example — symmetric noise provably cannot break the no-slack license (it only inflates the rate to 8 ρ; Remark S7.10), so the committed counterexample uses asymmetric mean-zero noise, for which the γ = 0 license fails in 100% of simulated audits while the slack license held in all of them. A v2 replication in a fresh computational environment re-ran every experiment and verification suite end-to-end, reproducing all reported statistics to the third decimal. 43 References 
+
+[1] Trabucco, B.; Kumar, A.; Geng, X.; Levine, S. Conservative Objective Models for Effective Offline Model-Based Optimization. Proc. 38th Int. Conf. Machine Learning (ICML) 2021 .[2] Trabucco, B.; Geng, X.; Kumar, A.; Levine, S. Design-Bench: Benchmarks for Data-Driven Offline Model-Based Optimization. Proc. 39th Int. Conf. Machine Learning (ICML) 2022 .[3] White, C.; Zela, A.; Ru, B.; Liu, Y.; Hutter, F. How Powerful Are Performance Predictors in Neural Architecture Search? Adv. Neural Inf. Process. Syst. (NeurIPS) 2021 .[4] Gao, L.; Schulman, J.; Hilton, J. Scaling Laws for Reward Model Overoptimization. Proc. 40th Int. Conf. Machine Learning (ICML) 2023 .[5] Stroebl, B.; Kapoor, S.; Narayanan, A. Inference Scaling Flaws: The Limits of LLM Resampling with Imperfect Verifiers. arXiv 2024 , 2411.17501. [6] Smith, J. E.; Winkler, R. L. The Optimizer’s Curse: Skepticism and Postdecision Surprise in Decision Analysis. Manage. Sci. 2006 , 52 , 311–322. [7] Capen, E. C.; Clapp, R. V.; Campbell, W. M. Competitive Bidding in High-Risk Situations. J. Pet. Technol. 1971 , 23 , 641–653. [8] Dong, X.; Yang, Y. NAS-Bench-201: Extending the Scope of Reproducible Neural Architecture Search. 
+
+Int. Conf. Learning Representations (ICLR) 2020 .[9] Lyu, Y.; et al. Offline Model-Based Optimization by Learning to Rank. Int. Conf. Learning Representa-tions (ICLR) 2025 .[10] Kaufmann, E.; Capp´ e, O.; Garivier, A. On the Complexity of Best-Arm Identification in Multi-Armed Bandit Models. J. Mach. Learn. Res. 2016 , 17 , 1–42. [11] Karnin, Z. Verification Based Solution for Structured MAB Problems. Adv. Neural Inf. Process. Syst. (NeurIPS) 2016 .[12] Jin, Y.; Cand` es, E. J. Selection by Prediction with Conformal p-Values. J. Mach. Learn. Res. 2023 , 24 ,1–41. [13] Jin, Y.; Ren, Z. Confidence on the Focal: Conformal Prediction with Selection-Conditional Coverage. J. R. Stat. Soc. B 2025 , 87 , 1239–1263. [14] Fannjiang, C.; Bates, S.; Angelopoulos, A. N.; Listgarten, J.; Jordan, M. I. Conformal Prediction under Feedback Covariate Shift for Biomolecular Design. Proc. Natl. Acad. Sci. U.S.A. 2022 , 119 ,e2204569119. [15] Chaudhuri, A. R.; Kalyanakrishnan, S. PAC Identification of a Bandit Arm Relative to a Reward Quantile. Proc. 31st AAAI Conf. Artificial Intelligence 2017 .[16] Aziz, M.; Anderton, J.; Kaufmann, E.; Aslam, J. Pure Exploration in Infinitely-Armed Bandit Models with Fixed-Confidence. Proc. Algorithmic Learning Theory (ALT) 2018 .[17] Kandasamy, K.; Dasarathy, G.; Oliva, J.; Schneider, J.; P´ oczos, B. Multi-Fidelity Gaussian Process Bandit Optimisation. J. Artif. Intell. Res. 2019 , 66 , 151–196. [18] Stark, P. B.; Wagner, D. A. Evidence-Based Elections. IEEE Secur. Priv. 2012 , 10 , 33–41. [19] Merchant, A.; Batzner, S.; Schoenholz, S. S.; Aykol, M.; Cheon, G.; Cubuk, E. D. Scaling Deep Learning for Materials Discovery. Nature 2023 , 624 , 80–85. 
+
+44 [20] Szymanski, N. J.; Rendy, B.; Fei, Y.; et al. An Autonomous Laboratory for the Accelerated Synthesis of Novel Materials. Nature 2023 , 624 , 86–91; Author Correction 2026 .[21] Leeman, J.; Liu, Y.; Stiles, J.; Lee, S. B.; Bhatt, P.; Schoop, L. M.; Palgrave, R. G. Challenges in High-Throughput Inorganic Materials Prediction and Autonomous Synthesis. PRX Energy 2024 , 3,011002. [22] Cheetham, A. K.; Seshadri, R. Artificial Intelligence Driving Materials Discovery? Perspective on the Article: Scaling Deep Learning for Materials Discovery. Chem. Mater. 2024 , 36 , 3490–3495. [23] Riebesell, J.; Goodall, R. E. A.; Benner, P.; Chiang, Y.; Deng, B.; et al. A Framework to Evaluate Machine Learning Crystal Stability Predictions. Nat. Mach. Intell. 2025 , 7 ; DOI 10.1038/s42256-025-01055-1. [24] Schneider, L.; Bischl, B.; Feurer, M. Overtuning in Hyperparameter Optimization. Proc. AutoML Conf. 
+
+2025 .[25] Iyengar, G.; Lam, H.; Wang, T. Optimizer’s Information Criterion: Dissecting and Correcting Bias in Data-Driven Optimization. arXiv 2023 , 2306.10081. [26] McLatchie, Y.; Vehtari, A. Efficient Estimation and Correction of Selection-Induced Bias with Order Statistics. Stat. Comput. 2024 , 34 , 132. [27] Poiani, R.; Degenne, R.; Kaufmann, E.; Metelli, A. M.; Restelli, M. Optimal Multi-Fidelity Best-Arm Identification. Adv. Neural Inf. Process. Syst. (NeurIPS) 2024 .[28] Ao, R.; Chen, H.; Gao, S.; Li, H.; Simchi-Levi, D. Best Arm Identification with LLM Judges and Limited Human Audits. arXiv 2026 , 2601.21471. [29] Ma, T.; Qin, H.; Zhu, R.; Zuo, J. Best-Arm Identification with Generative Proxy. arXiv 2026 , 2607.06879. [30] Y. Abbasi-Yadkori, D. P´ al, C. Szepesv´ ari. Improved algorithms for linear stochastic bandits. NeurIPS 2011. [31] A. Beirami et al. Theoretical guarantees on the best-of-n alignment policy. ICML 2025. arXiv:2401.01879. [32] R. Berk, L. Brown, A. Buja, K. Zhang, L. Zhao. Valid post-selection inference. Ann. Statist. 41(2), 2013. [33] D. Bertsekas, J. Tsitsiklis. Neuro-Dynamic Programming. Athena Scientific, 1996. [34] S. Boucheron, G. Lugosi, P. Massart. Concentration Inequalities. Oxford UP, 2013. [35] C. Cameron, J. Hartford, T. Lundy, K. Leyton-Brown. The perils of learning before optimizing. AAAI 2022. [36] R. Castro, R. Nowak. Minimax bounds for active learning. IEEE Trans. IT 54(5), 2008. [37] S. R. Chowdhury, A. Gopalan. On kernelized multi-armed bandits. ICML 2017. [38] A. Elmachtoub, P. Grigas. Smart “predict, then optimize”. Management Science 68(1), 2022. [39] E. Even-Dar, S. Mannor, Y. Mansour. Action elimination and stopping conditions for the multi-armed bandit and reinforcement learning problems. JMLR 7, 2006. [40] A. M. Farahmand. Action-gap phenomenon in reinforcement learning. NeurIPS 2011. [41] V. Gabillon, M. Ghavamzadeh, A. Lazaric. Best arm identification: a unified approach to fixed budget and fixed confidence. NeurIPS 2012. 
+
+45 [42] S. Howard, A. Ramdas, J. McAuliffe, J. Sekhon. Time-uniform, nonparametric, nonasymptotic confidence sequences. Ann. Statist. 49(2), 2021. [43] K. Jamieson, M. Malloy, R. Nowak, S. Bubeck. lil’UCB: an optimal exploration algorithm for multi-armed bandits. COLT 2014. [44] K. Jamieson, R. Nowak. Best-arm identification algorithms for multi-armed bandits in the fixed confidence setting. CISS 2014. [45] K. Ji, J. He, T. Yang, Q. Zhang, Q. Gu. Reinforcement learning from human feedback with active queries. 2024. arXiv:2402.09401. [46] Y. Jin, Z. Yang, Z. Wang. Is pessimism provably efficient for offline RL? ICML 2021. [47] S. Kalyanakrishnan, A. Tewari, P. Auer, P. Stone. PAC subset selection in stochastic multi-armed bandits. ICML 2012. [48] E. Kaufmann, W. Koolen. Mixture martingales revisited with applications to sequential tests and confidence intervals. JMLR 22, 2021. [49] M. Kearns, S. Singh. Near-optimal reinforcement learning in polynomial time. Machine Learning 49, 2002. [50] T. Lattimore, C. Szepesv´ ari. Bandit Algorithms. Cambridge UP, 2020. [51] Y. Lyu et al. On the learnability of offline model-based optimization: a ranking perspective. 2026. arXiv:2603.04000. [52] S. Mannor, J. Tsitsiklis. The sample complexity of exploration in the multi-armed bandit problem. JMLR 5, 2004. [53] O. Maron, A. Moore. Hoeffding races: accelerating model selection search. NeurIPS 1993. [54] V. Perchet, P. Rigollet. The multi-armed bandit problem with covariates. Ann. Statist. 41(2), 2013. [55] A. Sekhari, K. Sridharan, W. Sun, R. Wu. Selective sampling and imitation learning via online regression. NeurIPS 2023. [56] M. Simchowitz, K. Jamieson. Non-asymptotic gap-dependent regret bounds for tabular MDPs. NeurIPS 2019. [57] S. Singh, R. Yee. An upper bound on the loss from approximate optimal-value functions. Machine Learning 16, 1994. [58] M. Srivastava. Fundamental limits of black-box safety evaluation. 2026. arXiv:2602.16984. [59] Z. Wang et al. When self-belief misleads: active label acquisition for RLVR (CARE). 2025. arXiv:2605.25864. [60] J. Williams, C. Sheahan, A. Raymond, T. Korbak. Predicting LLM safety before release by simulating deployment. 2026. arXiv:2607.07184. [61] A. Angelopoulos, S. Bates, E. Cand` es, M. I. Jordan, L. Lei. Learn then test: calibrating predictive algorithms to achieve risk control. Ann. Appl. Statist., 2025. arXiv:2110.01052. [62] L. Anthony, S. Nobari. Certifying technology-assisted review: audit lower bounds for screening recall. 2026. arXiv:2607.21480. [63] W. Chen, T.-Y. Liu, Y. Lan, Z. Ma, H. Li. Ranking measures and loss functions in learning to rank. NeurIPS 2009. 
+
+46 [64] Y. Geifman, R. El-Yaniv. Selective classification for deep neural networks. NeurIPS 2017. [65] J. Katz-Samuels, K. Jamieson. The true sample complexity of identifying good arms. AISTATS 2020. [66] S. Choi. Conformal candidate certification for offline model-based optimization. 2026. arXiv:2606.15217. [67] W. Ji, Y. Pan, R. Zhu, L. Lei. Multi-armed bandits with machine-learning-generated surrogate rewards. 2025. arXiv:2506.16658. [68] S. Bakshi, L.-A. Gao, Z. Gao, S. Panigrahi. Flexible inference for winners with conditional validity. 2026. arXiv:2607.18545. [69] M. Adrian, J. A. Soloff, R. Willett. Stabilizing black-box model selection with the inflated argmax. TMLR 2025. arXiv:2410.18268. [70] J. Kossen, S. Farquhar, Y. Gal, T. Rainforth. Active testing: sample-efficient model evaluation. ICML 2021. 
+
+47

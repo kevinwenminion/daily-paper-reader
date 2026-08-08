@@ -6,47 +6,43 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-07
-- 运行时间：2026-08-07 21:25:30 UTC
+- 最新运行日期：2026-08-08
+- 运行时间：2026-08-08 20:53:20 UTC
 - 运行状态：成功
-- 本次总论文数：9
-- 精读区：1
-- 速读区：8
+- 本次总论文数：6
+- 精读区：0
+- 速读区：6
 
 ### 今日简报（AI）
-今日共读9篇论文，精读1篇聚焦材料发现中的主动学习与多目标贝叶斯优化，速读覆盖AI显微表征、拉曼光谱基础模型及功率磁瞬态预测。最值得关注的是精读论文提出的设计空间细化策略，可高效平衡多目标冲突，另有RamanPFN以表格基础模型学习光谱结构，值得延伸探索。建议普通读者优先从材料优化方法入手，再结合光谱与显微AI工具，构建跨域智能实验思维。
-- 详情：[/202608/07/README](/202608/07/README)
+今日速读6篇论文，聚焦纳米材料重建、材料科学假设生成与电池健康预测三大方向。
+
+最值得关注的是两篇7分工作：NanoMorph-3D实现纳米材料端到端物理驱动重建，以及可视化材料科学假设生成中的图到答案机制。
+
+建议普通读者优先浏览这两篇的摘要与图表，必要时精读锂电健康预测的PiDDM方法。
+- 详情：[/202608/08/README](/202608/08/README)
 
 ### 精读区论文标签
-1. [Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery](/202608/07/2608.04651v1-active-learning-guided-design-space-refinement-for-scalable-multi-objective-bayesian-optimization-in-materials-discovery)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：主动学习引导的自适应搜索空间精化与多目标贝叶斯优化加速材料发现
+- 本次无精读推荐。
 
 ### 速读区论文标签
-1. [Artificial Intelligence for the Characterization of Particles and Fibers by Optical Microscopy](/202608/07/2608.00361v1-artificial-intelligence-for-the-characterization-of-particles-and-fibers-by-optical-microscopy)  
+1. [NanoMorph-3D: An End-to-End Physics-Driven Unrolling Framework for Nanomaterial Reconstruction](/202608/08/2608.03257v1-nanomorph-3d-an-end-to-end-physics-driven-unrolling-framework-for-nanomaterial-reconstruction)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：面向光学显微镜颗粒与纤维表征的AI蒸馏框架
-2. [RamanPFN: learning from Raman spectral structure with a tabular foundation model](/202608/07/2608.02157v1-ramanpfn-learning-from-raman-spectral-structure-with-a-tabular-foundation-model)  
+   evidence：深度学习用于纳米材料重建
+2. [Visualizing Graph-to-Answer Mechanism Recovery in Materials-Science Hypothesis Generation](/202608/08/2608.04170v1-visualizing-graph-to-answer-mechanism-recovery-in-materials-science-hypothesis-generation)  
    标签：评分：7.0/10、query:aimat-mlpot
-   evidence：利用机器学习进行拉曼光谱分析以预测材料性质
-3. [A Physics-Informed Hybrid Neural Operator for Transient Magnetization Prediction in Power Magnetics](/202608/07/2608.02965v1-a-physics-informed-hybrid-neural-operator-for-transient-magnetization-prediction-in-power-magnetics)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：用神经算子预测磁性材料的瞬态磁化响应
-4. [Electron correlation in semiconductors and insulators via symbolic regression](/202608/07/2608.04291v1-electron-correlation-in-semiconductors-and-insulators-via-symbolic-regression)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：符号回归学习GW自能近似以预测复杂材料准粒子能量
-5. [An Exchange-Correlation Functional for Fast and Accurate Modeling of Ferroelectric Perovskites](/202608/07/2608.04806v1-an-exchange-correlation-functional-for-fast-and-accurate-modeling-of-ferroelectric-perovskites)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：面向铁电MLIP训练的交换关联泛函研究
-6. [ED-DiT: Physics-Guided Diffusion Pretraining for Transferable Molecular Representations from Electron Density](/202608/07/2608.03260v1-ed-dit-physics-guided-diffusion-pretraining-for-transferable-molecular-representations-from-electron-density)  
+   evidence：面向材料科学假设生成的AI协同科学家机制追踪
+3. [PiDDM: Physics-Informed Differentiable Degradation Modeling for Lithium-Ion Battery State-of-Health Prediction](/202608/08/2607.29095v1-piddm-physics-informed-differentiable-degradation-modeling-for-lithium-ion-battery-state-of-health-prediction)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：基于电子密度场的自监督预训练，为电子结构相关任务提供可迁移表征
-7. [Predicting Plasticity in Two-Dimensional Foam Channel Flow Around an Obstacle](/202608/07/2608.04911v1-predicting-plasticity-in-two-dimensional-foam-channel-flow-around-an-obstacle)  
+   evidence：物理信息可微机器学习框架用于电池健康状态预测
+4. [When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design](/202608/08/2608.01378v1-when-may-a-model-replace-the-experiment-audits-licenses-and-the-price-of-trust-in-surrogate-driven-design)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：用监督学习预测无定形软颗粒体系中的塑性活动
-8. [Physics-Based Molecular Fingerprints from Spectral Graph Theory Provide Efficient Geometry-Aware Measures of Chemical Similarity](/202608/07/2608.05336v1-physics-based-molecular-fingerprints-from-spectral-graph-theory-provide-efficient-geometry-aware-measures-of-chemical-similarity)  
+   evidence：材料设计中的机器学习代理模型，与AI驱动设计与发现相关
+5. [A manifold-aware Neural ODE surrogate model for stochastic induction heating with anisotropic electrical conductivity](/202608/08/2608.01945v1-a-manifold-aware-neural-ode-surrogate-model-for-stochastic-induction-heating-with-anisotropic-electrical-conductivity)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：物理启发分子指纹编码三维几何信息，可用于结构-性质的机器学习建模
+   evidence：神经ODE代理模型用于热塑性复合材料感应加热
+6. [Discrete energy as an exact label-free training objective for finite-element surrogates](/202608/08/2608.05437v1-discrete-energy-as-an-exact-label-free-training-objective-for-finite-element-surrogates)  
+   标签：评分：6.0/10、query:aimat-mlpot
+   evidence：提出以离散势能作为有限元代理模型的精确无标签训练目标，免去参考解，用于机器学习预测力学响应。
 
 
 <div class="dpr-home-promo-card">

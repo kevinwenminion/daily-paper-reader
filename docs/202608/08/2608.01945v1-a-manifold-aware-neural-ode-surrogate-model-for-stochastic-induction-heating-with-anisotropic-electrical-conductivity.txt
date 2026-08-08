@@ -1,0 +1,1370 @@
+Title: A manifold-aware Neural ODE surrogate model for stochastic induction heating with anisotropic electrical conductivity
+
+URL Source: https://arxiv.org/pdf/2608.01945v1
+
+Published Time: Tue, 04 Aug 2026 02:37:35 GMT
+
+Number of Pages: 35
+
+Markdown Content:
+# A manifold-aware Neural ODE surrogate model for stochastic induction heating with anisotropic electrical conductivity 
+
+Wouter J. Schuttert a, ∗, Mohammed Iqbal Abdul Rasheed a, Bojana Rosić a,b 
+
+> aApplied Mechanics and Data Analysis chair, Faculty of Engineering Technology, Drienerlolaan 5, 7522 NB Enschede, The Netherlands University of Twente
+> bDigital Engineering, Lehargasse 6, 1030 Wien, Austria TU Wien
+
+Abstract 
+
+Induction welding plays a central role in enabling lightweight, integrated structures made from fibre-reinforced thermoplastic composites. From a modelling perspective, the induction welding process can be approximated by one-way coupled electromagnetic and heat-transfer equations. In practice, material parameters such as electrical conductivity vary significantly resulting from the deviations in the place-ment of fibres and hence the fibre-fibre contacts in the mesostructure are governed by consolidation quality of the material. Explicit representation of this variability on the macroscopic scale is essential to capture the closed current loops required for the induction heating process. To address this, a stochastic material model is introduced that respects the symmetric positive-definite (SPD) nature of the con-ductivity tensor and separates scaling and orientation uncertainties, forming the basis of a surrogate framework. The resulting stochastic conductivity model is first used to quantify the uncertainty in the induction heating process through extensive Monte Carlo simulations, providing detailed insight into the induced currents and the resulting temperature field. Subsequently, to enable efficient uncertainty propagation, SPD-aware surrogate models are trained with a subset of the simulation data, consisting of labelled material states and temperature fields. The surrogates are formulated as Constitutive Manifold Neural Networks (CMNNs) that explicitly respect the underlying SPD manifold structure and are inte-grated with a Neural Ordinary Differential Equation (NODE) framework to capture temporal dynamics. Several NODE integration schemes are evaluated and compared. The results reveal that stochastic con-ductivity substantially drives the temperature variability, with uncertainty increasing continuously over time. The proposed CMNN-NODE surrogates deliver accurate and reproducible predictions on unseen test cases and long-horizon rollouts, with the Neural ODE integrators improving run-to-run consistency. 
+
+Keywords: Induction Welding, Multiphysics, Surrogate Modelling, Thermoplastic Composites, Neural Networks   
+
+> ∗Corresponding author.
+> Email address: w.j.schuttert@utwente.nl (Wouter J. Schuttert) arXiv:2608.01945v1 [cs.CE] 3 Aug 2026
+
+1. Introduction 
+
+Meeting climate targets for a sustainable future requires major reductions in carbon emissions from the transportation sector, which motivates the replacement of metals in structural components with lightweight composite materials [1]. Unidirectional carbon fibre reinforced thermoplastics (CFRTP) combine tailorable fibre orientations for specific load cases along with the ability to be reprocessed and recycled through remelting [2]. Fusion bonding is an increasingly adopted method to integrate CFRTP parts into larger structures in which the interface between the laminates is heated and consolidated under pressure. A prevalent fusion bonding technique is induction welding, where heat is generated in a laminate through an alternating magnetic field originating from a coil [3]. In induction welding, the temperature history at the interface is a key indicator of bond quality, but it cannot be measured directly due to practical difficulties [4], necessitating indirect characterisation through modelling. Hence, the industrial adoption of induction welding for CFRTP depends on predictive material models that support process design and integration into larger structures [5, 6]. Physics-based predictive models estimate the process-indicative temperature field using coupled thermo-electromagnetic models. However, such models are typically deterministic and do not account for variations in electrical conductivity, to which the temperature field is highly sensitive [7]. In CFRTPs, electrical conductivity is inherently anisotropic and is fully characterised by a symmetric positive-definite (SPD) conductivity tensor, whose eigenvalues represent the directional conductivities and whose corre-sponding eigenvectors define the principal material axis aligned with the fibre orientation. Consequently, because the conductivity is greatest along the fibre direction, an applied electric field induces current that flows preferentially along the fibres. This electrical response is strongly influenced by deviations in fibre placement, the quality of fibre–fibre contacts established during consolidation, and the formation of con-tinuous conductive pathways within the layup. However, existing models rarely represent the associated uncertainty explicitly [8]. Since the conductivity must remain symmetric and positive definite under uncertainty, an appropriate stochastic representation must preserve these properties. A probabilistic framework satisfying this requirement has been established in the computational mechanics literature [9, 10]. A parametric formulation of this framework [10, 11] has recently been applied for stationary heat problem. In the present work, we utilize this formulation to model the induction heating given the full random conductivity tensor of unidirectional CFRTPs, thereby enabling uncertainty quantification of the predicted temperature history that is time-dependent. Predicting the temperature response corresponding to a probability distribution of electrical con-ductivity requires propagating uncertainty through the coupled electromagnetic–thermal finite element (FEM) model [12]. Direct uncertainty propagation using Monte Carlo sampling is computationally prohibitive, as each coupled FEM simulation is expensive and thousands of realisations are typically required. This motivates the use of surrogate models that approximate the high-fidelity solver while enabling efficient evaluation across many conductivity realisations [13]. However, existing surrogate approaches for composite processing and induction welding of CFRTPs have largely focused on scalar quantities of interest, and no established methods are available for predicting the full spatial temper-ature field throughout the process history, which constitutes the high-dimensional output considered in the present work. Among the available surrogate modelling techniques, deep neural networks are particularly well suited to learning such high-dimensional nonlinear mappings. Deep neural networks have emerged as effective surrogates for expensive nonlinear physics models [14, 15]. However, standard architectures treat all inputs as Euclidean vectors, discarding any structure inherent to the underlying physics. In the present problem, this matters particularly because electrical conductivity is described by an SPD tensor describing fibre orientation and magnitude. The set of such tensors forms a smooth 2Coil Alternating Magnetic Field 
+
+# Eddy 
+
+# Currents UD Thermoplastic Laminate Figure 1: Schematic of the induction heating process. 
+
+manifold rather than a flat Euclidean space, meaning that standard networks which treat conductivity inputs as ordinary vectors ignore this geometric behaviour [16]. Manifold-aware neural networks that respect input geometry have shown improved generalisation over Euclidean counterparts in computer vision and brain imaging [17, 18]. Constitutive manifold neural networks extend this concept to materi-als modelling through SPD layers that separately capture magnitude and orientation effects, mirroring the physical decomposition of the conductivity tensor [19]. In addition to representing the conductivity tensor appropriately, the surrogate must capture the tran-sient evolution of the temperature field during induction welding. Neural ordinary differential equations (Neural ODEs) achieve this by embedding an ODE solver within the network, allowing the integration error to be controlled adaptively [20]. Residual networks provide a computationally efficient alternative, as their residual blocks admit a discrete-time ODE interpretation [21], enabling near-identity updates of the evolving temperature field. In this work, we introduce a surrogate modelling framework for multiphysics induction heating with stochastic anisotropic electrical conductivity, in which the geometric structure of the conductivity ten-sor is respected throughout the entire pipeline. Electrical conductivity is represented as a random SPD-valued quantity whose magnitude and direction uncertainty are modelled independently by con-struction, ensuring that all sampled realisations remain physically admissible. Uncertainty is then prop-agated through the coupled electromagnetic–thermal model via a surrogate that combines the CMNN architecture with a Neural ODE formulation, enabling uncertainty quantification over the full spatial temperature field and process history with a tractable computational cost. The layout of the paper is as follows. Section 2 provides the formulation for heat transfer and electromagnetics together with the stochastic model for electrical conductivity, and their respective discretisations. Section 3 explains the surrogate modelling methods. Section 4 presents results for the induction heating process under different uncertainty configurations, as well as a comparison of surrogate formulations with different time integration schemes, followed by a discussion of the results. Section 5 provides the conclusions. 
+
+2. Modelling of induction heating with stochastic electrical conductivity 
+
+Induction heating is a non-contact method for heating eletrically conductive materials and is com-3monly used in applications such as fusion bonding of thermoplastic composites and metals, as well as in case-hardening of metals. The technique is particularly relevant for the bonding of CFRTP, where the carbon fibres act as electrical conductors, eliminating the need for an additional susceptor to en-able current flow [22]. The bond quality is strongly governed by the temperature history at the fusion interface, the direct measurement of which is not feasible in practice [23]. This necessitates the use of physics-based models of the coupled electromagnetic–thermal behaviour as virtual sensing tools [4]. The model considered in this work is based on the schematic shown in Fig.(1). An alternating current is supplied to a coil, generating an alternating magnetic field that induces eddy currents within the conductive carbon fibre plies. These eddy currents dissipate energy via Joule heating [24], resulting in a coupled electromagnetic–thermal process that governs the evolution of the temperature field relevant to bonding. Assuming a harmonic excitation of the coil current and adopting a magneto-quasi-static (MQS) approximation, the electromagnetic field governing induction heating is described by Maxwell’s equations [25]. The MQS assumption is justified by the fact that the characteristic dimensions (300 mm) of the welding setup are much smaller than the electromagnetic wavelength associated with the excitation frequency (approximately 877 m at 342 kHz), ensuring that wave propagation effects can be neglected. In this low-frequency regime, electromagnetic field penetration is governed by magnetic diffusion and characterised by a finite skin depth, which is typically small relative to the system dimensions. Under the MQS approximation, displacement currents are neglected in comparison with conduction currents, resulting in a diffusion-dominated electromagnetic field description and allowing electromagnetic wave propagation effects to be neglected. Under these assumptions, the electric and magnetic fields in the spatial domain G ⊂ R3 (comprising the composite and surrounding air) are mathematically described by: 
+
+∇ · E = ρ(e)
+
+ϵ , (1) 
+
+∇ · B = 0 , (2) 
+
+∇ × E = −j2πf (c)B, (3) 
+
+∇ × B = μ(m)J. (4) Here, E [V/m] is the electric field strength vector, ϵ [F/m] is the permittivity, B [T] is the magnetic flux density vector, f (c) [Hz] is the excitation frequency from the coil, μ(m) [H/m] is the magnetic permeability, J [A/m 2] is the current density vector and ρ(e) [C/m 3] is the electric charge density. In bulk conductive media the last one is effectively zero, ρ(e) = 0 , since charges redistribute rapidly enough to prevent the accumulation of net charge within the material volume [25]. Consequently, Gauss’s law for electricity in Eq.(1) becomes trivial. Note that the current density J in Eq.(4) is split into the externally applied source and the induced contributions 
+
+J = Js + σE, (5) where Js is the prescribed coil current and σ [S/m] is the anisotropic conductivity tensor of the mate-rial. The latter belongs to the space of SPD matrices, Sym +(d), a property that follows from energy conservation principles and ensures physically consistent, balanced interactions within a material. Directly solving the system described by Eq.(1-5) for both E and B would require handling six coupled field components, which is computationally demanding. This difficulty is commonly addressed 4by introducing a magnetic vector potential A formulation [26] 
+
+B = ∇ × A, (6) which reduces the number of unknowns and enforces the divergence-free constraint on the magnetic flux density automatically. The magnetic vector potential A serves as an auxiliary field from which the physical fields B and E are recovered. Since the vector potential is not uniquely defined by Eq.(6) alone, a Coulomb gauge condition 
+
+∇ · A = 0 (7) is imposed to remove the remaining ambiguity. Under the MQS approximation, the electric scalar potential is neglected in the conducting domain, such that the electric field is approximated by E =
+
+−j2πf (c)A. Substituting magnetic vector potential representation into Faraday’s law in Eq.(3) and Ampère’s laws in Eq.(4) leads to a reduced mathematical description of the electromagnetic part of the problem: 
+
+∇ × 1
+
+μ(m) ∇ × A(x) = Js − j2πf (c)σA(x) a.e. in G. (8) The previous equation is subjected to boundary conditions: ⃗n × A(x) = 0 on Γ ∞ ⊆ ∂G, (9) where Γ∞ is the boundary at an infinite distance from the source representing wave propagation through free space. Under steady harmonic conditions the solution of the electromagnetic problem in Eq. (8) provides the induced electric field E, which gives rise to eddy currents in the conductive region according to 
+
+Je(x) := σE = −j2πf (c)σA(x). (10) These currents constitute the source of irreversible thermal losses through Joule heating [24], with volumetric heat generation rate 
+
+Q(x) = E(x)⊤ σ E(x). (11) This dissipation of electromagnetic energy acts as a distributed source of thermal energy in the conductive material. It therefore drives the temperature evolution in the electrically conductive CFRTP domain 
+
+GC ⊂ G , which is described by the transient heat conduction equation 
+
+ϱc p
+
+∂u (x, t )
+
+∂t = ∇ · (κ∇u(x, t )) + Q(x) a.e. in GC × T , (12) over the time interval T = [0 , t e] ⊂ R+ with boundary conditions: 
+
+u(x, t ) = uD (x) on ΓD ⊆ ∂GC , ∀t ∈ T , (13) 
+
+−κ∇u(x, t ) ·⃗n = Q N (x) on ΓN ⊆ ∂GC , ∀t ∈ T , (14) 
+
+−κ∇u(x, t ) ·⃗n = h  u(x, t ) − u∞
+
+ on Γconv ⊆ ∂GC , ∀t ∈ T . (15) Here, ϱ [kg/m 3] is the material density, cp [J/(kg K)] is the specific heat capacity, u [K] is the temperature field, and κ [W/(m K)] is the anisotropic SPD thermal conductivity. The boundary ∂GC is partitioned into ΓD , the Dirichlet boundary with prescribed temperature uD (x); ΓN , the Neumann boundary with prescribed heat flux QN (x); and Γconv , the Robin boundary for convective heat exchange with ambient temperature u∞ and convective heat transfer coefficient h [W/(m 2 K)]. 5The above first-principles model is of a deterministic nature, where all parameters are assumed to be precisely known. In real induction heating applications, however, the exact values of many model parameters are either unknown or subject to variation due to the inability to perfectly control the manufacturing process of composite plies. Among all parameters, the anisotropic conductivity tensor 
+
+σ, interpreted as an effective macroscopic homogenised quantity at ply level, is particularly sensitive to the fibre architecture [8]. In particular, fibre orientation, local fibre volume fraction, waviness, and the connectivity of conductive fibre networks influence the formation of conductive pathways within the composite. These microstructural features are inherently affected by manufacturing variability and cannot be reproduced identically across specimens. As a consequence, different realisations of the mi-crostructure may lead to different, yet equally admissible, homogenised conductivity tensors. In the present work, we do not model the microstructure as a spatially varying nor do we solve the governing equations at the microscale. Instead, a deterministic homogenisation at the ply scale is assumed, and variability arising from manufacturing imperfections is incorporated directly at the level of the effective constitutive parameters. In particular, the anisotropic conductivity tensor is treated as a random (or uncertain) homogenised quantity, representing specimen-to-specimen variations (aleatory uncertainty) of the already-averaged material response rather than explicit microstructural randomness. Consequently, the stochasticity enters only through the effective model parameters, not through a random microscale description of the material. Since σ directly governs the induced eddy currents and the associated Joule heating, variability in the homogenised conductivity propagates through the coupled electromag-netic–thermal system and induces variability in the resulting temperature field [7]. The present work therefore focuses on quantifying the uncertainty in the temperature field as the primary quantity of interest with respect to variations in the electrical conductivity. The magnitude of the uncertainty as-sociated with the conductivity tensor is not chosen arbitrarily, but is informed by available data on the scatter of effective electrical properties in carbon-fibre reinforced composites reported in the literature [27]. In the absence of exhaustive specimen-specific measurements, the adopted variability is interpreted as representative of typical manufacturing-induced deviations observed in comparable material systems. A sensitivity analysis is further conducted to assess the influence of the assumed level of variability on the predicted thermal response, thereby ensuring that the conclusions remain robust with respect to reasonable variations in the input uncertainty. To introduce the variation into the coupled model in Eqs. (8)-(9) and Eqs. (12)-(15), a probabilistic approach is introduced, treating σ as a SPD tensor valued random variable [10]. Let (Ω, F, P) define the probability space, where Ω represents the sample space, F is the associated sigma algebra, P is the probability measure, and ω ∈ Ω denotes an elementary event. The conductivity tensor is then modelled as an SPD tensor valued random variable 
+
+σ : ( Ω, F, P) → Sym d
+
+> +
+
+(R) ⊂ Rd×d,
+
+with finite second moment, i.e. 
+
+E[∥σ∥2] < ∞, so that σ ∈ L2(( Ω, F, P); Sym d
+
+> +
+
+(R)) .
+
+Here, the set of real symmetric positive-definite matrices is denoted by Sym d
+
+> +
+
+(R) ⊂ Rd×d, and for each 
+
+ω ∈ Ω, σ(ω) denotes a realization of the conductivity tensor. Due to randomnes in σ(ω), Eq.(8) becomes stochastic: 
+
+∇ × 1
+
+μ(m) ∇ × A(x, ω ) = Js − j2πf (c)σ(ω)A(x, ω ) a.e. in G, ∀ω ∈ Ω, (16) 6with boundary conditions ⃗n × A(x, ω ) = 0 on Γ ∞ ⊆ ∂G, ∀ω ∈ Ω. (17) Similarly, the heat transfer model now includes the stochastic heat source Q(x, ω ) due to the coupling induced by Eq.(11). Entering the stochastic source term into Eq.(12) leads to: 
+
+ϱc p
+
+∂u (x, t, ω )
+
+∂t = ∇ · (κ∇u(x, t, ω )) + Q(x, ω ) a.e. in GC × T , ∀ω ∈ Ω, (18) with boundary conditions 
+
+u(x, t, ω ) = uD (x) on ΓD ⊆ ∂GC , ∀t ∈ T , ∀ω ∈ Ω, (19) 
+
+−κ∇u(x, t, ω ) ·⃗n = Q N (x) on ΓN ⊆ ∂GC , ∀t ∈ T , ∀ω ∈ Ω, (20) 
+
+−κ∇u(x, t, ω ) ·⃗n = h  u(x, t, ω )) − u∞
+
+ on Γconv ⊆ ∂GC , ∀t ∈ T , ∀ω ∈ Ω. (21) Note that both A(x, ω ) and u(x, t, ω ) also depend on ω, as they are solutions of the preceding coupled stochastic partial differential equations, and are therefore itself spatial and spatio-temporal random fields, respectivelly. The vector potential A is an intermediate electromagnetic variable introduced for numerical convenience, whereas the temperature field represents the physically relevant output of the coupled induction heating process and is therefore the primary quantity of interest (QoI). In particular, it directly determines the thermal state of the material during processing, governing key process outcomes such as the achievement of target curing or welding temperatures, the quality of the bond formation, and the avoidance of thermal degradation due to overheating or excessive gradients. The aim of this work is to efficiently characterise the uncertainty in this QoI. It should be noted that the uncertainty in the temperature may also depend on other model parameters that could potentially vary, such as thermal conductivity. For simplicity reasons, we restrict ourselves only on the electric conductivity while all others remain at their nominal deterministic values. This choice is motivated by the fact that, in induction heating, the temperature field is significantly more sensitive to variations in electrical conductivity, which directly governs Joule heating, whereas thermal conductivity primarily affects spatial redistribution of heat. Consequently, variability in thermal conductivity is expected to have a secondary influence on the quantities of interest compared to electrical conductivity. In practical applications, the symmetry class of the effective material tensor cannot always be pre-scribed a priori with full certainty. While idealised material models assume specific symmetries (e.g. isotropic, orthotropic, or transversely isotropic behaviour), the actual effective response depends on the underlying microstructure, the homogenisation scale, and manufacturing-induced effects such as fibre misalignment, waviness, and local heterogeneities. These effects may lead to deviations from the as-sumed symmetry class, or to situations where multiple symmetry descriptions remain plausible at the macroscopic level [10]. In addition, even for a fixed symmetry class, the values of the constitutive param-eters may still vary, as discussed previously. To account for both type of uncertainties mathematically, we decompose the stochastic electric conductivity tensor into 
+
+σ(ω) = V (ω)Λ(ω)V (ω)T , ∀ω ∈ Ω (22) where the uncertainty in Λ represents the uncertainty in the parameter values here represented by eigenvalues, and V represents the uncertainty affiliated with the directional uncertainty. Geometrically, for d = 2 and a particular choice of ω this decomposition corresponds to an ellipse whose principal axes are aligned with the eigenvectors v1 and v2, the columns of V , and whose semi-axis lengths are given by the eigenvalues λ1 and λ2, as illustrated in Fig.(2a). 7In this formulation, material symmetry is reflected in the structure of the eigenvalues and the align-ment of the eigenvectors. For instance, isotropy corresponds to equal eigenvalues, λ1 = λ2 = λ3, and arbitrary orientation of V (ω), whereas anisotropic behaviour arises from distinct eigenvalues, with sym-metry classes such as orthotropy additionally imposing alignment constraints on the eigenvectors with respect to material directions. Hence, symmetry is not treated as a separate variable, but is embedded in the spectral structure of the tensor through constraints on Λ(ω) and V (ω). This viewpoint allows a unified representation of different material symmetries within a single SPD framework, where variabil-ity can be introduced consistently at the level of eigenvalues (magnitude anisotropy) and eigenvectors (directional anisotropy). Furthermore, following [10] we model each factor as 
+
+Λ(ω) = exp( Y (ω)) and V (ω) = R(ω)V = exp( W (ω)) V (23) in its respective linear spaces: Y ∈ diag (d) for diagonal matrices and W ∈ so (d) for skew-symmetric matrices. Note that such a model for the eigenvalues restricts the stochastic σ(ω) to the SPD class, irrespectively of the choice of the distribution for Y . The directional uncertainty is then encoded in W (ω)
+
+representing orientational variation with respect to the fixed principal direction V . The stochastic model is intended for moderate variability around a reference configuration, such that eigenvalue ordering is preserved almost surely and no eigenvalue crossing occurs. The full tensor σ(ω) is then constructed as 
+
+σ(ω) = exp( W (ω)) V exp( Y (ω)) V T exp( W (ω)T ), ∀ω ∈ Ω. (24) The eigenvalue components in Y (ω) are modelled by a Gaussian distribution, 
+
+Y (ω) = diag( yi(ω)) with yi(ω) ∼ N (μi, σ 2 
+
+> i
+
+), i = 1 , . . . , d, (25) which corresponds to a lognormal distribution for the eigenvalues λi themselves. The mean μi and standard deviation σi are chosen appropriately to match the statistics of the eigenvalues. The orientation related tensor is modelled through a skew-symmetric matrix 
+
+W (ω) = skw( w) = 
+
+
+
+0 −w3(ω) w2(ω)
+
+w3(ω) 0 −w1(ω)
+
+−w2(ω) w1(ω) 0
+
+ , W (ω) = −W T (ω), (26) where w(ω) is the random variable giving the axis–angle representation of a rotation, decomposed as 
+
+w(ω) = ϕ(ω) b into a scalar rotation angle ϕ(ω) and a unit rotation axis b. The axis-angle representation is used to parametrise small stochastic rotations around a reference configuration, such that the expo-nential map provides a locally well-defined mapping from so (3) to SO (3) . Each composite ply is thin — 0.14 mm thick compared to its 300 × 300 mm in-plane dimensions — so that fibre orientation, and hence orientational uncertainty, is effectively restricted to the XY -plane. Consequently, the rotation axis b is fixed along e3, and the admissible rotations reduce to a one-parameter subgroup of SO (3) , parametrised by a single scalar angle ϕ(ω) ∈ S1. This is illustrated in Fig.(2b), where R maps the in-plane reference frame (v1, v2) to the rotated frame (Rv1, Rv2). To sample the random orientation, a von Mises (vM) distribution VM (μ, η ) is employed, with probability density function 
+
+f (ϕ; μ, η ) = C exp( η cos( ϕ − μ)) , (27) where ϕ(ω) ∈ S1 is the scalar rotation angle, μ is the mean angle, η is the concentration parameter, and 
+
+C is the normalising constant. The vM distribution is the maximum-entropy distribution for directional data on the circle [28], making it the natural analogue of a Gaussian for orientational uncertainty. Taken together, this parameterisation provides the flexibility to represent different levels of material symmetry through constraints on the spectral structure of the conductivity tensor. Isotropy is recovered when 8all eigenvalues are equal, whereas anisotropic behaviour arises when the eigenvalues are distinct. In addition, orthotropic-type behaviour is obtained when the eigenvectors are aligned with fixed material directions, while deviations from this alignment introduce orientational variability. By treating selected eigenvectors as random, the orientation of principal material directions can be modelled probabilistically, thereby accounting for possible deviations from idealised symmetry assumptions, as discussed in detail in [10]. 
+
+2.1. Discretisation 
+
+The problem introduced in Eq.(16) and Eq.(18) is continuous and does not admit a closed-form analytical solution in general. Therefore, discretisation is required in the spatial and temporal domains, as well as in the stochastic space. First, the spatial domain is discretised using the finite element method (FEM) [29], partitioning the domain as G = S 
+
+> e
+
+Te, where Te denotes an element. The solutions of Eq.(16) are approximated by linear combinations of finite basis functions Ni(x), i = 1 , . . . , n e. For the electromagnetic problem, the magnetic vector potential in Eq.(16) is approximated by: 
+
+Ah(x, ω ) = 
+
+> ne
+
+X
+
+> i=1
+
+Ai(ω)Ni(x). (28) Hence, the continuous field A is replaced by a finite-dimensional approximation Ah composed of spatial basis functions with stochastic coefficient Ai(ω). For a single realisation of ω, the electromagnetic system is solved in two stages: first, the current density distribution Js in the coil is obtained by computing the coil excitation through a geometry-based current distribution analysis [30, 31], after which the resulting complex-valued linear system is solved iteratively using a GMRES solver with a Vanka SSOR preconditioner [32, 33]. XY
+
+12
+
+## v1
+
+## v2        
+
+> (a) Geometric representation of a 2D SPD matrix as an ellipse, with principal eigenvectors v1and v2and corresponding eigenvalue λ1and λ2components.
+
+# v3 = Rv 3
+
+# v1 v2Rv 1
+
+# Rv 2               
+
+> (b) Realisation of the random planar rotation ϕof V
+> about v3. The rotation matrix Rmaps the reference frame (v1,v2)to the rotated frame (Rv1,Rv2).
+> Figure 2: Illustration of an SPD matrix as an ellipse (left) and the application of a planar rotation Rabout v3(right).
+
+9The temperature spatiotemporal random field in Eq.(18) is approximated analogously to A by: 
+
+uh(x, t, ω ) = 
+
+> neC
+
+X
+
+> i=1
+
+ui(t, ω )Ni(x), (29) leading to the discrete temperature field compactly represented by the nodal solution vector uh(t, ω ) = [uh(x1, t, ω ), . . . , u h(xneC , t, ω )] T ∈ RneC .After a few derivation steps, in which both approximations are substituted back into their respective weak forms [29], and restricting attention to only the thermal system in the coupled formulation, the semi-discrete system of ordinary differential equations is obtained: 
+
+M ˙uh(t, ω ) + K u h(t, ω ) − P (ω) = 0, (30) where the canonical matrices M , K and load vector P (ω) are defined elementwise as 
+
+Mij =
+
+Z
+
+> GC
+
+ϱ c p Ni Nj dx, (31) 
+
+Kij =
+
+Z
+
+> GC
+
+κ ∇Ni ·∇ Nj dx
+
+| {z }
+
+> conduction
+
++
+
+Z
+
+> ΓR
+
+h N i Nj ds
+
+| {z }
+
+> Robin (convective)
+
+, (32) 
+
+Pi(ω) = 
+
+Z
+
+> GC
+
+Q(x, ω ) Ni dx
+
+| {z }
+
+> stochastic volumetric source
+
+−
+
+Z
+
+> ΓN
+
+QN Ni ds
+
+| {z }
+
+> Neumann
+
++
+
+Z
+
+> ΓR
+
+h u ∞ Ni ds
+
+| {z }
+
+> Robin (ambient)
+
+. (33) Here, the Neumann and Robin boundary contributions are incorporated into Kij and Pi(ω) respectively, while the Dirichlet condition is enforced strongly on the assembled system. Since cp, ϱ, κ, and all boundary coefficients are assumed to be independent of temperature, the matrices M , K, and load vector P are not time dependent. Among them P (ω) is the sole source of stochasticity entering through the stochastic heat source Q(x, ω ).After spatial discretisation, time integration of the semi-discrete system Eq.(30) is carried out using the variable-step second-order backward differentiation formula (BDF2), which provides a balance be-tween accuracy and stability for stiff transient problems [34]. Let tk−1, tk, and tk+1 be three consecutive time points with variable step sizes hk = tk − tk−1 and hk+1 = tk+1 − tk, such that the step-size ratio reads r = hk+1 /h k. Denoting the discrete temperature vector at time tk by uk(ω) ≡ uh(tk, ω ) ∈ RneC 
+
+and using the shorthand (·)k := ( ·)( tk), the BDF2 approximation of the temperature derivative at tk+1 
+
+is given by 
+
+˙uk+1 ≈ (1 + 2 r) uk+1 − (1 + r)2uk + r2uk−1
+
+hk+1 (1 + r) . (34) Substitution of Eq.(34) into Eq.(30) and evaluation at tk+1 results in the following linear system: 
+
+ 1+2 rhk+1 (1+ r) M + K
+
+
+
+uk+1 (ω) = 1+ rhk+1 M u k(ω) − r2 
+
+> hk+1 (1+ r)
+
+M u k−1(ω) + P (ω), (35) the solution of which has to be found. Having established the spatial and temporal discretisations, the remaining stochastic dependence is addressed through Monte Carlo (MC) sampling [35]. For each realisation of σ(ωj ), j = 1 , ..., n s the coupled electromagnetic-thermal system is solved to obtain the magnetic vector potential Ah(x, ω j ) and 10 therefore the stochastic heat source Q(x, ω j ) and the corresponding load vector P (ωj ). The thermal response uk(ωj ) is then obtained by solving the linear system 
+
+ 1+2 rhk+1 (1+ r) M + K
+
+
+
+uk+1 (ωj ) = 1+ rhk+1 M u k(ωj ) − r2 
+
+> hk+1 (1+ r)
+
+M u k−1(ωj ) + P (ωj ), (36) at each time step k = 1 , . . . , n t, yielding the nodal temperature trajectory {uh(tk, ω j )}nt
+
+> k=1
+> ns
+> j=1
+
+. Since 
+
+M and K are deterministic and time-independent, the system matrix is assembled and factorised once per realisation using the PARDISO direct sparse solver [36]. The BDF2 scheme is initialised using a Backward Euler step, providing the required solution history u0(ωj ) and u1(ωj ) for the two-step recurrence. Once ns solution trajectories are collected, they are used to estimate the statistics of QoIs. To mitigate the computational cost of repeated full FEM solves across ns realisations, the goal is to build a data-driven surrogate that approximates the mapping between the stochastic input param-eters and the corresponding temperature solution fields, thereby enabling efficient evaluations without repeated assembly and solution of the full finite element system. Since the underlying problem is tran-sient, the surrogate is formulated in a step-wise manner, approximating the discrete time evolution of the system. Let uk(ω) denote the state over uniformly spaced time steps obtained by extrapolating the solution to successive time steps tk with constant step size ∆tk = ∆ t for a given realization ωj .Accordingly, the training dataset is defined as 
+
+D := 
+
+n  uk(ωj ), σ(ωj ) ons, n t
+
+> j=1 , k =1
+
+, (37) where the surrogate learns the incremental time-stepping map from the state at time tk and the associated response to the state at tk+1 for each realisation. Although the surrogate model does not explicitly include the electromagnetic heat source as an input, its effect is implicitly incorporated through the high-fidelity coupled simulations used for training. The learned model therefore represents a data-consistent reduced evolution operator for the temperature field under the weakly coupled electromagnetic–thermal regime considered in this work. In this setting, the electromagnetic contribution acts as an implicit driving mechanism encoded in the state trajectories, rather than as an explicit forcing term. The surrogate model is designed to approximate the discrete-time evolution of the system by learning a one-step increment map. We consider approximation of 
+
+∆uk(ω) = uk+1 (ω) − uk(ω) (38) by 
+
+∆ˆ uk(ω) = φ uk(ω), σ(ω), (39) where φ is a continuous parametric function. The full trajectory is then generated recursively via 
+
+uk+1 (ω) ≈ ˆuk+1 (ω) := uk(ω) + ∆ˆ uk(ω), (40) which is iterated for k = 0 , 1, . . . , n t − 1.The goal of this work is to construct such an approximation using a feedforward neural network Fθ
+
+that is accurate not only in the one-step sense of Eq. (48), but also under recursive application over long time horizons, i.e., 
+
+uk+1 (ω) − uk(ω) ≈ Fθ
+
+ uk(ω), σ(ω). (41) The map is constructed as a composition of affine maps and elementwise nonlinear activations: 
+
+Fθ (qk(ω)) =  f La ◦ AL ◦ · · · ◦ f 1 
+
+> a
+
+◦ A1   qk(ω), (42) 11 where the input vector is defined as 
+
+qk(ω) :=  uk(ω); σ(ω) . (43) For each layer ℓ = 1 , . . . , L , the affine transformation is defined as 
+
+Aℓ(qℓ−1) = Wℓqℓ−1 + bℓ, (44) where 
+
+qℓ−1 ∈ Rnℓ−1 , qℓ ∈ Rnℓ ,
+
+Wℓ ∈ Rnℓ×nℓ−1 , bℓ ∈ Rnℓ .
+
+The activation function f ℓa is applied elementwise: 
+
+f ℓa : Rnℓ → Rnℓ . (45) The initial layer variable is defined as 
+
+q0 := qk(ω) (46) such that by recursion for ℓ = 1 , . . . , L one has 
+
+qℓ = f ℓa
+
+
+
+Wℓqℓ−1 + bℓ
+
+. (47) The set of trainable parameters is then 
+
+θ := {Wℓ, bℓ}Lℓ=1 ,
+
+and is learned by minimizing the mean-squared error over observed one-step transitions: 
+
+E(θ) = 1
+
+ns ntnsX
+
+> j=1
+> nt
+
+X
+
+> k=1
+
+Fθ
+
+ uk(ωj ), σ(ωj ) −  uk+1 (ωj ) − uk(ωj ) 2 . (48) Minimisation of Eq. (48) yields a Monte Carlo approximation of the L2-optimal predictor of the one-step increment conditioned on (uk, σ). In other words, the learned model targets the conditional mean of 
+
+uk+1 − uk given the current state and stochastic input. Higher-order statistical moments of the induced solution process are not explicitly constrained by the loss function and are therefore only captured implicitly through the learned dynamics. In particular, these quantities may deteriorate over long time horizons due to error accumulation during recursive rollout and finite-sample generalisation effects. The previously derived overall network architecture is graphically shown in Fig. (3). The conductivity tensor and the temperature solution field at time tk act as input fields to the neural network. On the other hand, the sum of the solution at time tk and the neural network response acts as the output of the network. Therefore, the proposed model can be interpreted as a residual-type neural network. From this perspective, the mapping Fθ does not learn the full state evolution operator, but rather the residual correction to the identity map. In this setting, the presented model can be interpreted as a conditional discrete-time dynamical system in which the evolution of the state variable depends on an additional exogenous input σ(ω). The update rule takes the form 
+
+ˆuk+1 = uk + Fθ (uk; σ(ω)) . (49) For each fixed realization of σ(ω), the system defines a distinct discrete-time dynamical system 
+
+ˆuk+1 = Gσ (uk), Gσ (·) := Id + Fθ (·; σ),
+
+12 k+1 ukuFigure 3: Neural network framework for the induction heating process with arbitrarily oriented coil in teal on top of a black/white temperature field. 
+
+and the conductivity tensor acts as a parameter determining the evolution law rather than as a state variable. Numerically, the residual formulation also improves the conditioning of the learning problem with respect to the state variable uk. In particular, the Jacobian of the update map with respect to uk
+
+is given by 
+
+∂ ˆuk+1 
+
+∂uk
+
+= I + ∂F θ (uk; σ)
+
+∂uk
+
+. (50) The presence of the identity term ensures that the linearized dynamics remain close to the identity map whenever the learned increment is small, which improves the conditioning of gradient propagation through compositions of the update. In particular, this structure mitigates vanishing or ill-conditioned gradients that may arise in long iterative rollouts. In the time discretization setting the previously described residual neural network parameterized by 
+
+σ can be further related to the feedforward Euler discretization rule. By rewriting Eq. (30), one obtains the expresion for the gradient: 
+
+˙uk+1 = M −1 P − Ku k
+
+, (51) which further can be approximated by a feedforward neural network ˜Fθ
+
+ σ, uk
+
+ such that after explciit Euler discretization with time step ∆t one obtains 
+
+ˆuk+1 = uk + ∆ t ˆFθ
+
+ σ, uk
+
+ = uk + ∆ˆ uk, ∆ˆ uk = ∆ t ˆFθ
+
+ σ, uk
+
+ (52) Hence, the nodal approximation of the temperature at time step tk+1 can be obtained by summing the previous solution and the approximated increment. The latter connects then to Eq. (49) such that 
+
+Fθ (uk; σ(ω)) = ∆ t ˆFθ
+
+ σ, uk
+
+ (53) holds. 13 While residual structure can improve long-term behavior compared to direct state prediction by reducing drift, its primary advantage lies in improved optimization properties and in the imposition of a meaningful incremental modeling assumption. However, viewing the model as an iterative dynamical system also raises potential stability issues, since repeated application of the learned update may lead to error accumulation or divergence if the induced dynamics are not contractive. Thus, although the residual formulation improves trainability, it does not in general guarantee stability of the resulting discrete-time system. Next to this, the conductivity tensor σ(ω) is used as part of the network input but takes values in the space of SPD matrices rather than in a Euclidean vector space. A naive vectorisation of its components ignores the intrinsic Riemannian geometry of the SPD manifold. This can lead to representations that are not geometrically consistent with the underlying physical object and may adversely affect learning efficiency. Therefore, manifold-aware representations are preferable, respecting the SPD structure through appropriate parameterisations or intrinsic metrics, which has been shown to improve numerical accuracy and generalisation in learning tasks involving SPD-valued data [17]. 
+
+3. Surrogate modelling using constitutive manifolds and neural ODEs 
+
+Given the continuous version of the thermal equation 
+
+duh(t)
+
+dt = M −1 P − Ku h(t), (54) we can replace the right hand side with the continuous neural network approximation fξ to obtain neural ordinary differential equation (ODE) [37] 
+
+duh(t)
+
+dt = fξ
+
+ σ, uh(t). (55) Continuous-depth parametrisations of this kind have been shown to yield smoother latent vector fields than discrete-step surrogates trained on the same data [37]. In this framework, fξ represents a learned approximation of the underlying vector field that generates the system dynamics. The available data consist only of discrete-time snapshots, which motivates the introduction of a numerical time discretiza-tion to connect the continuous model with observations. The advancement of solution from tk to tk+1 
+
+is obtained by integrating Eq.(55) over the time interval 
+
+ˆuk+1 = uk +
+
+Z tk+1 
+
+> tk
+
+fξ
+
+ σ, uh(t) dt. (56) Since the integral is generally intractable in closed form, it is approximated by a numerical time-stepping scheme. The choice of time integration scheme therefore does not merely serve a numerical purpose, but introduces an inductive bias on the learned dynamics by determining how the continuous-time Neural ODE is observed through discrete-time data. This choice may significantly affect the stability of the resulting learned evolution, since explicit schemes can amplify modeling or discretization errors, particularly for stiff system as in our case. Consequently, the choice of integration scheme must balance accuracy, computational cost, and stability of the learned surrogate dynamics. Regardless of the choice of time integrator, the learned vector field fξ does not inherit the classical stability properties associated with schemes such as BDF2 applied to the underlying FEM system. The underlying semi-discrete FEM system is linear and can be written in the form 
+
+˙uh = Au h + b, A = −M −1K.
+
+14 For this class of systems, classical time integration schemes such as BDF2 provide well-characterised stability properties, which are directly linked to the spectrum of A and guarantee appropriate damping of stiff modes [34]. In contrast, replacing the physical right-hand side by a neural approximation fξ yields a learned dynamical system that does not, in general, preserve the linear structure or spectral properties of A. Consequently, classical stability results for BDF2 on linear systems do not directly transfer to the learned model, even if it is trained on data generated by a linear PDE. As a result, stability of long-term rollouts depends on how well fξ approximates the underlying operator in a spectral sense, rather than solely on the properties of the numerical integrator. As a consequence, approximation errors may accumulate under recursive time stepping, and the stability of long-term rollouts depends jointly on the properties of the learned vector field and the numerical integration scheme. In practice, rollout stability is therefore typically assessed empirically and may require additional regularisation or architectural constraints on fξ .If time integraton is achieved by the explicit Euler method then we have the scheme corresponding to the residual neural network as presented in the previous section. In such a case, the stability is conditional and may require very small step sizes in order to achieve prescribed accuracy, as discussed later. Similarly, the use of classical fourth-order Runge–Kutta scheme (RK4), advancing the solution by a weighted average of gradients at four different points per step: 
+
+s1 = fξ
+
+ σ, uk
+
+,s2 = fξ
+
+ σ, uk + ∆t 
+
+> 2
+
+s1
+
+,s3 = fξ
+
+ σ, uk + ∆t 
+
+> 2
+
+s2
+
+,s4 = fξ
+
+ σ, uk + ∆ t s 3
+
+,
+
+uk+1 = uk + ∆t
+
+> 6
+
+ s1 + 2 s2 + 2 s3 + s4
+
+.
+
+(57) will not improve significantly the stability of stiff system. Here, the quantities s1, . . . , s4 correspond to evaluations of the neural vector field fξ at intermediate states obtained within the time interval 
+
+[tk, t k+1 ]. These intermediate evaluations provide a higher-order approximation of the flow generated by the continuous-time Neural ODE. For sufficiently smooth vector fields, the Runge–Kutta scheme achieves fourth-order accuracy in time with respect to the exact solution of the non-stiff ODE. On the other hand, Adams–Moulton methods [34] are implicit multistep schemes that are generally much more stable than explicit methods for stiff systems. Because they use future solution values, they allow much larger time steps without numerical instability. This makes them well-suited for our prob-lem. However, they require solving a system of equations at each step, which increases computational cost compared to explicit methods. In this paper we use predictor–corrector strategies such as Adams– Bashforth–Moulton (ABM) schemes [38] based on an explicit Adams–Bashforth step that provides an initial prediction for ˆuk+1 , which is subsequently refined using an implicit Adams–Moulton corrector through fixed-point or iterative solution of the resulting nonlinear equation. The Adams–Moulton cor-rector of third order reads 
+
+uk+1 = uk + ∆t
+
+12 
+
+
+
+5 fξ
+
+ σ, uk+1 
+
+ + 8 fξ
+
+ σ, uk
+
+ − fξ
+
+ σ, uk−1
+
+
+
+, (58) and defines a nonlinear implicit system for uk+1 , since nonlinearity arises both from the neural network evaluation and from the implicit dependence on the unknown state. The resulting system is solved using fixed-point iteration. Convergence depends on the contractivity of the combined neural operator and time-integration mapping, which is influenced by the learned dynamics and the step size relative to the 15 stability region of the scheme. The choice of the third-order Adams–Moulton scheme is motivated by its favorable balance between accuracy and stability for moderately stiff dynamics arising in neural-operator-based models. Compared to fully implicit linear-stencil methods such as BDF2, the Adams–Moulton formulation naturally in-corporates multiple past time levels, which improves temporal accuracy without requiring higher-stage nonlinear solves. Although the method leads to an implicit nonlinear system at each step due to the neural-network parameterized right-hand side, this structure is advantageous in our setting, as it allows consistent reuse of neural evaluations within the fixed-point iteration. From a stability perspective, the scheme provides sufficient damping for the targeted dynamics when operated within an appropriate step-size regime, while maintaining higher-order accuracy than more dissipative implicit alternatives. In practice, this makes it well-suited for neural surrogates where the dominant error stems from model approximation rather than time-integration stiffness alone, and where accurate temporal resolution is essential. Compared to the BDF2 scheme used in the reference FEM solver, predictor–corrector methods such as ABM introduce reduced numerical damping and a stronger dependence of stability on the predictor accuracy and corrector convergence. As a consequence, stiff modes that are naturally suppressed by BDF2 may reappear, and the overall stability of the time integration becomes more sensitive to the chosen time step and iterative refinement strategy. To assess stability of the learned dynamics, we evaluate the induced discrete flow map 
+
+Φξ
+
+> ∆t
+
+(uk) = uk +
+
+Z tk +∆ ttk
+
+fξ
+
+ u(t), σ dt 
+
+associated with the neural vector field and the corresponding time discretization. Local stability is then analysed via the spectral radius of the Jacobian 
+
+ρ ∂Φξ
+
+> ∆t
+
+∂u
+
+!
+
+,
+
+where values exceeding unity indicate local amplification of perturbations. For stability analysis of the nonlinear learned dynamics, the system is linearized along the trajectory by evaluating the Jacobian of the neural vector field at the current state, 
+
+Jk = ∂f ξ
+
+∂u (uk).
+
+This yields a locally linear approximation of the evolution, allowing the stability of the discrete flow to be assessed through the spectral properties of the associated linearized update operator. Beyond this local characterisation, two empirical probes assess whether the amplification predicted by the Jacobian spectrum manifests under repeated application of the learned update. The first is a one-step amplification factor, 
+
+G(ε) = RMSE( δuout )RMSE( δuin ) ,
+
+where δuin is the input perturbation, drawn as isotropic Gaussian noise of magnitude ε (a fraction of the input scale), and δuout is the resulting change in the one-step prediction. Sweeping ε extends the analysis beyond the infinitesimal regime probed by the Jacobian: G > 1 signals that the learned map expands perturbations, and its dependence on ε reveals whether this expansion persists into the finite-amplitude, nonlinear regime. The second probe evaluates how these effects accumulate over a trajectory. An initial-condition 16 perturbation is propagated through the recursive application of the learned update, and the growth of the deviation ∥δ(t)∥ is tracked over the rollout horizon. Where G(ε) isolates a single step, this measures how perturbations compound along the composed flow map, and thus whether local expansion becomes unbounded trajectory error. Together with the spectral analysis, these probes establish whether the learned dynamics inherit the perturbation-contracting behaviour of the reference operator (−M −1K).
+
+3.1. Training and parameterization 
+
+The neural network parameters ξ are trained in a supervised learning setting using observed time trajectories of the semi-discrete FEM solution. Given training data {σ(ωk), uk(ωj )}nt 
+
+> k=1
+
+for realizations 
+
+j = 1 , . . . , n s, the network is used to approximate the continuous-time vector field governing the evo-lution. The training objective is defined as the minimization of the discrepancy between predicted and observed states: 
+
+E(ξ) = 1
+
+nsntnsX
+
+> j=1
+> nt
+
+X
+
+> k=1
+
+∥ˆuk+1 (ωj ) − uk+1 (ωj )∥2 , (59) and classical gradient-based approaches are used for the parameter learning. The approximation accuracy as well as stability depend on the choice of neural network parametriza-tion fξ (·). When the vector field is parameterized as a feedforward neural network 
+
+fξ (u) = FFN ξ (σ, u), (60) the resulting implicit system is governed entirely by the nonlinear neural evaluation. The corresponding nonlinear solve at each time step is given by 
+
+uk+1 = uk + ∆t
+
+12 
+
+
+
+5FFN ξ (σ, uk+1 ) + 8FFN ξ (σ, uk) − FFN ξ (σ, uk−1)
+
+
+
+. (61) Hence, the accuracy and computational costs are driven by the algorithm used for solving nonlinear equations [39]. In this case, stability is determined by the spectral properties of the Jacobian of the learned vector field, Jf = ∂f ξ 
+
+> ∂u
+
+, and the stability region of the time integration scheme. To improve the learning, one may approximate the vector field by a residual neural network [20]. In such a case we do not approximate the vector-field directly, but we add additonal identity-dependent linear drift such that 
+
+duh(t)
+
+dt = uh(t) + gξ (uh.σ), (62) holds. This structure can improve optimization stability compared to a plain FFN by reducing the burden on the network to represent the full transformation from scratch. By using a structural bias toward exponential growth or decay, the spectrum of the Jacobian is shifted and thereby the stability properties of the discretized system are altered. Consequently, the residual-vector-field formulation imposes stronger constraints on stability and requires the learned correction term to compensate for the inherent linear drift. In this case we have: 
+
+fξ (u) = u + gξ (σ, u), (63) such that the Adams–Moulton scheme becomes 
+
+uk+1 = uk + ∆t
+
+12 
+
+
+
+5( uk+1 + gξ (σ, uk+1 )) + 8( uk + gξ (σ, uk)) − (uk−1 + gξ (σ, uk−1)) 
+
+
+
+. (64) Hence, the residual parameterization introduces an additional linear coupling in the unknown state uk+1 ,effectively shifting the spectrum of the discrete operator. This modifies the conditioning of the nonlinear 17 system and can affect convergence of fixed-point iterations used in practice. In particular, the Jacobian of the residual formulation becomes 
+
+J = I + ∂g ξ
+
+∂u , (65) which induces an eigenvalue shift relative to the FFN parameterization. As a consequence, stability is influenced not only by the learned nonlinear correction gξ , but also by the inherent linear identity contribution [21], which may amplify or damp perturbations depending on the spectral properties of the system and the chosen time step. If the network is parametrized by a sequence of residual blocks 
+
+hj+1 = hj + gξ,j (hj ), j = 0 , . . . , L − 1, (66) with initial condition h0 = g0 
+
+> ξ
+
+(σ, uh), the output of the network is 
+
+fξ (u; σ) = hL. (67) By recursive substitution, this yields the expansion 
+
+fξ (u; σ) = u +
+
+> L−1
+
+X
+
+> j=0
+
+gξ,j (hj ), (68) where each intermediate state satisfies 
+
+hj = u +
+
+> j−1
+
+X
+
+> j=0
+
+gξ,ℓ (hℓ). (69) In the limit of small residual steps, the architecture can be interpreted as an Euler discretization of an underlying continuous transformation in depth: 
+
+dh(s)
+
+ds = gξ (h(s)) , s ∈ [0 , 1] , (70) with s denoting the artificial depth variable. Substituting the deep residual network into the Neural ODE yields 
+
+˙u(t) = fξ (u(t); σ) = u(t) + 
+
+> L−1
+
+X
+
+> j=0
+
+gξ,j (hj (u(t))) . (71) Thus, the vector field itself is generated by an internal discrete dynamical system in feature space. Compared with a single residual block or a standard feedforward network, a deep residual architecture provides greater expressive power by representing the vector field as a composition of incremental non-linear corrections. The identity skip connections improve gradient propagation during training and bias each block toward learning only deviations from the identity mapping. Moreover, the recursive residual structure admits a natural continuous-depth interpretation, making it particularly well suited for Neural ODEs, where it can be viewed as a discretization of an underlying continuous transformation in network depth. Their stability is given by the Jacobian of the vector field over the chain rule as 
+
+Jf (u) = ∂f ξ
+
+∂u =
+
+> L−1
+
+Y
+
+> k=0
+
+ I + Jgξ,k (hk) , J gξ,k (hk) = ∂g ξ,k 
+
+∂h (hk). (72) This shows that the Jacobian is a product of near-identity transformations. Due to the multiplicative structure of the Jacobian in deep residual networks, stability depends on the cumulative effect of each 18 residual block. If each block satisfies a mild contractivity condition 
+
+ρ I + Jgξ,k 
+
+ ≈ 1, (73) then the overall mapping remains well-conditioned. However, repeated composition may lead to either attenuation or amplification of perturbations depending on the spectral properties of the individual blocks. 
+
+4. Manifold-aware Neural ODE 
+
+The neural network architecture described above is not yet optimal, as it assumes that the physical parameterization in the form of σ is provided as a vector in a Euclidean space. However, the tensor field is modeled as a SPD-valued random variable, as in Eq.(24), taking values on the Riemannian manifold Sym d
+
+> +
+
+(R) of SPD matrices. A naive vectorisation of σ in Euclidean coordinates as in Fig. (3) disregards the intrinsic Riemannian structure. This leads to distortions in both geometric distances and the statistical structure of the induced distribution. To preserve this structure, we employ the Constitutive Manifold Neural Network (CMNN) architecture [19], which incorporates SPD-valued inputs through manifold-consistent mappings that respect the geometry of Sym d
+
+> +
+
+(R) . In contrast to Euclidean vectorisation, this approach operates directly on the manifold, thereby preserving the relevant invariance properties. We introduce the constitutive manifold neural ODE approximation such that the formulation in Eq. (60) reads: 
+
+duh(t)
+
+dt = fξ
+
+ fζ (σ), uh(t), (74) where fζ (σ) enforces hard constraints on the physical parameterization of the conductivity tensor. The Strength–Angular (StrAng) layer fζ (·) enforces the SPD constraint by decomposing σ into physically meaningful components—strength and orientation—and mapping them into a Euclidean representation in a geometry-preserving manner. It is defined as the composition of three transformations [19]: 
+
+fζ (σ) :=  ϱflat ◦ ϱlog ◦ ϱeig (σ), (75) where 
+
+ϱeig : Sym +(d) eig 
+
+−−→ Diag+ +(d) × SO( d), (76) 
+
+ϱlog : Diag+ +(d) × SO( d) (log , log) 
+
+−−−−−→ d(d1) × so (d2), (77) 
+
+ϱflat : d(d1) × so (d2) flatten 
+
+−−−−→ Rd1+d2 . (78) Here, Diag+ +(d) denotes the space of positive diagonal matrices containing the eigenvalues of σ, while 
+
+SO( d) denotes the rotation group containing the corresponding eigenvector matrices. The logarithmic maps transfer these quantities to their associated tangent spaces: the diagonal tangent space d(d) for the conductivity strengths and the Lie algebra so (d) for the orientations. The final flattening operation con-verts these tangent-space representations into a Euclidean vector suitable as input to the neural network. The mappings are applied sequentially, beginning with ϱeig , which performs the eigendecomposition as defined in Eq.(22) and thereby decomposes σ into its eigenvalues and eigenvectors. This separates the conductivity into magnitudes along the principal directions and the corresponding fiber orientations [40]. The resulting factors are then mapped to their respective tangent spaces through ϱlog , where the scalar logarithm is applied to the positive eigenvalues and the matrix logarithm to the rotation component, 19 (a) Domain G including the air, coil and CFRTP    
+
+> (b) Domain GCwhich is the CFRTP plate and an indication of direction for the fibres. (c) Discretisation
+> Figure 4: Simulations domains
+
+effectively providing a local linearisation of the underlying manifold structure. Finally, ϱflat combines these tangent-space representations into a single Euclidean vector, making the result compatible with standard neural network layers. Since the eigendecomposition is not unique due to permutations of eigenvalue–eigenvector pairs, an explicit ordering rule (Appendix A) is imposed to fix a canonical repre-sentative. This ensures that fζ (·) is well-defined for rotations up to π 
+
+> 4
+
+, which lies well within the angular regime considered in this work. This construction guarantees that the resulting tensor is symmetric positive definite by design, while providing a structured Euclidean embedding that separates spectral magnitude and rotational degrees of freedom. Here, d1 and d2 denote the dimensions of minimum number of scaling and orientation com-ponents that are set by symmetry class and are modelled as uncertain, see Eq.(24). Hence, components held fixed do not contribute to this embedding, so that a purely orientational uncertainty gives d1 = 0 .The network is trained as described previously using an L2 loss function. The material tensor layers are not optimized during training; instead, the physical constraints are enforced explicitly through a hard parametrization. 
+
+5. Induction heating computations 
+
+The induction heating model introduced in Section 2.1 is used to study how stochastic electrical con-ductivity influences the temperature distribution of the CFRTP during heating. As a first step, the deterministic case is considered, with Eq.(8) weakly coupled to Eq.(12) [41]. The electromagnetic do-main G is shown in Fig.(4a), where the geometry is constructed in COMSOL Multiphysics and a coil is placed horizontally above a square 300 × 300 × 0.14 CFRTP laminate. The surrounding air domain is enclosed by an infinite-element boundary layer, enforcing the boundary condition in Eq.(9). The heat-transfer subdomain GC is illustrated in Fig.(4b). The domain boundaries are subjected to Robin boundary conditions with an ambient temperature of T∞ = 30 ◦C and a heat-transfer coefficient of 
+
+h = 10 W m −2 K−1.Deterministic process parameters are summarised in Table 1. The laminate is assumed to be made of Toray Cetex ® TC1200 carbon-fibre-reinforced polyether ether ketone (PEEK), a thermoplastic based 20 115.0 57.5 0.0 57.5 115.0     
+
+> X
+> 135.0
+> 67.5
+> 0.0 67.5 135.0
+> Y
+> Det. Vol. Loss Field z=1
+> 115.0 57.5 0.0 57.5 115.0
+> X
+> Det. Vol. Loss Field z=2
+> 2.50e+06 2.50e+07 4.99e+07 7.49e+07 9.98e+07
+> dunno
+
+(a) Volumetric loss plot in the 1st and 2nd ply. Overlay of the coil is included in green on the left plot. 115.0 57.5 0.0 57.5 115.0     
+
+> X
+> 135.0
+> 67.5
+> 0.0 67.5 135.0
+> Y
+> Det. Temp Field 5s
+> 115.0 57.5 0.0 57.5 115.0
+> X
+> Det. Temp Field 10s
+> 3.62e+01 9.09e+01 1.52e+02 2.12e+02 2.73e+02 3.28e+02
+> Temperature (°C)
+
+(b) Temperature plot at t = 5 s, t = 10 s in the second ply. 
+
+Figure 5: Deterministic simulation results. 
+
+composite commonly used in aerospace applications [8], with a symmetric layup [45 ◦, −45 ◦]s. Each ply has a thickness of 0.14 mm. For simplicity heat capacity cp, density ϱ and thermal conductivities κ
+
+are assumed to be constant with temperature. The κ listed in Table 1 are in the principal material coordinate system of the composite ply, while the electrical conductivity tensor σ of the ply shown in Eq.(79) is expressed in global coordinates visible in Fig.(4b), with its decomposition into eigenvalues and eigenvectors given as 
+
+¯σ =
+
+
+
+19153 .98 19146 .98 019146 .002 19153 .02 00 0 0.507 
+
+
+
+ply 
+
+[S/m ]
+
+where ¯Λσ =
+
+
+
+38300 6.04 0.507 
+
+
+
+ply 
+
+[S/m ] , ¯V σ =
+
+
+
+0.7071 ±0.7071 0
+
+±0.7071 0.7071 00 0 1
+
+
+
+ply 
+
+. (79) The FEM model is implemented in COMSOL Multiphysics [30], using the solvers and time integration scheme detailed in Section 2.1. The time solutions are interpolated in postprocessing onto a uniform grid over [0 , 10] s with ∆t = 0 .5 s, yielding temperature trajectories at 21 time steps. The volumetric loss calculated with the EM analysis is presented in Fig.(5a), where the domain is 
+
+Table 1: Deterministic process parameters, where (κ1, κ 2, κ 3) denotes the thermal conductivity along the fibre direction, in-plane transverse to the fibre, and the out-of-plane direction respectively. 
+
+Parameter Value Unit 
+
+Js 495 RMS [A] 
+
+f (c) 342 [kHz] 
+
+μ(m)
+
+r 1
+
+ϵr 3.7 L×W×H 300 × 300 × 0.14 [mm] Layup [45 ◦, −45 ◦]s
+
+Parameter Value Unit 
+
+cp 946 [J/(kgK)] 
+
+ϱ 1601 [kg/m 3]
+
+κ1 6.4 [W/(mK)] 
+
+κ2 0.81 [W/(mK)] 
+
+κ3 0.74 [W/(mK)] 
+
+te 10 [s] 21 0 10 20 30 40             
+
+> Electrical Conductivity Ply 1 [S/m]
+> 0.00 0.02 0.04 0.06 0.08 0.10 0.12 0.14 0.16
+> Density
+> Ply 1 Eigenvalue 2 PDF
+> Mean 010 20 30 40
+> Electrical Conductivity Ply 2 [S/m]
+> Ply 2 Eigenvalue 2 PDF
+> Mean 010 20 30 40
+> Electrical Conductivity Ply 3 [S/m]
+> Ply 3 Eigenvalue 2 PDF
+> Mean 010 20 30 40
+> Electrical Conductivity Ply 4 [S/m]
+> Ply 4 Eigenvalue 2 PDF
+> Mean
+
+Figure 6: Independent distributions of the second eigenvalue of electrical conductivity for all four plies with scaling-orientation uncertainty. 38 40 42 44 46 48 50 52                      
+
+> Angle XY-plane Ply 1 (°)
+> 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Density
+> Ply 1 Angle PDF
+> Mean 52 50 48 46 44 42 40 38
+> Angle XY-plane Ply 2 (°)
+> Ply 2 Angle PDF
+> Mean 52 50 48 46 44 42 40 38
+> Angle XY-plane Ply 3 (°)
+> Ply 3 Angle PDF
+> Mean 38 40 42 44 46 48 50 52
+> Angle XY-plane Ply 4 (°)
+> Ply 4 Angle PDF
+> Mean
+
+Figure 7: Independent distributions of the rotation angle in the XY plane for all four plies with scaling-orientation uncertainty. 
+
+cropped to the region of interest for clarity and the coil geometry is overlaid in green for reference. The resulting field is strongly influenced by the fibre orientation. For the 45 ◦ ply, the upper-left and lower-right regions exhibit the highest heat losses, whereas this pattern is mirrored vertically in the −45 ◦ ply. The spatial correspondence between the regions of elevated loss and the coil geometry is clearly visible from the overlay, confirming that the induced eddy currents are concentrated beneath the coil windings. In addition, the straight lower section of the coil appears to contribute non-negligible volumetric losses up to the lower boundary of the domain. The heat-transfer results, shown in Fig.(5b), illustrate the evolution of the heating pattern at 5s and 10s, which clearly follows the geometry of the coil. The ply-wise antisymmetry observed in the EM analysis does not persist in the thermal results, as the plies are sufficiently thin to allow rapid heat diffusion across layers, leading to an almost symmetric temperature distribution. Furthermore, the left sub-figure indicates two locations marked by a square and a triangle which are later used for the evaluation of probability density functions. The square denotes the point reaching the highest overall peak temperature, while the triangle identifies the point with the highest peak temperature along the coil’s parallel section. 
+
+5.1. Numerical Results 
+
+For the stochastic analysis, the governing systems of equations defined in Eq.(16) and Eq.(18) are solved under stochastic electrical conductivity inputs. For σ(ω) we consider three scenarios: (i) only the scaling is uncertain; (ii) only the orientation is uncertain; (iii) both scaling and orientation are uncertain. This separates the relative contributions of scaling and orientation uncertainty, and any interaction between 22 them. To isolate the effect of σ(ω), the thermal conductivity is held deterministic at the values listed in Table 1 across all ω.In the case when scaling Λ is considered to be uncertain, and the angle of orientation is fixed to the ply orientation V ply the eigenvalues of σ(ω) are modelled as independent lognormal random variables according to Eq.(25), with the full tensor reconstructed via Eq.(24). Since the laminate consists of four plies each with three independent eigenvalues, a single realisation requires 4 × 3 = 12 independent draws. The stochastic parameters of the eigenvalues, obtained from [27], are summarised in Table 2. The distribution of the second eigenvalue across the four plies is shown in Fig.(6). It is presented because its relative spread is large enough that the lognormal character is clearly exhibited, with the strictly positive support and positive skew both visually apparent. In the second simulation case we fix scaling parameters Λ to values Λply , and only vary the orientation uncertainty. In particular, the principal fibre direction of each ply is modelled as a random variable, with rotation about the Z-axis only. The uncertainty reduces to a single random angle per ply, sampled independently from a von Mises distribution on the unit circle, see Eq.(27), parameterised by the nominal mean fibre direction and a concentration parameter κ = 2000 , chosen such that the resulting angular spread (standard deviation ≈ 1.3◦) matches the global absolute fibre misalignment reported in [42]. The resulting distribution of fibre orientations across the four plies is shown in Fig.(7), where samples remain tightly clustered around their respective mean orientations. In the third case, both uncertainty sources are activated simultaneously, with the eigenvalues drawn from the lognormal model (Eq.(25), Table 2) and the per-ply fibre angles from the von Mises distribution (Eq.(27), κ = 2000 ) of the two preceding cases. Scaling and orientation draws are assumed independent within and across plies, bringing the total to 4 × 3 + 4 = 16 independent draws per realisation. To obtain solutions for all three stochastic cases, Monte Carlo sampling is performed using ns =20 ,000 realisations, as per the procedure described in the discretisation, see Section 2.1. The mean and standard deviation of the volumetric loss Q and temperature fields u for all three uncertainty cases are presented in Fig.(8). For the scaling uncertainty case, the mean fields in Fig.(8a) and Fig.(8g) retain broadly the same contour structure as the deterministic solution, with only a slight modification of the spatial distribution. Because the three eigenvalues are sampled independently, each realisation has a slightly different anisotropy ratio rather than a common multiplicative factor, so averag-ing over the inputs does not exactly reproduce the deterministic field but nudges the mean while largely preserving its structure. The standard deviation fields shown in Fig.(8d) and Fig.(8j) reveal elevated variability in the central region and along the parallel sections of the coil, respectively, likely due to the presence of higher volumetric loss thus high sensitivity to changes in electrical conductivity. For the orientation uncertainty case, the mean fields Fig.(8b) and Fig.(8h) remain close to the deter-ministic solution, with slightly broader spatial distributions. The standard deviation of the volumetric loss Fig.(8e) exhibits a modified contour along the parallel section of the coil, indicating a nonlinear 
+
+> Table 2: Mean and standard deviation of the lognormal distributions for the eigenvalues of electrical conductivity tensor in principal material orientation (S/m), obtained from [27].
+
+Eigenvalue Mean [S/m ] Standard Deviation [S/m ]
+
+λ1 (fibre) 38300 1460 
+
+λ2 (transverse) 6.04 3.27 
+
+λ3 (out-of-plane) 0.507 0.285 23 cm 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Mean Source Field for scale, z slice = 2 
+
+2.42e+06 2.42e+07 4.83e+07 7.25e+07 9.67e+07 1.18e+08 
+
+> Source
+
+(a) Mean of volumetric loss field for scaling uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Mean Source Field for orie, z slice = 2 
+
+2.51e+06 2.51e+07 5.02e+07 7.53e+07 1.00e+08 
+
+> Source
+
+(b) Mean of volumetric loss field for orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Mean Source Field for scaleorie, z slice = 2 
+
+2.43e+06 2.42e+07 4.84e+07 7.26e+07 9.69e+07 1.19e+08 
+
+> Source
+
+(c) Mean of volumetric loss field for scaling-orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Std Source Field for scale, z slice = 2 
+
+2.55e+06 5.09e+06 7.63e+06 1.02e+07 1.25e+07 
+
+> Source
+
+(d) Std. in volumetric loss field for scaling uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Std Source Field for orie, z slice = 2 
+
+8.02e+04 7.93e+05 1.58e+06 2.38e+06 3.17e+06 3.88e+06 
+
+> Source
+
+(e) Std. in volumetric loss field for orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Std Source Field for scaleorie, z slice = 2 
+
+2.59e+06 5.17e+06 7.75e+06 1.03e+07 1.27e+07 
+
+> Source
+
+(f) Std. in volumetric loss field for scaling-orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Mean Temp. Field for scale at t = 1 
+
+3.60e+01 8.90e+01 1.48e+02 2.07e+02 2.66e+02 3.19e+02 
+
+> Temperature (°C)
+
+(g) Mean of temperature field for scaling uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Mean Temp. Field for orie at t = 1 
+
+3.62e+01 9.12e+01 1.52e+02 2.13e+02 2.75e+02 3.30e+02 
+
+> Temperature (°C)
+
+(h) Mean of temperature field for orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X
+
+135.0 
+
+67.5 
+
+0.0 67.5 135.0 
+
+> Y
+
+Mean Temp. Field for scaleorie at t = 1 
+
+3.60e+01 8.90e+01 1.48e+02 2.07e+02 2.66e+02 3.19e+02 
+
+> Temperature (°C)
+
+(i) Mean of temperature field for scaling-orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X Coordinate 
+
+> 135.0
+> 67.5
+> 0.0 67.5 135.0
+> Y Coordinate
+
+Std Temp. Field for scale at t = 1 
+
+> 5.23e-01 4.95e+00 9.86e+00 1.48e+01 1.97e+01 2.41e+01
+> Temperature (°C)
+
+(j) Std. in temperature field for scaling uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X Coordinate 
+
+> 135.0
+> 67.5
+> 0.0 67.5 135.0
+> Y Coordinate
+
+Std Temp. Field for orie at t = 1 
+
+> 1.28e-01 1.22e+00 2.43e+00 3.65e+00 4.86e+00 5.95e+00
+> Temperature (°C)
+
+(k) Std. in temperature field for orientation uncertainty. 115.0 57.5 0.0 57.5 115.0 
+
+X Coordinate 
+
+> 135.0
+> 67.5
+> 0.0 67.5 135.0
+> Y Coordinate
+
+Std Temp. Field for scaleorie at t = 1 
+
+> 5.39e-01 5.09e+00 1.01e+01 1.52e+01 2.02e+01 2.48e+01
+> Temperature (°C)
+
+(l) Std. in temperature field for scaling-orientation uncertainty. 
+
+Figure 8: Statistics for different types of uncertainties in the electrical conductivity during induction heating. 
+
+24 150 200 250 300 350 400               
+
+> Temperature (°C)
+> 0.00 0.01 0.02 0.03 0.04
+> PDF
+> Square, 5s KDE Triangle, 5s KDE Square, 10s KDE Triangle, 10s KDE (a) PDFs for scaling-only uncertainty. 150 175 200 225 250 275 300 325 350
+> Temperature (°C)
+> 0.00 0.02 0.04 0.06 0.08 0.10 0.12 0.14
+> PDF
+> Square, 5s KDE Triangle, 5s KDE Square, 10s KDE Triangle, 10s KDE (b) PDFs for orientation-only uncertainty. 150 200 250 300 350 400
+> Temperature (°C)
+> 0.00 0.01 0.02 0.03 0.04
+> PDF
+> Square, 5s KDE Triangle, 5s KDE Square, 10s KDE Triangle, 10s KDE
+> (c) PDFs for scaling-orientation uncertainty
+
+Figure 9: Probability density functions obtained by kernel density estimates at 5s and 10s for points marked in Fig.(5b). 
+
+interaction between fibre orientation variability and electromagnetic loss generation, though with con-siderably smaller standard deviation magnitude than in the scaling uncertainty case. More pronounced effects appear in the temperature standard deviation field Fig.(8k), where larger deviations relatively to the scaling uncertainties are observed near the upper and lower sections of the coil. For the combined uncertainty case shown in Fig.(8c, 8f, 8i and 8l) the variance of the temperature 
+
+u is dominated by the scaling contribution, consistent with the comparatively large standard deviations of the scaling parameters. The spatial patterns reflect this dominance, with the orientation contribution introducing only a small increase to the field magnitudes. The stochastic temperature response is further analysed through probability density functions eval-uated at t = 5 s and t = 10 s at the two locations indicated in Fig.(9). An overall increase in variability over time is observed, consistent with the cumulative propagation of uncertainty through the transient heat-transfer process. The distributions associated with the scaling and orientation uncertainty cases exhibit noticeable right skewness, reflecting the asymmetric propagation of the lognormal scaling inputs through the thermal system. The combined uncertainty case exhibits a similar skewness character, dom-inated by the scaling contribution, though the aggregation of multiple independent sources introduces reduced skewness, consistent with the central limit effect. Overall, the results demonstrate a pronounced sensitivity of both the electromagnetic losses and the thermal response to the parameterisation of the electrical conductivity, with scaling uncertainty constituting the dominant source of variability in the predicted temperature field. 
+
+5.2. Surrogate modelling for induction heating 
+
+Part of the dataset generated for the Monte Carlo analysis is reused for training the surrogate model of Section 4. Only the combined scaling-and-orientation case is considered. The mean and standard 25 deviation of the corresponding temperature fields used as the reference solution are shown in Fig.(8i) and Fig.(8l), and inputs and outputs are organised as in Eq.(37). The input vector q concatenates two components. The first is the current temperature field at the integration points, of dimension 24 × 28 × 4 = 2688 . The second is the StrAng embedding fζ (σ) from Eq.(75), of dimension 16 , comprising 3 eigenvalues and a single Z-axis rotation angle per ply across the four plies. The restriction of the rotation to the Z-axis compresses the 4 × 6 = 24 independent components of the unconstrained tensor field to this 16-dimensional manifold-aware representation. The output is the temperature field at the same quadrature points one time step ahead, of dimension 2688 .To investigate the effect of the Neural ODE formulation on approximation performance, the Euler-based time integration approach shown in Eq.(53) is compared with the explicit RK4 Eq.(57) and implicit Adams–Moulton Eq.(58) Neural ODE integrators. These three networks are hereafter referred to as Euler, RK4, and AM, respectively. The architectures of all networks are kept as similar as possible to ensure a fair comparison. Each model employs the StrAng layer and residual blocks within the hidden layers as presented in Eq.(75). To determine a set of shared hyperparameters, an equal-weighted multi-objective Bayesian hyperparameter search was performed using a Tree-structured Parzen Estimator as implemented in [43], with each network’s validation loss contributing equally to the joint search objective. The tuneable parameters included the activation function, loss function, hidden layer width and depth, batch size, and learning rate. The resulting configuration consists of four hidden layers of width 12, the Sigmoid Linear Unit (SiLU) [44] activation function, a batch size of 128, mean squared error as the training loss, and a learning rate of 7.5×10 −5. Fixed training parameters include an ODE solver step size of 0.1 s, corresponding to five sub-steps per ∆t = 0 .5 s integration interval. The training data is a subset of 5000 of the 20,000 Monte Carlo realisations, split 70–15–15% into training, validation, and test sets, yielding 3500 × 20 = 70 ,000 0 100 200 300 400 500                     
+
+> Epoch
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> 10 1
+> 10 2
+> Loss
+> MLP_delta_r3
+> train raw val raw train MA(50) val MA(50)
+> (a) Training history for the Euler network. 0100 200 300 400 500
+> Epoch
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> 10 1
+> 10 2
+> Loss
+> ODE_exp_r2
+> train raw val raw train MA(50) val MA(50) (b) Training history for the explicit NODE network. 0100 200 300 400 500
+> Epoch
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> 10 1
+> 10 2
+> Loss
+> ODE_imp_r0
+> train raw val raw train MA(50) val MA(50)
+> (c) Training history for the implicit NODE network.
+
+Figure 10: Loss history for scaling and orientation uncertainty. 
+
+26 Table 3: Performance comparison best performing networks for the Euler (EUL) , explicit (EXP) NODE and implicit (IMP) NODE networks. 
+
+Error MSE Mean L2 Std L2 KL EUL RK4 AM EUL RK4 AM EUL RK4 AM EUL RK4 AM Val set 0.10 e−2 0.15 e−2 0.13 e−2 - - - - - - - - -Test set 0.11 e−2 0.15 e−2 0.14 e−2 0.36 0.44 0.33 0.15 0.21 0.16 0.22 e−1 0.42 e−1 0.83 e−1
+
+t[5-15] 0.89 e−1 1.26 e−1 1.35 e−1 3.01 7.65 4.27 4.34 2.71 5.69 0.11 e−1 0.28 e−1 0.54 e−1
+
+t[0-20] 0.72 1.23 1.40 6.89 35.76 19.08 10.78 9.10 27.45 0.05 0.17 0.22 training input–output pairs. All temperature values are normalised to [0 , 1] via min-max scaling fitted on the training set, with the same scaling applied to the validation and test data. Surrogate accuracy is evaluated using the loss definition E introduced in Eq.(48), consistent with the training objective. The loss is evaluated on the validation dataset over the reduced horizon t ∈ [2 .5, 7.5] sand on the test dataset over the full horizon t ∈ [0 , 10] s. Comparisons of statistics and distributions are evaluated on the full set of 20,000 sample trajectories, generated with the same random seed as the Monte Carlo reference, so that the surrogate and reference solutions can be compared realisation-by-realisation. The training procedure follows a standard supervised setup. Network parameters θ are updated by minimising the loss Eq.(59) on mini-batches drawn from the training subset using the Adam optimiser [45] with gradient for the NODE-networks computed through an adjoint solve [20]. Mini-batches are reshuffled between epochs. Training terminates either at a fixed budget of Nepoch = 1001 epochs or when the validation loss fails to improve over Npatience = 30 consecutive epochs, whichever occurs first. To assess the robustness of the learning procedure, this process is repeated five times with different random network initialisations and dataset shuffling. The training and validation histories of the best-performing networks in terms of test loss across the repeated experiments are shown in Fig.(10). The Euler network in Fig.(10a), together with the explicit and implicit NODE networks in Fig.(10b) and Fig.(10c), exhibit comparable learning patterns, with the training losses decreasing steadily and settling into the low 10 −2 range within the available number of epochs. The validation histories are decently noisy across all three networks, showing pronounced epoch-to-epoch jumps of similar magnitude while broadly tracking their respective training curves. A drawback of the NODE is a slower evaluation time. Under the current setting, inference for a single sample is on the order of 10 −3 s for the Euler network and 10 −2 s for the Neural ODE models, roughly an order of magnitude slower. This follows directly from the need to integrate the learnt vector field fθ
+
+across each interval rather than apply a single explicit update. The performance comparison is summarised in Table 3, while aggregated statistics over all repeated experiments are reported in Table 4. The three networks attain comparable accuracy, with the Euler network performing on par with, and frequently better than, the Neural ODE models. On the validation and test sets, all networks reduce the MSE to the order of 10 −3, the Euler model attaining the lowest values ( 1.0–1.1 × 10 −3) among the three. Trajectory-wise metrics on the test set remain closely clustered across all evaluated quantities. The mean L2 error is 0.36 ◦C for the Euler network, against 0.44 ◦Cand 0.33 ◦C for the explicit and implicit NODE models respectively, while the corresponding standard deviations lie between 0.15 ◦C and 0.21 ◦C. The Kullback–Leibler (KL) divergence, used here as a measure of distributional agreement between the predicted and reference temperature distributions, is lowest for the Euler network, indicating that its predictions match the reference distribution at least as well as those of the Neural ODE models. The implicit scheme attains a marginally lower mean L2 error 27 than the Euler network, whereas the Euler network retains an advantage in KL divergence, indicating that the models trade off pointwise and distributional accuracy without a clear overall winner. Over longer rollout horizons the networks remain closely matched, with the Euler network retaining a slight edge. Over the validation horizon t ∈ [2 .5, 7.5] s and the full test horizon t ∈ [0 , 10] s, all three networks exhibit comparable error growth, and the Euler network attains the lowest rollout MSE and mean L2 error over both horizons, indicating that its temporal stability is competitive with that of the Neural ODE models. The statistics of the repeated experiments shown in Table 4 confirm these findings, but reveal a marked difference in run-to-run consistency. While all three networks attain comparable mean errors, the Euler network is substantially noisier across repeated training: its test-set MSE standard deviation is 5.2 × 10 −4, roughly a factor of four larger than the 1.4 × 10 −4 and 1.6 × 10 −4 obtained by the implicit and explicit NODE models. The same pattern holds for the trajectory-wise metrics, where the Euler network exhibits the largest spread in mean L2 (1.0 × 10 −1 ◦C, against 9.4 × 10 −2 ◦C and 7.8 × 10 −2 ◦Cfor the NODE models) and in standard deviation of the L2 error ( 1.2 × 10 −1 ◦C, versus 5.6 × 10 −2 ◦Cand 4.9 × 10 −2 ◦C). Thus, although the Euler network attains the lowest mean errors on several metrics, the Neural ODE models produce markedly more consistent results across repeated training, indicating greater robustness of the learned surrogate. The local stability of the learned flow map is quantified in Fig.(11a), which shows the distribution of the effective per-step amplification rate, r = ln ρ
+
+
+
+∂Φξ
+
+> ∆t
+
+/∂ u
+
+
+
+/∆t, over 500 test states for each integrator. Here r > 0 marks local amplification of perturbations and r < 0 marks contraction. For all three networks the distribution lies almost entirely in the amplifying region, peaking near r ≈ 0.12 s −1 with a tail reaching r ≈ 0.8 s −1. The Euler network and the two Neural ODE variants are near-indistinguishable, so the amplification originates in the learned dynamics rather than in the time integrator. As the RK4, Adams–Moulton and Euler updates carry very different numerical damping yet give the same distribution. This contrasts sharply with the reference finite-element operator (−M −1K), whose slowest mode lies at −2.0 × 10 −2 s−1 (dashed line), i.e. weakly dissipative. The learned updates are therefore locally ex-pansive across almost the entire state distribution. This local expansion carries through to the empirical probes as the one-step amplification factor exceeds unity across the full perturbation range (Fig.(11b)),   
+
+> Table 4: Neural network performance over all repeated numerical experiments reported with mean ±std.
+
+EUL-δ ODE-RK4 ODE-AM mean ± mean ± mean ±
+
+Val set 1.59e −3 5.2e −4 1.63e −3 1.5e −4 1.52e −3 1.3e −4
+
+Test set 1.59e −3 5.2e −4 1.64e −3 1.6e −4 1.53e −3 1.4e −4
+
+t[5-15] 1.24e −1 4.7e −2 1.38e −1 1.8e −2 1.32e −1 1.3e −2
+
+t[0-20] 9.82e −1 2.8e −1 1.07 0.11 1.14 0.17 Metric EUL-δ ODE-RK4 ODE-AM mean ± mean ± mean ±
+
+Mean L2 4.39e −1 1.0e −1 4.75e −1 7.8e −2 3.96e −1 9.4e −2
+
+Std L2 3.09e −1 1.2e −1 2.09e −1 4.9e −2 2.38e −1 5.6e −2
+
+KL 3.90e −2 2.4e −2 6.35e −2 2.4e −2 7.10e −2 2.0e −2
+
+28 and the initial-condition deviation ∥δ(t)∥ grows monotonically over the rollout (Fig.(11c)) so the local instability compounds along the trajectory rather than averaging out. This behaviour is a known failure mode of learned time-steppers, whose training objective rewards one-step accuracy but places no constraint on the spectrum of the update [46]. A network can match the observed temperature increments closely while still acquiring a slightly amplifying Jacobian, since over the short training trajectories the resulting error growth stays small against the mean-temperature signal. Absent an explicit spectral or stability constraint, the fitted models are free to cross into the locally unstable regime [47]. 
+
+5.3. Results Discussion 
+
+Several limitations of the present study warrant discussion. The surrogate models are trained and eval-uated within the parameter ranges defined by the considered uncertainty scenarios, and their predictive capability outside these ranges remains untested. Extrapolation to longer time horizons or to larger de-viations in electrical conductivity has not been assessed, and no claim is made regarding generalisation beyond the training distribution. The spatial representation used during training introduces a potential source of error. The surrogate is trained on temperature values at a single integration point per element, whereas the FEM solver enforces accuracy at a 2 × 2 integration point configuration per element. This reduces memory and training cost but removes fine-scale information from the reference fields, and may obscure local temperature effects, potentially degrading accuracy of the reconstructed field relative to the full-order solution. Error accumulation is stronger over t ∈ [0 , 10] s than over t ∈ [2 .5, 7.5] s, reflecting the rapid gradient formation during the initial 0.5 s heating stage, in which the temperature field transitions from a spatially uniform state to one with pronounced gradients. Errors introduced during this qualitatively distinct change propagate through the subsequent rollout. Finally, the electrical conductivity is modelled as a spatially homogeneous random variable, which likely overestimates effective variability relative to realistic material behaviour in which spatial random field would be present. Furthermore, no experimental validation has been performed for the parameter ranges considered. The results should therefore be interpreted as a quantification of relative surrogate performance under the adopted modelling assumptions, rather than as absolute predictions of physical variability in induction heating processes. 0.0 0.2 0.4 0.6 0.8                        
+
+> effective decay rate ln( )/ t[1/s]
+> 01234
+> density
+> Effective decay-rate distribution
+> Euler NODE(explicit) NODE(implicit) neutral (r=0) FEM (-0.020)
+> (a) Distribution of the effective per-step amplification rate r= ln ρ/ ∆tacross 500
+> test states. 10 310 210 1
+> 0.0000 0.0002 0.0004 0.0006 0.0008
+> G
+> +1
+> One-step amplification factor
+> NODE(RK4) Euler NODE(AM) neutral ( G= 1)
+> (b) One-step amplification factor G(ε)
+> against input perturbation magnitude
+> ε.246810
+> t [s]
+> 0.0 0.1 0.2 0.3 0.4 0.5 0.6
+> uout (t) [°C]
+> Rollout stability eps = 1% sigma
+> NODE(RK4) Euler NODE(AM)
+> (c) Growth of the initial-condition deviation ∥δ(t)∥over the rollout horizon.
+
+Figure 11: Stability analysis of the learned surrogates. 
+
+29 100 50 0 50 100 
+
+X
+
+100 
+
+50 
+
+050 100 
+
+> Y
+
+MLP_delta_r3_r1_c2 
+
+12345(a) Euler NN absolute error in estimation of mean. 100 50 0 50 100 
+
+X
+
+100 
+
+50 
+
+050 100 
+
+> Y
+
+ODE_exp_r2_r1_c2 
+
+12345
+
+(b) RK4 NN absolute error in estimation of mean. 100 50 0 50 100 
+
+X
+
+100 
+
+50 
+
+050 100 
+
+> Y
+
+ODE_imp_r0_r1_c2 
+
+12345
+
+(c) AM NN absolute error in estimation of mean. 100 50 0 50 100 
+
+X
+
+> 100
+> 50
+> 050 100
+> Y
+
+MLP_delta_r3_r2_c2 
+
+> 0.2 0.4 0.6 0.8 1.0
+
+(d) Euler NN absolute error in estimation of Std. 100 50 0 50 100 
+
+X
+
+> 100
+> 50
+> 050 100
+> Y
+
+ODE_exp_r2_r2_c2 
+
+> 0.2 0.4 0.6 0.8 1.0
+
+(e) RK4 NN absolute error in estimation of Std. 100 50 0 50 100 
+
+X
+
+> 100
+> 50
+> 050 100
+> Y
+
+ODE_imp_r2_r2_c2 
+
+> 0.2 0.4 0.6 0.8 1.0
+
+(f) AM NN absolute error in estimation of Std. 100 50 0 50 100 
+
+X
+
+> 100
+> 50
+> 050 100
+> Y
+
+MLP_delta_r3_r3_c0 
+
+> 0.02 0.04 0.06 0.08 0.10
+
+(g) Euler NN absolute error in estimation of Std. 100 50 0 50 100 
+
+X
+
+> 100
+> 50
+> 050 100
+> Y
+
+ODE_exp_r2_r3_c0 
+
+> 0.02 0.04 0.06 0.08 0.10
+
+(h) RK4 NN absolute error in estimation of Std. 100 50 0 50 100 
+
+X
+
+> 100
+> 50
+> 050 100
+> Y
+
+ODE_imp_r0_r3_c0 
+
+> 0.02 0.04 0.06 0.08 0.10
+
+(i) AM NN Kullbach leibner Divergence 
+
+Figure 12: Errors in estimation of mean and std. for the different networks on rollouts from 0s to 10s. 
+
+30 6. Conclusion 
+
+A manifold-aware and temporally stable surrogate framework was developed in this work for uncertainty propagation in induction heating of carbon-fibre-reinforced thermoplastics. It enables efficient stochastic analysis under manufacturing-induced variability in electrical conductivity at a reduced cost compared to full Monte Carlo simulation. The stochastic material model was introduced in the electromagnetic–heat-transfer model to represent this variability, respecting the SPD nature of the conductivity tensor and explicitly separating scaling and orientation uncertainties arising from local manufacturing imperfections in fibre placement and fibre-fibre contact quality. The resulting stochastic conductivity model was first used to quantify uncertainty in the induction heating process through Monte Carlo simulations, providing detailed insight into induced currents and the resulting temperature field over time. The simulation data were subsequently used to train mainfold-aware surrogate models formulated as Constitutive Manifold Neural Networks (CMNNs), which explicitly respect the SPD manifold structure of the conductivity tensor through the StrAng input layer, integrated with a Neural Ordinary Differential Equation (NODE) framework to capture temporal dynamics. The results reveal substantial temperature variability driven by stochastic conductivity, with uncertainty increasing continuously over time, consistent with the cumulative propagation of uncertainty through the transient heat-transfer process. The numerical results demonstrate that the CMNN-Euler, CMNN-RK4, and CMNN-AM surrogates achieve comparable accuracy on unseen test cases and long-horizon rollouts, with mean L2 errors of 
+
+0.36 ◦C, 0.44 ◦C, and 0.33 ◦C respectively. The Euler baseline attains the lowest mean errors on several metrics but exhibits markedly larger run-to-run variability, whereas the Neural ODE integrators produce more consistent results across repeated training, indicating greater robustness of the learned surrogate. The principal advantage of the Neural ODE formulation is the flexibility it affords in the choice of time-step and integration scheme at inference, decoupling the temporal discretisation from that seen during training and in principal enabling adaptive or variable step sizes without retraining. Between the two Neural ODE integrators, RK4 achieves lower mean error while AM better preserves the distributional character of the temperature field, indicating a trade-off between pointwise and distributional accuracy rather than a clear overall winner. While demonstrated here for induction heating of CFRTPs, aspects of the surrogate pipeline are broadly applicable to any stochastic PDE system governed by SPD-valued material parameters, includ-ing diffusion, elasticity, and coupled multiphysics problems where manufacturing-induced anisotropy introduces parameter uncertainty. Future work should prioritise extending the conductivity parame-terisation to spatially varying random tensor fields, which would allow the surrogate to capture local manufacturing variations and microstructural heterogeneity in CFRTPs that are not represented in the current homogeneous formulation. The rapid evaluation afforded by the surrogate opens further oppor-tunities in induction heating process engineering, including real-time temperature control during welding and optimisation of coil geometry and process parameters. 
+
+7. Declarations 
+
+The datasets used and/or analysed during the current study are available from the corresponding author on reasonable request. This research was carried out as part of the project ENLIGHTEN [48] (project number N21010 - m) in the framework of the Partnership Program of the Materials Innovation institute M2i (www.m2i.nl) and the Netherlands Organization for Scientific Research (www.nwo.nl). 31 W.J.S. wrote the initial manuscript, contributed to the problem formulation and methodology, set up the models, and generated the results and figures under the supervision of M.I.A.R. and B.R. B.R. contributed to the methodology, problem formulation, and manuscript writing. M.I.A.R. assisted with the realization of the case study. All authors reviewed and approved the final manuscript. 
+
+Appendix A. Unique Spectral Decomposition 
+
+A unique spectral decomposition is required for StrAng, as eigenvectors can flip sign and eigenvalues can permute without changing the tensor. Such ambiguities may break physical consistency across samples. To enforce a consistent orientation, each decomposition is aligned with a reference tensor, for instance the mean, σ = V Λ V ⊤, by solving 
+
+(P, S ) = argmin  
+
+> P∈P , S ∈S
+
+dR(P, S ), (A.1) where P represents one of six eigenvalue permutations, S one of eight sign configurations for the eigenvec-tors, and dR(P, S ) measures the misalignment with σ. The selected ( ˆP , ˆS) provides consistent alignment and is stable for rotational deviations up to approximately 45 ◦, exceeding typical variability observed in advanced materials. 
+
+References 
+
+[1] S. G. Miller, J. J. Pinakidis, P. J. Heimann, A. C. Bergan, P. H. Johnston, J. Su, F. Leone, K. N. Se-gal, W. Mulhearn, J. Chiu, W. Seneviratne, M. Walthers, U. Palliyaguru, S. Slater, M. Wadsworth, J. Hertel, C. Skocik, and J. Stratton, “Assessment of Thermoplastic Composite Joining by Resis-tance, Induction, and Ultrasonic Welding - NASA Technical Reports Server (NTRS),” National Aeronautics and Space Administration , July 2025. [2] J. Zhang, V. S. Chevali, H. Wang, and C.-H. Wang, “Current status of carbon fibre and carbon fibre composites recycling,” Composites Part B: Engineering , vol. 193, p. 108053, July 2020. [3] P. Velmurugan, J. Manohar, C. R. Kannan, S. Manivannan, J. Vairamuthu, and B. Stalin, “A Study On development of Induction Welding of Thermoplastic Composites,” IOP Conference Series: Materials Science and Engineering , vol. 988, p. 012109, Dec. 2020. [4] A. Korycki, C. Garnier, M. Bonmatin, E. Laurent, and F. Chabert, “Assembling of Carbon Fi-bre/PEEK Composites: Comparison of Ultrasonic, Induction, and Transmission Laser Welding,” 
+
+Materials 2022: Fusion Bonding/Welding of Polymer Composites , vol. 15, p. 6365, Sept. 2022. [5] A. Yousefpour, M. Hojjati, and J.-P. Immarigeon, “Fusion Bonding/Welding of Thermoplastic Com-posites,” Journal of Thermoplastic Composite Materials , vol. 17, pp. 303–341, July 2004. [6] C. Worral, E. Kellar, and C. Vacogne, Joining of fibre-reinforced polymer composites . Northbridge Road, Berkhamsted, Hertfordshire: Composites UK Audley House, Jan. 2020. [7] W. J. B. Grouve, F. Sacchetti, E. J. Vruggink, and R. Akkerman, “Simulating the in-duction heating of cross-ply C/PEKK laminates – sensitivity and effect of material vari-ability,” Advanced Composite Materials , vol. 30, pp. 409–430, Sept. 2021. _eprint: https://doi.org/10.1080/09243046.2020.1783078. 32 [8] Y. Buser, G. Bieleman, W. Grouve, S. Wijskamp, and R. Akkerman, “Characterisation of Or-thotropic Electrical Conductivity of Unidirectional C/PAEK Thermoplastic Composites,” in Pro-ceedings of the 20th European Conference on Composite Materials - Composites Meet Sustainability ,pp. 83–91, Ecole Polytechnique Fédérale de Lausanne, 2022. [9] J. Guilleminot and C. Soize, “Stochastic Model and Generator for Random Fields with Symmetry Properties: Application to the Mesoscopic Modeling of Elastic Random Media,” Multiscale Modeling and Simulation , vol. 11, pp. 840–870, Aug. 2013. [10] S. K. Shivanand, B. Rosić, and H. G. Matthies, “Stochastic modelling of symmetric positive definite material tensors,” Journal of Computational Physics , vol. 505, p. 112883, May 2024. [11] W. J. Schuttert, M. I. Abdul Rasheed, and B. Rosić, “Modeling variability of the electrical conduc-tivity tensor for the induction welding of composites,” PAMM , vol. 24, no. 3, p. e202400058, 2024. _eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1002/pamm.202400058. [12] Z. Cheng, N. Takahashi, and B. Forghani, Modeling and application of electromagnetic and thermal field in electrical engineering . Modeling and Application of Electromagnetic and Thermal Field in Electrical Engineering, Science Press, Beijing and Springer Nature Singapore Pte, 2019. [13] B. Sudret, S. Marelli, and J. Wiart, “Surrogate models for uncertainty quantification: An overview,” in 2017 11th European Conference on Antennas and Propagation (EUCAP) , pp. 793–797, Mar. 2017. [14] M. Abdar, F. Pourpanah, S. Hussain, D. Rezazadegan, L. Liu, M. Ghavamzadeh, P. Fieguth, X. Cao, A. Khosravi, U. R. Acharya, V. Makarenkov, and S. Nahavandi, “A review of uncertainty quantifi-cation in deep learning: Techniques, applications and challenges,” Information Fusion , vol. 76, pp. 243–297, Dec. 2021. [15] R. K. Tripathy and I. Bilionis, “Deep UQ: Learning deep neural network surrogate models for high dimensional uncertainty quantification,” Journal of Computational Physics , vol. 375, pp. 565–588, Dec. 2018. [16] X. Pennec, P. Fillard, and N. Ayache, “A Riemannian Framework for Tensor Computing,” Interna-tional Journal of Computer Vision , vol. 66, pp. 41–66, Jan. 2006. [17] Z. Huang and L. Van Gool, “A Riemannian Network for SPD Matrix Learning,” Proceedings of the AAAI Conference on Artificial Intelligence , vol. 31, Feb. 2017. [18] D. Brooks, O. Schwander, F. Barbaresco, J.-Y. Schneider, and M. Cord, “Riemannian batch normal-ization for SPD neural networks,” in Advances in Neural Information Processing Systems (H. Wal-lach, H. Larochelle, A. Beygelzimer, F. d. Alché-Buc, E. Fox, and R. Garnett, eds.), vol. 32, Curran Associates, Inc., 2019. [19] W. J. Schuttert, M. I. Abdul Rasheed, and B. Rosić, “Constitutive manifold neural networks,” 
+
+Journal of Computational Physics , vol. 559, p. 114912, Aug. 2026. [20] T. Q. Chen, Y. Rubanova, J. Bettencourt, and D. K. Duvenaud, “Neural Ordinary Differential Equations,” Advances in Neural Information Processing Systems , no. 31, 2018. [21] K. He, X. Zhang, S. Ren, and J. Sun, “Deep Residual Learning for Image Recognition,” in Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition , pp. 770–778, 2016. 33 [22] A. Siddique, Z. Iqbal, Y. Nawab, and K. Shaker, “A review of joining techniques for thermoplastic composite materials,” Journal of Thermoplastic Composite Materials , vol. 36, pp. 3417–3454, June 2022. [23] N. Rahim, J. Pandher, N. Coppola, V. Penumetsa, and M. Tooren, “In-Situ Monitoring and Control of Induction Welding in Thermoplastic Composites Using High Definition Fiber Optic Sensors,” in 
+
+CAMX 2019 , NA SAMPE, 2019. [24] D. Barazanchy and M. van Tooren, “Heating mechanisms in induction welding of thermoplastic composites,” Journal of Thermoplastic Composite Materials , vol. 36, pp. 473–492, Feb. 2023. [25] D. J. Griffiths, Introduction to electrodynamics . Upper Saddle River, NJ: Prentice Hall, 3. ed., reprinted with corrections ed., 1999. [26] A. Zangwill, Modern Electrodynamics . Cambridge: Cambridge University Press, Dec. 2012. ISBN: 9781139034777. [27] Y. M. Buser, Predicting induction heating of tape-based thermoplastic composites: The role of or-thotropic electrical conductivity . PhD thesis, University of Twente, Enschede, Feb. 2025. [28] K. V. Mardia and P. E. Jupp, Directional Statistics . Chichester: John Wiley & Sons, Ltd, 2000. [29] K.-J. Bathe, Finite Element Procedures . Prentice Hall, Pearson Education, Inc, 1996. [30] “COMSOL Multiphsyics® v. 6.2..” https://www.comsol.com/. [Accesed 6/8/2025]. [31] O. Biro and K. Preis, “On the use of the magnetic vector potential in the finite-element analysis of three-dimensional eddy currents,” IEEE Transactions on Magnetics , vol. 25, pp. 3145–3159, July 1989. [32] Y. Saad and M. H. Schultz, “GMRES: A Generalized Minimal Residual Algorithm for Solving Nonsymmetric Linear Systems,” SIAM Journal on scientfic and statistical computing , vol. 7, no. 3, pp. 856–869, 1986. [33] S. P. Vanka, “Block-implicit multigrid solution of Navier-Stokes equations in primitive variables,” 
+
+Journal of Computational Physics , vol. 65, pp. 138–158, July 1986. [34] E. Hairer and G. Wanner, Solving Ordinary Differential Equations II , vol. 14 of Springer Series in Computational Mathematics . Berlin, Heidelberg: Springer, 1996. [35] O. P. Le Maître and O. M. Knio, Spectral Methods for Uncertainty Quantification: With Applications to Computational Fluid Dynamics . Scientific Computation, Dordrecht: Springer Netherlands, 2010. [36] O. Schenk and K. Gärtner, “Solving unsymmetric sparse systems of linear equations with PAR-DISO,” Future Generation Computer Systems , vol. 20, pp. 475–487, Apr. 2004. [37] A. F. Queiruga, N. B. Erichson, D. Taylor, and M. W. Mahoney, “Continuous-in-Depth Neural Networks,” Aug. 2020. arXiv:2008.02389 [cs]. [38] E. Hairer, G. Wanner, and S. P. Norsett, Solving Ordinary Differential Equations I , vol. 8 of Springer Series in Computational Mathematics . Berlin, Heidelberg: Springer, 1993. 34 [39] C. T. Kelley, Iterative methods for linear and nonlinear equations. Society for Industrial and Applied Mathematics, 1995. [40] A. Feragen and A. Fuster, “Geometries and Interpolations for Symmetric Positive Definite Matrices,” in Modeling, Analysis, and Visualization of Anisotropy (T. Schultz, E. Özarslan, and I. Hotz, eds.), (Cham), pp. 85–113, Springer International Publishing, 2017. [41] D. E. Keyes, L. C. McInnes, C. Woodward, W. Gropp, E. Myra, M. Pernice, J. Bell, J. Brown, A. Clo, J. Connors, E. Constantinescu, D. Estep, K. Evans, C. Farhat, A. Hakim, G. Hammond, G. Hansen, J. Hill, T. Isaac, X. Jiao, K. Jordan, D. Kaushik, E. Kaxiras, A. Koniges, K. Lee, A. Lott, Q. Lu, J. Magerlein, R. Maxwell, M. McCourt, M. Mehl, R. Pawlowski, A. P. Randles, D. Reynolds, B. Rivière, U. Rüde, T. Scheibe, J. Shadid, B. Sheehan, M. Shephard, A. Siegel, B. Smith, X. Tang, C. Wilson, and B. Wohlmuth, “Multiphysics simulations: Challenges and opportunities,” The In-ternational Journal of High Performance Computing Applications , vol. 27, pp. 4–83, Feb. 2013. [42] S. Gomarasca, D. M. J. Peeters, B. Atli-Veltin, and C. Dransfeld, “Characterising microstructural organisation in unidirectional composites,” Composites Science and Technology , vol. 215, p. 109030, Oct. 2021. [43] T. Akiba, S. Sano, T. Yanase, T. Ohta, and M. Koyama, “Optuna: A Next-generation Hyperparam-eter Optimization Framework,” in Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining , KDD ’19, (New York, NY, USA), pp. 2623–2631, Associ-ation for Computing Machinery, July 2019. [44] S. Elfwing, E. Uchibe, and K. Doya, “Sigmoid-weighted linear units for neural network function approximation in reinforcement learning,” Neural Networks , vol. 107, pp. 3–11, Nov. 2018. [45] D. P. Kingma and M. Welling, “Auto-Encoding Variational Bayes,” Proceedings of the International Conference on Learning Representations , 2014. [46] S. Kim, W. Ji, S. Deng, Y. Ma, and C. Rackauckas, “Stiff Neural Ordinary Differential Equa-tions,” Chaos: An Interdisciplinary Journal of Nonlinear Science , vol. 31, p. 093122, Sept. 2021. arXiv:2103.15341 [math]. [47] G. Manek and J. Z. Kolter, “Learning Stable Deep Dynamics Models,” Advances in neural infor-mation processing systems , vol. 32, 2019. [48] “Enlighten Project.” https://www.tpc-enlighten.nl. [Accesed 6/8/2025]. 35

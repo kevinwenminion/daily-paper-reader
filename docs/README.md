@@ -6,43 +6,35 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-08
-- 运行时间：2026-08-08 20:53:20 UTC
+- 最新运行日期：2026-08-09
+- 运行时间：2026-08-09 20:51:51 UTC
 - 运行状态：成功
-- 本次总论文数：6
-- 精读区：0
-- 速读区：6
+- 本次总论文数：5
+- 精读区：3
+- 速读区：2
 
 ### 今日简报（AI）
-今日速读6篇论文，聚焦纳米材料重建、材料科学假设生成与电池健康预测三大方向。
-
-最值得关注的是两篇7分工作：NanoMorph-3D实现纳米材料端到端物理驱动重建，以及可视化材料科学假设生成中的图到答案机制。
-
-建议普通读者优先浏览这两篇的摘要与图表，必要时精读锂电健康预测的PiDDM方法。
-- 详情：[/202608/08/README](/202608/08/README)
+今日精读3篇、速读2篇，聚焦材料模拟与算法优化；最值得关注LLZO固态电解质的拉曼-锂离子动力学关联，及可解释符号回归发现的磁芯损耗方程；下一步可沿“离子输运机制+可解释AI建模”方向交叉阅读。
+- 详情：[/202608/09/README](/202608/09/README)
 
 ### 精读区论文标签
-- 本次无精读推荐。
+1. [Raman Signatures of Lithium Ion Dynamics in LLZO Garnet Electrolytes: Atomistic Insights from MD-Raman Calculations](/202608/09/2608.04690v1-raman-signatures-of-lithium-ion-dynamics-in-llzo-garnet-electrolytes-atomistic-insights-from-md-raman-calculations)  
+   标签：评分：9.0/10、query:aimat-mlpot
+   evidence：使用机器学习分子动力学计算拉曼光谱和锂离子输运
+2. [Discovering Explicit Magnetic Core Loss Equations via Learnable Symbolic Sparse Identification](/202608/09/2608.00379v1-discovering-explicit-magnetic-core-loss-equations-via-learnable-symbolic-sparse-identification)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：符号回归框架从数据中学习显式磁芯损耗方程，直接用于材料性能预测。
+3. [Fourier-Latent Diffusion for Constrained Generation of Triply Periodic Minimal Surfaces](/202608/09/2608.02151v1-fourier-latent-diffusion-for-constrained-generation-of-triply-periodic-minimal-surfaces)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：基于扩散的生成框架用于三周期极小曲面材料结构的可控设计
 
 ### 速读区论文标签
-1. [NanoMorph-3D: An End-to-End Physics-Driven Unrolling Framework for Nanomaterial Reconstruction](/202608/08/2608.03257v1-nanomorph-3d-an-end-to-end-physics-driven-unrolling-framework-for-nanomaterial-reconstruction)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：深度学习用于纳米材料重建
-2. [Visualizing Graph-to-Answer Mechanism Recovery in Materials-Science Hypothesis Generation](/202608/08/2608.04170v1-visualizing-graph-to-answer-mechanism-recovery-in-materials-science-hypothesis-generation)  
-   标签：评分：7.0/10、query:aimat-mlpot
-   evidence：面向材料科学假设生成的AI协同科学家机制追踪
-3. [PiDDM: Physics-Informed Differentiable Degradation Modeling for Lithium-Ion Battery State-of-Health Prediction](/202608/08/2607.29095v1-piddm-physics-informed-differentiable-degradation-modeling-for-lithium-ion-battery-state-of-health-prediction)  
+1. [Uncertainty-guided active learning for surrogate prediction of stream-finishing wear fields](/202608/09/2608.00593v1-uncertainty-guided-active-learning-for-surrogate-prediction-of-stream-finishing-wear-fields)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：物理信息可微机器学习框架用于电池健康状态预测
-4. [When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design](/202608/08/2608.01378v1-when-may-a-model-replace-the-experiment-audits-licenses-and-the-price-of-trust-in-surrogate-driven-design)  
+   evidence：不确定性引导的主动学习代理模型用于预测磨损场，是AI在材料加工研究中的应用。
+2. [Contrast-invariant deep ptychography neural networks](/202608/09/2608.02869v1-contrast-invariant-deep-ptychography-neural-networks)  
    标签：评分：6.0/10、query:aimat-mlpot
-   evidence：材料设计中的机器学习代理模型，与AI驱动设计与发现相关
-5. [A manifold-aware Neural ODE surrogate model for stochastic induction heating with anisotropic electrical conductivity](/202608/08/2608.01945v1-a-manifold-aware-neural-ode-surrogate-model-for-stochastic-induction-heating-with-anisotropic-electrical-conductivity)  
-   标签：评分：6.0/10、query:aimat-mlpot
-   evidence：神经ODE代理模型用于热塑性复合材料感应加热
-6. [Discrete energy as an exact label-free training objective for finite-element surrogates](/202608/08/2608.05437v1-discrete-energy-as-an-exact-label-free-training-objective-for-finite-element-surrogates)  
-   标签：评分：6.0/10、query:aimat-mlpot
-   evidence：提出以离散势能作为有限元代理模型的精确无标签训练目标，免去参考解，用于机器学习预测力学响应。
+   evidence：用于叠层衍射成像的深度神经网络,属于材料表征中的AI应用
 
 
 <div class="dpr-home-promo-card">

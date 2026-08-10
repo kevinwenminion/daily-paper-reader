@@ -1,0 +1,681 @@
+Title: Cross-Geometry Transferability Assessment of Universal Machine Learning Interatomic Potentials: From Bulk Materials to Atomic Nanowires
+
+URL Source: https://arxiv.org/pdf/2608.06662v1
+
+Published Time: Mon, 10 Aug 2026 00:17:19 GMT
+
+Number of Pages: 29
+
+Markdown Content:
+## Cross-Geometry Transferability Assessment of Universal Machine Learning Interatomic Potentials: From Bulk Materials to Atomic Nanowires 
+
+Pedro H. M. Zanineli ,1, 2 Bruno Focassio ,1 and Gabriel R. Schleder 1, 2, ∗
+
+> 1
+
+Brazilian Nanotechnology National Laboratory (LNNano/CNPEM), 13083-100, Campinas, SP, Brazil 
+
+> 2
+
+Universidade Federal do ABC (UFABC), 09210-580, Santo Andr´ e, S˜ ao Paulo, Brazil 
+
+Foundation machine-learning interatomic potentials (MLIPs) enable atomistic simulations at substantially lower computational cost than first-principles methods, but their reliability across structural geometries remains insufficiently understood. Here, we construct a density-functional-theory dataset of ZrO 2 configurations spanning bulk, slab, particle, neck, and atomically thin wire environments motivated by an experimentally observed ZrO 2 desintering process involving neck thinning and atomic wire formation. We first benchmark 26 pretrained MLIPs and observe pro-nounced geometry-dependent degradation in zero-shot predictions. Without any training, after only reference-energy alignment, the best zero-shot model (ORB-V3) reaches energy and force root-mean-square errors of 6 meV atom −1 and 197.3 meV ˚ A−1, respectively, with the largest force errors in neck and wire configurations. We then compare zero-shot inference, fine-tuning, and training from scratch strategies. Fine-tuning yields lower energy and force errors than training from scratch, while both require comparable wall-clock time. Geometry-specific fine-tuning improves in-domain accu-racy but frequently produces negative transfer to other structural classes, whereas mixed-geometry fine-tuning reduces cross-geometry errors. Evaluations of elastic and vibrational properties, surface energies, and neck dynamics further show that rankings based on average energy and force errors do not universally predict property-level behavior. These results demonstrate that geometry-diverse target data and independent physical validations are necessary when adapting foundation MLIPs to low-coordination (ionic) nanostructures. 
+
+I. INTRODUCTION 
+
+Machine-learning interatomic potentials (MLIPs) have emerged as a practical route for extending atomistic sim-ulations beyond the length and time scales accessible to conventional first-principles calculations [1–6]. By learn-ing energies and forces from density-functional-theory (DFT) reference data, modern equivariant graph neu-ral networks can approximate the underlying potential-energy landscape while reducing the computational cost of evaluating large atomic systems [7–9]. The increasing availability of broadly pretrained mod-els has further motivated the development of universal (or increasingly foundation) interatomic potentials intended to transfer across compositions and structural environ-ments. Early universal graph potentials such as M3GNet established an important baseline for broad elemental transferability by learning from large Materials Project relaxation datasets with explicit many-body graph rep-resentations [10]. At the same time, strictly local equiv-ariant architectures such as Allegro provide a comple-mentary perspective, showing that high-accuracy atom-istic models can be constructed without atom-centered message passing [11]. These architectural differences are relevant for cross-geometry transfer because low-coordination motifs alter not only local chemistry but also graph connectivity and boundary structure. Recent systematic studies of MLIP fine-tuning have shown that pretrained initialization can provide strong  
+
+> ∗Corresponding author. gabriel.schleder@lnnano.cnpem.br
+
+target-task accuracy relative to training from scratch, but also that the optimal adaptation strategy depends on the intended deployment scope: unconstrained full-parameter fine-tuning is often effective for narrow target applications, whereas replay-based strategies are better suited when preserving broader out-of-distribution ro-bustness is required [12]. A central unresolved question is whether such mod-els transfer reliably across geometries [13]. Widely used pretraining datasets, including the Materials Project and Alexandria, are dominated by periodic crystalline struc-tures [14–16]. Surfaces, nanoparticles, highly strained structures, and low-dimensional motifs are comparatively underrepresented. Consequently, a model that performs well for bulk configurations may exhibit substantially larger errors when applied to under-coordinated or non-equilibrium environments [17–22]. This limitation is par-ticularly important for structural processes in which sev-eral coordination regimes coexist and evolve continu-ously. Zirconia provides a demanding test of this problem. Beyond its ionic character, ZrO 2 is also a strongly anhar-monic oxide whose phase stability and finite-temperature behavior have motivated specialized machine-learned force-field studies, including on-the-fly active-learning and beyond-DFT ∆-learning approaches for zirconia phase transitions [23–25]. High-resolution transmission electron microscopy has revealed an unusual desinter-ing process, following previous usage for the tensile sep-aration of initially connected monoclinic ZrO 2 grains through neck thinning and eventual formation of atom-ically thin wire-like motifs under an external stimulus [26, 27]. The transformation spans bulk-like regions, sur-arXiv:2608.06662v1 [cond-mat.mtrl-sci] 7 Aug 2026 2faces, particles, necks, and wire-like structures, thereby combining large changes in coordination, strain, and di-mensionality. Its ionic character also makes ZrO 2 a challenging system for short-range models, especially when dimen-sionality reduction creates surfaces, necks, and wire-like motifs with altered electrostatic screening. Re-cent MLIP developments address this limitation through charge-equilibration neural networks, equivariant long-range message passing, polarizable or charge-aware ex-tensions, and latent Ewald-type electrostatic models [28– 34]. Because the present study does not isolate the contri-butions of long-range electrostatics or other methodolog-ical factors, we interpret long-range effects as one possi-ble source of residual error, potentially acting alongside force-filtering choices, trajectory-level data correlations, and incomplete optimization, rather than as a mechanism established by the present data alone. Existing MLIP benchmarks provide essential compar-isons across models, but average energy and force errors on predominantly bulk datasets do not directly establish reliability for geometry-changing processes [35–37]. Re-cent assessments further show that model reliability can be strongly property- and task-dependent, including for surfaces, phonons, finite-temperature molecular dynam-ics, and cross-functional transferability [38–41]. More-over, low test-set errors do not necessarily guarantee ac-curate derived properties or stable molecular dynamics [42]. A useful assessment must therefore resolve errors by geometry, distinguish initialization and adaptation strategies, and test whether improvements in supervised metrics translate to physically relevant observables. Here, we investigate three questions. First, how strongly does zero-shot MLIP accuracy vary across bulk, slab, particle, neck, and wire ZrO 2 configurations? Second, under controlled optimization and data, how do zero-shot inference, fine-tuning, and training from scratch compare? Third, does exposure to multiple ge-ometry classes improve cross-geometry generalization rel-ative to geometry-specific adaptation? We address these questions using a geometry-diverse DFT dataset, cross-geometry learning experiments with MACE and ORB, and property-level evaluations of elastic and vibrational response, surface energies, and neck dynamics. Our working hypothesis is that pretrained initialization im-proves data efficiency under fixed training, but reliable transfer across the full structural process requires explicit diversity in the target-domain data.    
+
+> II. METHODS A. ZrO 2dataset generation
+
+The atomic structures used in this work were generated through first-principles simulations based on DFT, as im-plemented in VASP. The dataset was designed to capture coordination environments arising during the structural evolution of zirconia under tensile deformation, ranging from bulk-like configurations to low-dimensional nanos-tructures. To reproduce the experimentally observed desintering process [26], an initial bipyramidal ZrO 2 cluster was con-structed to represent two connected grains separated by a neck-like region. The structure was subjected to ab initio molecular dynamics (AIMD) at 300 K [43] while tensile deformation was imposed by progressively sepa-rating the outer regions of the cluster. This procedure sampled non-equilibrium configurations involving atomic migration, bond rearrangement, coordination reduction, and eventual neck thinning. Atomically thin ZrO 2 chains were also constructed to probe highly under-coordinated environments. Stoi-chiometric and oxygen-deficient configurations were elon-gated quasistatically at 0 K by incrementally increasing the simulation-cell length along the wire axis and ther-malizing at 300 K after each increment. Nanoparticle configurations were generated as precursors to the neck structures, while monoclinic ZrO 2 slabs were included to sample under-coordinated surface environments. The re-sulting dataset contains five geometry classes: bulk, slab, particle, neck, and wire, as shown in Fig. 1.  
+
+> B. Geometry-stratified splitting and force filtering
+
+The structures were first divided within each geom-etry class into training, validation, and test partitions. The force filter was applied only after this geometry-stratified assignment, and structures were not reassigned between partitions after filtering. Structures containing an atomic force magnitude greater than 3 eV ˚ A−1 were removed. Because the fraction of removed configurations differed among geometry classes and partitions, the re-tained dataset contains approximately 72% training, 18% validation, and 10% test structures rather than the nom-inal pre-filtering proportions. All reported supervised metrics were calculated using the retained partitions. This procedure preserves the original partition mem-bership and avoids altering the test set in response to model performance. The final split percentages should therefore be interpreted as the consequence of applying the same physical-data filter independently to the prede-fined partitions.  
+
+> C. Zero-shot inference and reference-energy alignment
+
+For the zero-shot benchmark, we used our Python package IP-Orch [44] to orchestrate model loading, dataset evaluation, and metric calculation. Open-weight Materials Project-compliant (MP-C) and non-compliant (MP-NC) models that fit on an NVIDIA L40 GPU were loaded as Atomic Simulation Environment calculators 3B
+
+Local Coordination   
+
+> Slab Bulk Particle Wire Neck
+> OZr
+
+C D E F GH I J             
+
+> %,*%/-'%.,0+/ 0)( )!" !-/'#)% %#( '-% %,*%/-'%.'./-'"0/',+ /-0#/0-%. /,*. ,#!)+1'-,*%+/. 5 5 5 5 5 5 5 5 +%-&2%!/,* +%-&2'./-'"0/',+    ,-#%.,$0)%%3 ,-#%.,$0)%'./-'"0/',+
+
+A
+
+> Forces Modulus (eV/Å)
+
+K Forces Modulus Distribution 
+
+ZrO 2 Geometries Dataset 
+
+MatBench Discovery Assessment    
+
+> Trained only on MP dataset?
+> MP Compliant MP Non-Compliant Yes No
+
+Properties evaluation: 
+
+> Bulk or non-bulk dependent Static or dynamic
+
+Training strategies: 
+
+> Fine-tune or from-scratch No Yes
+
+Best models evaluation 
+
+FIG. 1. Overview of the ZrO 2 cross-geometry dataset and evaluation workflow. (A) Workflow comprising dataset construction, model evaluation and adaptation, and validation using derived physical properties. (B) High-resolution transmission electron microscopy image of a ZrO 2 desintering event at the interface between two [26, 27]. (C–G) Representative bulk, slab, particle, neck, and wire configurations, respectively, arranged from comparatively high- to low-coordination environments. (H) Number of configurations in each geometry class. (I) Total atomic environments, defined as the sum of the number of atoms over all configurations in each class. (J) Per-atom energy distributions. (K) Atomic-force distributions after applying the 3 eV ˚ A−1
+
+filtering criterion. 
+
+[45]. Energies and forces were evaluated for every re-tained test configuration. Absolute energies predicted by pretrained models may contain systematic offsets arising from differences in elemental reference energies, training datasets, or electronic-structure settings. To separate these offsets from configuration-dependent errors, the retained train-ing partition was used as the reference dataset for energy alignment. For each model, element-specific [41, 46] were determined by minimizing the energy residuals over the training configurations, 
+
+{∆μα} = arg min 
+
+> {∆μα}
+
+X
+
+> i∈train
+
+"
+
+EDFT  
+
+> i
+
+− Emodel  
+
+> i
+
+− X
+
+> α
+
+Niα ∆μα
+
+#2
+
+,
+
+(1) where Niα is the number of atoms of element α in config-uration i, and ∆ μα is the corresponding fitted reference-energy correction. The aligned energy of configuration i
+
+was then calculated as 
+
+Ealigned  
+
+> i
+
+= Emodel  
+
+> i
+
++ X
+
+> α
+
+Niα ∆μα. (2) The corrections obtained from the training partition were held fixed and applied without refitting to the validation and test partitions. Therefore, no validation or test en-ergies were used to determine the alignment parameters. Because the correction depends only on elemental com-position, it does not affect the predicted forces. The aligned energy RMSE is used for the main cross-model comparison. For transparency, the raw, unaligned 4energy RMSE, the fitted ∆ μα values, and relative-energy errors along fixed-composition trajectories are also re-ported in the Supplementary Information. These com-plementary quantities distinguish systematic reference-energy offsets from errors in the configuration-dependent shape of the learned potential-energy surface. Further reference-energy alignment diagnostics, in-cluding raw and aligned zero-shot errors, fitted elemental offsets, and relative-energy sequences at fixed composi-tion, are provided in Sec. II of the Supporting Informa-tion (SI), Figs. S1–S2, and Table S3.  
+
+> D. Training protocols
+
+Training and inference for MACE and ORB were per-formed using the Graph-PES framework [47]. Unless oth-erwise stated, fine-tuning refers here to full-parameter, single-head fine-tuning from the pretrained checkpoint, rather than parameter-efficient or replay-based variants such as LoRA, layer freezing, or multihead replay [12]. The selected checkpoints were MACE-MP Large and ORB-V3 Direct-20 OMAT. In the comparison, both fine-tuned and from-scratch models were optimized for 50 epochs using the same retained data partitions. The loss included per-atom energy and force terms, and optimiza-tion used Adam with a learning rate of 5 × 10 −3. Ref-erence energies were shifted during training according to the same training-only convention used for evaluation. This choice follows recent evidence that reference-energy consistency is a prerequisite for stable MLIP fine-tuning and can affect performance as strongly as the fine-tuning strategy itself [12, 41]. The 50-epoch protocol is designed as a controlled op-timization comparison rather than a converged-training comparison. Fine-tuning and from-scratch training re-quired similar wall-clock times under this protocol. Con-sequently, lower fine-tuning errors indicate a benefit from pretrained initialization at a fixed number of optimiza-tion epochs; they do not establish that fine-tuning is in-trinsically less computationally expensive. Complete checkpoint identifiers, optimization settings, and measured wall-clock times are reported in Sec. I and Table S1 of the Supporting Information.  
+
+> E. Geometry-specific and mixed-geometry sampling
+
+The data is expressed as the total atomic environments ,defined as the sum of the number of atoms across all configurations in a subset, 
+
+Nenv =
+
+> Nstructures
+
+X
+
+> i=1
+
+Ni. (3) For fixed-size configurations, this quantity reduces to the product of the number of structures and the number of atoms per structure. The term measures the number of atomic environments presented during training, but it does not imply that all environments are structurally independent. For geometry-specific fine-tuning, each geometry class was divided into four nested subsets with increasing total atomic environments. Each resulting model was evalu-ated both on its corresponding geometry and on every other geometry class. For mixed-geometry fine-tuning, configurations from bulk, slab, particle, neck, and wire classes were combined while controlling the total atomic environments. This comparison tests whether geometric coverage improves transfer relative to adaptation on an individual structural class. The geometry-resolved composition and atomic envi-ronments of the final filtered training partition are pro-vided in Table S2 of the SI.  
+
+> F. Elastic and surface properties
+
+Elastic properties were calculated using MatCalc [48], following the standard energy–strain approach for first-principles mechanical-property calculations [49]. Each model was used to optimize monoclinic ZrO 2 with BFGS until the maximum force was below 1 × 10 −6 eV ˚ A−1.Normal and shear strains in the interval ±0.004 were then applied. The energy response was used to obtain the Voigt–Reuss–Hill bulk modulus K and shear modulus G.Values in eV ˚ A−3 were converted to GPa using a factor of 160.2177, and Young’s modulus E and Poisson’s ratio 
+
+ν were derived from K and G.Surface energies were computed from total energies of bulk and symmetric slab configurations. The surface area was calculated as A = ∥a × b∥, and 
+
+γ = 16 .02 Eslab − N E bulk 
+
+2A , (4) where N = Nslab /N bulk , 16.02 converts eV ˚ A−2 to J m −2,and the factor of two accounts for the two surfaces of a symmetric slab. Some evaluated surface orientations or closely related slab configurations were represented in the training data. The surface-energy analysis is therefore not treated as a strict out-of-distribution test. Instead, it evaluates whether models reproduce a derived physical observable over a partially overlapping surface domain. Generaliza-tion to entirely unseen facets requires a separate facet-held-out assessment.  
+
+> G. Vibrational properties
+
+Phonon dispersions were calculated for monoclinic ZrO 2 using the finite-displacement method implemented in Phonopy through MatCalc [48]. Second-order force constants were obtained using a 2 × 2 × 2 supercell and a displacement amplitude of 0.015 ˚ A. The dispersions were 5evaluated along the same Setyawan–Curtarolo path and q-point sampling used for the Materials Project reference structure mp-2858. Band RMSE and MAE were calculated by sorting the 36 frequencies at each of the 112 q-points before com-parison with the corresponding DFT frequencies. The vibrational-DOS curves were normalized to unit inte-grated area and linearly interpolated onto a common 3000-point grid over their shared frequency interval. Fre-quency coordinates below 0 THz were retained to pre-serve imaginary modes. Additional computational de-tails and complete vibrational results are provided in Sec. IV of the SI.  
+
+> H. Molecular dynamics under tensile loading and RMSD analysis
+
+Molecular dynamics simulations were performed using the Atomic Simulation Environment (ASE) [45]. Initial neck stability was evaluated through 20 ps microcanoni-cal trajectories using velocity Verlet with a 1 fs timestep. Initial velocities were sampled at 300 K, and configura-tions were stored every 10 steps. Energy conservation was monitored using ∆E(t) = E(t) − E(0) . (5) The mechanical stability of the neck was then evalu-ated by progressively pulling the structure along the ten-sile direction. Simulations started from the same DFT configuration and followed the loading protocol of the DFT AIMD reference [26], without additional optimiza-tion or atomic constraints. The trajectories were propa-gated in the NVT ensemble at 300 K using a Nos´ e–Hoover chain thermostat, a damping time of 100 fs, and a 1 fs timestep. After approximately 2 ps of equilibration, the simula-tion cell was elongated in steps of 0.5 ˚ A, with approxi-mately 2 ps of dynamics between each step. Atomic co-ordinates were scaled with the cell, resulting in a total elongation of 10 ˚ A over 42.096 ps. The simulations were repeated using three different random seeds. Atomic trajectories were unwrapped across periodic boundaries before analysis. Each frame was aligned with the initial configuration using the Kabsch algorithm, and the RMSD was calculated as RMSD( t) = 
+
+vuut 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+r(aligned)  
+
+> i
+
+(t) − r(ref) 
+
+> i
+> 2
+
+. (6) The minimum Zr–O distance was defined as the shortest periodic Zr–O separation in each frame. These quantities were used to monitor structural deformation and bond separation as the neck was subjected to tension.   
+
+> III. RESULTS AND DISCUSSION A. Dataset and evaluation framework
+
+Figure 1 summarizes the experimentally motivated desintering process, the five geometry classes, and the statistical composition of the resulting dataset. The con-figurations span bulk, slab, particle, neck, and wire envi-ronments, progressing from comparatively high coordina-tion in bulk-like structures to strongly under-coordinated wire motifs. The dataset therefore provides a controlled setting for evaluating how pretrained MLIPs respond to changes in coordination and dimensionality within a fixed chemical system. The distribution of structures alone does not fully rep-resent the amount of information supplied to an atom-centered model because the geometry classes contain different numbers of atoms. We therefore report both the number of configurations and the total atomic en-vironments. Energy and force distributions also vary among geometries, with broader distributions in sev-eral low-coordination classes. These differences motivate geometry-resolved evaluation rather than relying only on a single aggregate error.  
+
+> B. Zero-shot benchmark across zirconia geometries
+
+Figure 2A compares the aligned energy and force er-rors of the evaluated pretrained models. Following the Matbench Discovery convention, the models are grouped as MP-C or MP-NC according to the availability of their code and weights and the data permitted by the benchmark definition [50]. The MP-NC group con-tains SevenNet MF-ompa [51], DPA3-v2-OpenLAM [52], GRACE 2L-OAM [53], MatterSim [54], MACE MPA-0 [55], GRACE 1L-OAM [53], ORB-V2 [56], and ORB-V3 [57]. The MP-C group contains SevenNet-i3l5 [51], ORB-V2-MPtrj [56], GRACE 2L-MPtrj [53], MACE MP-0 [55], and DPA3-v2-MPtrj [52]. Across all models, the mean aligned energy and force RMSEs are around 20 meV atom −1 and 400 meV ˚ A−1,respectively. ORB-V3 is the best-performing MP-NC model, with an energy RMSE of 6 meV atom −1 and a force RMSE of 197.3 meV ˚ A−1. Within the MP-C group, ORB-V2-MPtrj reaches 107.67 meV atom −1 and 309.1 meV ˚ A−1. Models categorized as MP-NC achieve lower errors as a group in this benchmark; however, the comparison does not isolate whether this difference originates from training-set coverage, model architecture, objective functions, or residual reference-energy conven-tions. Even the lowest force error remains above commonly used accuracy targets for stable and quantitatively reli-able dynamics [58, 59]. The zero-shot results therefore motivate target-domain adaptation before these models are applied to the zirconia desintering process. ORB-V3 is selected as the representative MP-NC model for sub-6−9 −8 DFT energy (eV atom − )                 
+
+> −9.5 −9.0 −8.5 −8.0
+> Training-aligned MLIP energy (eV atom − )
+> Slab
+> RMSE = 15.39 meV/atom MAE = 11.62 meV/atom
+> B
+> −9 −8 −7 DFT energy (eV atom −)
+> Particle
+> RMSE = 74.47 meV/atom MAE = 39.35 meV/atom
+> −8 −6 DFT energy (eV atom −)
+> Wire
+> RMSE = 60.35 meV/atom MAE = 39.43 meV/atom
+> 20 40 60 80
+> Training-aligned Energy RMSE (meV atom − )
+> Non-Compliant ORB V3 Compliant MACE MP-0
+> C
+> 200 400 600
+> Forces RMSE (meV Å − ) Non-Compliant ORB V3 Compliant MACE MP-0
+> 0200 400 600 800
+> Forces RMSE (meV Å − )
+> 050 100 150 200
+> Training-aligned Energy RMSE (meV atom − )
+> PET OAM-XL TACE OAM MatRIS OAM SevenNet Omni NequIP OAM-L GRACE 2L-OAM ORB v3 DPA-3.1 3M-FT MACE MPA-0 MatterSim GRACE 1L-OAM ORB v2 MatRIS MP EqNorm MPtrj Nequix MP-PFT NequIP MP-L Nequix MP Allegro MP-L DPA-3.1 MPtrj SevenNet l3i5 HIENet GRACE 2L-MP MACE MP-0 ORB-v2 MPtrj CHGNet M3GNet
+> MP Non-Compliant MP Compliant A
+> Training-aligned Energy RMSE (meV atom −)Mean energy Forces RMSE (meV Å −)Mean forces
+> Bulk w/o defects Slab Particle Neck Wire
+
+FIG. 2. Zero-shot evaluation on the ZrO 2 dataset. (A) Aligned per-atom energy RMSE and force RMSE for the evaluated MLIPs, grouped according to the Matbench Discovery MP-NC and MP-C categories. In panel A, black bars indicate aligned per-atom energy RMSE, orange bars indicate force RMSE, and dashed horizontal lines indicate the corresponding mean errors across all evaluated models. (B) Parity plots of training-aligned MACE-MP-0 energies against DFT reference energies for the slab, particle, and wire geometries. (C) Energy and force RMSE distributions for ORB-V3 and MACE-MP-0. Colored markers indicate the errors for the bulk without defects, slab, particle, neck, and wire subsets. 
+
+sequent experiments, while MACE-MP is selected as an MP-C model from a distinct architecture family. Figures 2B and 2C resolve the errors by geometry for MACE and ORB, respectively. Bulk configura-tions are described more accurately than most reduced-coordination configurations. Neck structures show the largest force errors, while wire and slab configurations also produce substantial degradation. These observa-tions are consistent with extrapolation to structural envi-ronments that are comparatively rare in bulk-dominated pretraining datasets [37, 60]. Missing long-range elec-trostatic physics may also contribute to residual errors in ionic, low-dimensional zirconia. However, the im-provement obtained after mixed-geometry fine-tuning in-dicates that limited target-domain coverage across coor-dination environments is the dominant practical bottle-neck in the present benchmark. 
+
+C. Training comparison of zero-shot, fine-tuned, and from-scratch models 
+
+Figure 3 compares zero-shot inference (ZS), fine-tuning (FT), and from-scratch training (FS). For FT and FS, both architectures were trained for the same 50 epochs and evaluated on the same retained test partition. Zero-shot inference provides an immediate baseline but retains the large errors observed for underrepresented geome-tries. Under the fixed training setup, fine-tuned models achieve lower energy and force errors than their from-scratch counterparts, indicating that pretrained initial-ization provides a more favorable starting point for adap-tation. This result is consistent with recent systematic fine-tuning benchmarks showing that, once reference-energy conventions and stable hyperparameters are con-trolled, fine-tuned MLIP foundation models often surpass from-scratch models in target-task accuracy, especially under limited-data or limited-optimization regimes [12]. The timing comparison must be interpreted carefully. Fine-tuning and from-scratch training require similar wall-clock times because both optimize the full model for the same number of epochs. Thus, the present re-sult demonstrates improved accuracy at an equal epoch configuration, not a reduction in training cost. Zero-shot timing corresponds only to inference and is therefore not directly equivalent to the one-time optimization cost shown for FT and FS. 
+
+D. Geometry-specific learning curves 
+
+To determine how the amount and type of target data affect adaptation, each model was fine-tuned using nested subsets from one geometry class at a time. The subset size is reported using the total atomic environment. Fig-ure 4A shows the resulting in-geometry learning curves. For both architectures, increasing the amount of tar-get data generally reduces validation errors, but the rate 710 0 10 1 10 2 10 3
+
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> Energy RMSE (meV atom − )
+> Zero-shot Fine-tune From-scratch Best
+
+A   
+
+> 10 010 110 210 3
+
+Wall time (minutes) 
+
+> 10 2
+> Forces RMSE (meV Å − )
+> Zero-shot Fine-tune From-scratch Best
+
+B     
+
+> MP-compliant Non-compliant MACE ORB MP-compliant Non-compliant MACE ORB
+> FIG. 3. Accuracy–cost comparison of zero-shot, fine-tuned, and from-scratch models. Results are shown for MACE (cir-cles) and ORB (squares), with MP-compliant models in green and MP-non-compliant models in purple. Panels (A) and (B) report the training-aligned energy RMSE and force RMSE, respectively, as functions of wall time. Zero-shot timings cor-respond only to inference and are included as descriptive base-lines rather than cost-equivalent comparisons with the trained models. Lower values along both axes indicate better perfor-mance.
+
+and stability of improvement depend on geometry. Bulk configurations exhibit comparatively low errors at small data. Slab and particle errors decrease progressively with additional data, whereas neck and wire configurations show larger variability and generally require greater cov-erage. The result indicates that the number of training configurations alone is insufficient to characterize sample complexity; coordination diversity and the distribution of atomic environments also matter. Under the checkpoints and training protocol consid-ered here, MACE exhibits more stable cross-geometry force errors than ORB. ORB achieves competitive en-ergy errors for some subsets but shows larger force errors for several low-coordination classes. This comparison is specific to the selected checkpoints, pretraining datasets, and optimization settings and should not be interpreted as a general ranking of the two architecture families.  
+
+> E. Cross-geometry transfer and mixed-geometry fine-tuning
+
+The cross-geometry matrices in Figure 4B quantify how adaptation on one structural class affects perfor-mance on the others. Models fine-tuned only on bulk con-figurations preserve low bulk errors but deteriorate when evaluated on slabs, necks, and wires. Fine-tuning on slabs or particles improves related environments but does not consistently transfer to the most under-coordinated motifs. Neck and wire configurations remain the most difficult evaluation domains across most training condi-tions. Geometry-specific adaptation can also reduce perfor-mance outside the target class. In particular, wire-only fine-tuning increases energy errors on several other geometries. This behavior is described here as nega-tive transfer : optimizing for a narrow target distribu-tion improves in-domain behavior while degrading per-formance elsewhere. This distinction is important be-cause full-parameter fine-tuning is expected to be effec-tive when deployment is restricted to the target distri-bution, but broader deployment requires explicit tests of out-of-distribution robustness and may benefit from replay-based or continual-learning strategies [12, 61]. In this sense, the negative transfer observed here is closely related to catastrophic forgetting: adaptation to a nar-row geometry distribution can overwrite parts of the pre-trained representation that remain useful for other struc-tural classes. Under the checkpoints and training protocol consid-ered here, MACE shows more controlled increases in force error across transfer directions than ORB. Nevertheless, both models are sensitive to changes in geometry, demon-strating that adaptation to one class does not ensure reli-ability across a process that spans multiple coordination regimes. Figure 4C evaluates mixed-geometry fine-tuning at controlled total atomic environments. For MACE, aligned energy and force errors decrease as addi-tional mixed-geometry data are incorporated, with the force RMSE decreasing from approximately 100 to 70 meV ˚ A−1. ORB shows a similar overall improvement, although its curves are less stable. Relative to the single-geometry models at comparable atomic-environment con-figurations, exposure to all five classes reduces the dispar-ity among evaluation geometries. The result supports a data-centric conclusion: target-domain diversity is important when the intended simu-lation traverses several coordination environments. This conclusion is consistent with recent fine-tuning and trans-ferability benchmarks showing that combined-domain training can improve the uniformity of errors across related structural domains, even though single-domain fine-tuning may remain competitive or superior when de-80500 1000 1500 MACE Compliant Bulk           
+
+> 10 410 50500 1000 1500 ORB Non-compliant Bulk
+> MACE Compliant Slab
+> 10 410 5
+> ORB Non-compliant Slab
+> MACE Compliant Particle
+> 10 410 5
+> ORB Non-compliant Particle
+> MACE Compliant Neck
+> 10 410 5
+> ORB Non-compliant Neck
+> MACE Compliant Wire
+> 0200 400 600 800
+> 10 410 5
+> ORB Non-compliant Wire
+> 0200 400 600 800
+> 0510 15
+> Energy RMSE (meV atom −1 )
+> Learning Curve - MACE Compliant
+> 10 410 5
+> # Structures · # Atoms
+> 050 100
+> Forces RMSE (meV Å −1 )
+> Learning Curve - ORB Non-compliant
+> 10 410 5
+> # Structures · # Atoms
+> 46810 12
+> Energy RMSE (meV atom −1 )
+> Stratified Fine-Tuning
+> MACE Compliant ORB Non-compliant
+> 10 810 9
+> # Structures · # Atoms
+> 100 150 200
+> Forces RMSE (meV Å −1 )
+
+Cross-Geometry Fine-Tuning Transferability 
+
+> Energy RMSE (meV atom −1 )Forces RMSE (meV Å −1 )# Structures · # Atoms
+
+AB C      
+
+> Energy Forces Bulk Slab Particle Neck Wire
+
+FIG. 4. Geometry-specific and mixed-geometry fine-tuning of MACE and ORB on the ZrO 2 dataset, assessing in- and out-of-domain geometries. Energy errors are shown with solid lines and circles, and force errors with dashed lines and squares. Colors indicate the evaluation geometry: bulk, slab, particle, neck, and wire. (A) Cross-geometry fine-tuning transferability for MACE (top row) and ORB (bottom row). Each column denotes the geometry used for fine-tuning, and the curves report aligned energy and force RMSE as functions of the total number of atomic environments. (B) Geometry-specific fine-tuning learning curves for MACE and ORB, showing aligned energy and force RMSE as functions of the total number of atomic environments for the bulk, slab, particle, neck, and wire subsets, with evaluation performed on the corresponding geometry. (C) Stratified mixed-geometry fine-tuning as a function of the total number of atomic environments, using training sets composed of configurations drawn from all five geometry classes. This controlled setup isolates the effect of geometric diversity from the effect of simply increasing the amount of training data. 
+
+ployment is restricted to one domain [12, 41, 46]. It does not establish that stratification solves transferabil-ity in general or that data composition is more important than architecture in every setting. Rather, both selected checkpoints benefit from a training set that represents the structural manifold on which they are expected to operate. 
+
+F. Property-level validations 
+
+Average energy and force errors do not necessarily determine the accuracy of derived physical quantities. We therefore evaluate the models using a hierarchy of physical tests that progressively move away from near-equilibrium bulk environments. Bulk elastic and vibra-tional properties probe the response of the crystalline structure near equilibrium; surface energies test static broken-symmetry environments with reduced coordina-tion; and neck molecular dynamics probes a far-from-equilibrium structural evolution in which force errors can accumulate during time integration. This hierarchy, sum-marized in Figure 5 and Table I, tests whether improve-ments in supervised metrics translate into physically re-liable behavior across increasing levels of structural com-plexity. Related cross-geometry validation has been success-ful in metallic systems, for example in Gaussian-approximation potentials for Pt trained and tested across bulk, surface, and nanoparticle environments [62]. The 900-0 3*)-#3*31  '$!0-#3*31  -3,&1 -#3*31 -(11-,1 !2(-'-,-, 0$!  
+
+
+
+> 3*)-#3*31  '$!0-#3*31  -3,&1 -#3*31 -(11-,1 !2(-'-,-, 0$! 
+> 
+> 
+> 0$/3$,"45
+
+
+
+> 
+>    
+>     
+>     
+>     8
+>      
+
+
+
+>    
+>     
+>     
+>     
+
+(+$.1   6 
+
+(+$.1 
+
+           
+
+> $0-'-2 (,$3,$ 0-+"0!2"' .'-,-,1  $!,130%!"$$00-0
+
+    
+
+DFT Rupture DFT Rupture 
+
+FIG. 5. Progressively farther from equilibrium property-level evaluations of zero-shot, fine-tuned, and from-scratch MACE and ORB models. (A) Relative errors in different bulk elastic properties with respect to DFT. (B) Phonon dispersions compared with the DFT reference. (C) Surface-energy errors for the evaluated monoclinic ZrO 2 orientations; because some related slab configurations occur in the training data, this panel represents a partially interpolative property test. (D) Neck molecular-dynamics RMSD as a function of time for trajectories, accompanied by representative final configurations. 10 present ZrO 2 case is more stringent because dimensional-ity reduction occurs in a strongly ionic oxide, where low coordination can also modify electrostatic screening and charge redistribution.  
+
+> 1. Elastic properties
+
+For the bulk-dependent properties in Figure 5A, zero-shot models exhibit the lowest errors for most quantities, with the stated MACE exceptions for the bulk modulus and Poisson’s ratio. This result is consistent with the strong representation of bulk crystalline environments in the pretraining data. Target-domain adaptation does not uniformly improve bulk elasticity because the fine-tuning dataset also emphasizes surfaces, necks, particles, and wires, while from-scratch training is limited to the avail-able zirconia configurations. Under the tested settings, MACE provides more ac-curate elastic predictions than ORB despite its MP-C classification. This observation should be interpreted as checkpoint- and property-specific rather than as a general consequence of compliance status or architecture. Re-porting the absolute DFT and predicted values along-side relative errors is necessary to distinguish small per-centage differences from physically significant deviations. The corresponding absolute DFT and MLIP values and their percentage deviations are reported in Tables S4 and S5 of the SI. Comparing both the absolute values and rel-ative deviations shows that fine-tuning generally reduces the discrepancy from DFT, whereas the from-scratch models exhibit larger and more property-dependent er-rors.  
+
+> 2. Vibrational properties
+
+Figure 5B compares the phonon dispersions predicted by the zero-shot, fine-tuned, and from-scratch models with the DFT reference. The zero-shot models pro-vide the closest overall agreement with the DFT disper-sion, with phonon eigenvalue RMSEs of 0.785 THz for MACE and 0.540 THz for ORB. Fine-tuning increases these errors to 1.653 and 3.067 THz, respectively, while the from-scratch models reach 1.598 THz for MACE and 10.446 THz for ORB. These results show that improving energy and force errors on the geometry-diverse zirconia dataset does not necessarily preserve near-equilibrium vibrational behav-ior. In particular, the strong degradation of the ORB from-scratch dispersion demonstrates that a model can achieve useful configuration-level accuracy while failing to reproduce the curvature of the potential-energy sur-face around the crystalline reference structure. Phonon calculations therefore provide a complementary valida-tion of model quality that is not captured by aggregate energy and force metrics alone. Complete phonon dispersions, normalized vibrational-DOS comparisons, and quantitative band- and DOS-error metrics are provided in Figures S3–S5 and Ta-ble S10 of the SI. The zero-shot comparison between the ORB-v3 Direct-20 and Conservative-20 variants is pre-sented separately in Figure S4.  
+
+> 3. Surface energies
+
+Table I shows that the ranking of adaptation strategies depends on the model family. For MACE, fine-tuning gives the lowest mean relative surface-energy error, ap-proximately 3.08%, compared with 3.33% for training from scratch and 16.14% for zero-shot inference. Fine-tuning outperforms the from-scratch model for 7 of the 11 listed surfaces. For ORB, training from scratch is clearly best, with a mean relative error of approximately 1.39%, compared with 5.96% for fine-tuning and 65.55% for zero-shot inference. The surface-energy evaluation includes orientations or related slab environments represented in the train-ing data and is therefore partly interpolative. The re-sults demonstrate whether low configuration-level errors are sufficient to reproduce a derived surface observable within this partially overlapping domain; they do not by themselves establish generalization to unseen facets. Within this scope, adaptation substantially improves both architectures over their zero-shot baselines, but the optimal strategy differs between MACE and ORB.  
+
+> 4. Neck molecular dynamics
+
+Figure 5D provides an initial dynamical assessment us-ing 20-ps neck trajectories. RMSD is used to identify structural drift relative to the initial configuration after removing rigid translation and rotation. The fine-tuned trajectories remain bounded over most of the simulated interval, while the zero-shot MACE trajectory exhibits a small structural rearrangement. The from-scratch ORB trajectory develops a larger deviation and ruptures under the tested initial condition. These individual trajectories reveal failure modes that are not apparent from aggregate static metrics, but they should not be interpreted as a statistical proof of dynam-ical stability. RMSD can reflect either physically mean-ingful relaxation or model failure, and the current com-parison uses a single initial-velocity realization. Three different seeds were used for running the trajectories. Additional trajectory diagnostics, including energy-drift slopes, minimum Zr–O distances, representative snap-shots, and pair-distance distributions, are provided in Figs. S6–S8 and Table S11 of the SI. 11                                                                                                                                                        
+
+> TABLE I. Absolute (J m −2) and relative (%) errors of MLIP surface energies with respect to DFT. The evaluation is partly interpolative because some evaluated orientations or closely related slabs are represented in the training data. Cell colors follow fixed continuous scales shared by MACE and ORB. Absolute errors are mapped from 0 to 1.50 J m −2, while relative errors are mapped from 0 to 25%. Values equal to or above the upper limits are shown with the maximum red intensity. Lower errors are greener and higher errors are redder. MACE Compliant ORB Non-Compliant Zero-shot Fine-tuned From scratch Zero-shot Fine-tuned From scratch Surface J m −2%J m −2%J m −2%J m −2%J m −2%J m −2%(¯ 11¯ 1) 0.47 11.86 0.11 2.71 0.03 0.68 2.07 52.86 0.29 7.47 0.07 1.69 (110) 0.66 13.04 0.08 1.53 0.11 2.09 3.38 66.31 0.34 6.62 0.10 1.90 (100) 1.08 16.20 0.23 3.39 0.05 0.69 5.78 86.56 0.43 6.38 0.12 1.85 (111) 0.47 11.86 0.11 2.71 0.03 0.68 2.21 56.47 0.29 7.46 0.10 2.54 (101) 0.87 15.09 0.16 2.80 0.19 3.32 3.46 60.01 0.37 6.39 0.03 0.57 (¯ 111) 1.31 20.06 0.36 5.54 0.51 7.72 4.68 71.42 0.25 3.83 0.05 0.77 (¯ 101) 1.41 19.89 0.23 3.20 0.33 4.61 5.79 81.76 0.43 6.08 0.10 1.47 (001) 0.90 14.85 0.10 1.70 0.23 3.83 1.65 27.22 0.32 5.20 0.08 1.23 (011) 1.38 19.64 0.28 3.99 0.45 6.47 5.23 74.61 0.48 6.85 0.13 1.88 (211) 1.22 17.48 0.28 4.01 0.41 5.91 4.92 70.68 0.36 5.20 0.07 0.97 (010) 1.45 17.58 0.19 2.30 0.05 0.61 6.01 73.14 0.33 4.04 0.04 0.45
+> IV. CONCLUSION
+
+We evaluated the transferability of foundation MLIPs across a geometry-diverse ZrO 2 dataset containing bulk, slab, particle, neck, and wire configurations. The zero-shot benchmark reveals strongly geometry-dependent er-rors: bulk-like environments are described more accu-rately, while neck and wire configurations remain chal-lenging. Although MP-NC models achieve lower errors overall in the present benchmark, the available compar-ison does not isolate the respective effects of pretrain-ing data, architecture, training objectives, and reference-energy conventions. Under an equal 50-epoch optimization setup, fine-tuning produces lower energy and force errors than train-ing from scratch, while requiring comparable wall-clock time. Geometry-specific fine-tuning improves accuracy within the target class but often produces negative trans-fer to other classes. In contrast, mixed-geometry fine-tuning at controlled total atomic-environment configura-tions reduces cross-geometry variability for both tested checkpoints. This result shows that explicit coverage of the structural environments encountered during a sim-ulation is important when adapting pretrained MLIPs to geometry-changing processes. More broadly, it rein-forces the idea that the appropriate fine-tuning proto-col depends on deployment scope: narrow full-parameter fine-tuning can be effective for a restricted target geome-try, whereas simulations that traverse multiple coordina-tion regimes require either geometry-diverse target data or adaptation strategies designed to preserve broader ro-bustness [12, 41, 46]. Property-level tests demonstrate that no single train-ing strategy is uniformly optimal and that model rank-ings depend on the physical complexity of the validation target. Bulk elasticity and lattice dynamics, surface en-ergetics, and neck dynamics probe progressively different regions of the potential-energy surface. Zero-shot models retain strong performance for several elastic and vibra-tional quantities, whereas adaptation provides larger im-provements for the partially overlapping surface domain. In the case of monoclinic zirconia, preliminary neck tra-jectories further expose dynamical behavior not captured by aggregate static errors. Because the surface test is partly interpolative and the MD analysis is based on a single trajectory per model, these results are best inter-preted as complementary diagnostics rather than defini-tive out-of-distribution or stability benchmarks. In summary, geometry-diverse data and property-specific validation substantially improve the defensibil-ity of MLIP deployment for zirconia nanostructures. In this context, we propose that such a dataset can serve as a benchmark for out-of-distribution structures, com-plementing existing datasets by incorporating config-urations beyond bulk-like environments, such as low-coordination and non-equilibrium geometries [36]. The present results suggest that geometry-diverse target data can recover much of the practical accuracy needed to stabilize the tested low-dimensional ZrO 2 trajectories, even without an explicit treatment of long-range electro-statics. Remaining questions include whether long-range electrostatic terms are required to reduce the residual er-rors further, as well as the effects of force-filtering choices, trajectory-level data correlation, and fully converged op-timization. Future work should also replace manually defined geometry subsets with automated active-learning workflows that explore the potential-energy surface more systematically. Frameworks such as autoplex illustrate how iterative structure generation, model evaluation, and 12 reference-data acquisition can be combined to reduce manual dataset curation and improve coverage of diverse atomic environments [63]. Addressing these controls will determine whether the remaining low-dimensional errors arise primarily from data coverage or from limitations of the underlying short-range model representations. 
+
+ACKNOWLEDGEMENTS 
+
+The authors thank the support of S˜ ao Paulo Research Foundation (FAPESP) for the financial support under grants n º 2024/22392-2, 2024/00989-7, and 2023/13081-0, from CNPq project nos. 422069/2023-0, 313301/2025-5, and CNPq - INCT (National Institute of Science and Technology on Materials Informatics) grant no. 371610/2023-0. 
+
+Data and code availability 
+
+The datasets and code are available at the repository: 
+
+https://doi.org/10.5281/zenodo.21829037 .
+
+[1] G. R. Schleder, A. C. M. Padilha, C. M. Acosta, M. Costa, and A. Fazzio, From dft to machine learning: recent approaches to materials science–a review, Journal of Physics: Materials 2, 032001 (2019). [2] D. R. Bowler and T. Miyazaki, O(n) methods in elec-tronic structure calculations, Reports on Progress in Physics 75 , 036503 (2012). [3] V. L. Deringer, M. A. Caro, and G. Cs´ anyi, Ma-chine learning interatomic potentials as emerging tools for materials science, Advanced Materials 31 ,10.1002/adma.201902765 (2019). [4] Y. Zuo, C. Chen, X. Li, Z. Deng, Y. Chen, J. Behler, G. Cs´ anyi, A. V. Shapeev, A. P. Thompson, M. A. Wood, and S. P. Ong, Performance and cost assessment of machine learning interatomic potentials, The Journal of Physical Chemistry A 124 , 731–745 (2020). [5] Y. Mishin, Machine-learning interatomic potentials for materials science, Acta Materialia 214 , 116980 (2021). [6] G. R. Schleder, A. C. M. Padilha, A. Reily Rocha, G. M. Dalpian, and A. Fazzio, Ab Initio simulations and mate-rials chemistry in the age of big data, Journal of Chemical Information and Modeling 60 , 452–459 (2019). [7] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials, Na-ture Communications 13 , 10.1038/s41467-022-29939-5 (2022). [8] I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Csanyi, Mace: Higher order equivariant message pass-ing neural networks for fast and accurate force fields, in Advances in Neural Information Processing Systems ,Vol. 35, edited by S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, and A. Oh (Curran Associates, Inc., 2022) pp. 11423–11436. [9] Z. Yang, X. Wang, Y. Li, Q. Lv, C. Y.-C. Chen, and L. Shen, Efficient equivariant model for machine learning interatomic potentials, npj Computational Materials 11 ,10.1038/s41524-025-01535-3 (2025). [10] C. Chen and S. P. Ong, A universal graph deep learn-ing interatomic potential for the periodic table, Nature Computational Science 2, 718 (2022). [11] A. Musaelian, S. Batzner, A. Johansson, L. Sun, C. J. Owen, M. Kornbluth, and B. Kozinsky, Learning local equivariant representations for large-scale atomistic dy-namics, Nature Communications 14 , 579 (2023). [12] T. L. Tompa, E. Varga-Umbrich, I. Batatia, A. M. Elena, N. Bernstein, and G. Cs´ anyi, Fine-tuning mlip founda-tion models: strategies for accuracy and transferability (2026). [13] I. Creed, T. Rein, I. Vitenburgs, W. G. Stark, V. Ellings-son, A. Y. Ismail, G. Liu, Y. Lou, B. A. A. Martin, C. Bone, M. A. H. Walker, M. Taj, S. Wang, K. Wong, R. Wu, P. Kayastha, B. Cheng, A. Krishnapriyan, M. Ce-riotti, M. F. Langer, J. M. Frost, A. M. Ganose, V. Kapil, and K. T. Butler, Six open questions in machine-learned interatomic potential foundation models (2026). [14] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, and K. A. Persson, Commentary: The materials project: A materials genome approach to accelerating materials innovation, APL Materials 1, 10.1063/1.4812323 (2013). [15] M. K. Horton, P. Huck, R. X. Yang, J. M. Munro, S. Dwaraknath, A. M. Ganose, R. S. Kingsbury, M. Wen, J. X. Shen, T. S. Mathis, A. D. Kaplan, K. Berket, J. Riebesell, J. George, A. S. Rosen, E. W. C. Spotte-Smith, M. J. McDermott, O. A. Cohen, A. Dunn, and M. C. Kuner, Accelerated data-driven materials sci-ence with the materials project, Nature Materials 24 ,1522–1532 (2025). [16] J. Schmidt, T. F. T. Cerqueira, A. H. Romero, A. Loew, F. J¨ ager, H.-C. Wang, S. Botti, and M. A. L. Mar-ques, Improving machine-learning models in materials science through large datasets, Materials Today Physics 
+
+48 , 101560 (2024). [17] J. P. Miller, R. Taori, A. Raghunathan, S. Sagawa, P. W. Koh, V. Shankar, P. Liang, Y. Carmon, and L. Schmidt, Accuracy on the line: On the strong correlation between out-of-distribution and in-distribution generalization, in 
+
+Proceedings of the 38th International Conference on Ma-chine Learning , Proceedings of Machine Learning Re-search, Vol. 139 (PMLR, 2021) pp. 7721–7735. [18] H. Yu, J. Liu, X. Zhang, J. Wu, and C. Peng, A survey on evaluation of out-of-distribution generalization (2024). 13 
+
+[19] G. Benedini, A. Loew, M. Hellstr¨ om, S. Botti, and M. A. L. Marques, Universal machine learning potentials for systems with reduced dimensionality, AI for Science 
+
+1, 025005 (2025). [20] K. Li, A. N. Rubungo, X. Lei, D. Persaud, K. Choud-hary, B. DeCost, A. B. Dieng, and J. Hattrick-Simpers, Probing out-of-distribution generalization in machine learning for materials, Communications Materials 6,10.1038/s43246-024-00731-w (2025). [21] N. L. Fragapane and V. L. Deringer, Amorphous ma-terials as a frontier challenge for universal interatomic potentials (2026). [22] L.-B. Pa¸ sca, H. J. Snaith, and V. L. Deringer, Data-driven atomistic modelling of hybrid halide perovskite passivation (2026). [23] C. Verdi, F. Karsai, P. Liu, R. Jinnouchi, and G. Kresse, Thermal transport and phase transitions of zirconia by on-the-fly machine-learned interatomic potentials, npj Computational Materials 7, 156 (2021). [24] P. Liu, C. Verdi, F. Karsai, and G. Kresse, Phase transitions of zirconia: Machine-learned force fields be-yond density functional theory, Physical Review B 105 ,L060102 (2022). [25] J.-Y. Zhang, G. Huynh, T. Albaret, F.-Z. Dai, and D. Rodney, Transformation-induced plasticity in CeO2-ZrO2 ceramics: Atomic-scale insights using a deep neural network potential, Acta Materialia 285 , 120661 (2025). [26] B. Focassio, T. E. R. Fiuza, J. Bettini, G. R. Schleder, M. H. M. Rodrigues, J. B. Souza Junior, E. R. Leite, A. Fazzio, and R. B. Capaz, Stability and rupture of an ultrathin ionic wire, Physical Review Letters 129 , 046101 (2022). [27] T. E. Fiuza, B. Focassio, J. Bettini, G. R. Schleder, M. H. Rodrigues, J. B. Souza Junior, A. Fazzio, R. B. Capaz, and E. R. Leite, Visualization of electron beam-induced desintering of nanostructured ceramics at the atomic scale, Cell Reports Physical Science 5, 101828 (2024). [28] T. W. Ko, J. A. Finkler, S. Goedecker, and J. Behler, A fourth-generation high-dimensional neural network po-tential with accurate electrostatics including non-local charge transfer, Nature Communications 12 , 398 (2021). [29] E. Rumiantsev, M. F. Langer, T.-E. Sodjargal, M. Ce-riotti, and P. Loche, Learning long-range representa-tions with equivariant messages, Transactions on Ma-chine Learning Research (2026), arXiv:2507.19382 [physics.chem-ph]. [30] M. U. Maruf, S. Kim, and Z. Ahmad, Learning long-range interactions in equivariant machine learning interatomic potentials via electronic degrees of freedom, The Journal of Physical Chemistry Letters 16 , 9078 (2025). [31] D. Kim and B. Cheng, Long-range electrostatics for ma-chine learning interatomic potentials is easier than we thought, The Journal of Chemical Physics 164 , 060901 (2026). [32] B. Cheng, Latent ewald summation for machine learning of long-range interactions, npj Computational Materials 
+
+11 , 10.1038/s41524-025-01577-7 (2025). [33] A. Kabylda, J. T. Frank, S. Su´ arez-Dou, A. Khabibrakhmanov, L. Medrano Sandonas, O. T. Unke, S. Chmiela, K.-R. M¨ uller, and A. Tkatchenko, Molecular simulations with a pretrained neural network and universal pairwise force fields, Journal of the American Chemical Society 147 , 33723–33734 (2025). [34] I. Batatia, W. J. Baldwin, D. Kuryla, J. Hart, E. Kasoar, A. M. Elena, H. Moore, M. J. Gawkowski, B. X. Shi, V. Kapil, P. Kourtis, I.-B. Magd˘ au, and G. Cs´ anyi, Mace-polar-1: A polarisable electrostatic foundation model for molecular chemistry (2026). [35] J. Riebesell, R. E. A. Goodall, P. Benner, Y. Chiang, B. Deng, G. Ceder, M. Asta, A. A. Lee, A. Jain, and K. A. Persson, A framework to evaluate machine learning crystal stability predictions, Nature Machine Intelligence 
+
+7, 836–847 (2025). [36] T. Maxson, A. Soyemi, X. Zhang, B. W. J. Chen, and T. Szilv´ asi, Ms25: Materials science-focused bench-mark data set for machine learning interatomic poten-tials, Journal of Chemical Information and Modeling 65 ,8097–8112 (2025). [37] R. Jacobs, D. Morgan, S. Attarian, J. Meng, C. Shen, Z. Wu, C. Y. Xie, J. H. Yang, N. Artrith, B. Blaiszik, G. Ceder, K. Choudhary, G. Csanyi, E. D. Cubuk, B. Deng, R. Drautz, X. Fu, J. Godwin, V. Honavar, O. Isayev, A. Johansson, B. Kozinsky, S. Martiniani, S. P. Ong, I. Poltavsky, K. Schmidt, S. Takamoto, A. P. Thompson, J. Westermayr, and B. M. Wood, A practical guide to machine learning interatomic potentials – status and future, Current Opinion in Solid State and Materials Science 35 , 101214 (2025). [38] B. Focassio, L. P. M. Freitas, and G. R. Schleder, Per-formance assessment of universal machine learning inter-atomic potentials: Challenges and directions for mate-rials’ surfaces, ACS Applied Materials & Interfaces 17 ,13111–13121 (2025). [39] M. Z. Anam, O. Aghoghovbia, M. Al-Fahdi, L. Kong, V. Fung, and M. Hu, A comprehensive assessment and benchmark study of large atomistic foundation models for phonons, Advanced Intelligent Discovery 10.1002/aidi.202500075 (2025). [40] D. Li, J. Yang, X. Chen, L. Yu, and S. Liu, Are foun-dational atomistic models reliable for finite-temperature molecular dynamics?, The Journal of Physical Chemistry C 129 , 21538–21544 (2025). [41] X. Huang, B. Deng, P. Zhong, A. D. Kaplan, K. A. Persson, and G. Ceder, Cross-functional transferability in foundation machine learning interatomic potentials, npj Computational Materials 11 , 10.1038/s41524-025-01796-y (2025). [42] N. Alampara, M. Schilling-Wilhelmi, and K. M. Jablonka, Lessons from the trenches on evaluating ma-chine learning systems in materials science, Computa-tional Materials Science 259 , 114041 (2025). [43] R. Iftimie, P. Minary, and M. E. Tuckerman, Ab initio molecular dynamics: Concepts, recent developments, and future trends, Proceedings of the National Academy of Sciences 102 , 6654–6659 (2005). [44] P. Zanineli, S. Mauri, B. Focassio, and G. Schleder, Ip-orch - interatomic potentials orchestrator (2026). [45] A. Hjorth Larsen, J. Jørgen Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dulak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. Bjerre Jensen, J. Kermode, J. R. Kitchin, E. Leonhard Kolsbjerg, J. Kubal, K. Kaasb-jerg, S. Lysgaard, J. Bergmann Maronsson, T. Max-son, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Sch¨ utt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, The atomic simulation environment—a python 14 
+
+library for working with atoms, Journal of Physics: Con-densed Matter 29 , 273002 (2017). [46] J. Kim, J. You, Y. Park, Y. Lim, Y. Kang, J. Kim, H. Jeon, S. Ju, D. Hong, S. Y. Lee, S. Choi, Y. Kim, J. W. Lee, and S. Han, Optimizing cross-domain trans-fer for universal machine learning interatomic potentials, Nature Communications 17 , 10.1038/s41467-026-70195-8 (2026). [47] J. Gardner, graph-pes: train and use graph-based ml models of potential energy surfaces (2024). [48] R. Liu, E. Liu, J. Riebesell, J. Qi, S. P. Ong, and T. W. Ko, Matcalc: A python library for calculating materials properties from the potential energy surface (pes) (2024). [49] J. Pokluda, M. ˇCern´ y, M. ˇSob, and Y. Umeno, Ab ini-tio calculations of mechanical properties: Methods and applications, Progress in Materials Science 73 , 127–158 (2015). [50] B. Deng, P. Zhong, K. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, Chgnet as a pretrained universal neural network potential for charge-informed atomistic modelling, Nature Machine Intelligence 5, 1031–1041 (2023). [51] Y. Park, J. Kim, S. Hwang, and S. Han, Scalable par-allel algorithm for graph neural network interatomic potentials in molecular dynamics simulations, Journal of Chemical Theory and Computation 20 , 4857–4868 (2024). [52] D. Zhang, A. Peng, C. Cai, W. Li, Y. Zhou, J. Zeng, M. Guo, C. Zhang, B. Li, H. Jiang, T. Zhu, W. Jia, L. Zhang, and H. Wang, A graph neural network for the era of large atomistic models, npj Computational Mate-rials 10.1038/s41524-026-02146-2 (2026). [53] A. Bochkarev, Y. Lysogorskiy, and R. Drautz, Graph atomic cluster expansion for semilocal interactions be-yond equivariant message passing, Physical Review X 14 ,10.1103/physrevx.14.021036 (2024). [54] H. Yang, C. Hu, Y. Zhou, X. Liu, Y. Shi, J. Li, G. Li, Z. Chen, S. Chen, C. Zeni, M. Horton, R. Pinsler, A. Fowler, D. Z¨ ugner, X. Tian, J. Smith, L. Sun, W. Qian, L. Kong, C. Liu, H. Hao, and Z. Lu, Matter-sim: A deep learning atomistic model across elements, temperatures and pressures (2024). [55] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kov´ acs, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, F. Bigi, S. M. Blau, V. C˘ arare, M. Ceriotti, S. Chong, J. P. Darby, S. De, F. Della Pia, V. L. Deringer, R. Elijoˇ sius, Z. El-Machachi, E. Fako, F. Falcioni, A. C. Ferrari, J. L. A. Gardner, M. J. Gawkowski, A. Genreith-Schriever, J. George, R. E. A. Goodall, J. Grandel, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. H. Ho, S. Hofmann, C. Holm, J. Jaa-far, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, P. Kourtis, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuoniute, C. Lin, J. T. Margraf, I.-B. Magd˘ au, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. A. M. Rosset, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, C. Sutton, V. Svahn, T. D. Swinburne, J. Tilly, C. van der Oord, S. Var-gas, E. Varga-Umbrich, T. Vegge, M. Vondr´ ak, Y. Wang, W. C. Witt, T. Wolf, F. Zills, and G. Cs´ anyi, A founda-tion model for atomistic materials chemistry, The Journal of Chemical Physics 163 , 10.1063/5.0297006 (2025). [56] M. Neumann, J. Gin, B. Rhodes, S. Bennett, Z. Li, H. Choubisa, A. Hussey, and J. Godwin, Orb: A fast, scalable neural network potential (2024). [57] B. Rhodes, S. Vandenhaute, V. ˇSimkus, J. Gin, J. God-win, T. Duignan, and M. Neumann, Orb-v3: atomistic simulation at scale (2025). [58] K. Gubaev, V. Zaverkin, P. Srinivasan, A. I. Duff, J. K¨ astner, and B. Grabowski, Performance of two complementary machine-learned potentials in modelling chemically complex systems, npj Computational Materi-als 9, 10.1038/s41524-023-01073-w (2023). [59] R. Guo, G. Li, J. Tang, Y. Wang, and X. Song, Small-data-based machine learning interatomic potentials for graphene grain boundaries enabled by structural unit model, Carbon Trends 11 , 100260 (2023). [60] A. P. Bart´ ok, M. C. Payne, R. Kondor, and G. Cs´ anyi, Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons, Physi-cal Review Letters 104 , 10.1103/physrevlett.104.136403 (2010). [61] J. Kim, J. Lee, S. Oh, Y. Park, S. Hwang, S. Han, S. Kang, and Y. Kang, An efficient forgetting-aware fine-tuning framework for pretrained universal machine-learning interatomic potentials, npj Computational Ma-terials 12 , 26 (2026). [62] J. Kloppenburg, L. B. P´ artay, H. J´ onsson, and M. A. Caro, A general-purpose machine learning Pt interatomic potential for an accurate description of bulk, surfaces and nanoparticles, The Journal of Chemical Physics 158 ,134704 (2023). [63] Y. Liu, J. D. Morrow, C. Ertural, N. L. Fragapane, J. L. A. Gardner, A. A. Naik, Y. Zhou, J. George, and V. L. Deringer, An automated framework for exploring and learning potential-energy surfaces, Nature Commu-nications 16 , 7666 (2025). Supporting Information Cross-Geometry Transferability Assessment of Universal Machine Learning Interatomic Potentials: From bulk materials to atomic nanowires 
+
+Pedro H. M. Zanineli ,1, 2 Bruno Focassio ,1 and Gabriel R. Schleder 1, 2, ∗
+
+> 1
+
+Brazilian Nanotechnology National Laboratory (LNNano/CNPEM), 13083-100, Campinas, SP, Brazil 
+
+> 2
+
+Universidade Federal do ABC (UFABC), 09210-580, Santo Andr´ e, S˜ ao Paulo, Brazil 
+
+(Dated: August 6, 2026) 
+
+This Supplementary Information provides details supporting the main text of “Cross-Geometry Transferability Assessment of Foundation Machine Learning Interatomic Potentials: From bulk materials to atomic nanowires”. 
+
+CONTENTS 
+
+I. Model and Training Details 2II. Reference-Energy Alignment Diagnostics 3III. Complete Property Values 5IV. Vibrational Properties 7V. Additional Molecular-Dynamics Diagnostics 11 References 14  
+
+> ∗Corresponding author. gabriel.schleder@lnnano.cnpem.br
+
+2 
+
+> I. MODEL AND TRAINING DETAILS
+
+The model training contain fine-tuning and from-scratch configurations for MACE MP-0, MACE MPA-0, ORB-v2-MPtraj, and ORB-v3 [1–3], trained using GraphPES [4]. All models were trained for 50 epochs using float32 precision, the AdamW optimizer with an initial learning rate of 0.005, a ReduceLROnPlateau scheduler, a batch size of 8, random seed 42, and one NVIDIA L40 GPU. The objective combined per-atom energy loss and force RMSE with implicit unit weights. Fine-tuned models were initialized from their corresponding pretrained checkpoints, whereas from-scratch models retained the same architectures with randomly initialized weights. These trained models are divided into two categories according to the datasets used during their initial training. Models trained exclusively on the Materials Project dataset [5] are classified as Materials Project Compliant (MP-C), whereas models trained on broader datasets are classified as Materials Project Non-Compliant (MP-NC).                   
+
+> TABLE S1. Model checkpoints and wall times for the training runs. Fine-tuning (FT) starts from the corresponding pretrained checkpoint, whereas from-scratch training (FS) uses the same architecture with randomly initialized weights. Model Category Checkpoint FT time FS time (min) (min) MACE MP-0 MP-C large 169.0 168.5 ORB-v2-MPtrj MP-C orb-mptraj-only-v2 298.6 302.2 MACE MPA-0 MP-NC medium-mpa-0 152.0 150.3 ORB-v3 MP-NC orb-v3-direct-20-omat 280.8 289.2
+
+For a collection of structures indexed by i, the atomic-environment is 
+
+Nenv = ∑
+
+> i
+
+Ni, (S1) where Ni is the number of atoms in structure i. Table S2 reports the resulting geometry-resolved for the final training partition.              
+
+> TABLE S2. Geometry-resolved composition of the final filtered training partition. The atomic-environment, Nenv , is the total number of atoms across all structures in each geometry class. Training geometry Structures Nenv
+> Bulk 67 6 366 Slab/surface defect/GB 2140 153 112 Particle 548 53 911 Neck 2269 167 906 Wire 4307 73 556 Total 9331 454 851
+
+3
+
+II. REFERENCE-ENERGY ALIGNMENT DIAGNOSTICS 
+
+The intended elemental reference-energy correction is 
+
+Ealigned  
+
+> i
+
+= Emodel  
+
+> i
+
++ ∑
+
+> α
+
+Niα ∆μα, (S2) where Niα counts atoms of element α in configuration i. A valid diagnostic requires fitting ∆ μα on the training partition only and then applying the fixed correction to evaluation data. For each model, ∆ μZr and ∆ μO were fitted by least squares on these 9331 training structures only. The fixed corrections were then applied to the complete evaluation set. 10 2
+
+> Energy RMSE (meV atom −1 )
+> pet-oam-xl tace-v1 oam-m matris 10m-oam sevennet omni nequip oam-l grace 2l-oam orb-v3 dpa-3.1 3m-ft mace-mpa-0 mattersim v1 grace 1l-oam orb-v2 matris 10m-mp eqnorm mptrj nequix mp-pft nequip mp-l nequix-mp allegro mp-l dpa-3.1 mptrj sevennet l3i5 hienet grace 2l-mp-r6 mace-mp-0 orb-v2 mptrj chgnet m3gnet
+
+Raw and Reference Aligned Zero-Shot Energies RMSE 
+
+MP-non-compliant MP-compliant Raw Reference aligned 
+
+FIG. S1. Raw and training-only elemental-aligned zero-shot energy RMSE in the Matbench Discovery order. Orange and dark-blue fills denote MP-non-compliant and MP-compliant groups, respectively; hatching denotes aligned values. 4
+
+TABLE S3. Zero-shot energy and force diagnostics. Elemental corrections were fitted by least squares on the 9331 structures in the supplied filtered training split and then held fixed for the complete evaluation set. Energy quantities are in meV atom −1,force RMSE is in meV ˚ A−1, and ∆ μα is in eV. Cell colors use fixed pastel scales shared by MP-compliant and MP-non-compliant models for each metric: 0–200 meV atom −1 for raw energy RMSE and MAE, 0–100 meV atom −1 for aligned energy RMSE and MAE, and 0–600 meV ˚ A−1 for force RMSE. Values equal to or above an upper limit receive the maximum red intensity. The fitted elemental corrections are not color-coded. 
+
+Model Category Raw E RMSE Aligned E RMSE Raw E MAE Aligned E MAE FRMSE ∆μZr ∆μO
+
+(meV atom −1 or meV ˚ A−1) (eV) pet-oam-xl MP-non-compliant 118.68 30.04 115.26 21.65 240.61 -0.307129 -0.001490 tace-v1-oam-m MP-non-compliant 106.01 29.15 102.87 14.37 269.62 -0.462935 0.074944 matris-10m-oam MP-non-compliant 98.96 27.51 96.35 11.91 335.61 -0.450614 0.077864 sevennet-omni MP-non-compliant 90.78 36.64 87.74 18.77 227.62 -0.330242 0.017223 nequip-oam-l MP-non-compliant 97.56 25.04 95.52 11.37 256.93 -0.446863 0.074769 grace-2l-oam MP-non-compliant 102.56 33.75 99.16 20.32 386.19 -0.319289 0.000208 orb-v3 MP-non-compliant 30.36 31.27 17.38 13.99 197.29 -0.192228 0.086643 dpa-3.1-3m-ft MP-non-compliant 104.10 33.08 98.52 24.93 367.85 -0.360207 0.047175 mace-mpa-0 MP-non-compliant 137.80 41.16 132.44 30.63 476.44 -0.379649 0.024794 mattersim-v1 MP-non-compliant 121.28 41.14 117.07 23.59 441.60 -0.472044 0.071268 grace-1l-oam MP-non-compliant 136.05 58.44 126.44 48.50 387.17 -0.474536 0.030519 orb-v2 MP-non-compliant 107.67 34.40 103.38 17.86 371.92 -0.496684 0.092579 matris-10m-mp MP-compliant 158.41 62.97 147.65 45.88 370.35 -0.505167 0.089979 eqnorm-mptrj MP-compliant 107.67 36.69 102.82 21.25 366.34 -0.297799 -0.004384 nequix-mp-pft MP-compliant 117.97 38.65 112.29 25.46 398.98 -0.369085 0.031462 nequip-mp-l MP-compliant 94.72 56.43 91.46 28.18 460.01 -0.444325 0.074786 nequix-mp MP-compliant 110.36 37.68 104.92 24.22 440.75 -0.314798 0.012268 allegro-mp-l MP-compliant 209.89 104.55 190.26 78.12 397.10 -0.516534 0.069808 dpa-3.1-mptrj MP-compliant 135.57 43.42 129.28 32.78 391.78 -0.419245 0.053882 sevennet-l3i5 MP-compliant 110.73 36.58 106.86 20.43 459.17 -0.442815 0.066210 hienet MP-compliant 107.98 36.62 105.06 18.47 359.52 -0.352175 0.025746 grace-2l-mp-r6 MP-compliant 242.48 175.87 213.17 135.36 732.26 1.913479 -0.499138 mace-mp-0 MP-compliant 90.96 44.83 87.74 23.98 509.17 -0.409972 0.060916 orb-v2-mptrj MP-compliant 143.61 46.51 138.40 33.54 309.14 -0.531955 0.091778 chgnet MP-compliant 368.92 55.48 363.00 41.90 486.37 2.131660 -0.516475 m3gnet MP-compliant 109.65 52.47 99.79 37.89 601.14 -0.176665 -0.028656 5
+
+III. COMPLETE PROPERTY VALUES 
+
+Table S4 collects the absolute elastic and equation-of-state quantities. Table S5 reports percentual deviations from the mp-2858 DFT reference elastic row [5, 6]. 
+
+TABLE S4. Elastic, equation-of-state, and phonon-DOS quantities. For the machine-learning models, the reported volume is the equilibrium volume V0 obtained from the equation-of-state fit. 
+
+# Model Volume (˚ A3) K (GPa) G (GPa) E (GPa) ν B′
+
+0
+
+# DFT 144.467 183.000 86.000 223.058 0.297 4.257 MACE zero-shot 144.308 168.554 89.198 227.470 0.275 3.289 MACE fine-tuned 144.891 228.303 108.079 280.045 0.296 7.386 MACE from-scratch 146.566 258.249 114.567 299.424 0.307 6.619 ORB zero-shot 142.819 232.313 114.050 294.033 0.289 -44.337 ORB fine-tuned 142.995 84.474 23.263 63.920 0.374 9.116 ORB from-scratch 144.768 149.595 17.529 50.610 0.444 -4.904 
+
+TABLE S5. Absolute percentage errors relative to the DFT/reference values in Table S4. Cell colors use a fixed pastel scale shared by MACE and ORB and by all reported properties. Errors are mapped from 0 to 25%; values equal to or above 25% receive the maximum red intensity. Lower errors are greener and higher errors are redder. 
+
+Model V0 (˚ A3) K (GPa) G (GPa) E (GPa) ν
+
+MACE zero-shot 1.864 7.894 3.719 1.978 7.343 MACE fine-tuned 2.275 24.756 25.673 25.548 0.438 MACE from scratch 3.457 41.120 33.218 34.236 3.334 ORB zero-shot 0.812 26.947 32.616 31.819 2.627 ORB fine-tuned 0.936 53.839 72.950 71.344 25.935 ORB from scratch 2.188 18.254 79.618 77.311 49.411 
+
+The complete surface-energy predictions are reported in Table S6 in the exact Miller-index ordering. Table S7 provide the corresponding absolute and relative errors. 
+
+TABLE S6. Monoclinic ZrO 2 surface energies (J m −2). 
+
+Miller index DFT mace-zero-shot mace-fine-tune mace-from-scratch orb-zero-shot orb-fine-tune orb-from-scratch (¯ 11¯ 1) 3.920 3.456 3.814 3.947 1.848 4.213 3.854 (110) 5.094 4.430 5.016 5.200 1.716 5.431 4.997 (100) 6.676 5.594 6.450 6.722 0.897 7.102 6.553 (111) 3.920 3.456 3.814 3.947 1.707 4.213 3.821 (101) 5.762 4.893 5.601 5.571 2.305 6.130 5.795 (¯ 111) 6.548 5.234 6.185 6.042 1.871 6.798 6.598 (¯ 101) 7.087 5.677 6.860 6.760 1.292 7.517 7.190 (001) 6.058 5.158 5.955 6.290 4.409 6.373 5.983 (011) 7.004 5.629 6.725 6.551 1.779 7.484 6.872 (211) 6.963 5.746 6.684 6.551 2.042 7.325 6.895 (010) 8.223 6.777 8.034 8.173 2.209 8.555 8.260 
+
+Table S8 provides slabs atom count, projected slab thickness, vacuum thickness, and surface area, and exact training overlap. Exact matches with frames in the filtered training partition were identified for most surface orientations, as sum-marized in Table ?? . Consequently, the corresponding surface-energy predictions should not be interpreted as strict no-overlap transfer tests. The (111) orientation is the only evaluated surface for which no exact training-frame match 6
+
+TABLE S7. Absolute (J m −2) and relative (%) errors of MLIP surface energies with respect to DFT. The evaluation is partly interpolative because some evaluated orientations or closely related slabs are represented in the training data. Cell colors use fixed pastel scales shared by MACE and ORB. Absolute errors are mapped from 0 to 1.50 J m −2, while relative errors are mapped from 0 to 25%. Values equal to or above the upper limits receive the maximum red intensity. Lower errors are greener and higher errors are redder. MACE Compliant ORB Non-Compliant Zero-shot Fine-tuned From scratch Zero-shot Fine-tuned From scratch Surface J m −2 % J m −2 % J m −2 % J m −2 % J m −2 % J m −2 %(¯ 11¯ 1) 0.47 11.86 0.11 2.71 0.03 0.68 2.07 52.86 0.29 7.47 0.07 1.69 (110) 0.66 13.04 0.08 1.53 0.11 2.09 3.38 66.31 0.34 6.62 0.10 1.90 (100) 1.08 16.20 0.23 3.39 0.05 0.69 5.78 86.56 0.43 6.38 0.12 1.85 (111) 0.47 11.86 0.11 2.71 0.03 0.68 2.21 56.47 0.29 7.46 0.10 2.54 (101) 0.87 15.09 0.16 2.80 0.19 3.32 3.46 60.01 0.37 6.39 0.03 0.57 (¯ 111) 1.31 20.06 0.36 5.54 0.51 7.72 4.68 71.42 0.25 3.83 0.05 0.77 (¯ 101) 1.41 19.89 0.23 3.20 0.33 4.61 5.79 81.76 0.43 6.08 0.10 1.47 (001) 0.90 14.85 0.10 1.70 0.23 3.83 1.65 27.22 0.32 5.20 0.08 1.23 (011) 1.38 19.64 0.28 3.99 0.45 6.47 5.23 74.61 0.48 6.85 0.13 1.88 (211) 1.22 17.48 0.28 4.01 0.41 5.91 4.92 70.68 0.36 5.20 0.07 0.97 (010) 1.45 17.58 0.19 2.30 0.05 0.61 6.01 73.14 0.33 4.04 0.04 0.45 TABLE S8. Slab metadata reconstructed from the first frame of each supplied orientation. Thickness is the atomic extent projected along the surface normal, vacuum is the normal cell height minus that extent, and overlap denotes exact frame matches in the filtered training split. 
+
+Miller index Atoms Slab thickness (˚ A) Vacuum thickness (˚ A) Surface area (˚ A2) Exact training overlap -11-1 60 13.818 20.000 49.450 Yes (118 frames) 110 60 16.917 20.000 38.647 Yes (158 frames) 100 60 24.621 20.000 27.654 Yes (194 frames) 111 60 13.818 20.000 49.450 No exact frame 101 60 16.833 20.000 41.430 Yes (89 frames) -111 60 15.611 20.000 44.460 Yes (86 frames) -101 60 19.685 20.000 35.325 Yes (92 frames) 001 60 25.561 20.000 26.785 Yes (80 frames) 011 60 18.410 20.000 38.030 Yes (166 frames) 211 240 19.343 20.000 141.051 Yes (10 frames) 010 60 25.674 20.000 26.997 Yes (51 frames) 
+
+was found, although this does not necessarily imply that all of its local atomic environments are outside the training distribution. 7
+
+IV. VIBRATIONAL PROPERTIES 
+
+All six model/strategy combinations were used on the exact fractional q-points of the Materials Project DFT bands for mp-2858 [5, 6]. Thus, all dispersions in Figure S2 share the Setyawan–Curtarolo Materials Project path. Negative frequencies are retained throughout. Because direct-force models do not necessarily derive their forces from a scalar potential-energy surface, their applicability to vibrational calculations requires additional examination. Figure S3 compares the zero-shot phonon dispersions obtained with the direct and conservative ORB-v3 variants. For the DOS comparison, each curve was normalized to unit integrated area. Although the DOS density is non-negative, the associated frequency coordinates were allowed to extend below 0 THz. The normalized curves were then linearly interpolated onto a common 3000-point grid spanning the frequency interval shared by the model and DFT data. The reported integrated absolute error and root-mean-square error are IAE DOS =
+
+∫
+
+|gmodel (ω) − gDFT (ω)| dω, (S3) RMSE DOS =
+
+ 1
+
+NωNω∑
+
+> j=1
+
+(gmodel (ωj ) − gDFT (ωj )) 2
+
+
+
+> 1/2
+
+. (S4) 
+
+TABLE S9. Phonon metrics obtained on the common Materials Project q-point path. Band RMSE and MAE compare the sorted frequencies of all 36 modes at all 112 q-points. Maximum-frequency error is the absolute difference between the largest model and DFT frequencies. DOS curves were normalized to unit area and interpolated to a common 3000-point overlap grid. Frequencies and their errors are in THz; DOS RMSE is in THz −1. Cell colors use fixed pastel scales shared by MACE and ORB for each metric: 0–3 THz for band RMSE and MAE, 0–1 for DOS IAE, 0–0.05 THz −1 for DOS RMSE, 0–5 THz for maximum-frequency error, and 0–0.05 for the imaginary-mode fraction. Values equal to or above an upper limit receive the maximum red intensity. 
+
+## Model Strategy Band RMSE Band MAE DOS IAE DOS RMSE Max. freq. error Imaginary fraction MACE Zero-shot 0.785 0.649 0.312 0.017 0.616 0.001 MACE Fine-tuned 1.653 1.459 0.413 0.023 2.900 0.000 MACE From scratch 1.598 1.450 0.447 0.025 3.624 0.000 ORB Zero-shot 0.540 0.380 0.174 0.010 0.248 0.000 ORB Fine-tuned 3.067 2.825 0.557 0.034 4.587 0.000 ORB From scratch 10.446 9.617 0.875 0.225 19.745 0.117 8ΓYHCEM1
+
+> AXH1|M DZ|Y D
+
+0510 15 20 25 Frequency (THz) 
+
+DFT - Materials Project 
+
+> DFT
+
+0510 15 20 25 Frequency (THz) 
+
+MACE - Zero-shot 
+
+> DFT MACE Zero-shot
+
+0510 15 20 25 
+
+ORB - Zero-shot 
+
+> DFT ORB Zero-shot
+
+0510 15 20 25 Frequency (THz) 
+
+MACE - Fine-tuned 
+
+> DFT MACE Fine-tuned
+
+0510 15 20 25 
+
+ORB - Fine-tuned 
+
+> DFT ORB Fine-tuned
+> ΓYHCEM1
+> AXH1|M DZ|Y D
+
+0510 15 20 25 Frequency (THz) 
+
+MACE - From scratch 
+
+> DFT MACE From scratch
+> ΓYHCEM1
+> AXH1|M DZ|Y D
+
+0510 15 20 25 
+
+ORB - From scratch 
+
+> DFT ORB From scratch
+
+FIG. S2. Materials Project DFT phonon dispersion for mp-2858 (top row, repeated to anchor both columns), followed by MACE (left) and ORB (right) dispersions for zero-shot, fine-tuned, and from-scratch strategies. Every panel uses the same Materials Project path and q-point sampling. Horizontal dashed lines mark zero frequency and vertical lines mark path boundaries. 9Γ Y H C EM 1 A X H1|M D Z|Y D
+
+0510 15 20 25 Frequency (THz) 
+
+DFT ORB-v3 Direct-20 ORB-v3 Conservative-20 
+
+FIG. S3. Comparison of zero-shot phonon dispersions for monoclinic ZrO 2 predicted by ORB-v3 Direct-20 and ORB-v3 Conservative-20, with Materials Project DFT as the reference. Horizontal dashed and vertical lines indicate zero frequency and path-segment boundaries, respectively. 10 0.00 0.02 0.04 0.06 0.08 0.10 Normalized DOS (THz −1 )
+
+MACE - Zero-shot 
+
+> DFT MACE Zero-shot
+
+0.00 0.02 0.04 0.06 0.08 0.10 
+
+ORB - Zero-shot 
+
+> DFT ORB Zero-shot
+
+0.000 0.025 0.050 0.075 0.100 0.125 0.150 Normalized DOS (THz −1 )
+
+MACE - Fine-tuned 
+
+> DFT MACE Fine-tuned
+
+0.000 0.025 0.050 0.075 0.100 0.125 0.150 
+
+ORB - Fine-tuned 
+
+> DFT ORB Fine-tuned
+
+0 5 10 15 20 25 Frequency (THz) 0.00 0.02 0.04 0.06 0.08 0.10 0.12 Normalized DOS (THz −1 )
+
+MACE - From scratch 
+
+> DFT MACE From scratch
+
+0 5 10 15 20 25 Frequency (THz) 0.0 0.1 0.2 0.3 0.4 0.5 
+
+ORB - From scratch 
+
+> DFT ORB From scratch
+
+FIG. S4. Unit-area normalized vibrational DOS for MACE (left) and ORB (right), compared with the available DFT DOS. All comparisons use the same interpolation and normalization procedure described in eqs. (S3) and (S4). 11  
+
+> V. ADDITIONAL MOLECULAR-DYNAMICS DIAGNOSTICS
+
+The six neck trajectories were analyzed using the Atomic Simulation Environment (ASE) [7]. Each trajectory spans 42.096 ps and was generated using an integration time step of 1 fs, with three different seeds. The change in total energy relative to the initial configuration was calculated as ∆E(t) = E(t) − E(0) . (S5) The tensile molecular dynamics simulations employed the same ZrO 2 neck structure and loading protocol as the DFT AIMD reference [8]. All simulations started directly from the same initial DFT configuration, without additional geometry optimization or atomic constraints. The MLIP trajectories were propagated under fully periodic boundary conditions in the NVT ensemble at 300 K, using a Nos´ e–Hoover chain thermostat with a damping time of 100 fs and an integration time step of 1 fs. Following an initial equilibration period of approximately 2 ps, the simulation cell was incrementally elongated along the pulling direction in steps of 0.5 ˚ A. Approximately 2 ps of molecular dynamics was performed between consecutive elongation steps. This procedure resulted in a total elongation of 10 ˚ A after 42.096 ps. At each extension step, the atomic coordinates were scaled consistently with the simulation cell. The root-mean-square displacements (RMSDs) presented in Figure S5 were calculated relative to the initial config-uration after unwrapping atomic trajectories across periodic boundaries and removing overall rigid-body translation and rotation. The minimum Zr–O distance was defined as the shortest Zr–O separation in each frame, accounting for periodic boundary conditions. 0123456Full-structure RMSD ( Å)
+
+MACE 
+
+> Zero-shot Fine-tune From-scratch DFT AIMD
+> 0246810
+
+ORB         
+
+> Zero-shot Fine-tune From-scratch DFT AIMD
+> 010 20 30 40 Time (ps) 1.5 1.6 1.7 1.8 1.9 Minimum Zr-O distance ( Å)010 20 30 40 Time (ps) 1.2 1.4 1.6 1.8 2.0
+> FIG. S5. Full-structure RMSD and minimum periodic Zr–O distance for every trajectory. All RMSDs use the same initial-frame reference and alignment convention.
+
+12 0 ps    
+
+> DFT AIMD MACE Zero-shot MACE Fine-tune MACE From-scratch
+> ORB Zero-shot Direct
+> ORB Fine-tune Direct
+> ORB From-scratch Direct
+> 20 ps
+> 42 ps
+
+Zr O
+
+FIG. S6. Representative trajectory snapshots at 0, 10, and 20 ps. Every panel uses the same cropped x-z field of view and enlarged element-specific markers, so changes in structural extent remain directly comparable while individual atoms remain visible. Trajectories are neither recentered nor independently wrapped for display. 
+
+The energy-trend slope was obtained by fitting the energy per atom as a linear function of simulation time after excluding the initial 2 ps equilibration period. The reported value is the absolute fitted slope in eV atom −1 ps −1.Under thermostatted tensile loading, this quantity includes thermostat energy exchange and mechanical work. 
+
+TABLE S10. Structural diagnostics from the trajectories. RMSDs are measured relative to the first production frame after center removal and mass-unweighted Kabsch alignment. Absolute slopes were fitted to the total energy per atom after excluding the first 2 ps. 
+
+Model Strategy Final RMSD (˚ A) Maximum RMSD (˚ A) Drift slope (eV atom −1 ps −1) Minimum Zr–O (˚ A) DFT AIMD 5.4292 5.7575 1.5253e-03 1.4810 MACE Zero-shot 1.1408 1.2993 4.0275e-07 1.7689 MACE Fine-tune 0.4012 0.4390 5.4444e-08 1.7750 MACE From-scratch 0.7878 0.8730 2.5762e-08 1.7738 ORB Zero-shot 0.5943 0.6135 1.2248e-03 1.6728 ORB Fine-tune 1.2025 1.2081 2.2170e-03 1.6745 ORB From-scratch 19.2461 19.2461 3.3010e-03 1.5386 
+
+These trajectories represent a single initial-velocity realization and are used as diagnostic examples rather than a statistical stability benchmark. 13 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 0.0 0.5 1.0 1.5 2.0 Pair-distance density ( Å−1 ) DFT AIMD   
+
+> 0 ps 20 ps 42 ps
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 0.0 0.5 1.0 1.5 2.0 Pair-distance density ( Å−1 )
+
+MACE - Zero-shot 
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 0.0 0.5 1.0 1.5 2.0 
+
+ORB - Zero-shot 
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 0.0 0.5 1.0 1.5 2.0 Pair-distance density ( Å−1 )
+
+MACE - Fine-tune 
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 0.0 0.5 1.0 1.5 2.0 
+
+ORB - Fine-tune 
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 Zr-O distance ( Å)0.0 0.5 1.0 1.5 2.0 Pair-distance density ( Å−1 )
+
+MACE - From-scratch 
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 Zr-O distance ( Å)0.0 0.5 1.0 1.5 2.0 
+
+ORB - From-scratch 
+
+FIG. S7. Zr–O minimum-image pair-distance distributions at 0, 10, and 20 ps. Histograms use a 0.025 ˚ A bin width and light Gaussian smoothing over neighboring bins. This complementary structural fingerprint exposes changes in local and intermediate-range order that may be obscured by projection overlap in the atomic snapshots. 14 
+
+[1] I. Batatia, P. Benner, Y. Chiang, A. M. Elena, D. P. Kov´ acs, J. Riebesell, X. R. Advincula, M. Asta, M. Avaylon, W. J. Baldwin, F. Berger, N. Bernstein, A. Bhowmik, F. Bigi, S. M. Blau, V. C˘ arare, M. Ceriotti, S. Chong, J. P. Darby, S. De, F. Della Pia, V. L. Deringer, R. Elijoˇ sius, Z. El-Machachi, E. Fako, F. Falcioni, A. C. Ferrari, J. L. A. Gardner, M. J. Gawkowski, A. Genreith-Schriever, J. George, R. E. A. Goodall, J. Grandel, C. P. Grey, P. Grigorev, S. Han, W. Handley, H. H. Heenen, K. Hermansson, C. H. Ho, S. Hofmann, C. Holm, J. Jaafar, K. S. Jakob, H. Jung, V. Kapil, A. D. Kaplan, N. Karimitari, J. R. Kermode, P. Kourtis, N. Kroupa, J. Kullgren, M. C. Kuner, D. Kuryla, G. Liepuoniute, C. Lin, J. T. Margraf, I.-B. Magd˘ au, A. Michaelides, J. H. Moore, A. A. Naik, S. P. Niblett, S. W. Norwood, N. O’Neill, C. Ortner, K. A. Persson, K. Reuter, A. S. Rosen, L. A. M. Rosset, L. L. Schaaf, C. Schran, B. X. Shi, E. Sivonxay, T. K. Stenczel, C. Sutton, V. Svahn, T. D. Swinburne, J. Tilly, C. van der Oord, S. Vargas, E. Varga-Umbrich, T. Vegge, M. Vondr´ ak, Y. Wang, W. C. Witt, T. Wolf, F. Zills, and G. Cs´ anyi, A foundation model for atomistic materials chemistry, The Journal of Chemical Physics 163 , 10.1063/5.0297006 (2025). [2] M. Neumann, J. Gin, B. Rhodes, S. Bennett, Z. Li, H. Choubisa, A. Hussey, and J. Godwin, Orb: A fast, scalable neural network potential (2024). [3] B. Rhodes, S. Vandenhaute, V. ˇSimkus, J. Gin, J. Godwin, T. Duignan, and M. Neumann, Orb-v3: atomistic simulation at scale (2025). [4] J. Gardner, graph-pes: train and use graph-based ml models of potential energy surfaces (2024). [5] M. K. Horton, P. Huck, R. X. Yang, J. M. Munro, S. Dwaraknath, A. M. Ganose, R. S. Kingsbury, M. Wen, J. X. Shen, T. S. Mathis, A. D. Kaplan, K. Berket, J. Riebesell, J. George, A. S. Rosen, E. W. C. Spotte-Smith, M. J. McDermott, O. A. Cohen, A. Dunn, and M. C. Kuner, Accelerated data-driven materials science with the materials project, Nature Materials 24 , 1522–1532 (2025). [6] A. Jain, S. P. Ong, G. Hautier, W. Chen, W. D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, and K. A. Persson, Commentary: The materials project: A materials genome approach to accelerating materials innovation, APL Materials 1, 10.1063/1.4812323 (2013). [7] A. Hjorth Larsen, J. Jørgen Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dulak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. Bjerre Jensen, J. Kermode, J. R. Kitchin, E. Leonhard Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. Bergmann Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Sch¨ utt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, The atomic simulation environment—a python library for working with atoms, Journal of Physics: Condensed Matter 29 ,273002 (2017). [8] B. Focassio, T. E. R. Fiuza, J. Bettini, G. R. Schleder, M. H. M. Rodrigues, J. B. Souza Junior, E. R. Leite, A. Fazzio, and R. B. Capaz, Stability and rupture of an ultrathin ionic wire, Physical Review Letters 129 , 046101 (2022). 29

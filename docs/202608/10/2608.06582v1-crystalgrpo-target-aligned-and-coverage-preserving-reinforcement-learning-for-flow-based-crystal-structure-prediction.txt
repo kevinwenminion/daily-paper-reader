@@ -1,0 +1,1348 @@
+Title: CrystalGRPO: Target-Aligned and Coverage-Preserving Reinforcement Learning for Flow-Based Crystal Structure Prediction
+
+URL Source: https://arxiv.org/pdf/2608.06582v1
+
+Published Time: Mon, 10 Aug 2026 00:11:41 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# CrystalGRPO: Target-Aligned and Coverage-Preserving Reinforcement Learning for Flow-Based Crystal Structure Prediction 
+
+## Kaixiang Su 1 Hongfei Xue 1,* Qiang Zhu 2,3,* 1Department of Computer Science, University of North Carolina at Charlotte 
+
+2Department of Mechanical Engineering and Engineering Science, University of North Carolina at Charlotte 
+
+3North Carolina Battery Complexity, Autonomous Vehicle and Electrification (BATT CAVE) Research Center Charlotte, NC 28223, USA 
+
+ksu4@charlotte.edu hongfei.xue@charlotte.edu qzhu8@charlotte.edu 
+
+*Corresponding authors 
+
+## Abstract 
+
+Flow-based generative models can efficiently produce can-didate structures for crystal structure prediction (CSP), but their pretrained objectives do not directly optimize downstream target recovery. Reinforcement-learning post-training offers a flexible solution, yet existing approaches rely primarily on energy rewards and coordinate-only stochastic policies. Predicted energy does not identify the reference polymorph, while reward-driven concentra-tion can reduce the candidate coverage required for Top-
+
+N recovery. We introduce CrystalGRPO , a CSP-aligned post-training framework that extends existing ODE-to-SDE policy constructions to the joint coordinate–lattice state. CrystalGRPO combines MACE-predicted energy with a StructureMatcher -based recovery score and provides two operating modes: CrystalGRPO-Q , which pri-oritizes single-draw recovery, and CrystalGRPO-C , which combines full-trajectory reference regularization with a coverage-aware group advantage to preserve finite-budget target recovery. Across MP-20 and MPTS-52 with PXRD-Gen and OMatG backbones, both variants reduce one- and twenty-sample RMSE relative to coordinate-only reinforce-ment in all four backbone–dataset settings. CrystalGRPO-Q consistently improves Top-1, whereas CrystalGRPO-C achieves a higher Top-20 across all settings. 
+
+## 1. Introduction 
+
+Crystal structure prediction [18] (CSP) aims to recover the lattice and atomic arrangement of a crystal from its chem-Stochastic Rollout (Policy trajectory) 
+
+> Start (Noise)
+> Structural Basin (Energy landscape) Rollout Endpoints (Final structures)
+> GT Polymorph (Target) Low-energy Non-target Polymorphs
+> Invalid / Distorted High-energy Polymorph
+> Structure-matching Threshold Relative Energy (Lower is better) RMS Displacement From GT (Lower is better)
+
+Figure 1. Predicted energy does not uniquely identify the tar-get polymorph in crystal structure prediction. This schematic projection places stochastic rollout endpoints according to their predicted relative energy and structural displacement from the ref-erence structure. Rollouts starting from latent noise may terminate in the reference-matched basin (blue), valid low-energy non-target basins (red), or an invalid or distorted high-energy regions (gray). Because a non-target polymorph can be assigned lower predicted energy than the reference, energy-only reinforcement may favor non-target endpoints despite their structural mismatch. 
+
+ical composition and experimental observations [13]. In practice, a generative CSP model serves as a proposal en-gine: it should produce a compact set of candidates that can subsequently be verified by higher-fidelity calculations or experimental refinement [20]. We therefore view CSP as budgeted target recovery, where both single-candidate ac-curacy and target coverage under a finite candidate budget matter. 1arXiv:2608.06582v1 [cs.LG] 6 Aug 2026 Generative models are well suited to this setting because they learn multimodal distributions over periodic struc-tures and can efficiently produce multiple candidates for the same composition. Diffusion [8] and flow-matching mod-els [14, 19] have consequently achieved strong performance on standard CSP benchmarks, with flow models offering particularly efficient sampling [16]. Their pretraining ob-jectives, however, primarily reproduce the distribution of known structures rather than directly optimizing the down-stream criteria used to select candidates. Reinforcement learning [24] (RL) offers a modular post-training interface: it reuses the pretrained structural prior while directly opti-mizing non-differentiable terminal rewards without differ-entiating through the evaluator. Recent work [15] has made such optimization technically feasible for flow models by equipping deterministic ODE samplers with stochastic tran-sitions and tractable policy likelihoods. These advances es-tablish how flow models can be exposed to policy optimiza-tion, but they do not resolve what the policy should optimize for candidate-based CSP. A natural reward is predicted energy. Energy pro-vides a dense, physics-informed ranking signal that penal-izes unfavorable structures and favors candidates with bet-ter predicted stability, making it particularly suitable for de novo materials generation [4]. However, composition-conditioned CSP poses a different objective: recovering the particular polymorph represented by the target observation. Multiple physically plausible polymorphs of the same com-position can have similar predicted energies [17, 27], and an approximate interatomic potential need not assign the lowest energy to the observed structure. As illustrated in Fig. 1, energy-based reinforcement may therefore favor a low-energy non-target basin over the reference polymorph. Energy provides useful physical guidance, but not target identity. A CSP-aligned reward must combine it with an explicit target-recovery signal. The candidate-set view of CSP exposes a second mis-match. Standard group-relative optimization repeatedly shifts probability mass toward candidates with higher rela-tive rewards, which can concentrate the rollout distribution around a small number of modes and suppress other physi-cally plausible basins [28]. This concentration may improve single-draw recovery (i.e., top-1 accuracy) while reducing the probability that a set of 20 candidates contains the tar-get structure. Reward-guided CSP must therefore improve target alignment without sacrificing the coverage required for Top-N recovery. To address these challenges, we propose CrystalGRPO, a CSP-aligned reinforcement-learning framework for post-training flow-based crystal generators. First, building on ex-isting stochastic policy constructions for flow models, Crys-talGRPO extends stochasticization and reward-based credit assignment to the joint coordinate–lattice state. Fractional-coordinate transitions respect the periodic torus, lattice tran-sitions remain Euclidean. This joint treatment contrasts with coordinate-only reinforcement [6], which integrates the lattice deterministically with the frozen pretrained pro-cess. Second, CrystalGRPO uses a hybrid reward in which predicted energy provides dense physics-informed guid-ance, while a StructureMatcher-based recovery score iden-tifies the reference polymorph and rewards geometrically accurate matches. Third, CrystalGRPO introduces a two-level coverage-preservation mechanism: full trajectory ref-erence regularization limits policy drift during coarse-basin selection, and a coverage-aware advantage prevents valid but unmatched candidates from being suppressed solely because they fall below the group mean. These com-ponents define two operating modes of the same frame-work. CrystalGRPO-Q prioritizes single-draw target recov-ery, whereas CrystalGRPO-C activates coverage preserva-tion to favor recovery from a finite candidate set. We evaluate CrystalGRPO on MP-20 and MPTS-52 with two pretrained backbones. As a pre-RL control, we first em-pirically verify that replacing deterministic ODE sampling with the corresponding stochastic sampler leaves MR@1 and MR@20 nearly unchanged, suggesting that the ODE-to-SDE conversion largely preserves the target-recovery be-havior of the pretrained flow. The improvements observed after post-training can therefore be attributed to reward-guided policy updates rather than to the change of sam-pler itself. Compared with coordinate-only reinforcement, joint coordinate–lattice optimization achieves lower RMSE at both the single-sample and 20-sample levels across all four backbone–dataset settings. It also shows more consis-tent recovery behavior across backbones: CrystalGRPO-Q achieves across-the-board improvements in MR@1, while CrystalGRPO-C achieves a higher MR@20 across all set-tings. Our analysis further shows that, under composition-only conditioning, energy-based reinforcement can increase both target matches and low-energy non-target candidates. This ambiguity is substantially reduced when PXRD condi-tioning is provided, indicating that target-specific informa-tion makes energy a more reliable refinement signal. To-gether, these results suggest that finite-budget CSP benefits from joint structural optimization, target-aware guidance, and explicit preservation of the candidate coverage learned during pretraining. Our contributions are threefold: (1) We formu-late reward-guided CSP around two distinct require-ments—target alignment and finite-budget candidate cover-age. To address both, we introduce a hybrid reward and coverage-preserving objective that provides complemen-tary single-draw and coverage-oriented operating modes. (2) Building on existing flow-policy constructions, we ex-tend stochastic transitions and policy optimization to the joint coordinate–lattice state, allowing both fields to re-2ceive stochastic exploration and policy-gradient updates. (3) Across two datasets and two pretrained backbones, we demonstrate that joint coordinate–lattice state provides more consistent gains than coordinate-only reinforcement, while CrystalGRPO-Q and CrystalGRPO-C offer comple-mentary improvements in single-sample and finite-budget recovery. PXRD-conditioned analysis further reveals how target-specific information reshapes the interaction among energy guidance, target identification, and candidate cover-age. 
+
+## 2. Related Work 
+
+Generative models for crystalline materials. Early deep generative approaches such as CDVAE [31] modeled peri-odic crystal structures with variational autoencoders, while DiffCSP [8] introduced joint diffusion over fractional co-ordinates and lattices. Subsequent diffusion models in-corporated stronger crystallographic inductive biases: Dif-fCSP++ [9] imposes explicit space-group constraints, while SymmCD [12], WyckoffDiff [10], and LEGO-xtal [23] in-corporate symmetry or target local-environment informa-tion into the generation process. Beyond standard CSP, MatterGen [33] scales diffusion-based crystal generation and supports property-conditioned inverse design. In par-allel, autoregressive language models represent crystals as text or CIF sequences, enabling complete-structure gener-ation and the learning of structural priors [1, 5, 11]. Al-ternative continuous-time formulations have also emerged. CrysBFN [30] introduces a periodic Bayesian flow for crys-tal generation, whereas FlowMM [19] and CrystalFlow [16] use flow matching to model periodic coordinates and lat-tice variables with efficient sampling. OMatG [7] adopts stochastic interpolants, a broader framework that includes diffusion and flow matching as special cases. PXRD-Gen [13] builds on FlowMM and introduces PXRD condi-tioning, supporting both composition-only and diffraction-conditioned CSP within a unified architecture. We use PXRDGen and OMatG as pretrained backbones to eval-uate whether RL post-training transfers across distinct continuous-time generative formulations. 
+
+Reinforcement learning for crystal generation. Exist-ing work has focused mainly on de novo generation (DNG), where composition and structure are generated jointly. MatInvent [4] and Chemeleon2 [22] apply policy-gradient methods to diffusion and latent diffusion models respec-tively to optimize stability objectives. PackFlow [26] ad-dresses organic molecular crystals and bypasses exact pol-icy probabilities through reward weighting and flow loss surrogates. OMatG-IRL [6] first apply policy-based RL to CSP, which perturbs the ODE directly to construct a surro-gate stochastic process for coordinate-only reinforcement. In contrast, CrystalGRPO jointly reinforces coordinates and lattices and explicitly preserves candidate coverage under finite-budget target recovery. 
+
+## 3. Preliminaries 
+
+In this section, we introduce key concepts underlying flow-based crystal structure prediction [13, 19] and GRPO for flow-matching models [15]. 
+
+Flow-based crystal structure prediction. A periodic crystal is represented as M = (A, F, L ), where A =(a1, . . . , a N ) denotes the atomic species, F ∈ TN ×3 con-tains the fractional coordinates, and L ∈ RdL denotes an Euclidean lattice representation. Given the chemical com-position A and an optional structural condition c, the flow model (e.g., FlowMM [19]) jointly generates the continuous variables (F, L ) from sample distributions. The lattice data L0 are connected to Gaussian prior sam-ples ϵL ∼ N (0 , I ) through the linear path Lt = (1 −t)L0 +
+
+tϵ L. Starting from the prior at t = 1 , the corresponding reverse-time generative ODE is discretized as: 
+
+Lt−∆t = Lt − bvL,θ − Lt
+
+1 − t ∆t. 
+
+The fractional coordinates F ∈ TN ×3 lie on a product of flat tori. Given a uniform prior sample F1 ∼ U ([0 , 1) N ×3),we compute the shortest periodic displacement as ∆F =wrap( F1 − F0 + 0 .5) − 0.5 and remove its mean translation to obtain vF = ∆ F − Mean(∆ F ). Following FlowMM, inference uses the anti-annealed update controlled by γ as: 
+
+Ft−∆t = wrap Ft +  1 + γ(1 − t)bvF,θ ∆t .
+
+RL on flow-matching models. The generation process can be formulated as a finite-horizon Markov decision pro-cess (S, A, P, R) [3]. At time t, the state is st = ( c, t, x t),where c denotes the condition and xt is the current latent structure. The action at = xt−∆t specifies the next gen-erated state, and a terminal reward is assigned to the final structure x0. The policy objective is therefore: 
+
+J(θ) = Eτ ∼πθ [R(x0, c )] , τ = ( xT , . . . , x 0),
+
+which enables the direct optimization of physical and struc-tural rewards without requiring differentiability. 
+
+ODE-to-SDE conversion. A pretrained flow model gen-erates structures through the deterministic probability-flow ODE: dxt = vθ (xt, t, c ) d t, whose transitions are Dirac dis-tributions and therefore do not admit tractable policy likeli-hoods. Following Flow-GRPO [15], the ODE can be con-verted into an associated stochastic process that preserves 3the pretrained time-dependent marginals: 
+
+xt+∆ t = xt +
+
+
+
+vθ (xt, t ) + σ2
+
+> t
+
+2t (xt + (1 − t)vθ (xt, t )) 
+
+
+
+∆t
+
++ σt
+
+√∆tϵ
+
+where σt = a
+
+q t 
+
+> 1−t
+
+, a is a scalar hyper-parameter to guide the noise level, and ϵ ∼ N (0 , I) injects stochasticity. Af-ter discretization, the stochastic process yields Gaussian transition probabilities, enabling tractable likelihood ratios and KL regularization for GRPO. Notably, we adopt this stochastic policy construction for GRPO and extend it to the coupled coordinate–lattice state of crystal flows in the next section. 
+
+## 4. Method 
+
+CrystalGRPO aligns reward-guided post-training with two requirements of budgeted CSP: identifying the reference polymorph and preserving its recoverability within a finite candidate set. To optimize these objectives with a pre-trained flow backbone, we first convert the deterministic coordinate–lattice dynamics into a joint SDE policy over the complete continuous crystal state. On top of this joint SDE policy, CrystalGRPO combines dense energy-based feedback with a StructureMatcher-based recovery signal that identifies the reference structure during post-training. To characterize and control the trade-off between reward-driven concentration and finite-budget target recovery, we instantiate two variants that share the joint policy and hy-brid reward but differ in their degree of coverage preser-vation. CrystalGRPO-Q restricts reference-policy regu-larization to the early, high-noise portion of the trajectory, leaving later refinement steps more flexible and prioritizing single-draw recovery. CrystalGRPO-C extends reference regularization across the full trajectory and additionally ap-plies a coverage-aware group advantage that protects valid but unmatched candidates from negative updates, thereby prioritizing Top-N target recovery. 
+
+4.1. Joint Coordinate-Lattice SDE Policy 
+
+Since the pretrained flow jointly evolves coordinates and lattices under a shared time parameterization, we directly stochasticize this joint continuous state, denoted as zt =(Ft, L t). Let δ = 1 /T , for z ∈ { F, L }, let uzθ,t denote the reverse-time velocity of field z under the pretrained model. The transition mean can be formulated as: 
+
+μzθ,t = zt + δ
+
+"
+
+uzθ,t + σ2
+
+> t
+
+2t
+
+
+
+zt + (1 − t)uzθ,t 
+
+#
+
+.
+
+The two fields share the same stochastic construction but retain the field-specific drifts inherited from the pretrained flow. Their geometric distinction enters the state update: the coordinate proposal is wrapped onto the periodic torus, whereas the lattice remains in its Euclidean representation. Specifically, the coordinate proposal is sampled in the Eu-clidean covering space and subsequently wrapped into the periodic unit cell, whereas the lattice update remains Eu-clidean: eFt−δ = μFθ,t + σt
+
+√δ ϵ Ft , Ft−δ = wrap   eFt−δ
+
+,and Lt−δ = μLθ,t + σt
+
+√δ ϵ Lt , where the noises ϵFt and ϵLt
+
+are sampled independently from standard Gaussian distri-butions. 
+
+Size-normalized policy ratio. Following the Gaussian reparameterization used in Flow-GRPO [15], the behav-ior and current transition kernels share the same covariance 
+
+σ2 
+
+> t
+
+δI . Their per-step log-likelihood ratio therefore reduces to the difference between the squared standardized residuals of the same realized proposal. For z ∈ { F, L }, let ϵzt denote the Gaussian noise sam-pled during rollout under πold . The residual of the same proposal under the current policy is obtained by reparame-terization: 
+
+ϵz,θ t = ϵzt + μz, old  
+
+> t
+
+− μz,θ t
+
+σt
+
+√δ .
+
+We regard the sampled Euclidean lift eFt−δ as the stochas-tic policy action, while the wrapped coordinate Ft−δ is the next environment state. The lifted proposal and its rollout noise are stored, so the Gaussian policy score is evaluated on the same realized action rather than on the many-to-one wrapped state alone. Besides, the joint Gaussian log-ratio scales with the number of generated variables. We therefore use its Size-normalized form as: 
+
+eℓt(θ) = 12N
+
+> N
+
+X
+
+> n=1
+
+
+
+∥ϵFt,n ∥22 − ∥ ϵF,θ t,n ∥22
+
+
+
++ 12dL
+
+
+
+∥ϵLt ∥2 
+
+> F
+
+− ∥ ϵL,θ t ∥2
+
+> F
+
+
+
+,rt(θ) = exp 
+
+h
+
+clip 
+
+eℓt(θ), −cr , c r
+
+i 
+
+,
+
+where cr > 0 is a numerical clipping threshold applied be-fore exponentiation. The coordinate contribution is aver-aged over atoms, while the lattice contribution is averaged over its nine entries. This prevents the policy score from growing with crystal size or being dominated by the higher-dimensional coordinate field. 
+
+Size-normalized reference divergence. Let πref denote a frozen copy of the pretrained flow. At each integration step, the current and reference transition kernels share the same covariance σ2 
+
+> t
+
+δI and differ only in their means. Their Gaus-sian KL divergence is therefore determined by the squared mean shift. As with the policy ratio, directly summing this shift over all coordinates would make the divergence scale with crystal size and would overweight the coordinate field 4relative to the lattice field. We therefore define the field-wise normalized mean shifts as: 
+
+dFt = 1
+
+N
+
+> N
+
+X
+
+> n=1
+
+μF,θ t,n − μF, ref 
+
+> t,n
+> 22
+
+, d Lt = 1
+
+dL
+
+μL,θ t − μL, ref 
+
+> t
+> 2
+> F
+
+The resulting Size-normalized reference divergence is 
+
+eDKL ,t = ( dFt + dLt )/2σ2 
+
+> t
+
+δ, where the denominator follows from the KL divergence between Gaussian transitions with identical covariance [15]. The normalization makes the ref-erence penalty comparable across crystal sizes and balances the coordinate and lattice contributions. 
+
+4.2. CSP-aligned Hybrid Reward 
+
+CrystalGRPO combines a dense energy-based term with a StructureMatcher-based recovery term, where the energy-based term is defined as the per-atom energy gap: 
+
+∆Eg = E( bXg ) − E(XGT ),
+
+where E(·) is the energy predicted by MACE [2] and we use a clip mechanism to make ∆Eg between ∈ [−3, 15] . The upper clipping makes invalid or highly unphysical predic-tions receive an approximately constant worst-case reward, while the lower clipping prevents spuriously low energies caused by out-of-distribution extrapolation of the learned potential from dominating the policy update. We then de-fine a target-recovery score using StructureMatcher 
+
+[21]: 
+
+Sg =
+
+(
+
+exp( −dg /τ ), bXg matches XGT ,
+
+0, otherwise ,
+
+where dg is the RMS displacement after structural align-ment and τ controls the sensitivity to geometric error. The final hybrid reward is: 
+
+Rg = −λE ∆Eg + λS Sg ,
+
+where λE and λS balance physical stability and target re-covery, respectively. The energy term provides a dense ranking signal, while the structural term explicitly identi-fies the target polymorph and gives greater credit to more accurate matches. 
+
+4.3. Coverage Preservation Across the GRPO Pipeline 
+
+The joint SDE policy and hybrid reward introduced above are shared by both CrystalGRPO variants. CrystalGRPO-Q applies standard group-relative optimization to these shared components. For a group of G candidates generated from the same condition [25], its normalized advantage is 
+
+Ag = ( Rg − μG )/σ G , where μG = 1
+
+> G
+
+P 
+
+> h
+
+Rh. By repeat-edly reinforcing candidates with above-average rewards and suppressing those below the group mean, CrystalGRPO-Q favors single-draw recovery but may contract the mul-timodal distribution needed for Top-N recovery. To additionally preserve finite-budget target recoverabil-ity, CrystalGRPO-C augments CrystalGRPO-Q with two complementary mechanisms: a full trajectory KL constraint that limits cumulative policy drift and a coverage-aware ad-vantage that reduces destructive within-group suppression. 
+
+Reference-policy KL constraint. Both CrystalGRPO variants regularize the learned policy toward a frozen copy of the pretrained flow, but use different temporal schedules. Using the normalized coordinate and lattice mean shifts dFt
+
+and dLt defined above, we define: 
+
+eD q 
+
+> KL ,t
+
+= wqt
+
+dFt + dLt
+
+2σ2 
+
+> t
+
+δ , q ∈ { Q, C}.
+
+Here, wC 
+
+> t
+
+= 1 , whereas wQ 
+
+> t
+
+= I[t ≥ τKL ]. CrystalGRPO-C therefore applies reference regularization throughout the trajectory, while CrystalGRPO-Q applies it only during the early, high-noise steps that determine coarse structural basins. Removing the constraint at later low-noise steps al-lows greater flexibility for reward-guided structural refine-ment. 
+
+Coverage-aware advantage. Besides the full trajectory KL, CrystalGRPO-C further modifies the group-relative ad-vantage using the validity flag vg and the match flag mg =
+
+I[Sg > 0] induced by the recovery reward above. Specif-ically, eAg = max( Ag , 0) when vg = 1 and mg = 0 , and 
+
+eAg = Ag otherwise. For valid but unmatched candidates, this modification removes negative updates caused solely by falling below the group mean, without assigning any addi-tional positive reward. Matched candidates retain their orig-inal advantages, so the continuous score Sg = exp( −dg /τ )
+
+continues to favor smaller RMS displacement, while in-valid candidates remain suppressible. CrystalGRPO-Q and CrystalGRPO-C therefore share the same joint stochastic policy and target-aligned hybrid reward. CrystalGRPO-Q permits stronger reward-driven concentration, whereas CrystalGRPO-C combines full trajectory reference regular-ization with candidate-level protection to preserve target re-coverability within a finite sampling budget. 
+
+## 5. Discussion 
+
+Recent analyses of RL post-training for language-model reasoning have revealed a distinction between improving the probability of a successful individual sample and ex-panding the set of solutions recoverable under repeated sampling. [32] observe that RL with verifiable rewards sub-stantially improves pass@ k at small k, especially pass@1, 5while the corresponding base model can retain higher pass@ k at large k. Their coverage analysis suggests that standard RL mainly redistributes probability mass toward already recoverable rewarded trajectories, improving sam-pling efficiency without necessarily expanding the broader solution space. Relatedly, [29] argue that assigning rewards independently to multiple rollouts primarily optimizes their individual success probabilities, rather than the collective best-of-K utility of the candidate set. A closely related objective mismatch arises in candidate-based CSP. Standard group-relative optimization evaluates each generated structure through its individual terminal re-ward. Candidates above the group mean receive positive updates, whereas those below the mean are suppressed. Re-peated updates can therefore increase the probability of al-ready high-reward structural basins and improve MR@1, while reducing the probability mass assigned to less fre-quent basins that remain important for MR@20. This in-terpretation is consistent with our composition-conditioned results: CrystalGRPO-Q achieves stronger single-draw re-covery, but its increased reward concentration can reduce finite-budget target recovery. CrystalGRPO-C addresses this mismatch through two complementary forms of preservation. Full-trajectory reference regularization limits cumulative redistribution away from the pretrained candidate distribution, while the coverage-aware advantage prevents valid unmatched can-didates from receiving destructive negative updates solely because their current rewards fall below the group mean. Importantly, CrystalGRPO-C does not directly optimize MR@20 or construct an unbiased estimator of best-of-K
+
+success. Instead, it provides a coverage-oriented surrogate that preserves target recoverability under a fixed sampling budget. The connection to pass@ K policy optimization is therefore conceptual: both recognize that improving indi-vidual samples and preserving the collective utility of a can-didate set are distinct optimization objectives. 
+
+## 6. Experiments 
+
+6.1. Experimental Setup 
+
+We evaluate the two CrystalGRPO variants from four com-plementary perspectives: comparison with existing CSP methods, consistency across pretrained backbones, compo-nent ablation, and PXRD-conditioned prediction. 
+
+Datasets. Composition-conditioned CSP is evaluated on two standard benchmarks, MP-20 and MPTS-52 [31]. MP-20 contains inorganic crystals with at most 20 atoms per unit cell, whereas MPTS-52 extends the evaluation to struc-tures with up to 52 atoms per unit cell. PXRD-conditioned CSP is also evaluated on MP-20 by augmenting the com-position with the target PXRD pattern [13], testing whether experimental conditioning can guide RL toward the target polymorph. 
+
+Baselines and backbones. The comparison includes rep-resentative CSP generators across major paradigms: CD-VAE [31], DiffCSP [8], CrystalFlow [16], PXRDGen [13]. We chose PXRDGen and OMatG [7] as our backbones. OMatG-IRL [6], the most closely related RL-based CSP method, provides the RL baseline. 
+
+Evaluation metrics. Complementary metrics capture both prediction quality and candidate-set coverage. Top-1 match rate and RMSE measure single-sample quality, whereas Top-20 counts a target as recovered if any of 20 candidates matches and reports the lowest RMSE among the matched candidates. A prediction is counted as matched when Pymatgen’s StructureMatcher identifies it as equivalent to the ground-truth structure under stol = 0 .5,
+
+ltol = 0 .3, and angle tol = 10 ◦ [21], and RMSE mea-sures the atomic displacement between aligned predicted and ground-truth structures for matched cases. Through-out, match rates are computed over the full test set, with generation failures and structures failing the validity check counted as non-matches. 
+
+6.2. Comparison with Existing CSP Methods 
+
+We first compare CrystalGRPO with existing methods un-der the standard composition-conditioned setting. Both variants are initialized from PXRDGen and use composi-tion alone as input. As shown in Table 1, CrystalGRPO-Q achieves the highest MR@1 on both datasets. On MP-20, it improves MR@1 from 59.06% to 64.63%, and on MPTS-52 from 18.67% to 23.04%. The corresponding MR@20 values, however, decrease from 80.23% to 77.28% and from 38.74% to 37.51%, respectively. This consistent pattern exposes the quality–coverage trade-off produced by reward-driven optimization: stronger single-sample recov-ery can be accompanied by contraction of the candidate dis-tribution. CrystalGRPO-C shifts the operating point to-ward finite-budget recovery. It achieves MR@1/MR@20 values of 62.20%/80.62% on MP-20 and 22.49%/39.08% on MPTS-52, giving the highest MR@20 on both datasets while retaining clear MR@1 improvements over the pre-trained backbone. Both variants also improve geometric ac-curacy. CrystalGRPO-Q reduces RMSE@20 from 0.0540 to 0.0484 on MP-20 and from 0.1760 to 0.1581 on MPTS-52, while CrystalGRPO-C reduces RMSE@1 to 0.0588 and 0.1532, respectively. These results support the finite-budget formulation introduced earlier: the shared joint policy and hybrid reward enable effective target-oriented post-training, while full-trajectory reference regularization and the coverage-aware advantage allow CrystalGRPO-C 6Table 1. Results for composition-conditioned CSP. PXRDGen and both CrystalGRPO variants use Nt = 200 with velocity annealing on MP-20 and Nt = 100 on MPTS-52. at inference, whereas CrystalGRPO incorporates a stochastic differential equation (SDE) during sampling. Values denoted with a dagger ( †) are quoted directly from the original literature. Bold and underlined values denote the best and second-best. Method MP-20 MPTS-52 MR@1 ↑ RMSE@1 ↓ MR@20 ↑ RMSE@20 ↓ MR@1 ↑ RMSE@1 ↓ MR@20 ↑ RMSE@20 ↓                                                
+
+> CDVAE †33.90 0.1045 66.95 0.1026 5.34 0.2106 20.79 0.2085 DiffCSP †51.49 0.0631 77.93 0.0492 12.19 0.1786 34.02 0.1749 CrystalFlow †62.02 0.0710 78.34 0.0577 21.00 0.1613 37.81 0.1584 PXRDGen (backbone) 59.06 0.0683 80.23 0.0540 18.67 0.1690 38.74 0.1760 CrystalGRPO-Q 64.63 0.0663 77.28 0.0484 23.04 0.1535 37.51 0.1581
+> CrystalGRPO-C 62.20 0.0588 80.62 0.0490 22.49 0.1532 39.08 0.1618
+
+Table 2. Result for cross-backbone RL Post-Training. All settings use the backbone’s default velocity annealing. All RL methods use 
+
+Nt = 50 which is consistent with the setting in OMATG-IRL; Pretrained (native) uses each backbone’s native inference step count (Nt = 200 for PXRDGen on MP-20 and Nt = 210 for OMatG on MP-20, Nt = 100 for both backbones on MPTS-52). Bold and underlined values denote the best and second-best results among the Nt = 50 settings. Method Sampling MP-20 MPTS-52 MR@1 RMSE@1 MR@20 RMSE@20 MR@1 RMSE@1 MR@20 RMSE@20                                                                                                             
+
+> backbone
+> PXRDGen ODE / native 59.06 0.0683 80.23 0.0540 18.67 0.1690 38.74 0.1760 PXRDGen ODE / 50 59.43 0.1026 80.52 0.0839 19.01 0.2090 38.96 0.2045 PXRDGen SDE / 50 59.29 0.1837 80.29 0.1476 18.38 0.2342 37.80 0.2294 OMatG-IRL SDE / 50 60.82 0.1096 78.52 0.0922 18.38 0.1884 38.60 0.1951 CrystalGRPO-Q SDE / 50 63.70 0.0789 78.08 0.0497 22.31 0.1687 38.18 0.1722
+> CrystalGRPO-C SDE / 50 60.61 0.0702 80.41 0.0520 21.46 0.1777 39.00 0.1751
+> backbone
+> OMatG ODE / native 63.55 0.0697 74.62 0.0617 25.25 0.1965 36.28 0.1788 OMatG ODE / 50 63.59 0.1249 74.76 0.1036 22.70 0.2953 34.17 0.2726 OMatG SDE / 50 63.43 0.2060 74.22 0.1771 22.36 0.2975 33.87 0.2712 OMatG-IRL SDE / 50 64.28 0.0903 74.33 0.0780 25.30 0.1721 36.15 0.1630 CrystalGRPO-Q SDE / 50 64.32 0.0722 76.46 0.0487 26.57 0.1603 36.85 0.1497
+> CrystalGRPO-C SDE / 50 63.81 0.0776 77.72 0.0484 25.26 0.1656 37.36 0.1501
+
+to preserve candidate-set recovery without discarding the single-sample gains obtained through RL. 
+
+6.3. Cross-Backbone RL Post-Training 
+
+Table 2 evaluates CrystalGRPO on two pretrained back-bones with different flow constructions. The ODE/50 and SDE/50 controls for base model first isolate the ef-fect of stochasticization before any policy update. Across the four backbone–dataset settings, replacing determinis-tic ODE sampling with the SDE process changes MR@1 by at most 0.63 percentage points and MR@20 by at most 1.16 points. The corresponding RMSE values increase in every setting, indicating that the SDE process largely pre-serves which structural basins remain recoverable from the pretrained backbone, although the injected noise reduces within-basin geometric precision. The two variants ex-hibit consistent operating behavior across both backbones. Relative to the matched ODE/50 controls, CrystalGRPO-Q raises MR@1 from 59.43% to 63.70% on MP-20 and from 19.01% to 22.31% on MPTS-52 with PXRDGen. With OMatG, it raises MR@1 from 63.59% to 64.32% and from 22.70% to 26.57%, respectively. CrystalGRPO-C gives the strongest MR@20 among the RL methods in all four settings, reaching 80.41% and 39.00% with PXRD-Gen, and 77.72% and 37.36% with OMatG. On MP-20 with PXRDGen, its MR@20 remains essentially matched to the ODE/50 control; in the other three settings, it exceeds the matched deterministic baseline. This repeated pattern sup-ports CrystalGRPO-Q as the single-draw operating point and CrystalGRPO-C as the coverage-preserving operating point for finite-budget recovery. Table 2 provides an end-to-end comparison with OMatG-IRL. In the evaluated OMatG-IRL configuration, policy optimization is applied only to the fractional co-ordinates, while the lattice continues to follow the frozen pretrained dynamics. CrystalGRPO instead optimizes 7Table 3. Ablation on MP-20. Each step inherits the preceding set-ting and additionally removes the named component. All variants use Nt=50 , matching the sampling setup in Table 2. Bold and un-derlined values indicate the best and second-best available results.                               
+
+> Variant MR @1 ↑
+> RMSE @1 ↓
+> MR @20 ↑
+> RMSE @20 ↓
+> CrystalGRPO-C 60.61 0.0702 80.41 0.0520 Full →early-stage KL 63.02 0.0783 79.31 0.0516 w/o Coverage 63.70 0.0789 78.08 0.0497 w/o Hybrid Reward 62.89 0.0854 76.10 0.0444
+> w/o Joint SDE 63.32 0.1037 74.70 0.0447 PXRDGen (SDE/50) 59.29 0.1837 80.29 0.1476
+
+Table 4. Best-of-20 RMSE on shared matches and targets addi-tionally recovered by CrystalGRPO-C. Target subset Count CrystalGRPO-Q RMSE CrystalGRPO-C RMSE Shared matches 6,940 0.0452 0.0446 CrystalGRPO-C only 334 – 0.2192 
+
+both coordinate and lattice transitions. Across all four backbone–dataset settings, both CrystalGRPO variants achieve lower RMSE@1 and RMSE@20 than OMatG-IRL. CrystalGRPO-Q additionally achieves higher MR@1 in all four settings, while CrystalGRPO-C achieves higher MR@20 in all four. The improvements also transfer across two backbones with substantially different lattice genera-tion schemes. OMatG initializes the lattice from a dataset-informed prior, whereas PXRDGen starts from an unstruc-tured Gaussian distribution over raw 3 × 3 lattice matrices. CrystalGRPO improves recovery under both settings, sug-gesting that the complete framework is not tied to a partic-ular lattice initialization scheme. 
+
+6.4. Ablation Study 
+
+Table 3 traces the transition from the coverage-preserving CrystalGRPO-C to the quality-oriented CrystalGRPO-Q, and then cumulatively removes the shared reward and pol-icy components. Replacing the full-trajectory reference constraint of CrystalGRPO-C with early-stage regulariza-tion increases MR@1 from 60.61% to 63.02%, but reduces MR@20 from 80.41% to 79.31%. Removing the coverage-aware advantage then yields CrystalGRPO-Q, further in-creasing MR@1 to 63.70% while decreasing MR@20 to 78.08%. These results show how the two coverage mech-anisms shift the operating point: relaxing reference an-choring and within-group protection favors single-draw re-covery, whereas their combination preserves the candidate distribution needed for finite-budget recovery. Although CrystalGRPO-Q obtains a lower RMSE@20 of 0.0497, this does not indicate better overall recovery. RMSE is aver-aged only over successfully matched structures, and the 
+
+Table 5. PXRD-guided CSP on MP-20. All methods are condi-tioned on composition and the target PXRD pattern. Both variants use energy-only reward during RL. All settings use the backbone’s default velocity annealing with Nt = 200 .                
+
+> Method MR @1 ↑
+> RMSE @1 ↓
+> MR @20 ↑
+> RMSE @20 ↓
+> PXRDGen (base) 68.41 0.0705 84.73 0.0484 CrystalGRPO-Q 72.71 0.0634 84.13 0.0439
+> CrystalGRPO-C 69.50 0.0679 85.39 0.0500
+
+Table 6. Low-energy GT-mismatched candidates: valid, GT-mismatched structures within ∆E ≤ 0.1 eV/atom of GT. All counts exact, N =9046 . Both Models use energy-only reward dur-ing RL training with Nt = 200 during inference.                  
+
+> Match% ↑Low-E mismatched candidates ↓
+> Model base +RL base +RL w/o XRD 59.06 63.60 592 1562 (+164% )
+> w/ XRD 68.41 72.71 812 810 (−0% )
+
+lower match rate leaves a smaller, easier subset of targets in the evaluation. As shown in Table 4, the modestly higher RMSE under coverage preservation is driven mainly by newly recovered, lower-fidelity matches rather than by degraded refinement of targets that were already recover-able. Coverage preservation therefore extends recovery to more difficult, low-frequency targets, at the cost of a small increase in RMSE averaged over successful matches. Fur-thermore, replacing the hybrid reward with energy alone re-duces MR@1 from 63.70% to 62.89% and MR@20 from 78.08% to 76.10%. The larger drop in candidate-set re-covery is consistent with our motivation: energy provides useful physical ranking, but cannot reliably identify the ref-erence polymorph among competing low-energy structures. The final cumulative configuration additionally removes the joint coordinate–lattice SDE and reinforces only the coor-dinate field while leaving the lattice under the frozen pre-trained process. MR@1 remains similar at 63.32%, but RMSE@1 worsens from 0.0854 to 0.1037 and MR@20 falls further to 74.70%. 
+
+6.5. PXRD-Guided Crystal Structure Prediction 
+
+We next examine how target-specific conditioning changes the interaction between energy guidance and candidate coverage. In this setting the reward is energy-only, both CrystalGRPO variants are conditioned on the tar-get PXRD pattern in addition to composition; PXRD is used only as an input condition [13] and the reward is purely based on energy instead of hybrid reward. As shown in Table 5, CrystalGRPO-Q achieves the highest MR@1, improving the PXRDGen backbone from 68.41% to 72.71%. Its MR@20 decreases only slightly, from 884.73% to 84.13%, compared with the substantially larger coverage loss observed under composition-only condition-ing. CrystalGRPO-C instead reaches the highest MR@20 of 85.39%, while retaining an MR@1 improvement to 69.50%. Target-specific conditioning therefore weakens, but does not entirely remove, the quality–coverage trade-off between the two operating modes. Table 6 isolates the role of target information using controlled energy-only CrystalGRPO-Q runs. Without PXRD, RL raises the match rate from 59.06% to 63.60%, but the number of valid, reference-mismatched candidates within 0.1 eV/atom of the reference increases from 592 to 1562, a 164% increase. With PXRD conditioning, the match rate improves from 68.41% to 72.71%, while the number of low-energy mis-matched candidates remains essentially unchanged, from 812 to 810. These results support the distinction developed in the Introduction: predicted energy supplies useful phys-ical ranking but does not by itself identify the reference structure. PXRD narrows the generation toward a target-specific structural basin, making energy a more reliable re-finement signal and reducing the distributional ambiguity that coverage preservation must control. 
+
+## 7. Conclusion 
+
+We presented CrystalGRPO, a CSP-aligned post-training framework for flow-based crystal generators. It extends existing ODE-to-SDE policy constructions to the joint coordinate–lattice state, combines MACE-predicted energy with a recovery score that provides the target identity ab-sent from energy alone, and exposes the quality–coverage trade-off through two operating modes. Across MP-20 and MPTS-52 with PXRDGen and OMatG backbones, both variants reduce RMSE@1 and RMSE@20 relative to coordinate-only reinforcement, while CrystalGRPO-Q con-sistently improves MR@1 and CrystalGRPO-C achieves higher MR@20. These results demonstrate a flexible post-training framework for adapting pretrained crystal genera-tors to different finite-budget recovery objectives. Future work will explore larger and more complex systems, par-ticularly organic molecular crystals with richer conforma-tional variation. 
+
+## References 
+
+[1] Luis M Antunes, Keith T Butler, and Ricardo Grau-Crespo. Crystal structure generation with autoregressive large lan-guage modeling. Nature Communications , 15(1):10570, 2024. 3 [2] Ilyes Batatia, Philipp Benner, Yuan Chiang, Alin M Elena, D´ avid P Kov´ acs, Janosh Riebesell, Xavier R Advincula, Mark Asta, Matthew Avaylon, William J Baldwin, et al. A foundation model for atomistic materials chemistry. The Journal of chemical physics , 163(18), 2025. 5 [3] Kevin Black, Michael Janner, Yilun Du, Ilya Kostrikov, and Sergey Levine. Training diffusion models with reinforce-ment learning. arXiv preprint arXiv:2305.13301 , 2023. 3 [4] Junwu Chen, Jeff Guo, and Philippe Schwaller. Matinvent: Reinforcement learning for 3d crystal diffusion generation. In AI for Accelerated Materials Design-ICLR 2025 , 2025. 2, 3[5] Nate Gruver, Anuroop Sriram, Andrea Madotto, An-drew Gordon Wilson, Larry Zitnick, and Zachary Ulissi. Fine-tuned language models generate stable inorganic ma-terials as text. In International conference on learning rep-resentations , pages 21671–21690, 2024. 3 [6] Philipp H¨ ollmer and Stefano Martiniani. Open materials generation with inference-time reinforcement learning. In 
+
+Forty-third International Conference on Machine Learning ,2026. 2, 3, 6 [7] Philipp H¨ ollmer, Thomas Egg, Maya Martirossyan, Eric Fuemmeler, Zeren Shui, Amit Gupta, Pawan Prakash, Adrian Roitberg, Mingjie Liu, George Karypis, Mark Transtrum, Richard Hennig, Ellad B. Tadmor, and Stefano Martiniani. Open materials generation with stochastic inter-polants. In Forty-second International Conference on Ma-chine Learning , 2025. 3, 6, 7 [8] Rui Jiao, Wenbing Huang, Peijia Lin, Jiaqi Han, Pin Chen, Yutong Lu, and Yang Liu. Crystal structure prediction by joint equivariant diffusion. In Thirty-seventh Conference on Neural Information Processing Systems , 2023. 2, 3, 6, 1 [9] Rui Jiao, Wenbing Huang, Yu Liu, Deli Zhao, and Yang Liu. Space group constrained crystal generation. arXiv preprint arXiv:2402.03992 , 2024. 3 [10] Filip Ekstr¨ om Kelvinius, Oskar B Andersson, Abhijith S Parackal, Dong Qian, Rickard Armiento, and Fredrik Lind-sten. Wyckoffdiff–a generative diffusion model for crystal symmetry. arXiv preprint arXiv:2502.06485 , 2025. 3 [11] Subhojyoti Khastagir, Kishalay Das, Pawan Goyal, Seung-Cheol Lee, Satadeep Bhattacharjee, et al. Llm meets dif-fusion: a hybrid framework for crystal material generation. 
+
+Advances in Neural Information Processing Systems , 38: 169190–169215, 2026. 3 [12] Daniel Levy, Siba Smarak Panigrahi, S´ ekou-Oumar Kaba, Qiang Zhu, Kin Long Kelvin Lee, Mikhail Galkin, Santi-ago Miret, and Siamak Ravanbakhsh. SymmCD: Symmetry-preserving crystal generation with diffusion models. In The Thirteenth International Conference on Learning Represen-tations , 2025. 3 [13] Qi Li, Rui Jiao, Liming Wu, Tiannian Zhu, Wenbing Huang, Shifeng Jin, Yang Liu, Hongming Weng, and Xiaolong Chen. Powder diffraction crystal structure determination us-ing generative models. Nature Communications , 16(1):7428, 2025. 1, 3, 6, 8 [14] Yaron Lipman, Ricky TQ Chen, Heli Ben-Hamu, Maximil-ian Nickel, and Matthew Le. Flow matching for generative modeling. In The eleventh international conference on learn-ing representations , 2022. 2 [15] Jie Liu, Gongye Liu, Jiajun Liang, Yangguang Li, Jiaheng Liu, Xintao Wang, Pengfei Wan, Di ZHANG, and Wanli Ouyang. Flow-GRPO: Training flow matching models via online RL. In The Thirty-ninth Annual Conference on Neu-ral Information Processing Systems , 2025. 2, 3, 4, 5 
+
+9[16] Xiaoshan Luo, Zhenyu Wang, Qingchang Wang, Xuechen Shao, Jian Lv, Lei Wang, Yanchao Wang, and Yanming Ma. Crystalflow: a flow-based generative model for crystalline materials. Nature Communications , 16(1):9267, 2025. 2, 3, 6[17] Maya Martirossyan, Thomas Egg, Philipp H¨ ollmer, George Karypis, Mark Transtrum, Adrian Roitberg, Mingjie Liu, Richard Hennig, Ellad Tadmor, and Stefano Martiniani. All that structure matches does not glitter. Advances in Neural Information Processing Systems , 38, 2026. 2 [18] Houssam Metni, Laura Ruple, Lauren N Walters, Luca Tor-resi, Jonas Teufel, Henrik Schopmans, Jona ¨ Ostreicher, Yu-meng Zhang, Marlen Neubert, Yuri Koide, et al. Genera-tive models for crystalline materials. Advanced Materials ,38(18):e23620, 2026. 1 [19] Benjamin Kurt Miller, Ricky T. Q. Chen, Anuroop Sriram, and Brandon M Wood. FlowMM: Generating materials with riemannian flow matching. In Forty-first International Con-ference on Machine Learning , 2024. 2, 3 [20] Rahul Nikhar and Krzysztof Szalewicz. Reliable crystal structure predictions from first principles. Nature Commu-nications , 13(1):3095, 2022. 1 [21] Shyue Ping Ong, William Davidson Richards, Anubhav Jain, Geoffroy Hautier, Michael Kocher, Shreyas Cholia, Dan Gunter, Vincent L Chevrier, Kristin A Persson, and Gerbrand Ceder. Python materials genomics (pymatgen): A robust, open-source python library for materials analysis. Computa-tional Materials Science , 68:314–319, 2013. 5, 6 [22] Hyunsoo Park and Aron Walsh. Guiding generative mod-els to uncover diverse and novel crystals via reinforcement learning. Nature Machine Intelligence , pages 1–13, 2026. 3 [23] Osman Goni Ridwan, Sylvain Piti´ e, Monish Soundar Raj, Dong Dai, Gilles Frapper, Hongfei Xue, and Qiang Zhu. Ai-assisted rapid crystal structure generation towards a target local environment. npj Computational Materials , 2026. 3 [24] John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Rad-ford, and Oleg Klimov. Proximal policy optimization algo-rithms. arXiv preprint arXiv:1707.06347 , 2017. 2 [25] Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei Zhang, Mingchuan Zhang, YK Li, Yang Wu, et al. Deepseekmath: Pushing the limits of math-ematical reasoning in open language models. arXiv preprint arXiv:2402.03300 , 2024. 5 [26] Akshay Subramanian, Elton Pan, Juno Nam, Maurice Weiler, Shuhui Qu, Cheol Woo Park, Tommi S. Jaakkola, Elsa Olivetti, and Rafael G´ omez-Bombarelli. Packflow: Genera-tive molecular crystal structure prediction via reinforcement learning alignment, 2026. 3 [27] Wenhao Sun, Stephen T Dacek, Shyue Ping Ong, Geof-froy Hautier, Anubhav Jain, William D Richards, Anthony C Gamst, Kristin A Persson, and Gerbrand Ceder. The thermo-dynamic scale of inorganic crystalline metastability. Science advances , 2(11):e1600225, 2016. 2 [28] Masatoshi Uehara, Yulai Zhao, Kevin Black, Ehsan Haji-ramezanali, Gabriele Scalia, Nathaniel Lee Diamant, Alex M Tseng, Tommaso Biancalani, and Sergey Levine. Fine-tuning of continuous-time diffusion models as entropy-regularized control. arXiv preprint arXiv:2402.15194 , 2024. 2[29] Christian Walder and Deep Tejas Karkhanis. Pass@k policy optimization: Solving harder reinforcement learning prob-lems. In The Thirty-ninth Annual Conference on Neural In-formation Processing Systems , 2025. 6 [30] Hanlin Wu, Yuxuan Song, Jingjing Gong, Ziyao Cao, Yawen Ouyang, Jianbing Zhang, Hao Zhou, Wei-Ying Ma, and Jingjing Liu. A periodic bayesian flow for material gener-ation. arXiv preprint arXiv:2502.02016 , 2025. 3 [31] Tian Xie, Xiang Fu, Octavian-Eugen Ganea, Regina Barzi-lay, and Tommi S. Jaakkola. Crystal diffusion variational au-toencoder for periodic material generation. In International Conference on Learning Representations , 2022. 3, 6 [32] Yang Yue, Zhiqi Chen, Rui Lu, Andrew Zhao, Zhaokai Wang, Yang Yue, Shiji Song, and Gao Huang. Does rein-forcement learning really incentivize reasoning capacity in LLMs beyond the base model? In The Thirty-ninth An-nual Conference on Neural Information Processing Systems ,2025. 5 [33] Claudio Zeni, Robert Pinsler, Daniel Z¨ ugner, Andrew Fowler, Matthew Horton, Xiang Fu, Zilong Wang, Aliak-sandra Shysheya, Jonathan Crabb´ e, Shoko Ueda, Roberto Sordillo, Lixin Sun, Jake Smith, Bichlien Nguyen, Hannes Schulz, Sarah Lewis, Chin-Wei Huang, Ziheng Lu, Yichi Zhou, Han Yang, Hongxia Hao, Jielan Li, Chunlei Yang, Wenjie Li, Ryota Tomioka, and Tian Xie. A generative model for inorganic materials design. Nature , 2025. 3 
+
+10 CrystalGRPO: Target-Aligned and Coverage-Preserving Reinforcement Learning for Flow-Based Crystal Structure Prediction 
+
+# Supplementary Material 
+
+## 8. Detailed Preliminaries and Derivations 
+
+8.1. Crystal Structure Prediction 
+
+Crystal structure prediction aims to recover the periodic atomic arrangement and lattice consistent with a given chemical composition and, when available, experimental observations. A crystal is represented as M = ( A, F, L ),where A denotes the atomic species, F the fractional coor-dinates, and L the lattice matrix. 
+
+8.2. Flow-Based crystal strucature prediction 
+
+In this work, we apply flow matching models as our back-bone to jointly generate the lattice matrices ( L) and frac-tional coordinates ( F ) of crystal structures conditioned on chemical composition ( A) or PXRD pattern. Here we will provide a detailed introduction about the formulation and network structure of PXRDGen [13]. 
+
+8.2.1. Flow on Lattice 
+
+As the lattices are defined in the Euclidean space R3×3, the flow path from data L0 to prior noise L1 ∼ N (0, I) can be simply constructed as 
+
+q(Lt|L0) = N (Lt|(1 − t)L0, t I).
+
+The training objective is defined to predict the terminal noise state L1 (denoted as ϵL for clarity) to ensure numeri-cal stability during lattice deformation: 
+
+LL,flow = EϵL,t 
+
+h
+
+∥ϵL − ˆϵL(Mt, t, c )∥22
+
+i
+
+.
+
+where ϵL ∼ N (0, I), t ∼ U (0 , 1) . The generative ODE process follows: 
+
+Lt−∆t = Lt − ˆϵL − Lt
+
+1 − t ∆t. 
+
+8.2.2. Flow on Fractional Coordinate 
+
+The fractional coordinates F of an N -atom point cloud in-herently live on an N × 3-dimensional product of flat tori 
+
+TN ×3, constrained by periodic boundary conditions. To construct a valid flow matching path on this periodic man-ifold, we utilize geodesic paths that seamlessly cross the periodic boundaries. We first formulate the exponential and logarithmic maps on the torus for a given atom index i:
+
+exp Fi (Vi) := Fi + Vi − ⌊ Xi + Vi⌋,
+
+log Fi 
+
+> 0
+
+(Fi
+
+> 1
+
+) := 12π atan2 sin( ωi), cos( ωi) ,
+
+where ωi := 2 π(Fi 
+
+> 1
+
+− Fi
+
+> 0
+
+) and V represents a tangent ve-locity vector. To rigorously address the global translation-invariance, we acquire the final target velocity field by removing the mean torus translation from the base logarithmic map: 
+
+vX(F0, F1) := log F0 (F1) − 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+log Fi 
+
+> 0
+
+(Fi
+
+> 1
+
+)
+
+The time-dependent state along the geodesic path is ele-gantly constructed as Ft = exp F0 (tvF). The flow match-ing training objective on coordinates is optimized to regress this invariant vector field: 
+
+LF,flow = Et, F1
+
+h
+
+∥ˆvF(Mt, t, c ) − vF(F0, F1)∥22
+
+i
+
+where t ∼ U (0 , 1) , F1 ∼ U (0 , 1) . To accelerate the struc-tural relaxation into deep energy basins during inference, we apply an anti-annealing strategy. Utilizing the defined exponential map to respect the boundary constraints, the generative ODE is discretized as: 
+
+Ft−∆t = exp Ft
+
+   1 + γ(1 − t)ˆvF∆t
+
+8.2.3. Decoder Network 
+
+A graph neural network serves as the backbone decoder to jointly model L and F [8]. It takes atom types fatom (Ai),time embeddings fpos (t), and condition features c (e.g., 
+
+fXRD encoded from the PXRD pattern) as inputs, where the PXRD encoder is a MAR model. The initial atom repre-sentation is acquired via a multi-layer perceptron (MLP) as 
+
+h(0)  
+
+> i
+
+= ρ (fatom (Ai), f pos (t), c ).The message passing mechanism is modeled as: 
+
+m(s) 
+
+> ij
+
+= ϕm
+
+
+
+h(s−1)  
+
+> i
+
+, h (s−1)  
+
+> j
+
+, L⊤L, ψ (Fj − Fi)
+
+
+
+,m(s) 
+
+> i
+
+=
+
+> N
+
+X
+
+> j=1
+
+m(s) 
+
+> ij
+
+,h(s) 
+
+> i
+
+= h(s−1)  
+
+> i
+
++ ϕh
+
+
+
+h(s−1)  
+
+> i
+
++ m(s)
+
+> i
+
+
+
+,
+
+where ϕm, ϕ h are MLPs, and ψ represents periodic radial basis embeddings. For the final output layer, the network predicts the lattice noise and the coordinate velocity: 
+
+ˆϵL = LϕL
+
+1
+
+N
+
+> N
+
+X
+
+> i=1
+
+h(S)
+
+> i
+
+!
+
+,
+
+1ˆvF,i = ϕF
+
+
+
+h(S)
+
+> i
+
+
+
+.
+
+Crucially, the predicted velocity ˆvF is further subjected to a de-translation operation ˆvF ← ˆvF − Mean (ˆ vF) to en-sure that the vector field perfectly adheres to the translation-invariant manifold. 
+
+8.3. PXRD-Conditioned Base Model and MAE En-coder 
+
+PXRD representation. For the PXRD-conditioned back-bone, each crystal is associated with a simulated powder diffraction pattern covering the 2θ range from 5◦ to 80 ◦
+
+with an interval of 0.01 ◦. The resulting intensity profile contains 7,500 values and is normalized by its maximum intensity. PXRD patterns are simulated using GSAS-II with a Cu X-ray instrument profile. The chemical composition, atom types, and number of atoms are provided as part of the CSP input; the model predicts the fractional coordinates and lattice matrix conditioned on the PXRD pattern. 
+
+MAE-based PXRD encoder. We encode the one-dimensional PXRD intensity profile using a masked autoen-coder. Given a PXRD pattern p ∈ R7500 , we divide it into 750 non-overlapping patches of length 10: 
+
+p = [ p1, . . . , p750 ] , pj ∈ R10 . (1) Each patch is projected to a 128-dimensional token using a linear layer. Fixed one-dimensional sine–cosine positional embeddings are added to the patch tokens, together with a learnable [CLS] token. During encoder pretraining, 40% of the patch tokens are randomly masked. The visible tokens are processed by four Transformer blocks, each containing four attention heads and an MLP with an expansion ratio of four. The Trans-former output corresponding to the [CLS] token is pro-jected from 128 to 256 dimensions to produce the global PXRD representation zxrd ∈ R256 .A two-layer Transformer decoder reconstructs the masked patches. Let M denote the set of masked patches. The masked reconstruction loss is 
+
+LMAE = 1
+
+|M| 
+
+X
+
+> j∈M
+
+110 ∥bpj − pj ∥22 . (2) Only masked patches contribute to this reconstruction ob-jective. In addition to masked reconstruction, the PXRD encoder is aligned with a structure encoder using symmetric con-trastive learning. The structure encoder maps the corre-sponding ground-truth crystal to a 256-dimensional repre-sentation zstr . After ℓ2 normalization, the cross-modal sim-ilarity between the i-th PXRD pattern and the j-th structure is 
+
+sij = zxrd  
+
+> i
+
+, zstr 
+
+> j
+
+Tc
+
+, (3) where Tc = 0 .05 is the contrastive temperature. The bidi-rectional contrastive loss is 
+
+LCL = 12
+
+CE( S, I) + CE( ST, I) , (4) where the diagonal entries represent the matched PXRD– structure pairs in the same mini-batch. The complete encoder-pretraining objective is 
+
+Lenc = LCL + 0 .5 LMAE . (5) The structure encoder is used only during representation pretraining and is not required by the subsequent generative model. After pretraining, we set the masking ratio to zero and use the complete PXRD profile to compute the condition embedding. The MAE decoder is bypassed, and the PXRD encoder is frozen during both flow-matching pretraining and CrystalGRPO optimization. The resulting condition is normalized as 
+
+cxrd = zxrd 
+
+∥zxrd ∥2
+
+. (6) 
+
+PXRD-conditioned flow model. The generative back-bone is a conditional crystal flow model operating jointly on fractional coordinates and lattice matrices. The conditional CSP decoder receives the diffusion-time embedding, atom-type embedding, current fractional coordinates, current lat-tice, and the frozen PXRD condition cxrd . The PXRD and time embeddings are broadcast to all atoms of the corre-sponding crystal and concatenated with the atom embed-dings: 
+
+h(0)  
+
+> i
+
+= MLP ([Emb( ai), ϕ (t), cxrd ]) . (7) The decoder contains six fully connected crystal-graph message-passing layers with a hidden dimension of 512. Edge features include the two endpoint node representa-tions, a sinusoidal encoding of the periodic fractional dis-placement, and the lattice metric LtLT 
+
+> t
+
+. The network pro-duces a per-atom coordinate field and a graph-level lat-tice prediction obtained by mean pooling the node features, while all other decoder settings remain unchanged. 
+
+8.4. GRPO Framework 
+
+The goal of Reinforcement Learning is to learn a policy that maximizes expected cumulative reward. GRPO achieves this by optimizing its policy model to maximize the follow-ing objective: 
+
+JFlow-GRPO (θ) = Ec∼C ,{xi}Gi=1 ∼πθold (·| c)f (r, ˆA, θ, ϵ, β )
+
+2where the f (r, ˆA, θ, ϵ, β ) is defined as: 
+
+f (r, ˆA, θ, ϵ, β ) = 1
+
+G
+
+> G
+
+X
+
+> i=1
+
+1
+
+T 
+
+> T−1
+
+X
+
+> t=0
+
+
+
+min 
+
+
+
+rit(θ) ˆAit,
+
+clip  rit(θ), 1 − ϵ, 1 + ϵ ˆAit
+
+
+
+− βD KL (πθ ∥πref )
+
+
+
+rit(θ) = pθ
+
+ xit−1 | xit, c
+
+pθold 
+
+ xit−1 | xit, c
+
+Given a condition c, the flow model pθ samples agroup of G individual crystal structures xi
+
+> 0
+> Gi=1
+
+and the corresponding reverse-time trajectories 
+
+  xiT , xiT −1, . . . , xi
+
+> 0
+
+ Gi=1 , where T is the number of integration steps. Then, the advantage of the i-th crystal is calculated by normalizing the group-level rewards as follows: 
+
+ˆAit =
+
+R  xi
+
+> 0
+
+, c − mean 
+
+R  xi
+
+> 0
+
+, c Gi=1 
+
+
+
+std 
+
+R  xi
+
+> 0
+
+, c Gi=1 
+
+
+
+8.5. RL on Flow Matching Model 
+
+Within reinforcement learning, a sequential decision-making problem can be formulated as a Markov decision process (MDP) (S, A, ρ 0, P, R), where S denotes the state space, A presents the action space, ρ0 denotes the distribu-tion of initial states, P is the transition kernel, and R is the reward function. At each timestep t with a state st ∈ S 
+
+the agent takes an action at ∈ A according to a policy 
+
+π(a|s) and thereby receives a reward R(st, at), moving to a new state based on the transition function P(st+1 |st, at).The iterative denoising process in flow matching models can be formulated as a Markov game, where the state at step t is st ≜ (c, t, xt), the action is the denoised sam-ple at ≜ xt−1 predicted by the model, and the policy is 
+
+π(at | st) ≜ pθ (xt−1 | xt, c ). The transition is determin-istic: P (st+1 | st, a t) ≜ (δc, δ t−1, δ xt−1 ), and the initial state distribution is ρ0(s0) ≜ (p(c), δ T , N (0, I)) , where δy
+
+is the Dirac delta distribution centered at y. The reward is only given at the final step: R(st, a t) ≜ r(x0, c ) if t = 0 ,and 0 otherwise. 
+
+8.6. From ODE to SDE Sampler 
+
+Typically, flow matching models predict the velocity vt and use a deterministic ODE for the denoising process: 
+
+dx t = vtdt 
+
+However, the deterministic ordinary Differential equation (ODE) sampling inherent to flow models fundamentally fails to satisfy two critical requirements of GRPO. First, GRPO requires stochastic rollouts to generate distinct tra-jectories for exploration and group-relative advantage esti-mation. Second, policy optimization requires tractable step-wise transition probabilities to compute importance ratios, which are unavailable for deterministic Dirac transitions. To this end, Flow-GRPO [15] injects additional noise to sampling by converting the deterministic ODE sampler to an equivalent SDE sampler: 
+
+xt+∆ t = xt +
+
+
+
+vθ (xt, t ) + σ2
+
+> t
+
+2t (xt + (1 − t)vθ (xt, t )) 
+
+
+
+∆t
+
++ σt
+
+√∆tϵ
+
+where σt = a
+
+q t 
+
+> 1−t
+
+, a is a scalar hyper-parameter to guide the noise level, and ϵ ∼ N (0 , I) injects stochasticity. The KL divergence between πθ and the reference policy πref is a closed form: 
+
+DKL (πθ ∥πref ) = ∥¯xt+∆ t,θ − ¯xt+∆ t, ref ∥2
+
+2σ2 
+
+> t
+
+∆t
+
+= ∆t
+
+2
+
+ σt(1 − t)2t + 1
+
+σt
+
+2
+
+× ∥ vθ (xt, t ) − vref (xt, t )∥2
+
+## 9. CrytalGRPO Training Algorithm 
+
+Training procedure. The training procedures of CrystalGRPO-C and CrystalGRPO-Q are summarized in Algorithms 1 and 2, respectively. Both variants follow the same on-policy GRPO pipeline, alternating between stochastic rollout collection and policy optimization. Afrozen reference policy πref is initialized from the pre-trained flow model before training. At the beginning of each episode, the current policy is copied to the behavior policy, πold ← πθ , which is then used to collect rollout trajectories. For each conditioning instance c, we independently sam-ple G initial coordinate–lattice states and generate joint tra-jectories zgt = ( F gt , L gt ) using πold . At each generation step, independent Gaussian noises are sampled for the co-ordinate and lattice fields. The pre-wrapped coordinate pro-posal, lattice proposal, sampled noises, and behavior-policy transition means are stored in the rollout buffer. Storing these quantities allows each realized transition to be re-evaluated under the updated policy without resampling the trajectory. At the terminal state, the generated crystal bXg receives a reward Rg = R( bXg , c ). The general reward formulation supports target-recovery guidance, energy guidance, or their weighted combination, depending on the experimental con-figuration. Rewards from candidates generated under the same condition are normalized to obtain the group-relative 3Algorithm 1 Training Algorithm for CrystalGRPO-C 
+
+Require: Pretrained policy πθ , reward R, group size G, batches per episode B
+
+Ensure: Optimized policy parameters θ 
+
+> 1:
+
+Initialize and freeze πref ← πθ 
+
+> 2:
+
+for each training episode do  
+
+> 3:
+
+Set behavior policy πold ← πθ 
+
+> 4:
+
+for b = 1 , . . . , B do  
+
+> 5:
+
+Sample conditions Cb and initialize buffer D 
+
+> 6:
+
+for each c ∈ C b do  
+
+> 7:
+
+for g = 1 , . . . , G do  
+
+> 8:
+
+Generate a joint coordinate–lattice trajectory τg us-ing πold  
+
+> 9:
+
+Store transition states, noises, and behavior means  
+
+> 10:
+
+Compute Rg = R( bXg , c ), validity vg , and match flag mg 
+
+> 11:
+
+end for  
+
+> 12:
+
+Compute group-relative advantages {Ag }Gg=1  
+
+> 13:
+
+Set eAg = max( Ag , 0) if vg = 1 , m g = 0 ; otherwise 
+
+eAg = Ag 
+
+> 14:
+
+Add {(τg , eAg )}Gg=1 to D 
+
+> 15:
+
+end for  
+
+> 16:
+
+for each policy optimization epoch do  
+
+> 17:
+
+Compute policy ratios and full-trajectory reference regularization on D 
+
+> 18:
+
+Update θ by maximizing the clipped CrystalGRPO-C objective  
+
+> 19:
+
+end for  
+
+> 20:
+
+end for  
+
+> 21:
+
+end for 
+
+advantage Ag . The two CrystalGRPO variants differ in how this advantage is used: 
+
+eA Q 
+
+> g
+
+= Ag , eA C 
+
+> g
+
+=
+
+(
+
+max( Ag , 0) , vg = 1 and mg = 0 ,Ag , otherwise ,
+
+where vg and mg denote the validity and reference-match flags, respectively. CrystalGRPO-Q therefore retains the standard group-relative update. CrystalGRPO-C prevents valid but currently unmatched candidates from receiving negative updates solely because their rewards fall below the group mean. Matched candidates retain their original advantages and continue to compete according to recovery quality, while invalid candidates remain suppressible. During policy optimization, each stored transition is re-evaluated under πθ to compute the size-normalized surro-gate policy ratio rt(θ). The two variants also use different temporal schedules for reference-policy regularization: 
+
+wQ 
+
+> t
+
+= I[t ≥ τKL ], wC 
+
+> t
+
+= 1 .
+
+CrystalGRPO-Q applies the reference constraint only dur-ing the early, high-noise portion of generation, allow-ing more flexible reward-guided refinement at later steps. 
+
+Algorithm 2 Training Algorithm for CrystalGRPO-Q 
+
+Require: Pretrained policy πθ , reward R, group size G, batches per episode B
+
+Ensure: Optimized policy parameters θ 
+
+> 1:
+
+Initialize and freeze πref ← πθ 
+
+> 2:
+
+for each training episode do  
+
+> 3:
+
+Set behavior policy πold ← πθ 
+
+> 4:
+
+for b = 1 , . . . , B do  
+
+> 5:
+
+Sample conditions Cb and initialize buffer D 
+
+> 6:
+
+for each c ∈ C b do  
+
+> 7:
+
+for g = 1 , . . . , G do  
+
+> 8:
+
+Generate a joint coordinate–lattice trajectory τg us-ing πold  
+
+> 9:
+
+Store transition states, noises, and behavior means  
+
+> 10:
+
+Compute terminal reward Rg = R( bXg , c ) 
+
+> 11:
+
+end for  
+
+> 12:
+
+Compute group-relative advantages {Ag }Gg=1  
+
+> 13:
+
+Add {(τg , A g )}Gg=1 to D 
+
+> 14:
+
+end for  
+
+> 15:
+
+for each policy optimization epoch do  
+
+> 16:
+
+Compute policy ratios and early-stage reference reg-ularization on D 
+
+> 17:
+
+Update θ by maximizing the clipped CrystalGRPO-Q objective  
+
+> 18:
+
+end for  
+
+> 19:
+
+end for  
+
+> 20:
+
+end for 
+
+CrystalGRPO-C applies the constraint throughout the com-plete trajectory to more strongly preserve the pretrained candidate distribution. The unified objective for q ∈ { Q, C} is 
+
+J q
+
+> CG
+
+(θ) = Ec,g,t 
+
+ℓ qg,t (θ) ,ℓ qg,t (θ) = min 
+
+
+
+rt(θ) eA qg , ¯rt(θ) eA qg
+
+
+
+− βw qt eDKL ,t ,
+
+¯rt(θ) = clip ( rt(θ), 1 − ϵ, 1 + ϵ) ,
+
+where ϵ is the PPO clipping coefficient, β controls reference-policy regularization, and eDKL ,t is the size-normalized divergence from the frozen reference policy. 
+
+9.1. Comparison between CrystalGRPO-Q and CrystalGRPO-C 
+
+CrystalGRPO-Q and CrystalGRPO-C share the same joint coordinate–lattice SDE policy and use the same reward con-figuration within each experiment. Their differences lie in the temporal schedule of reference regularization and the treatment of valid but unmatched candidates, as summa-rized in Table 7. CrystalGRPO-Q applies reference regularization only during the early, high-noise portion of the trajectory and retains the standard group-relative advantage. This allows greater flexibility during later structural refinement, but may concentrate probability mass around a smaller number of 41. Joint -SDE Crystal Rollout  2. CSP -aligned  Hybrid  Reward  3. Coverage -Aware Group Advantage 
+
+Tra jectory . 1
+
+Fractional 
+
+coordinates    
+
+> ↝↝↝↝
+
+Lattice 
+
+⋮ Traj ectory . G
+
+Fractional 
+
+coordinates 
+
+Lattice 
+
+Candidate 
+
+crystal 
+
+Energy 
+
+gap 
+
+Validity  Recovery 
+
+score  Reward 
+
+∆𝑄 𝑔,1 
+
+> 𝐸
+
+matched  𝑆 𝑔,1  𝑹 𝟏  
+
+> 𝑹 𝟏
+
+…
+
+Group  normalization 
+
+Advantages 
+
+Flow Matching CSP  Model    
+
+> ↝↝↝↝
+
+Prompt:  Composition/PXR D
+
+⋮
+
+MDP via Joint Coordinate -Lattice SDE Sampling 
+
+Candidate 
+
+crystal 
+
+Denoising Reduction (T= 50 )
+
+⋮
+
+𝑆 𝑔,2 
+
+valid -
+
+unmatched 
+
+matched 
+
+0
+
+valid -
+
+unmatched  0
+
+invalid 
+
+invalid 
+
+0
+
+0
+
+𝑹 𝟐 
+
+𝑹 𝟒 
+
+𝑹 𝟑 
+
+𝑹 𝟓 
+
+𝑹 𝟔 
+
+𝑅 𝑖 = 𝐾 𝑆 𝑆 𝑔,𝑖 (1 + 𝐾 𝐸 𝑄 𝑔,𝑖  
+
+> 𝐸
+
+)
+
+∆𝑄 𝑔,2 𝐸 
+
+∆𝑄 𝑔,3 
+
+> 𝐸
+
+∆𝑄 𝑔,4 𝐸 
+
+∆𝑄 𝑔,5 𝐸 
+
+∆𝑄 𝑔,6    
+
+> 𝐸
+> 𝑹 𝟐 𝑹 𝟑 𝑹 𝟓 𝑹 𝟒 𝑹 𝟔
+
+⋮     
+
+> 𝑨 𝟏 𝑨 𝟐 𝑨 𝟑 𝑨 𝟓 𝑨 𝟒 𝑨 𝟔
+
+…
+
+Original GRPO 
+
+Coverage -Aware  Group Advantage 
+
+Positive 
+
+update 
+
+Negative 
+
+update 
+
+No 
+
+penalty 
+
+Group Relative Policy Optimization 
+
+ℒ𝑝𝑜𝑙𝑖𝑐𝑦 − 𝛽𝐷 𝐾𝐿 (𝜋 𝜃 |𝜋 𝑟𝑒𝑓 )
+
+Policy Optimization     
+
+> ↝↝↝
+> ↝↝↝
+
+…
+
+…Figure 2. Overview of the CrystalGRPO framework. CrystalGRPO performs joint stochastic rollouts over fractional coordinates and lattice variables, evaluates the generated crystals using a CSP-aligned hybrid reward. Based on the hybrid reward, it computes coverage-aware group advantages for GRPO policy optimization. Table 7. Comparison between CrystalGRPO-Q and CrystalGRPO-C.                            
+
+> Component CrystalGRPO-Q CrystalGRPO-C Joint coordinate–lattice SDE Yes Yes Reward configuration Shared within each experiment Shared within each experiment Frozen pretrained policy Yes Yes Reference KL schedule Early high-noise steps Full trajectory Group advantage Standard AgCoverage-aware eAg
+> Valid unmatched candidate May receive Ag<0Set eAg= max( Ag,0)
+> Reward-driven concentration Less constrained More constrained Intended operating point Single-draw recovery Finite-budget recovery
+
+high-reward modes. CrystalGRPO-C instead applies refer-ence regularization throughout the trajectory and removes negative advantages for valid unmatched candidates. It therefore limits policy drift and avoids suppressing poten-tially recoverable structural basins solely because their cur-rent rewards fall below the group mean. 
+
+## 10. Detailed Reward Design and Experimental Configurations 
+
+10.1. CSP-aligned Hybrid Reward 
+
+For completeness and reproducibility, we provide the ex-act reward implementation used to obtain the reported re-sults. In the target-aligned reward configuration, the Struc-tureMatcher score provides the structural anchor, while the bounded MACE energy term refines the ranking only among candidates that pass the recovery matcher. 
+
+Per-atom energy gap. Let EMACE (X) denote the total energy in eV predicted by MACE-MP-0 [2]. We first con-vert it to an energy per atom, 
+
+ε(X) = EMACE (X)
+
+NX
+
+,
+
+where NX is the number of atoms in the structure. All energy quantities below are therefore expressed in 
+
+eV atom −1.For generated structures, the predicted energy is numer-ically bounded as 
+
+¯ε( bXg ) = clip 
+
+
+
+ε( bXg ), −30 , 3
+
+
+
+.
+
+Structures that fail geometric-validity checks or MACE evaluation are assigned the upper value of 3 eV atom −1.Ground-truth energies are precomputed using the same MACE model and stored as per-atom values before train-ing. For a finite cached ground-truth energy, the per-atom energy gap is 
+
+∆εg = ¯ ε( bXg ) − ε(XGT ).
+
+5For energy-only experiments, we use 
+
+REg = − f∆εg , (8) where f∆εg = clip(∆ εg , −15 , 3) .For the setting for hybrid reward, we then convert the energy gap into a dimensionless bounded quality score: 
+
+QEg = clip − f∆εg
+
+E0
+
+, −1, 1
+
+!
+
+, E0 = 0 .5 eV atom −1.
+
+Thus, a prediction at least 0.5 eV atom −1 below the ground-truth energy receives QEg = 1, an equal-energy prediction receives QEg = 0, and a prediction at least 
+
+0.5 eV atom −1 above the ground truth receives QEg = −1.This fixed clipping prevents spuriously low MACE energies on out-of-distribution geometries from dominating the pol-icy update. For the rare samples whose ground-truth MACE energy cannot be precomputed, the implementation falls back to the absolute predicted per-atom energy. In MP-20 this affects 19 of 27,136 training structures ( 0.07% ). 
+
+StructureMatcher recovery sco. The reported structural metric and the strict reward gate use 
+
+StructureMatcher [21] with stol = 0.5,
+
+ltol = 0.3, and angle tol = 10 ◦, Both the gen-erated and ground-truth structures must pass the same composition and structural-validity checks used during evaluation. Let mg ∈ { 0, 1} indicate whether this matcher succeeds. When mg = 1 , we use StructureMatcher to get the normalized RMS displacement as dg . Furthermore, The re-covery score can be defined as: 
+
+Sg =
+
+(
+
+exp ( −dg /τ ) , mg = 1 ,
+
+0, mg = 0 , τ = 0 .5.
+
+Here τ controls the sensitivity to the normalized structural displacement and is distinct from the matcher parameter 
+
+stol , and a structure that fails the reported evaluation matcher receives Sg = 0 .
+
+Final hybrid reward. The final hybrid reward combines the energy signal with the recovery score as: 
+
+Rg = KS Sg
+
+ 1 + KE QEg
+
+ ,
+
+Because we set Sg = 0 for an unmatched candidate, the energy term acts only as a bounded refinement after target recovery. 
+
+10.2. Common RL Hyperparameters 
+
+Unless otherwise specified, all CrystalGRPO experiments use the common hyperparameters summarized in Table 8. We optimize the policy using AdamW with a constant learn-ing rate of 10 −5 and no weight decay. Each training episode contains three mini-batches of 256 target crystals. For every target crystal, we independently sample G = 12 rollouts, corresponding to 3×256 ×12 = 9 ,216 generated structures per episode. Both training rollouts and deterministic evalu-ation use 50 numerical integration steps. All models were implemented in PyTorch and trained on NVIDIA H100 and H200 GPUs. The PPO clipping parameter ϵ = 0 .2 restricts each local importance ratio to the interval [0 .8, 1.2] , and old policy is refreshed at the beginning of every episode to remain fixed during all updates in that episode. Rewards are normalized independently over the G rollouts belonging to the same target crystal. For stochastic rollouts, both the coordinate and the lattice diffusion scale follows the schedule below: 
+
+σ(t) = min 0.2
+
+r t
+
+1 − t , 5
+
+!
+
+. (9) The reference regularizer is computed from the normal-ized squared difference between the current and frozen-reference transition means, corresponding to the Gaussian divergence defined in the main paper. Its coefficient and ac-tive time interval depend on the optimization configuration. For the hybrid reward, all experiments use MACE-MP-0 “medium” to predict per-atom energies. The structural reward weight is KS = 1 , the gated energy coefficient is 
+
+KE = 0 .05 , the geometric decay scale is τ = 0 .5, and the energy normalization scale is E0 = 0 .5 eV/atom. Con-sequently, the energy term changes the reward of an ac-cepted structure by at most ±5% . Unmatched structures retain exactly zero reward. Predicted per-atom energies are bounded to [−30 , 3] eV/atom, while the energy difference 
+
+E( bXg ) − E(XGT ) is bounded to [−15 , 3] eV/atom before constructing the normalized energy-quality score. Failed or invalid MACE evaluations are assigned the upper-bound value of 3 eV/atom. 
+
+10.3. Dataset- and Backbone-Specific Configura-tions 
+
+Table 9 lists the settings that are not shared by all exper-iments. The PXRDGen-initialized models use the corre-sponding pretrained MP-20 or MPTS-52 checkpoint. Their initial fractional coordinates are sampled uniformly in the unit cell, while the initial lattice is sampled from the Gaus-sian base distribution used during flow-matching pretrain-ing. 6Table 8. Common RL hyperparameters used in CrystalGRPO.                                                  
+
+> Hyperparameter Value
+> Learning rate η1×10 −5
+> Maximum training episodes 3,000
+> Mini-batch size M256 crystals batches per episode B3
+> Rollouts per crystal G12
+> Training integration steps 50
+> Noise level 0.2
+> PPO clipping parameter ϵ0.2
+> Advantage clipping range [−5,5]
+> Ratio rollback threshold 1.5
+> Energy model MACE-MP-0 medium
+> KS1.0
+> KE0.05
+> Geometric decay scale τ0.5
+> Energy normalization scale E00.5eV/atom Table 9. Dataset-, backbone-, and optimization-specific configu-rations.
+> Hyperparameter Value
+> PXRDGen backbone ini-tialization Dataset-specific pretrained PXRD-Gen checkpoint OMatG backbone initial-ization Dataset-specific ported OMatG checkpoint Fractional-coordinate prior
+> U[0 ,1) for both backbones PXRDGen lattice prior Isotropic Gaussian base distribution OMatG lattice prior Dataset-dependent informed lattice prior Advantage mode for CrystalGRPO-Q Normal advantage KL active interval for CrystalGRPO-Q
+> t≥0.6
+> Advantage mode for CrystalGRPO-C Coverage-preserving advantage KL active interval for CrystalGRPO-C
+> t≥0.0
+
+For the OMatG-backed [7] experiments, we initial-ize the policy from the released dataset-specific Linear-ODE checkpoint. Specifically, we extract the pretrained CSPNet velocity-field parameters and load them into an architecture-equivalent adapter that exposes the same Crys-talGRPO policy interface. The adapter preserves OMatG’s fractional-coordinate and 3 × 3 lattice representations, si-nusoidal time embedding under the mapping s = 1 − τ ,center-of-mass correction, dataset-specific informed lattice prior, and pretrained coordinate and lattice velocity fields. During RL training, CrystalGRPO converts the pre-trained ODE velocity field into Gaussian SDE transitions using its fixed diffusion schedule. GRPO advantages and 
+
+> Table 10. Reward configurations used in the reported experiments.
+
+Experiment Reward configuration Composition-conditioned Q/C results Hybrid reward Energy-only reward ablation Energy-only reward PXRD-conditioned analysis Energy-only reward per-step PPO ratios are then used to directly fine-tune the CSPNet parameters, while a frozen copy of the pre-trained model provides the KL reference. Thus, no separate velocity-correction network is introduced; policy optimiza-tion modifies the underlying velocity field itself. Final eval-uation is performed by deterministic ODE integration of the fine-tuned velocity field. 
+
+10.4. Reward configurations used in the reported experiment 
+
+Table 10 lists the reward configurations used in the reported experiment, where the Composition-conditioned Q/C re-sults are based on the hybrid reward we defined, while the energy-only reward ablation and PXRD-conditioned studies are based on energy-only reward. 7

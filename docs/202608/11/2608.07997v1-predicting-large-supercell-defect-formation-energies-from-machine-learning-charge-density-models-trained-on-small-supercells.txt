@@ -1,0 +1,250 @@
+Title: Predicting large-supercell defect formation energies from machine-learning charge density models trained on small supercells
+
+URL Source: https://arxiv.org/pdf/2608.07997v1
+
+Published Time: Tue, 11 Aug 2026 00:31:42 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# Predicting large-supercell defect formation energies from machine-learning charge density models trained on small supercells 
+
+## Junjie Zhou 1* , Menglin Huang 1* and Shiyou Chen 1* 
+
+> 1*
+
+College of Integrated Circuits and Micro-Nano Electronics, and Key Laboratory of Computational Physical Sciences (MOE), Fudan University, Shanghai, 200433, China. *Corresponding author(s). E-mail(s): menglinhuang@fudan.edu.cn; chensy@fudan.edu.cn; 
+
+Abstract 
+
+First-principles defect calculations are often limited by the cost of the large supercells required to suppress image interactions. Machine-learning interatomic potentials (MLIPs) provide another alter-native, but training defect MLIPs typically requires thousands of structures and weeks of data generation. Since charge density is the key to density-functional-theory (DFT), we propose a machine-learning charge density (MLCD) route for predicting defect formation energies with higher data efficiency. We optimize the training set by integrating small supercells of varying sizes for better extrapolation, allocating their proportions based on spatial charge-density analysis. With only 96 supercells containing 16–96 atoms as the dataset, MLCD accurately predicts the formation energies of four intrinsic defects in 360-atom supercells, with defect-wise mean absolute error below 0.05 eV. In contrast, MLIPs trained on the same dataset can err by more than 1 eV. These results show that charge-density learning enables more robust cross-size transfer than direct energy-force fitting and that mixed-size data design can substantially reduce the cost of defect prediction.  
+
+> Keywords: defect formation energy, charge density, machine learning, gallium nitride
+
+# 1 Introduction 
+
+Defects have a critical influence on the properties of semiconductor materials. Density-functional-theory (DFT) calculations provide a rigorous framework for determining defect formation energies, capture cross sections, transition levels, and related quantities[1–5]. In DFT calculations, however, isolated defects must be represented in supercells large enough to suppress image interactions[1, 5, 6]. The cost of solving the electronic structure then scales approximately as O(N 3) with system size[7], making high-accuracy defect calculations expensive and limiting the reach of conventional DFT. In recent years, advances in machine learning have provided a promising alternative. Graph-neural-network (GNN) representations of materials encode local atomic environments and have been used to predict energies, charge densities, and Hamiltonian matrix elements from structure[8–10]. Machine-learning interatomic potentials (MLIPs) can evaluate energies and forces for million-atom systems on a single GPU[11, 12]. Machine-learning charge densities (MLCDs)[13–15] and machine-learning Hamilto-nians (MLHs)[16, 17] further reduce the effective cost of electronic-structure prediction from O(N 3) to nearly O(N 1). These approaches are therefore promising candidates for accelerating defect calculations. Accurate prediction of defect behavior requires the model to learn the correct local atomic interactions near the defect. However, these interactions converge only in sufficiently large supercells[1], so many defect machine-learning models are trained on large-supercell datasets[18–21]. Furthermore, a supercell usually contains only one defect within a large bulk region, leading to a low defect information density. Therefore, 1arXiv:2608.07997v1 [cond-mat.mtrl-sci] 8 Aug 2026 Charge density ρ         
+
+> Structure R
+> Defect training sets
+> output Train
+> Charge density ρ’
+> Structure
+> R’
+> Input NSCF calculation
+> Energy E
+> Eigenvalue ε
+> Force F
+> Wavefunction ψ
+> (Small supercell)
+> (Large supercell)
+> Properties VN VGa NGa GaN …
+
+ABCDefect region Defect and bulk connection region Bulk-like region (a) (b) Fig. 1 (a) MLCD workflow. Charge-density data from defect supercells are used to train an MLCD model, which predicts charge densities from atomic structures; defect properties are then obtained by NSCF calculations. (b) Spatial partitioning of defect-affected regions inside a supercell. 
+
+training a model for a single defect typically demands hundreds to thousands of large supercells. For example, Linder¨ alv et al.[21] used 1341 288–384-atom structures to train an MLIP for the V Si VC defect in 4H-SiC, and Shimizu et al.[20] used 9100 GaN structures containing 32–128 atoms to train an MLIP for V N. Preparing such datasets can take weeks. Considering the balance among supercell size, cost, and accuracy, we propose that MLCD is a more suitable pathway for this cross-size transfer. First, the charge density is the key variable of DFT: within Kohn-Sham theory, it contains the complete information needed to determine the total energy[22, 23]. Learning it directly avoids the information loss that occurs when expensive Kohn-Sham calculations are reduced to low-dimensional global targets (i.e., total energy and forces) commonly used by MLIPs. Second, charge density is spatially resolved and interpretable. Local density patterns learned in small cells can be mapped directly to the same local environments in larger cells, provided that the datasets samples the relevant defect and bulk regions. This locality offers a practical criterion for designing more efficient training set. Here we use MLCD to optimize the tradeoff between formation-energy accuracy and datasets cost. The model is trained for four intrinsic defects in GaN: the nitrogen vacancy V N, the gallium vacancy V Ga ,gallium on a nitrogen site Ga N, and nitrogen on a gallium site N Ga . We partition the defect supercell into 3 spatial regions according to the local charge response and use this analysis to mix defect supercells of different sizes in the datasets. The resulting MLCD model exhibits a progressive cross-size learning behavior distinct from MLIP. With only 96 perturbed configurations spanning 16–96 atoms, it predicts formation energies in 360-atom supercells with mean errors below 0 .05 eV. At fixed accuracy, this mixed-size design reduces the computational cost by a factor of 6.2 relative to training with a single 96-atom supercell size. 
+
+# 2 Results 
+
+Figure 1(a) summarizes the formation-energy prediction workflow. The training set contains DFT struc-tures R and charge densities ρ for four small defect supercells in GaN, together with a limited number of bulk supercells. After training, the MLCD model takes a larger defect-supercell structure R′ as input and predicts its charge density ρ′. Electronic-structure quantities for R′, including the total energy E, forces 
+
+F , eigenvalues ε, and wave functions ψ, are then obtained from a non-self-consistent-field (NSCF) DFT calculation at fixed ρ′. The performance of this MLCD–NSCF force workflow in structure optimization is assessed in Supplementary Information. 
+
+## 2.1 Training with 96-atom defect supercells 
+
+We first evaluated MLCD using a training set built from 96-atom supercells. The β(96) model contains four intrinsic defects in GaN (V N, V Ga , Ga N, and N Ga ) and the corresponding perturbed bulk structures, with 360-atom defect supercells used as the common prediction target. Figure 2(a) compares charge-density slices in the YZ plane for 360-atom V N (top) and Ga N (bottom) supercells, with the X direction passing through the defect. The three columns show the self-consistent DFT charge density ρDFT , the MLCD prediction ρMLCD , and the relative difference ( ρDFT −ρMLCD )/ρ DFT . We define the charge-density error as 
+
+εmae =
+
+R |ρDFT (r) − ρMLCD (r)|dr
+
+R |ρDFT (r)|dr , (1) 2-0.8 -0.6 -0.4 -0.2 0.0 0.2         
+
+> Eform error (eV) VGa Ga NNGa Bulk (96) (240 config.) (16-32) (528 config.) VNTarget Accuracy 0120 240 360 480 600 720 0.0 0.1 0.2 0.3 Ave.  form error (eV)  (96) (16-32) Total number of config.
+
+VN VNGa N Ga N Ga NVN
+
+ρDFT (a) (b) (c) 
+
+ρMLCD (ρDFT -ρ MLCD )/ ρFig. 2 Benchmark results for the 96-atom-supercell training set. (a) Charge-density slices of 360-atom V N and Ga N defect supercells predicted by the β(96) model, compared with DFT. (b) Mean absolute formation-energy error ∆ Eform for four defect types as a function of the number of training structures. (c) Statistical distribution of formation-energy errors for bulk and four defects predicted by β(96) and α(16 − 32). 
+
+where ρDFT and ρMLCD denote the DFT and MLCD charge densities, respectively. The errors are 0 .013 % for V N and 0 .056 % for Ga N. The residuals are confined mainly to the nearest-neighbor region of the defect and remain small, demonstrating that MLCD can predict charge densities in large-supercell defect configurations. Total energies and related quantities were obtained from NSCF calculations using the predicted charge density. The formation energy Eform of a neutral defect is defined as[1, 3] 
+
+Eform = Edefect tot − Ebulk tot − X
+
+> i
+
+niμi. (2) Here, Edefect tot and Ebulk tot are the total energies of the defect and bulk supercells, μi is the chemical potential of the added or removed element, and ni is the corresponding change in atom number. In the comparison with DFT, both total-energy terms are obtained from MLCD-based NSCF calculations; the chemical-potential contribution is taken from DFT and cancels in the error ∆ Eform . Figure 2(b) shows the mean absolute formation-energy error ∆ Eform of the β(96) model relative to 360-atom DFT results. The lower axis gives the total number of training structures, and the upper axis gives the number per defect type, following Table 1. The gray region marks the target accuracy of 0.05 eV. The error decreases monotonically with training-set size. It exceeds 0.1 eV below 100 structures and reaches the target range only near 240 structures. Because the random sampling scheme for charge-density grid points introduces training randomness, we performed 12 independent runs with the same training set and hyperparameters. Figure 2(c) gives the resulting error distributions for the 240-structure β(96) training set. The bulk errors are centered near zero, showing that the model describes bulk environments accurately. Vacancy defects, V N and V Ga , also show relatively narrow distributions with small biases. In contrast, the substitutional defects Ga N and NGa exhibit broader error distributions, consistent with the charge-density errors in Fig. 2(a). Even when each defect type has the same number of structures in the training set, the prediction error still depends on the specific defect type because of different degrees of lattice distortion. The β(96) results establish the feasibility of MLCD for large-supercell formation energies, but the cost remains substantial: the target accuracy requires self-consistent DFT charge densities for at least 33.25 Å 5.62 Å 16 32 64 96 3.5 4.0 4.5 5.0 5.5 6.0 Natoms   
+
+> rR,A cut (Å)
+
+Ga N16 32 64 96 85% 90% 95% 100% 3.5 4.0 4.5 5.0 5.5 6.0 R,A Natoms  
+
+> rR,A cut (Å)
+
+VN(a) (b) VN Ga N0.01 0.1 110 VNVGa Ga NNGa                
+
+> Eform error (eV) Model (16) (32) (64) (96) -2.5 -2.0 -1.5 -1.0 -0.5 0.0 0.5
+> Eform error (eV) VGa Ga NNGa Bulk (16-96) (16-64) (16-32) VN36 76 116 156 196 236 0246810 0.00 0.05 0.10 0.15 0.20 0.25 Ave.  form error (eV) Number of config. per defect (16-96) Total number of config.
+> Natom of supercell Natom of supercell
+
+(c) (d) (f) (e) Fig. 3 Defect length scale and mixed-size training. (a) Differential charge densities of V N and Ga N relative to bulk in 360-atom supercells. (b) Structural similarity εR,A between smaller supercells and the 360-atom reference as a function of cutoff radius. (c) Absolute formation-energy errors for four defects predicted by single-size models β(16), β(32), β(64), and 
+
+β(96). (d) Heat map of mean absolute error for different supercell-size combinations. (e) Defect-resolved error distributions for γ(16–32), γ(16–64), and γ(16–96). (f) Convergence of the γ(16–96) formation-energy error with training-set size. 
+
+240 96-atom supercells. Smaller supercells (16–32 atoms) also contain one defect and use an analogous perturbative sampling of the potential-energy surface (PES), while being much cheaper to compute. Replacing 96-atom training structures with small-supercell data would therefore reduce the upfront cost. Thus, we next test this limit using only 16–32-atom defect supercells. 
+
+## 2.2 Training with 16–32-atom defect supercells 
+
+The α(16–32) model was trained only on 16–32-atom supercells. Figure 2(b) shows its mean absolute formation-energy error ∆ Eform for 360-atom targets as a function of training-set size. At small data volume, ∆ Eform decreases rapidly, as in the β(96) model. Above 240 structures, however, the error saturates at 0.1 eV, about twice the target accuracy. Even a 720-structure training set does not reach the target range. Since the β(96) model reaches this range with 240 structures, the limiting error in α(16–32) is not insufficient PES sampling but a systematic PES error caused by the small supercell size. Figure 2(c) shows the 528-structure error distribution. Relative to β(96) [Fig. 2(c)], the bulk error remains centered near zero, so the small-supercell data still describe bulk charge densities well. The errors for substitutional defects (Ga N and N Ga ) are larger than those for vacancies (V N and V Ga ), with individual NGa errors reaching 0.6 eV. The defect dependence suggests that the error is relevant to the spatial range of the defect-induced perturbation. Thus, even large amounts of small-supercell data leave non-negligible systematic errors for dilute large-supercell defects because the training structures contain strong defect-image interactions. Inspired by defect-correction methods[1, 5], even relatively small supercells can yield formation energies approximating those of large cells after correction; in that situation, the small cell provides a rough result, while more accurate correction requires larger cells. We therefore test whether adding medium-size supercells can act as cross-scale anchors while retaining the low cost of the 16–32-atom data. 
+
+## 2.3 Mixed-size supercell training 
+
+The defect-dependent degradation in Fig. 2(c) is closely related to the spatial extent of the defect local charge. Figure 3(a) shows DFT differential charge densities of V N and Ga N relative to bulk in 360-atom supercells. For V N, the charge-density response is confined mainly within a radius of about 3.25 ˚ A and reaches only the next-nearest neighbors, consistent with a localized defect. For Ga N, the response extends to about 5.62 ˚ A and covers roughly 100 atoms, indicating pronounced non-locality. This contrast explains 4why the prediction accuracy for V N remains acceptable even with training sets of 16 to 32 atoms, whereas Ga N is much more sensitive and yields poor predictions. To quantify how local defect structures vary with supercell size, we introduce the radial distribution function (RDF) Ri(r) and angular distribution function (ADF) Ai(θ): 
+
+Ri(r) = X
+
+> j
+
+δ(r − rij ), Ai(θ) = X
+
+> j,k
+
+δ(θ − θjik ). (3) Here, i is the atomic index at the defect position, j and k are the indices of neighboring atoms within the cutoff radius rR,A  
+
+> cut
+
+, and θjik is the angle with atom i as the vertex and rij and rik as the two sides: 
+
+θjik = arccos 
+
+ (rj − ri) · (rk − ri)
+
+|rj − ri| | rk − ri|
+
+
+
+. (4) On this basis, we define the radial and angular structural similarities as 
+
+SR =
+
+R Rref (r) · R(r) dr 
+
+R Rref (r) dr R R(r) dr ,SA =
+
+R Aref (θ) · A(θ) dθ 
+
+R Aref (θ) dθ R A(θ) dθ ,
+
+(5) and take their equal-weight average to obtain the total structural similarity, 
+
+εR,A = 12 (SR + SA). (6) We take the 360-atom structure as the reference, where εR,A = 1 denotes identical structures. Figure 3(b) shows εR,A for smaller supercells at different cutoff radii rR,A  
+
+> cut
+
+. For V N, the 16-atom supercell (¯ a16 /2 ≈ 2.9˚A) gives εR,A ≈ 90%, indicating that defect-image interactions are still strong. In 32-atom supercells (¯ a32 /2 ≈ 3.42 ˚ A) and larger, εR,A exceeds 98%, indicating that the local V N structure is nearly converged. For Ga N, 16-, 32-, and 64-atom supercells all fail to reproduce the local structure in the 360-atom cell. A 96-atom supercell (¯ a96 /2 ≈ 5.23 ˚ A) is needed to reach a similarity comparable to that of V N in a 32-atom cell. This leads to a key criterion: half of the training-cell lattice length, ¯ a/ 2, must be comparable to or larger than the defect influence radius. Otherwise, periodic defect-image interactions distort the local structures relative to the true large-cell configurations. Formation-energy errors confirm this length-scale picture [Fig. 3(c)]. For the single-size models β(16), 
+
+β(32), β(64), and β(96), errors decrease as the training supercell size increases, but the convergence rate is defect dependent. The V N error is already below 0.1 eV for β(32), consistent with its short influence radius. The V Ga error drops substantially for β(64), whereas Ga N and N Ga approach 0.1 eV only for β(96), consistent with the larger spatial response of Ga N. Thus, accurate large-supercell prediction therefore requires training cells that cover the defect influence radius. Using only large training cells satisfies this requirement but is expensive (Fig. 2). A more efficient strategy is to mix supercell sizes: a small number of larger cells supply defect-local structure information, while smaller cells provide configurational diversity for bulk-like and transition regions. We tested this idea by fixing the total number of structures and varying the included supercell sizes [Fig. 3(d)]. Each grid point ( i, j ) gives the mean absolute formation-energy error when the training set contains all sizes from Natom = i to Natom = j. Each combination contains about 80 perturbed defect structures and 32 perturbed bulk structures from 16–32-atom supercells, for a total of 112 structures. The diagonal entries are single-size models: the error decreases from 0.32 eV for the 16-atom model to 0.06 eV for the 96-atom model, consistent with supercell-size convergence of defect interactions. Moving right along a row, larger supercells are added while the smallest size is fixed, and the error decreases sharply. Comparing entries in a column shows the complementary role of small cells. For example, with a largest size of 32 atoms, {16 , 24 , 32 } gives 0.15 eV, below both {24 , 32 } (0.24 eV) and the single 32-atom model (0.35 eV). Small supercells cannot by themselves support accurate large-supercell prediction, but they supply nonredundant information in mixed training. The error distributions in Fig. 3(e) further support this conclusion. As the maximum training size increases from 32 to 96 atoms, all four error distributions narrow, and γ(16–96) keeps the MAE of every 5defect within 0.1 eV. Figure 3(f) shows that γ(16–96) reaches ∆ Eform < 0.05 eV with 96 structures, or about three perturbed structures per defect and per supercell size. By contrast, β(96) requires about 240 structures to reach the same target. The mixed-size model therefore reduces both the number of configurations and the average DFT cost per configuration. 
+
+## 2.4 Electronic-structure prediction γ(16−32) γ(16−96) DFT   
+
+> γ(16−32) γ(16−96) DFT Ga N(ρ↑−ρ↓) (a. u.)
+
+(a) (b) (c) (d) 
+
+> CB VB -0 .50.00.51.01.5
+> 2. 0Eigenval ue (eV ) CB VB CB VB LDFT MLCD Spin-Down Ga NL-1 01
+> 23
+> 4DFT MLCD Eigenval ue (eV )
+> VNL-1 01
+> 23
+> 4Eigenval ue (eV )
+> Ga NSpin-Up
+
+EO   
+
+> Destination Supercell size 16 24 32 96 360 Property 0.00.10.2
+> 0.3
+> 0.40.5(16-32)
+> MLCD (EAC )
+> MLIP (Allegro )
+> MLCD  Eform error (eV )
+> (16-64 )(16-96)
+> 0.00.3
+> 0.60.9
+> 1.2
+> MLIP  Eform error (eV )
+> (16-32) (16-96)(96)240 config .
+> 528 config .96 config .
+> 1x 4.3 x6.2 xTime of preparation
+
+(e) (f) (g) 
+
+Fig. 4 (a) Band structure of a 360-atom V N defect predicted by γ(16–96). (b) Spin-up and spin-down band structures of a 360-atom Ga N defect predicted by γ(16–96). (c) Spin-difference charge density ( ρ↑ − ρ↓) for the 360-atom Ga N supercell. (d) Positions and occupations of defect levels in the band gap corresponding to (c). (e) Intermediate-size supercells act as anchors that reduce extrapolation uncertainty from small supercells to the 360-atom target. (f) Effect of the number of supercell-size types on MLCD and MLIP formation-energy errors. (g) Cost under three different dataset strategies. 
+
+MLCD-predicted charge densities can also recover electronic-structure properties through NSCF cal-culations. Figure 4(a) compares the γ(16–96) band structure of a 360-atom V N supercell along Γ– L with DFT. Solid and dotted lines denote DFT and MLCD-based results, respectively. The valence-band max-imum (VBM) and conduction-band minimum (CBM) are both at Γ, and the VBM is set to zero. Both DFT and MLCD give a band gap of 1.72 eV. The triply degenerate V N defect level at Γ lies 2.58 eV above the VBM in DFT and 2.59 eV in MLCD, an error of 0.01 eV. Figure 4(b) shows the spin-resolved Ga N
+
+bands. This defect is spin polarized: the lowest spin-up defect level is 1.18 eV above the VBM in DFT and 1.01 eV in MLCD, while the lowest spin-down level is 1.42 eV in DFT and 1.35 eV in MLCD. The single-particle energy error near the VBM is 7 × 10 −5 eV for bulk, 0.012 eV on average for V N defect levels, and 0.085 eV for Ga N defect levels. These results show that MLCD-predicted densities retain sufficient information for accurate large-supercell electronic-structure calculations. Accurate spin polarization in Ga N requires spin-split structures in the training set. Figure 4(c) com-pares the spin-difference density ( ρ↑ − ρ↓) in the 360-atom Ga N supercell. The α(16–32) model predicts nearly zero spin density, whereas γ(16–96) reproduces the triangular defect-centered spin distribution from DFT. The corresponding gap levels in Fig. 4(d) show the same trend: α(16–32) gives degenerate spin channels, while γ(16–96) reproduces the DFT spin splitting and level positions. This difference originates from the training data. In supercells with 32 atoms or fewer, strong defect-image interactions suppress spin splitting in relaxed DFT Ga N structures, so α(16–32) contains no spin-polarization information. In 96-atom supercells, the image interaction is sufficiently weakened and the relaxed structure exhibits the correct spin splitting. Including these configurations allows γ(16–96) to transfer the spin-polarized defect physics to the 360-atom cell. 63 Discussion 
+
+## 3.1 Mixed-size training as a continuation problem 
+
+The formation-energy and electronic-structure results show that mixed-size supercells improve MLCD transfer to large cells (Figs. 3 and Figs. 4(a-d)). This behavior can be interpreted as a continuation problem. As sketched in Fig. 4(e), a property E can be viewed as an unknown function of supercell size Natom . The function varies rapidly for small cells and approaches a converged value as the supercell grows. Training supercell sizes provide sampled points on this function, whereas the 360-atom target lies outside the sampled region. If only 16–32-atom cells are used, all samples lie in the rapidly varying regime and the continuation path to the target is weakly constrained. Intermediate-size cells, such as 64- and 96-atom cells, provide anchors closer to the converged regime. They shorten the extrapolation distance and constrain the local slope of the size-dependent function, reducing the uncertainty of the continuation. This picture is consistent with the heat map in Fig. 3(d): diagonal entries, which sample only one size, are poorly constrained, while adding larger sizes along each row progressively lowers the error. The reduction from 0.15 eV for {16 , 24 , 32 } to 0.05 eV for {16 , . . . , 96 } illustrates the effect of a small number of intermediate anchors. This small-data extrapolation strategy is effective only for MLCD in our tests. We trained an Allegro MLIP on the same γ datasets used in Fig. 4(e) and evaluated 360-atom formation energies [Fig. 4(f)]. The average MLIP errors remain near 1.0 eV even with the cross-size supercell dataset, far above the MLCD errors. The difference reflects the output representation. MLCD predicts a real-space charge density, so a density pattern learned in a small cell can be transferred to a matching local environment in a large cell. Training data from different sizes therefore impose compatible local constraints. MLIPs instead fit total energies and forces, which are global or force-derived quantities. Data from different supercell sizes do not provide the same local correspondence, limiting cross-scale transfer. Mixed-size training also weakens the usual monotonic dependence of accuracy on the number of defect supercell datasets. At the 0.05 eV target accuracy, γ(16–96) uses only 96 structures, compared with 240 structures for the pure 96-atom training set [Fig. 4(g)]. The structure count is reduced to 40% of the original value, and the total computational cost decreases by a factor of 6.2. Thus, this mixed-size strategy introduces a novel data augmentation paradigm and offers a highly cost-effective pathway. 
+
+# 4 Conclusion 
+
+We have developed a mixed-size training strategy for MLCD-based large-supercell defect calculations. For four intrinsic defects in GaN, a model trained only on 96-atom supercells reaches the 0.05 eV target accuracy but requires about 240 DFT training structures. A model trained only on 16–32-atom super-cells remains systematically biased: even 720 structures leave the formation-energy error above 0.1 eV. Differential charge-density and structural-similarity analyses show that this limitation is set by the defect influence radius. Half of the training-cell lattice length must be comparable to or larger than this radius; otherwise, periodic image interactions distort the local defect environments relative to the dilute large-supercell limit. Guided by this criterion, the mixed 16–96-atom training set reaches the target accuracy with only 96 structures, reducing the dataset size by about two thirds relative to the single 96-atom strat-egy. The same MLCD-predicted charge densities also recover band structures and defect levels through NSCF calculations. Interpreted as a continuation problem, mixed-size training supplies intermediate anchors along the supercell-size direction and constrains cross-size extrapolation. This mechanism relies on the real-space charge density, which carries transferable local electronic information. Direct energy-force MLIPs do not provide the same local correspondence and perform poorly on the same small mixed-size datasets. These results show that MLCD combined with mixed-size training offers a data-efficient route for accurate first-principles defect prediction in large supercells. 
+
+# 5 Methods 
+
+## 5.1 Charge-density model 
+
+We used the EAC-Net package[15], which implements a deep-learning framework based on an equivariant atom-probe representation. EAC-Net couples atomic and grid information to use charge-density data efficiently. The training data consist of atomic structures R and the corresponding spin-up and spin-down charge densities, ρ↑ and ρ↓. Local environments were constructed for both atomic centers and probe 7points, with atom–atom and atom–probe cutoff radii set to 6.0 ˚ A. For each training sample, probe points were randomly selected from the same structure. The learning rate decayed exponentially from 3 × 10 −3
+
+to 1 × 10 −5.The EAC architecture preserves rotational equivariance explicitly in a spherical-harmonic basis, with the angular-momentum expansion truncated at lmax = 3. Atomic-environment features were extracted with four atomic equivariant convolution layers. The number of basis functions was set to 8, and each layer used 36 feature channels. Atomic invariant features, edge-weight functions, and probe-invariant mappings were implemented with multilayer fully connected neural networks with 128 hidden neurons. The charge-density regression head used two fully connected layers to map the fused equivariant features to a scalar charge density. 
+
+## 5.2 Training set generation strategy 
+
+Because GNN descriptors act locally within a cutoff radius, transferability to large supercells improves the more closely the target defect configurations match the training data. Based on this assumption, and considering that a large defect supercell contains both defect-like and bulk-like environments, we partition it into three regions [Fig. 1(b)]. Region A is the defect region, where the defect creates localized electronic and structural changes. Region C is the bulk-like region, far from the defect and only weakly perturbed. Region B connects A and C and covers the transition from defect-perturbed configurations to bulk configurations. Accurate large-supercell prediction requires the training set to sample all three regions. To sample relaxation-induced distortions in regions A and B, we added perturbed defect and bulk supercells to the training set. All atoms were displaced by random vectors ∆ Rjα , where j indexes atoms and α indexes Cartesian directions. Within a given supercell, all atoms were assigned the same displacement magnitude to control the perturbation amplitude. The displacement was decomposed as ∆Rj = Rdisp · ˆe(θ, ϕ ), with fixed Rdisp and random angular direction ( θ, ϕ ) for each atom. Thus, each atom was moved from its equilibrium position R0 to a point on a sphere of radius Rdisp centered at R0.The supercells in the training set cover multiple perturbation amplitudes, with Rdisp linearly distributed from 0 ˚ A to 0 .5 ˚ A. Table 1 summarizes the training set. The Greek letter in each model name denotes a data-preparation strategy. “Defect supercell Natom ” gives the supercell sizes included in the training set; for example, 
+
+{16 , 24 , 32 } denotes Natom = 16, 24, and 32. “Configs. per Natom per defect” gives the number of perturbed structures for each defect and each supercell size. For γ(16–32), for instance, the training set contains four defect types and three supercell sizes. The Natom = 16 V N subset contains three perturbed structures with Rdisp = 0 ˚ A, 0 .25 ˚ A, and 0 .50 ˚ A. Bulk supercells were perturbed by the same protocol, and “Total configs. number” denotes the full training set size. 
+
+## 5.3 DFT parameters 
+
+DFT data for MLCD training were generated with VASP[24, 25]. The exchange-correlation functional was the Perdew-Burke-Ernzerhof (PBE) [26], and valence electrons were treated with the projector augmented-wave (PAW) method[27]. The plane-wave cutoff energy was 400 eV. We first optimized the lattice constants of the GaN primitive cell. For bulk supercells, the lattice constants were fixed and self-consistent electronic calculations were performed to obtain charge densities, with an electronic energy convergence threshold of 10 −5 eV. For defect supercells, the lattice constants were allowed to relax, and the force convergence criterion was 0.01 eV/˚ A. For Natom = 16, 24, 32, and 64, the k-point density was kept at a × Nk ≈ 30 − 40 ˚ A, where a is the lattice constant and Nk is the number of k points. We used a 2 × 2 × 2 grid for Natom = 96 and a single Γ point for the 360-atom prediction supercell. All grids were Γ centered. NSCF calculations based on MLCD-predicted charge densities used the same computational settings as the DFT training calculations. 
+
+Data availability. The data that support the findings of this study are available from the corresponding authors upon reasonable request. 
+
+Code availability. The EAC-Net package is available at https://github.com/qin2xue3jian4/EAC-Net. 
+
+Supplementary information. The online version contains supplementary information. 8Acknowledgements. This work was supported by National Key Research and Development Program of China (2022YFA1402904), National Natural Science Foundation of China (12334005, 12188101 and 12404089), Science and Technology Commission of Shanghai Municipality (24JD1400600), and Project of MOE Innovation Platform. 
+
+# Declarations 
+
+• Author contribution : J.Z. performed the calculations, analyzed the data, and drafted the manuscript. M.H. and S.C. conceived and supervised the project. All authors reviewed and approved the manuscript. All authors contributed to writing the manuscript. 
+
+• Competing interests : The authors declare no competing interests. 
+
+# References 
+
+[1] Freysoldt, C. et al. First-principles calculations for point defects in solids. Rev. Mod. Phys. 86 ,253–305 (2014). URL https://link.aps.org/doi/10.1103/RevModPhys.86.253. [2] Alkauskas, A., McCluskey, M. D. & Van de Walle, C. G. Tutorial: defects in semiconductors— combining experiment and theory. J. Appl. Phys. 119 , 181101 (2016). URL https://doi.org/10. 1063/1.4948245. [3] Wei, S.-H. Overcoming the doping bottleneck in semiconductors. Comput. Mater. Sci. 30 , 337–348 (2004). URL https://www.sciencedirect.com/science/article/pii/S092702560400117X. [4] Wei, S.-H. & Zhang, S. B. Chemical trends of defect formation and doping limit in II-VI semicon-ductors: the case of CdTe. Phys. Rev. B 66 , 155211 (2002). URL https://link.aps.org/doi/10.1103/ PhysRevB.66.155211. [5] Van de Walle, C. G. & Neugebauer, J. First-principles calculations for defects and impurities: applications to III-nitrides. J. Appl. Phys. 95 , 3851–3879 (2004). URL https://doi.org/10.1063/1. 1682673. [6] Freysoldt, C., Neugebauer, J. & Van de Walle, C. G. Fully ab initio finite-size corrections for charged-defect supercell calculations. Phys. Rev. Lett. 102 , 016402 (2009). URL https://link.aps.org/doi/ 10.1103/PhysRevLett.102.016402. [7] Kresse, G. & Furthm¨ uller, J. Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set. Phys. Rev. B 54 , 11169–11186 (1996). URL https://link.aps.org/doi/10. 1103/PhysRevB.54.11169. [8] Chen, C. & Ong, S. P. A universal graph deep learning interatomic potential for the periodic table. 
+
+Nat. Comput. Sci. 2, 718–728 (2022). URL https://doi.org/10.1038/s43588-022-00349-3. [9] Deng, B. et al. CHGNet as a pretrained universal neural network potential for charge-informed atomistic modelling. Nat. Mach. Intell. 5, 1031–1041 (2023). URL https://doi.org/10.1038/ s42256-023-00716-3. [10] Mannodi-Kanakkithodi, A., Huang, M., Gorai, P. & Kavanagh, S. R. Accelerating point-defect simulations using data-driven and machine learning approaches. MRS Bull. 51 , 600–614 (2026). URL https://doi.org/10.1557/s43577-026-01103-0. [11] Batzner, S. et al. E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials. Nat. Commun. 13 , 2453 (2022). URL https://doi.org/10.1038/s41467-022-29939-5. [12] Batatia, I., Kov´ acs, D. P., Simm, G. N. C., Ortner, C. & Cs´ anyi, G. MACE: higher order equivariant message passing neural networks for fast and accurate force fields (2023). URL https://arxiv.org/ abs/2206.07697. arXiv:2206.07697. 9[13] Fabrizio, A., Grisafi, A., Meyer, B., Ceriotti, M. & Corminboeuf, C. Electron density learning of non-covalent systems. Chem. Sci. 10 , 9424–9432 (2019). URL https://doi.org/10.1039/c9sc02696g. [14] Koker, T., Quigley, K., Taw, E., Tibbetts, K. & Li, L. Higher-order equivariant neural networks for charge density prediction in materials. npj Comput. Mater. 10 , 161 (2024). URL https://doi.org/ 10.1038/s41524-024-01343-1. [15] Qin, X., Lv, T. & Zhong, Z. EAC-Net: predicting real-space charge density via equivariant atomic contributions. J. Chem. Theory Comput. 22 , 4813–4821 (2026). URL https://doi.org/10.1021/acs. jctc.6c00283. [16] Li, H. et al. Deep-learning density functional theory Hamiltonian for efficient ab initio electronic-structure calculation. Nat. Comput. Sci. 2, 367–377 (2022). URL https://doi.org/10.1038/ s43588-022-00265-6. [17] Zhong, Y., Yu, H., Su, M., Gong, X. & Xiang, H. Transferable equivariant graph neural networks for the Hamiltonians of molecules and solids. npj Comput. Mater. 9, 182 (2023). URL https: //doi.org/10.1038/s41524-023-01130-4. [18] Kiyohara, S., Shibui, C., Bae, S. & Kumagai, Y. Machine-learning prediction of charged-defect formation energies from crystal structures. Phys. Rev. Lett. 135 , 246101 (2025). URL https://link. aps.org/doi/10.1103/h66h-y5k6. [19] Dutta, S. et al. Characterizing defect dynamics in silicon carbide using symmetry-adapted collective variables and machine learning interatomic potentials. J. Chem. Theory Comput. 22 , 4728–4741 (2026). URL https://doi.org/10.1021/acs.jctc.6c00063. [20] Shimizu, K. et al. Using neural network potentials to study defect formation and phonon properties of nitrogen vacancies with multiple charge states in GaN. Phys. Rev. B 106 , 054108 (2022). URL https://link.aps.org/doi/10.1103/PhysRevB.106.054108. [21] Linder¨ alv, C., ¨Osterbacka, N., Wiktor, J. & Erhart, P. Optical line shapes of color centers in solids from classical autocorrelation functions. npj Comput. Mater. 11 , 101 (2025). URL https: //doi.org/10.1038/s41524-025-01565-x. [22] Hohenberg, P. & Kohn, W. Inhomogeneous electron gas. Phys. Rev. 136 , B864–B871 (1964). URL https://link.aps.org/doi/10.1103/PhysRev.136.B864. [23] Kohn, W. & Sham, L. J. Self-consistent equations including exchange and correlation effects. Phys. Rev. 140 , A1133–A1138 (1965). URL https://link.aps.org/doi/10.1103/PhysRev.140.A1133. [24] Kresse, G. & Furthm¨ uller, J. Efficiency of ab-initio total energy calculations for metals and semi-conductors using a plane-wave basis set. Comput. Mater. Sci. 6, 15–50 (1996). URL https: //www.sciencedirect.com/science/article/pii/0927025696000080. [25] Kresse, G. & Joubert, D. From ultrasoft pseudopotentials to the projector augmented-wave method. 
+
+Phys. Rev. B 59 , 1758–1775 (1999). URL https://link.aps.org/doi/10.1103/PhysRevB.59.1758. [26] Perdew, J. P., Burke, K. & Ernzerhof, M. Generalized gradient approximation made simple. Phys. Rev. Lett. 77 , 3865–3868 (1996). URL https://link.aps.org/doi/10.1103/PhysRevLett.77.3865. [27] Bl¨ ochl, P. E. Projector augmented-wave method. Phys. Rev. B 50 , 17953–17979 (1994). URL https://link.aps.org/doi/10.1103/PhysRevB.50.17953. 10 Table 1  Configuration datasets used for MLCD model training. 
+
+> Model name Defect supercell
+> Natom
+> Configs. per
+> Natom  per defect Total defect configs. number Bulk supercell
+> Natom
+> Total bulk configs. number Total configs. number Corresponding Fig.
+> β(96)  {96 } 30  120  {96 } 120  240  Fig. 2(c), Fig. 3(c)
+> α(16–32)  {16 , 24 , 32 } 22  264  {16 , 24 , 32 } 264  528  Fig. 2(c)
+> β(16)  {16 } 30  120  {16 } 120  240  Fig. 3(c)
+> β(32)  {32 } 30  120  {32 } 120  240  Fig. 3(c)
+> β(64)  {64 } 30  120  {64 } 120  240  Fig. 3(c)
+> γ(16–32)  {16 , 24 , 32 } 3 36  {16 , 24 , 32 } 36  72  Fig. 3(e)
+> γ(16–64)  {16 , 24 , 32 , 64 } 3 48  {16 , 24 , 32 } 36  84  Fig. 3(e)
+> γ(16–96)  {16 , 24 , 32 , 64 , 96 } 3 60  {16 , 24 , 32 } 36  96  Fig. 3(e)
+
+11

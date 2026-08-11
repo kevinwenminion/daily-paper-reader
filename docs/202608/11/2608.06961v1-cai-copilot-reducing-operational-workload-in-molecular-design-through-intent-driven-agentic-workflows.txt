@@ -1,0 +1,413 @@
+Title: CAi Copilot: Reducing Operational Workload in Molecular Design through Intent-Driven Agentic Workflows
+
+URL Source: https://arxiv.org/pdf/2608.06961v1
+
+Published Time: Mon, 10 Aug 2026 00:39:01 GMT
+
+Number of Pages: 20
+
+Markdown Content:
+# CAi Copilot: Reducing Operational Workload in Molecular Design through Intent-Driven Agentic Workflows 
+
+Zhu Wang 1, Jiangyu Chen 2, Yingjun Shang 1, Yuhui Yao 1, Laiao Lu 2, Tianfan Fu 1,2 , and Na Zou 11Shanghai Artificial Intelligence Laboratory, Shanghai, China 
+
+> 2
+
+Nanjing University, Nanjing, China 
+
+Abstract 
+
+Early-stage molecular design is an iterative process, not just a task of generating molecules. Researchers turn broad goals into design strategies, refine candidates, assess many properties, and gather evidence before synthesis and tests. AI methods can generate molecules, optimize several goals, predict properties, dock compounds, and account for synthesis. Yet these functions are spread across specialized tools. Experts must still coordinate each step, judge interim results, and integrate evidence. The central challenge is thus to turn research intent into adaptive, traceable runs grounded in scientific tools. We cast this challenge as intent-to-evidence molecular design workflow execution and present CAi Copilot, an expert-oriented agent with three linked layers. The Research Interface Layer turns intent into an executable plan. The Agent Reasoning Layer uses interim results to guide each run. The Execution Substrate supplies molecular tools, metrics, reusable utilities, and backend services. Across 45 tasks, CAi achieves the strongest overall performance, with an outcome score of 84.59, exceeding the next-best result by 18.07 points. Additional benchmarks test how CAi coordinates generation, screening, and multi-criteria evaluation, while exposing limits in long-horizon execution. These results show that CAi turns broad molecular-design intent into transparent, traceable workflows that connect interim decisions to candidate-level evidence. 
+
+Code: https://github.com/datamllab/CAi_copilot 
+
+## 1 Introduction 
+
+A molecular candidate rarely emerges from one generation step. Early-stage design instead in-volves repeated proposal, assessment, filtering, ranking, and refinement. Researchers must explore vast chemical space while balancing activity, selectivity, ease of synthesis, safety, and drug-like properties [25, 26]. These goals often begin as broad research intent rather than a fully specified task. A request may combine a scaffold or seed molecule with a target, property limits, ranking rules, and external files. Progress toward synthesis and biological tests thus requires more than candidate generation. Researchers also need an executable strategy and enough evidence to compare candidates. AI models now support many steps in this process. Molecular generators explore scaffolds and optimize structures, property models estimate key attributes, and docking methods assess target fit [6, 20, 27]. Molecular language models also link chemical structures to text instructions and domain knowledge [7, 8, 29, 30]. Yet each model usually addresses a bounded task with fixed inputs 1arXiv:2608.06961v1 [cs.AI] 7 Aug 2026 and outputs. Given a broad request, researchers must still select the right operations, prepare inputs, connect diverse tools, review results, and revise the workflow after a failed step or a weak candidate set. Strong individual models, therefore, do not solve the workflow-level problem. Current molecular design methods provide powerful capabilities for individual tasks, yet lack a systematic framework that translates high-level research intent into coordinated execution and traceable, candidate-level evidence to support experts. LLM-based scientific agents offer a basis for such coordination. Existing systems connect language reasoning with scientific tools, databases, and code execution [2, 3, 11, 12, 17]. Drug-discovery agents also cover therapeutic reasoning, target analysis, and multi-stage design workflows [1, 10, 19]. Yet early-stage molecular design poses a distinct execution problem. Design intent may contain incomplete or context-sensitive constraints. Candidate development spans many models, file formats, metrics, and compute backends. Interim results may also alter later steps. Final advice must rest on evidence that experts can inspect. Experts remain responsible for scientific screening and experimental choices. A capable molecular design agent should enable end-to-end translation from research intent to coordinated execution and candidate-level evidence, extending beyond isolated tool use and molecule generation. We formulate this setting as an intent-to-evidence molecular design workflow execution and present CAi Copilot. CAi turns broad design intent into an executable trajectory with candidate molecules, assessment records, rankings, and execution history. Three linked layers support this process. The Research Interface Layer grounds the molecular context and maps intent to a workflow plan. The Agent Reasoning Layer guides each run and updates the plan from interim results. The Execution Substrate supplies molecular tools, metrics, reusable utilities, domain skills, and backend services. This separation makes intent grounding, workflow control, and scientific execution explicit. Researchers can inspect the workflow, while computational tools handle repeated generation, assessment, and evidence assembly. The main contributions of this paper are summarized as follows: • We formulate early-stage molecular design as an intent-to-evidence workflow execution problem. This view shifts the output from an isolated molecule set to a traceable workflow record with candidate-level evidence. • We present CAi Copilot, a three-layer agent for molecular design. CAi links intent grounding, result-driven control, code execution, and diverse tools. The framework unifies molecular generation, validation, assessment, filtering, ranking, and evidence reports. • We evaluate CAi on 45 design tasks, further benchmarks, and 15 target-specific cases. The study covers agent execution and molecular outcomes. The results show strong intent-to-evidence performance and identify long-horizon execution as a remaining limit. 
+
+## 2 Problem Formulation 
+
+We first distinguish molecular generation from molecular design workflow execution. Molecular generation maps a given condition directly to candidate structures. Workflow execution starts with open-ended research intent. Such execution must organize molecular operations, respond to interim results, and gather evidence for expert review. We formulate the task as 
+
+q = ( I, C, Γ, T ), (1) where I is the design intent, C is the molecular context, Γ holds the design constraints and evidence needs, and T is the available molecular tool library. 2Given q, an agent maintains a workflow plan Pt and a history ht of prior action–observation pairs. At step t, the agent selects and runs a molecular operation, then updates the remaining plan: 
+
+at ∼ π(· | ht, P t),ot+1 = Exec( at; T ),Pt+1 = Update( Pt, o t+1 ).
+
+(2) This update lets invalid molecular outputs, failed operations, or missing inputs alter later steps. The resulting action–observation sequence defines the execution trajectory τ .The output joins the trajectory with candidate-level evidence and explicit limits: 
+
+E = {(mi, zi, r i, ρ i)}Ni=1 , Y = ( E, τ, L). (3) For candidate mi, zi stores computed evidence, ri gives the candidate rank, and ρi links each reported result to the supporting execution record. The set L stores missing evidence and failed operations. Let SI , Sτ , and SE denote intent satisfaction, trajectory validity, and evidence grounding. A successful run must satisfy all three conditions. In our evaluation, these conditions concern intent understanding and decomposition, workflow execution and operation coverage, and output validity, evidence consistency, and objective satisfaction. These aspects provide graded evidence of overall performance, whereas strict success requires complete task-level output matching. 
+
+## 3 Agent Architecture 
+
+CAi Copilot bridges broad design intent and executable molecular computation. A research request may omit tool choices and execution details, while molecular tests reveal candidate quality only during the workflow. A fixed sequence cannot respond to invalid structures, unmet criteria, missing inputs, or failed operations. CAi therefore separates intent grounding, workflow control, and molecular execution. At the same time, CAi links each decision to a tool operation and candidate-level evidence. Figure 1 shows how the three layers coordinate the workflow. The Research Interface Layer builds a plan with explicit dependencies from the design request. The Agent Reasoning Layer and Execution Substrate then form a feedback loop that links molecular decisions, tool runs, and accumulated evidence. When the available tools permit, the reasoning layer may regenerate, refine, filter, or rerank candidates. Execution continues until the workflow obtains the requested evidence or records an unmet need. The three layers thus link workflow planning to iterative molecular design instead of acting as separate agents or a fixed pipeline. 
+
+3.1 Research Interface Layer 
+
+Given intent I, molecular context C, and requirements Γ, the Research Interface Layer identifies the design goal, available inputs, required tests, ranking rules, and missing inputs. The layer then builds an initial plan 
+
+P0 = Plan( I, C, Γ) = ( V0, D0), (4) where V0 contains executable steps and D0 records the links between them. Each step has the form 
+
+vj = ( gj , u j , x j , p j , e j ), (5) where gj is the local goal, uj is the molecular operation, xj holds the required inputs, pj gives the input needs, and ej defines the expected evidence or completion signal. 3s    
+
+> Design an inhibitor
+> for protein XXXX
+> ……
+
+Research  Interface  Layer  Agent Reasoning Layer  
+
+> Evidence -ground Report
+
+Targets 
+
+Tools 
+
+Metrics  
+
+> Molecule Num
+
+Execution Substrate                        
+
+> Code utilities
+> Design tools Memories
+> Expert Skills
+> Agent Controller
+> Think Act
+> Observe Execution
+> Grounding
+> Synthesize
+> Intent & Plan
+> Dispatch
+> Heterogeneous Tools
+> Analyze
+> Execution Logs
+> Decision Support
+> Final Ranked Candidates (up to 20):
+> Candidate | Affinity | Tox | SC | Rank
+> Mol -01 | high | low | 2.8| 1
+> Mol -02 | medium | low | 3.1| 2
+> Mol -03 | high | med | 3.5| 3
+> ......
+> Key Findings:
+> ......
+> Next directions:
+> optimize scaffold, reduce toxicity
+
+Figure 1: Overview of CAi Copilot. The three coordinated layers translate research intent into an executable plan, revise the workflow from molecular observations, and construct candidate-level evidence for expert review. The plan records links between steps, input needs, and expected evidence rather than only a tool list. A target-aware request may call for input checks, candidate generation, molecular filtering, target tests, and ranking by several metrics. Input checks expose unavailable operations before execution, while expected evidence links each operation to the design goal. During execution, 
+
+uj maps to a suitable tool contract, pj is checked against the input needs in that contract, and 
+
+ej contributes to the unmet evidence needs. The agent can revise the initial plan because later molecular results may change step settings, links, or unfinished work. 
+
+3.2 Agent Reasoning Layer 
+
+The Agent Reasoning Layer controls the closed-loop trajectory. At step t, the next operation depends on the current plan, prior steps, and candidate evidence gathered so far: 
+
+at ∼ π(· | ht, P t, Et), ot+1 = Exec( at; T ). (6) The resulting observation updates the evidence state and the remaining evidence gap: 
+
+Et+1 = Et ⊕ Extract( ot+1 , a t),
+
+∆t+1 = Req(Γ) \ Cov( Et+1 ),Pt+1 = Update( Pt, o t+1 , ∆t+1 ).
+
+(7) Here, Et is the evidence gathered through step t. Execution starts from E0 = ∅ unless C already provides evidence for prior candidates. The operator ⊕ merges new molecular artifacts, computed values, warnings, and failures into the candidate records. Req(Γ) and Cov( Et+1 ) denote the required and available evidence. Their difference ∆ t+1 is the remaining evidence gap. This evidence-based control links generation to repeated optimization and screening. Invalid or duplicate candidates may trigger cleaning or regeneration, whereas constraint violations may trigger filtering or refinement. Partial results remain available. Missing inputs can defer a test or prompt an explicit request. Execution thus dynamically responds to intermediate molecular outcomes rather than following a predetermined, fixed tool sequence. 43.3 Execution Substrate 
+
+The Execution Substrate grounds agent decisions in molecular computation. The reasoning layer selects an operation, and the substrate determines whether the operation can run and how to return the result. Each tool Tk ∈ T follows an execution contract 
+
+κk = ( Xk, Yk, Pre k, Exec k), (8) where Xk and Yk define accepted inputs and outputs, Pre k lists prerequisites, and Exec k invokes the backend. The contract explicitly exposes input readiness and downstream tool failures to the reasoning layer. The substrate provides tools for molecular generation and optimization, evaluation metrics, reusable utilities, and domain workflow skills. Isolated backends support diverse runtime settings, checkpoints, hardware, file formats, and long jobs. Each tool call returns a standard observation with the execution status, molecular artifacts, computed values, warnings, and errors. This boundary keeps reasoning flexible, molecular operations transparent and inspectable, and complete runs reproducible. 
+
+3.4 Cross-Layer Evidence and Decision Support 
+
+Evidence is built across all three layers rather than in a separate component. Each observation updates the candidate record ( mi, zi, r i, ρ i), where ρi links a reported result to the supporting action and observation. Candidate records expose tool-derived values for the metrics in Γ. Filtering and ranking apply the requested thresholds, metric directions, and ranking rules to assess how well each option meets the design intent. Failed operations and unavailable evidence remain in L. The same records guide later filtering, refinement, and ranking, which links workflow changes to the final candidate set. A completed trajectory should satisfy the design intent, cover the requested evidence, and retain a valid execution history. If the available context or tools cannot meet a need, the workflow reports that limit. The final output contains ranked candidates, computational evidence, execution provenance, and known limits for expert review. Researchers remain responsible for chemical feasibility, biological relevance, experimental value, and later validation. 
+
+## 4 Empirical Evaluation 
+
+We evaluate CAi from workflow and molecular perspectives. CAiMD compares CAi with five agents on 45 tasks under a shared backbone and intent-to-evidence rubric. LIDDiA and MolBench retain their native protocols, while a target-specific case study examines designed molecules. We ask: 
+
+RQ1: How reliably do agents convert molecular-design intent into valid execution and grounded outcomes? 
+
+RQ2: Which workflow stages and task types limit reliable molecular-design execution? 
+
+RQ3: Does CAi remain competitive under independent molecular-agent benchmarks and native metrics? 
+
+RQ4: What does molecule-level analysis reveal about CAi-designed candidates in a target-specific case study? 
+
+4.1 Experimental Setup 
+
+Tasks and Datasets. CAiMD contains 45 manually curated tasks organized into three 15-task molecular contexts: mutant IDH2 scaffold decoration, JAK-family dual-target design involving JAK1 5and JAK2, and PDK1 lead optimization. Task templates abstract generation, optimization, scaffold-and target-based design, evaluation, filtering, and ranking operations from published design studies. We instantiate these templates with receptor structures, binding sites, co-crystallized ligands, leads, and scaffolds manually collected from DiffDec examples and associated PDB entries [28], JAK2 macrocycle studies [5, 16], and PDK1 studies using REINVENT 4 and curriculum learning [14, 20]. The cited studies provide molecular contexts and source assets rather than agent-execution traces. Each task records the supplied inputs, required operations, output count, metrics, thresholds, ranking directions, and expected handling of invalid inputs. 
+
+Baselines. Five systems represent distinct agent paradigms: ChemCrow [3] for chemistry-specific tool use, Biomni [17] for biomedical research, AgentD [22] for modular drug discovery, and Codex [23] and Hermes [21] for general-purpose tool interaction. The comparison tests domain specialization, biomedical breadth, and general agent capability in end-to-end molecular-design workflows. 
+
+Implementation Details. For CAiMD, all agents use the same DeepSeek V4 Pro-compatible endpoint, prompts, inputs, isolated workspaces, and 2,400s budget. External benchmark comparisons use Qwen3.7-Max as the shared backbone. Native control logic and tools remain unchanged, so the experiments compare complete systems rather than tool-matched LLMs. All outputs are normalized and rescored with the same rubric. Unavailable capabilities and external failures are recorded without retries and separated from reasoning errors. 
+
+Evaluation Protocols. CAiMD evaluates intent recovery and decomposition (IU, TD), operation coverage and precision (TA, TP), input readiness and valid outputs (IP, VO), report consistency and the absence of unsupported analysis (RC, HF), and objective satisfaction (OS). Rules score verifiable criteria, while a blinded LLM judge scores semantic criteria; full definitions appear in the appendix. External evaluations retain released inputs and native metrics. SMDD-Bench [15] uses all 25 2D Pharmacophore Identification and 60 Fragment Assembly instances plus 30 randomly sampled Lead Optimization instances. LIDDiA [1] and MolBench [31] cover 30 targets and all 190 examples, respectively. Results for SMDD-Bench, LIDDiA, and MolBench are reported separately on different metrics and tasks. 
+
+4.2 End-to-End Workflow Reliability (RQ1) 
+
+Table 1 compares the complete intent-to-evidence trajectory across agents. The nine metrics trace performance from request interpretation to molecular outcomes. Their unweighted mean summarizes the profile without replacing analysis at each stage. 
+
+Performance separates after intent recognition. All systems score 95.56% on intent un-derstanding, while their overall means range from 47.62% to 75.49%. Hermes attains the best task-decomposition score but the lowest overall mean, showing that intent recovery and high-level planning do not determine end-to-end reliability. 
+
+Valid molecular outputs distinguish reliable execution. CAi improves the valid-tool-output rate over Codex by 32.58 percentage points, from 34.91% to 67.49%. Objective satisfaction increases by 18.07 points, from 66.52% to 84.59%, despite lower trajectory coverage and report consistency. The three domain-oriented baselines also score below Codex and CAi overall. These gaps arise mainly from coordinating domain operations into usable molecular evidence rather than from domain focus alone. 6Agent Intent Workflow Execution Evidence Outcome Avg. IU TD TA TP IP VO RC HF OS                                                             
+
+> ChemCrow [3] 95.56 51.11 17.78 37.78 48.67 25.93 53.80 54.44 57.93 49.22 Biomni [17] 95.56 59.11 37.78 44.89 61.78 30.31 62.41 56.11 64.89 56.98 AgentD [22] 95.56 41.11 6.67 36.56 48.67 50.00 26.67 79.56 57.26 49.12 Codex [23] 95.56 72.44 68.89 55.56 70.22 34.91 81.18 81.78 66.52 69.67 Hermes [21] 95.56 79.44 28.89 36.00 30.00 26.67 26.67 49.56 55.78 47.62
+> CAi Copilot 95.56 74.22 57.78 65.33 79.33 67.49 74.18 80.89 84.59 75.49
+
+Table 1: End-to-end agent performance on the 45 CAiMD tasks (%). Metrics are grouped by evaluation dimension, and Avg. denotes their unweighted mean. Best results are bold and second-best results are underlined.                      
+
+> Agent Capability Outcome Overall
+> ChemCrow 47.52 57.93 49.25 Biomni 55.37 64.89 56.95 AgentD 45.95 57.26 47.84 Codex 64.52 66.52 64.85 Hermes 47.33 55.78 48.74
+> CAi Copilot 73.94 84.59 75.71
+
+Table 2: Capability-level aggregation on the 45 CAiMD tasks (%). Capability combines correlated metrics within workflow dimensions, while Overall assigns equal weight to the available dimensions and task outcome. Best results are bold and second-best results are underlined. 
+
+4.3 Robustness to Metric Aggregation 
+
+Table 2 provides a complementary aggregation that first combines correlated metrics into capability dimensions and then assigns equal weight to the available dimensions and task outcome. This prevents the nine-metric mean from repeatedly rewarding closely related diagnostics. Efficiency is excluded because matched manual-time measurements are not yet available. The cohort-level result preserves the main-table ordering: CAi leads Codex by 10.86 points overall and by 18.07 points on task outcome. Agreement between the two aggregation schemes indicates that the lead achieved by CAi is not an artifact of assigning equal weight to all nine diagnostics. 
+
+4.4 Workflow-Stage Capability Diagnosis (RQ2) 
+
+The five dimensions in Table 1 describe stages shared by tool-assisted molecular-design workflows and do not depend on agent architecture. Applying the same capability-level rubric to every system reveals where a trajectory loses reliability without rewarding a particular module design. 
+
+Execution is the largest cross-system differentiator. Intent recovery is nearly saturated, and the strongest planning scores do not preserve the overall ranking. The clearest separation between CAi and Codex instead occurs during execution: CAi improves input preparation by 9.11 points and valid tool output by 32.58 points. This concentration indicates that the principal advantage of 7Task SMDD CAi       
+
+> 2D Pharmacophore ID 20.0 24.0
+> Lead Optimization 50.0 63.3
+> Fragment Assembly 0.0 1.7
+
+Table 3: Success rates of the SMDD Harness and CAi on the three SMDD-Bench task types included in our evaluation (%). Best results are shown in bold. CAi lies in converting workflow decisions into usable molecular artifacts, not in uniformly stronger reasoning or reporting. 
+
+No stage is sufficient in isolation. Hermes combines the best task decomposition with weak downstream execution, while Codex combines the best operation coverage and evidence scores with fewer valid outputs and lower objective satisfaction. Among the observed systems, reliable outcomes occur only when planning precision, executable inputs, valid outputs, and grounded reporting remain jointly strong. This pattern supports coordination across stages as the relevant capability, although aggregate scores do not establish a causal contribution for any single dimension. 
+
+CAi remains limited by coverage and evidence consistency. CAi does not lead in trajectory accuracy, report–tool consistency, or hallucination-free analysis. CAi executes selected operations reliably but may still omit required steps or give less consistent explanations than the strongest general agent. The task-family analysis tests whether these weaknesses grow in workflows with longer dependencies and iterative control. Strict success falls most sharply on integrated workflows, whereas objective satisfaction remains stable. Long trajectories often retain grounded partial evidence but fail to complete every dependency, as detailed in the appendix. 
+
+4.5 Generalization to External Benchmarks (RQ3) 
+
+SMDD. 
+
+We select three SMDD-Bench tasks that fall within the capability scope of the CAi agent and compare CAi with the SMDD Harness. We evaluate both systems on the complete 2D Pharmacophore Identification and Fragment Assembly test sets, comprising 25 and 60 instances, respectively, and on a randomly sampled subset of 30 Lead Optimization instances. Both systems use Qwen3.7-Max as the shared backbone while retaining their native control logic and tools. Table 3 demonstrates how CAi transfers across different molecular-design capabilities. On 2D Pharmacophore Identification, CAi improves the success rate from 20.0% to 24.0%, suggesting stronger molecular-pattern inference and screening execution. A larger gain appears on Lead Optimization, where the success rate increases from 50.0% to 63.3%, reflecting CAi’s ability to coordinate iterative molecular modification, property evaluation, and multi-constraint filtering. On Fragment Assembly, CAi also solves instances that the SMDD Harness fails to complete, further extending its capability to tasks involving fragment composition and structural constraints. 
+
+LIDDiA. 
+
+We compare both agents on 30 targets under a shared backbone, molecular budget, evaluator, and round-selection rule. The complete protocol is provided in the appendix. 8Metric Pass Quality                                                  
+
+> LIDDiA CAi LIDDiA CAi
+> Generated – / 50.0 – / 50.0 ––Valid 28.7 / 14.4 78.5 / 39.2 ––NVT ↑25.9 / 12.9 51.9 / 25.9 0.846 / 0.848 0.823 / 0.812 QED ↑26.6 / 13.3 74.4 / 37.2 0.737 / 0.733 0.734 / 0.730 LRF ↑28.7 / 14.3 74.9 / 37.4 3.995 / 3.991 3.914 / 3.907 SAS ↓27.5 / 13.8 76.5 / 38.3 2.488 / 2.546 2.275 / 2.302
+> Vina ↓23.9 / 12.0 48.6 / 24.3 -7.139 / -6.845 -6.676 / -6.860
+> HQ 22.1 / 11.1 28.7 / 14.3 ––DVS ↑––0.781 / 0.871 0.794 / 0.808
+
+Table 4: Budget-matched comparison with LIDDiA on 30 targets. Pass values report percentages and mean molecule counts, while quality values report macro and micro averages. Table 4 shows that CAi returns 78.5% valid molecules and fills 39.2 of 50 slots on average. LIDDiA retains 14.4 valid molecules, or 28.7% of the budget. CAi also leads every constraint-level pass rate, including a 28.7% high-quality rate compared with 22.1% for LIDDiA. Average quality is more balanced. LIDDiA leads NVT, QED, LRF, and macro-averaged Vina, while CAi achieves better synthetic accessibility, micro-averaged Vina, and macro diversity. Under the shared evaluator, the CAi advantage is therefore broad candidate coverage and constraint satisfaction rather than uniform dominance on every molecular-quality metric. 
+
+MolBench. 
+
+We compare CAi and MolClaw on all 190 MolBench examples using Qwen3.7-Max and the released evaluators. The execution setting is detailed in the appendix. Table 5 shows strong transfer on tool-verifiable tasks. CAi raises MS-1 accuracy from 0.1800 to 0.9600, reaches an editing accuracy of 0.9744 compared with 0.8718 for MolClaw, and matches both MS-2 measures. MolClaw remains stronger on receptor-dependent virtual screening, attaining 0.5200 Hit@3 while CAi reaches 0.4000. Limited visibility between local and remote structures constrained the docking workflow in this run. For optimization, CAi achieves a larger gain of 0.2263 and a higher success rate of 0.7949, although MolClaw preserves scaffolds more consistently. The native benchmark therefore confirms strengths of CAi in executable screening, molecular editing, and property improvement, while exposing limitations in structure-dependent tool coordination and scaffold-constrained optimization. 
+
+Cross-Benchmark Analysis. 
+
+Across CAiMD, SMDD-Bench, LIDDiA, and MolBench, CAi is strongest when workflow decisions must yield valid molecular outputs. CAiMD shows gains in output validity and objective satisfaction. SMDD-Bench shows improvements in all three tested categories, led by lead optimization, although fragment assembly remains near zero. LIDDiA demonstrates broader candidate coverage and higher constraint pass rates, while MolBench favors CAi in tool-verifiable screening, editing, and optimization. Recurring limits include omitted steps in integrated workflows, dependence on structure transfer in receptor-based screening, and reduced scaffold retention under aggressive optimization. These results associate reliable molecular-design agents with robust executable state 9Bench. Subtask Metric MolClaw CAi MS-1 Screening Accuracy ↑ 0.1800 0.9600                                                                            
+
+> Precision ↑0.3202 0.9800
+> Recall ↑0.4450 0.9700
+> F1 ↑0.3381 0.9733
+> Specificity ↑0.4400 0.9800
+> Validity ↑0.7800 1.0000
+> MS-2 Selection Accuracy ↑0.5405 0.5405
+> Valid choice ↑1.0000 1.0000
+> MS-3 Virtual screen. Hit@3 ↑0.5200 0.4000 Avg. hits@3 ↑0.7600 0.5600 Top-3 hit rate ↑0.2533 0.1867 Avg. GT rank ↓56.2267 55.4933
+> Hit count ↑13/25 10/25 MO-Edit Add Correct ↑0.7000 1.0000
+> Delete Correct ↑0.8889 1.0000
+> Substitute Correct ↑0.9500 0.9500
+> Overall Correct ↑0.8718 0.9744
+> Overall Validity ↑1.0000 1.0000
+> MO-Opt Overall ∆↑0.1352 0.2263
+> Success ↑0.4872 0.7949
+> Valid SMILES ↑0.9744 1.0000
+> Scaffold hard ↑0.7179 0.4615 Scaffold soft ↑0.8894 0.7650
+
+Table 5: Performance on the 190-example MolBench benchmark. Best results are bold. transfer, systematic output validation, and constraint-aware candidate selection, but do not isolate the causal contribution of individual capabilities. 
+
+4.6 Target-Specific Molecular Analysis (RQ4) 
+
+Case design. We analyze a 15-task JAK-family dual-target case involving JAK1 and JAK2 under a fixed structural context, with five variants for each target-, scaffold-, and lead-based entry point. The task composition is provided in the appendix. The tasks vary workflow scope, dependencies, invalid inputs, and constraint interpretation. Predicted JAK1 affinity is the primary objective. JAK1-over-JAK2 selectivity, synthetic accessibility, toxicity, ligand efficiency, and physicochemical properties remain supporting evidence rather than equally weighted objectives. 
+
+Objective-aligned molecular enrichment. Figure 2a shows that CAi returns evaluable molecules for all three design entry points, although output counts vary across workflows. We therefore compare only supported outputs. In the matched scaffold-based setting, Figure 2b shows a shift in the predicted JAK1 affinity distribution toward stronger binding. CAi returns 24 selected candidates with a mean Vina score of −8.706 kcal/mol. As shown in Figure 2c, 18 candidates meet the prespecified −8.0 kcal/mol threshold, whereas only seven of 80 raw baseline molecules meet this threshold. Because CAi reports a selected portfolio whereas the baselines provide raw outputs, this comparison supports workflow-level prioritization rather than controlled generator superiority. 
+
+Portfolio trade-offs. Figure 2d shows that, across 201 molecules docked against both targets, CAi shifts most clearly along predicted JAK1 affinity, while JAK1-over-JAK2 selectivity remains 10 SB LB TD AgentD Biomni Codex Hermes ChemCrow CAi          
+
+> n=20 n=20 n=20 n=20 n=20 n=20 n=20 n=20 n=20 n=24 n=3 n=1 N/A N/A N/A N/A N/A N/A
+> 510 15 20
+> Molecule count
+
+(a) Biomni Codex Hermes ChemCrow CAi −10 −8 −6 
+
+> JAK1 Vina (kcal/mol)
+
+A JAK1 affinity (lower is better)  
+
+> Threshold -8.0
+> Biomni Codex Hermes ChemCrow CAi 020 40 60 80 100
+> JAK1 threshold pass rate (%)
+> 5.0% (n=20) 0.0% (n=20) 25.0% (n=20) 5.0% (n=20) 75.0% (n=24)
+
+B Fraction with Vina <= -8.0 (b) Biomni Codex Hermes ChemCrow CAi −10 −8 −6 
+
+> JAK1 Vina (kcal/mol)
+
+A JAK1 affinity (lower is better)  
+
+> Threshold -8.0
+> Biomni Codex Hermes ChemCrow CAi 020 40 60 80 100
+> JAK1 threshold pass rate (%)
+> 5.0% (n=20) 0.0% (n=20) 25.0% (n=20) 5.0% (n=20) 75.0% (n=24)
+
+B Fraction with Vina <= -8.0 (c) −10 −8 −6     
+
+> JAK1 Vina (kcal/mol)
+> −2 −1 0123
+> Selectivity delta JAK2 - JAK1 (kcal/mol)  SB
+> −10 −8 −6
+> JAK1 Vina (kcal/mol)
+> LB
+> −10 −8 −6
+> JAK1 Vina (kcal/mol)
+> TD
+> Biomni Codex Hermes ChemCrow CAi AgentD
+
+(d) JAK1 affinity Lead similarity Low toxicity QED Synthesis ease Selectivity Biomni Codex Hermes ChemCrow CAi                           
+
+> -7.19 0.26 0.08 0.85 3.97 0.14 -7.21 0.45 0.11 0.84 3.32 0.12 -7.59 0.57 0.10 0.86 3.98 0.09 -6.83 0.42 0.10 0.78 3.60 0.09 -8.93 0.49 0.12 0.79 4.01 0.08
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Within-SB percentile of agent median
+
+(e) Figure 2: Workflow reachability and objective-conditioned molecular evidence in the JAK-family dual-target case involving JAK1 and JAK2. (a) Number of evaluable molecules returned for supported scaffold- (SB), lead- (LB), and target-based (TD) workflows. N/A denotes an unsupported combination. (b) Scaffold-based JAK1 Vina distributions. (c) Fraction satisfying Vina ≤ − 8.0kcal/mol. (d) Affinity–selectivity distributions across the three entry points. (e) Median scaffold-based portfolio properties. The main molecular shift produced by CAi occurs on the requested JAK1 affinity objective, whereas reachability, JAK1-over-JAK2 selectivity, and auxiliary properties expose the remaining coverage and quality trade-offs. Results characterize predicted, selected portfolios and do not establish experimental activity or controlled generator superiority. concentrated near zero. Figure 2e further shows no uniform portfolio advantage in QED, toxicity, synthesis, similarity, or selectivity. Detailed distributions appear in the appendix. CAi therefore shows potential as an intent-conditioned prioritization agent. The workflow enriches candidates for the requested predicted-affinity objective while retaining evidence that makes molecular compromises visible to expert review. 
+
+## 5 Related Work 
+
+Constraint-aware molecular generation. AI-based molecular design has progressed from unconstrained generation toward models that encode structural and chemical requirements. Pocket-conditioned methods model protein–ligand geometry to generate target-aware three-dimensional structures [9, 13, 24]. Reaction-based generators instead build molecules from predefined trans-formations and available building blocks, improving synthesis awareness while retaining chemical diversity [4, 18]. These advances provide strong local capabilities under explicit inputs and objectives. However, a multi-objective design request can require several models and evaluation steps. Work-flow construction must then connect compatible artifacts, combine affinity and molecular-property evidence, and respond to candidates that fail the stated criteria. 
+
+Scientific workflow agents. Tool-augmented agents have expanded the scope of executable scientific workflows. ChemCrow connects language-model reasoning with chemistry tools, whereas 11 Biomni combines retrieval, planning, and code execution across biomedical tasks [3, 17]. Recent scientific agents extend this direction along complementary axes. Co-Scientist iteratively generates, critiques, and refines research hypotheses through a multi-agent architecture [12]. Robin connects literature-grounded hypothesis generation with experimental data analysis in a lab-in-the-loop therapeutic workflow [11]. ERA uses language models and tree search to create and optimize empirical software for scorable scientific tasks [2]. Drug-focused systems further coordinate in-silico candidate development: LIDDIA combines reasoning and evaluation, while MolClaw organizes molecular screening and optimization through hierarchical skills [1, 31]. Collectively, these systems advance hypothesis generation, tool use, code execution, and iterative scientific feedback. A unified workflow for constructing diverse molecular design alternatives from open-ended expert intent remains underexplored. Such a workflow must compare candidates through multi-step molecular evaluations and preserve candidate-level evidence for expert selection. 
+
+## 6 Conclusion 
+
+Molecular design requires coordinated generation, assessment, filtering, and selection of candidates across multiple objectives and iterative stages. We formulate this process as an intent-to-evidence workflow execution and present CAi Copilot. The Research Interface Layer, Agent Reasoning Layer, and Execution Substrate work together to plan, adapt, and run molecular workflows. Experiments show gains in valid molecular outputs and objective satisfaction. The target-specific analysis shows that CAi prioritizes affinity while preserving explicit evidence on selectivity and property trade-offs. CAi thus turns open-ended design intent into traceable candidate-level evidence for expert review. Experimental validation and final chemical judgment remain outside the computational workflow. Overall, CAi Copilot enables traceable, evidence-grounded molecular design under complex multi-objective property trade-offs, supporting experts with decision-making. 
+
+## References 
+
+[1] Reza Averly, Frazier N. Baker, Ian A. Watson, and Xia Ning. Liddia: Language-based intelligent drug discovery agent. In Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing , pages 12004–12028, 2025. doi: 10.18653/v1/2025.emnlp-main.603. URL 
+
+https://aclanthology.org/2025.emnlp-main.603/ .[2] Eser Aygün et al. An ai system to help scientists write expert-level empirical software. 
+
+Nature , 654:909–916, 2026. doi: 10.1038/s41586-026-10658-6. URL https://www.nature.com/ articles/s41586-026-10658-6 .[3] Andres M. Bran, Sam Cox, Oliver Schilter, Carlo Baldassari, Andrew D. White, and Philippe Schwaller. Augmenting large language models with chemistry tools. Nature Machine Intelligence ,6:525–535, 2024. doi: 10.1038/s42256-024-00832-8. URL https://www.nature.com/articles/ s42256-024-00832-8 .[4] Miruna Cretu, Charles Harris, Ilia Igashov, Arne Schneuing, Marwin Segler, Bruno Correia, Julien Roy, Emmanuel Bengio, and Pietro Liò. Synflownet: Design of diverse and novel molecules with synthesis constraints. arXiv preprint arXiv:2405.01155 , 2024. doi: 10.48550/ arXiv.2405.01155. URL https://arxiv.org/abs/2405.01155 .[5] Yanyan Diao, Dandan Liu, Huan Ge, Rongrong Zhang, Kexin Jiang, Runhui Bao, Xiaoqian Zhu, Hongjie Bi, Wenjie Liao, Ziqi Chen, et al. Macrocyclization of linear molecules by deep 12 learning to facilitate macrocyclic drug candidates discovery. Nature Communications , 14: 4552, 2023. doi: 10.1038/s41467-023-40219-8. URL https://www.nature.com/articles/ s41467-023-40219-8 .[6] Yuanqi Du et al. Machine learning-aided generative molecular design. Nature Machine Intelligence , 6:589–604, 2024. doi: 10.1038/s42256-024-00843-5. URL https://www.nature. com/articles/s42256-024-00843-5 .[7] Carl Edwards, Tuan Lai, Kevin Ros, Garrett Honke, Kyunghyun Cho, and Heng Ji. Translation between molecules and natural language. In Proceedings of the 2022 Con-ference on Empirical Methods in Natural Language Processing , pages 375–413, 2022. doi: 10.18653/v1/2022.emnlp-main.26. URL https://aclanthology.org/2022.emnlp-main.26/ .[8] Yin Fang et al. Mol-instructions: A large-scale biomolecular instruction dataset for large language models. arXiv preprint arXiv:2306.08018 , 2023. URL https://arxiv.org/abs/ 2306.08018 . Please verify full author list before final submission. [9] Wei Feng, Lvwei Wang, Zaiyun Lin, Yanhao Zhu, Han Wang, Jianqiang Dong, Rong Bai, Huting Wang, Jielong Zhou, Wei Peng, Bo Huang, and Wenbiao Zhou. Generation of 3d molecules in pockets via language model. Nature Machine Intelligence , 6:62–73, 2024. doi: 10. 1038/s42256-023-00775-6. URL https://www.nature.com/articles/s42256-023-00775-6 .[10] Shanghua Gao et al. Txagent: An ai agent for therapeutic reasoning across a universe of tools. 
+
+arXiv preprint arXiv:2503.10970 , 2025. URL https://arxiv.org/abs/2503.10970 . Please verify full author list before final submission. [11] Ali E. Ghareeb et al. A multi-agent system for automating scientific discovery. Nature , 655: 497–505, 2026. doi: 10.1038/s41586-026-10652-y. URL https://www.nature.com/articles/ s41586-026-10652-y .[12] Juraj Gottweis et al. Accelerating scientific discovery with co-scientist. Nature , 655:487– 496, 2026. doi: 10.1038/s41586-026-10644-y. URL https://www.nature.com/articles/ s41586-026-10644-y .[13] Jiaqi Guan, Xiangxin Zhou, Yuwei Yang, Yu Bao, Jian Peng, Jianzhu Ma, Qiang Liu, Liang Wang, and Quanquan Gu. Decompdiff: Diffusion models with decomposed priors for structure-based drug design. Proceedings of the 40th International Conference on Machine Learning , 202: 11827–11846, 2023. URL https://proceedings.mlr.press/v202/guan23a.html .[14] Jeff Guo, Vendy Fialková, Juan Diego Arango, Christian Margreitter, Jon Paul Janet, Kostas Papadopoulos, Ola Engkvist, and Atanas Patronov. Improving de novo molecular design with curriculum learning. Nature Machine Intelligence , 4:555–563, 2022. doi: 10.1038/ s42256-022-00494-4. URL https://www.nature.com/articles/s42256-022-00494-4 .[15] Kevin Han, Renfei Zhang, Kathy Wei, Hamed Mahdavi, Niloofar Mireshghallah, and Amir Farimani. SMDD-Bench: Can LLMs solve real-world small molecule drug design tasks?, 2026. URL https://arxiv.org/abs/2605.21740 .[16] Feng Hu, Xiaotong Jia, Wenjie Liao, Ziqi Chen, Hongjie Bi, Huan Ge, Dandan Liu, Rongrong Zhang, et al. Exploring the macrocyclic chemical space for heuristic drug design with deep learning models. Communications Chemistry , 8:299, 2025. doi: 10.1038/s42004-025-01686-w. URL https://www.nature.com/articles/s42004-025-01686-w .13 [17] Kexin Huang, Serena Zhang, Hanchen Wang, Yuanhao Qu, Yingzhou Lu, Yusuf Roohani, Ryan Li, Lin Qiu, Gavin Li, Junze Zhang, Di Yin, Shruti Marwaha, Jennefer N. Carter, Xin Zhou, Matthew Wheeler, Jonathan A. Bernstein, Mengdi Wang, Peng He, Jingtian Zhou, Michael Snyder, Le Cong, Aviv Regev, and Jure Leskovec. Biomni: A general-purpose biomedical ai agent. bioRxiv , 2025. doi: 10.1101/2025.05.30.656746. URL https://www.biorxiv.org/ content/10.1101/2025.05.30.656746 .[18] Michał Koziarski, Andrei Rekesh, Dmytro Shevchuk, Almer van der Sloot, Piotr Gaiński, Yoshua Bengio, Cheng-Hao Liu, Mike Tyers, and Robert A. Batey. Rgfn: Synthesizable molecular generation using gflownets. arXiv preprint arXiv:2406.08506 , 2024. doi: 10.48550/arXiv.2406. 08506. URL https://arxiv.org/abs/2406.08506 .[19] Sizhe Liu, Yizhou Lu, Siyu Chen, Xiyang Hu, Jieyu Zhao, Yingzhou Lu, and Yue Zhao. Druga-gent: Automating ai-aided drug discovery programming through llm multi-agent collaboration. 
+
+arXiv preprint arXiv:2411.15692 , 2024. URL https://arxiv.org/abs/2411.15692 .[20] Hannes H. Loeffler, Jiazhen He, Alessandro Tibo, Jon Paul Janet, Anton Voronov, Lewis H. Mervin, and Ola Engkvist. Reinvent 4: Modern ai-driven generative molecule design. Journal of Cheminformatics , 16(1):20, 2024. doi: 10.1186/s13321-024-00812-5. URL https://jcheminf. biomedcentral.com/articles/10.1186/s13321-024-00812-5 .[21] Nous Research. Hermes agent. Open-source agent software, https://github.com/ NousResearch/hermes-agent , 2026. Evaluated software version and commit to be reported. [22] Janghoon Ock, Radheesh Sharma Meda, Srivathsan Badrinarayanan, Neha S. Aluru, Achuth Chandrasekhar, and Amir Barati Farimani. Large language model agent for modular task execution in drug discovery. Journal of Chemical Information and Modeling , 66(4):2055–2068, 2026. doi: 10.1021/acs.jcim.5c02454. URL https://doi.org/10.1021/acs.jcim.5c02454 .[23] OpenAI. Addendum to openai o3 and o4-mini system card: Codex. Technical report, OpenAI, May 2025. URL https://cdn.openai.com/pdf/8df7697b-c1b2-4222-be00-1fd3298f351d/ codex_system_card.pdf .[24] Xingang Peng, Shitong Luo, Jiaqi Guan, Qi Xie, Jian Peng, and Jianzhu Ma. Pocket2mol: Efficient molecular sampling based on 3d protein pockets. International Conference on Machine Learning , 2022. doi: 10.48550/arXiv.2205.07249. URL https://arxiv.org/abs/2205.07249 .[25] Jean-Louis Reymond, Ruud van Deursen, Lorenz C. Blum, and Lars Ruddigkeit. Chemical space as a source for new drugs. MedChemComm , 1(1):30–38, 2010. doi: 10.1039/C0MD00020E. URL https://pubs.rsc.org/en/content/articlehtml/2010/md/c0md00020e .[26] Gisbert Schneider and Uli Fechner. Computer-based de novo design of drug-like molecules. 
+
+Nature Reviews Drug Discovery , 4(8):649–663, 2005. doi: 10.1038/nrd1799. URL https: //www.nature.com/articles/nrd1799 .[27] Oleg Trott and Arthur J. Olson. Autodock vina: Improving the speed and accuracy of docking with a new scoring function, efficient optimization, and multithreading. Journal of Computational Chemistry , 31(2):455–461, 2010. doi: 10.1002/jcc.21334. URL https: //pubmed.ncbi.nlm.nih.gov/19499576/ .[28] Junjie Xie, Sheng Chen, Jinping Lei, and Yuedong Yang. Diffdec: Structure-aware scaffold decoration with an end-to-end diffusion model. Journal of Chemical Information and Modeling ,14 64(7):2554–2564, 2024. doi: 10.1021/acs.jcim.3c01466. URL https://pubs.acs.org/doi/10. 1021/acs.jcim.3c01466 .[29] Botao Yu, Frazier N. Baker, Ziqi Chen, Xia Ning, and Huan Sun. Llasmol: Advancing large language models for chemistry with a large-scale, comprehensive, high-quality instruction tuning dataset. In First Conference on Language Modeling , 2024. URL https://openreview.net/ forum?id=lY6XTF9tPv .[30] Di Zhang et al. Chemllm: A chemical large language model. arXiv preprint arXiv:2402.06852 ,2024. URL https://arxiv.org/abs/2402.06852 . Please verify full author list before final submission. [31] Lisheng Zhang, Lilong Wang, Xiangyu Sun, Wei Tang, Haoyang Su, Yuehui Qian, Qikui Yang, Qingsong Li, Zhenyu Tang, Haoran Sun, Yingnan Han, Yankai Jiang, Wenjie Lou, Bowen Zhou, Xiaosong Wang, Lei Bai, and Zhengwei Xie. Molclaw: An autonomous agent with hierarchical skills for drug molecule evaluation, screening, and optimization. arXiv preprint arXiv:2604.21937 , 2026. doi: 10.48550/arXiv.2604.21937. URL https://arxiv.org/abs/ 2604.21937 .
+
+## A CAiMD Construction and Data Provenance 
+
+A.1 Source Context Extraction 
+
+CAiMD is a workflow-execution evaluation suite rather than a collection of experimentally measured molecule labels. It contains three molecular-design contexts: mutant IDH2, paired JAK1/JAK2 design, and PDK1. Published studies define the design contexts and operation types, while the corresponding articles and PDB entries provide the receptor structures, binding sites, co-crystallized ligands, leads, and scaffolds used for task instantiation [5, 14, 16, 20, 28]. The source studies do not provide agent-execution traces or reference plans. For each context, receptor files and pocket parameters are recorded as structure-based inputs. Available SDF or SMILES records are parsed into molecular starting points. Lead-based cases retain a valid reference molecule, whereas scaffold-based cases use a core structure with explicit attachment points. Candidate attachment positions are treated as computational design inputs rather than experimentally validated synthetic routes. Table 6 summarizes the retained resources and derived task inputs. The three contexts provide complementary starting conditions: PDK1 and IDH2 contribute multiple molecular records for lead- and scaffold-based instantiation, whereas the paired JAK1/JAK2 structures support target-aware affinity and selectivity workflows. This distinction ensures that CAiMD varies both molecular input form and structural context without treating the source molecules as ground-truth solutions. 
+
+A.2 Factorized Task Instantiation 
+
+The 45 cases follow a controlled 3 × 3 × 5 design. Let C denote the three molecular contexts and 
+
+F = {TD , SB , LB } the target-, scaffold-, and lead-based design-entry families. For each context and entry family, five workflow configurations are instantiated: 
+
+DCAiMD = ⋃ 
+
+> c∈C
+> ⋃
+> f∈F
+
+{qc,f,v : 1 ≤ v ≤ 5}. (9) 15 Context Structures Molecular records Derived task inputs           
+
+> PDK1 2XCH Five available active-molecule SDF records Receptor and pocket configuration, lead SMILES, Mur-cko cores, and curated attachment-point scaffolds IDH2 4JA8 Six available ligand or active-molecule SDF records Receptor and pocket configuration, lead SMILES, Mur-cko cores, and curated attachment-point scaffolds JAK1/JAK2 6BBU & 6BBV Shared co-crystallized ligand D7D Paired receptor and pocket configurations, a reference lead, and an attachment-point scaffold for affinity and selectivity workflows
+
+Table 6: Scientific contexts retained during CAiMD construction. Molecular records provide starting points for task instantiation rather than ground-truth efficacy labels.              
+
+> Family Initial context Core workflow requirement Input-specific checks
+> Target-based (TD) Receptor structure and binding-site configuration Generate candidates from structural con-text and, when requested, evaluate and filter them using target-related evidence Receptor availability, pocket defini-tion, docking configuration, and re-quested target comparisons Scaffold-based (SB) Core structure with ex-plicit attachment points Decorate or extend a constrained molec-ular core and apply the requested prop-erty or activity evaluations Scaffold parseability, attachment-point validity, metric direction, and requested workflow scope Lead-based (LB) One or more reference molecules Generate molecular analogs around a supplied lead and evaluate or prioritize them under the stated objectives Molecular-format validity, lead avail-ability, requested evaluation subset, and cross-step access to generated candidates
+
+Table 7: Three design-entry families used to instantiate CAiMD. Each family contains five configu-rations in each molecular context. Thus, |D CAiMD | = 3 · 3 · 5 = 45. This construction varies workflow requirements while preserving the molecular context within each 15-task block. Table 7 specifies how the same context is exposed through target-, scaffold-, and lead-based entry points. The families differ in their required prerequisites and validity checks, allowing the evaluation to test whether an agent adapts its workflow to the available scientific input rather than applying one fixed generation procedure. The five configurations within a context–family block are drawn from complementary workflow roles: (i) a complete multi-stage request, (ii) generation with evaluation explicitly excluded, (iii) evaluation or filtering of previously generated molecules, (iv) a missing or malformed prerequisite, and (v) a scope, threshold, metric-direction, or dependency stress condition. The molecular operation varies with the available context, but the evaluated behavior remains whether the agent follows the requested scope, respects dependencies, invokes compatible tools, and grounds the final report in returned evidence. TD/SB/LB therefore describe how a task enters the design process, whereas generation, evaluation, integrated-workflow, and error-handling labels describe the execution behavior required by the task. The two taxonomies are orthogonal. 
+
+A.3 Reference Specifications and Quality Control 
+
+The benchmark authors pair every prompt with a structured reference specification rather than a single target answer. The specification records (1) intent and requested output; (2) available receptor, molecule, scaffold, and file inputs; (3) required operations and step dependencies; (4) acceptable capability-level tool families; (5) metrics, directions, thresholds, and ranking rules; and (6) expected behavior when a prerequisite is absent or invalid. Capability-level references permit alternative valid implementations while preventing a final textual claim from substituting for missing execution evidence. 16 Case identifiers encode the molecular context, design-entry family, and workflow configuration. Consolidated records are checked for unique identifiers, resolvable inputs, valid molecular strings where validity is expected, explicit scaffold attachment points for scaffold generation, and consistent metric directions. Boundary cases intentionally violate one prerequisite and are retained only when the reference behavior is to stop, request the missing input, or report the limitation without fabricating molecules or scores. Generated candidates and predicted scores are evaluated as computational evidence, not as experimentally validated drug discoveries. 
+
+## B CAiMD Evaluation Protocol 
+
+B.1 Evaluation Metrics 
+
+Let Ri denote the reference set of required workflow operations for case i, and let Ai denote the operations executed by an agent after mapping tool-specific calls to capability families. Following the terminology used in the main evaluation, we define rule-based trajectory accuracy and trajectory precision proxies as TA i = |Ri ∩ Ai||Ri| , TP i = |Ri ∩ Ai||Ai| . (10) These set-based proxies measure operation coverage and excess execution at the capability-family level; by themselves, they do not encode execution order or scientific validity. The final hybrid score uses a blinded LLM judge to assess dependency ordering, redundant or misplaced operations, and scientifically invalid actions that exact set matching cannot distinguish. Let Ui be the set of invoked tools whose required inputs are available and correctly formatted, and let Vi ⊆ Ui be the invocations that return a usable molecular result. For all attempted invocations 
+
+Ci, input-preparation success and valid-tool-output rate are IP i = |Ui||Ci| , VO i = |Vi||Ci| . (11) An invocation is usable only when the output can be parsed, linked to the requested candidates or task step, and consumed by a subsequent operation or final evidence report. Valid-tool-output rate is an end-to-end execution measure: because its denominator includes all attempted invocations, it captures both input-preparation failures and downstream tool failures rather than estimating conditional tool reliability. For report grounding, let Gi denote checkable claims in the final report, CGi ⊆ Gi claims consistent with recorded tool outputs, and Hi ⊆ Gi unsupported or contradicted analytical claims. We define RC i = |CGi ||Gi| , HF i = 1 − |Hi||Gi| . (12) When no checkable claim is produced, the case is treated according to the expected-output specifi-cation for the task rather than assigned a perfect score. Let Oi denote the reference task objectives and O+ 
+
+> i
+
+the objectives satisfied by grounded outputs. Task objective satisfaction is OS i = |O+ 
+
+> i
+
+||Oi| . (13) Intent understanding is scored as exact agreement with the reference intent fields for rule evaluation. Task decomposition, semantic trajectory precision, partial input preparation, usable partial outputs, and hallucination-free interpretation are additionally assessed by a blinded judge on normalized [0 , 1] rubrics. The final rubric and judge prompts will be released with the evaluation suite. 17 Biomni Codex Hermes ChemCrow 
+
+> CAi
+> −10 −9 −8 −7 −6 −5
+> JAK1 Vina (kcal/mol) lower is better
+> Biomni Codex Hermes ChemCrow
+> CAi
+> 0.20 0.25 0.30 0.35 0.40 0.45 0.50
+> Ligand efficiency (-Vina/heavy atom) higher is better
+> Biomni Codex Hermes ChemCrow
+> CAi
+> 0.1 0.2 0.3 0.4 0.5 0.6 0.7
+> Tanimoto similarity to lead higher is better
+> SB matched comparison: CAi leads absolute docking and stays lead-centered
+
+Figure 3: Scaffold-based distributions of predicted JAK1 Vina score, docking-based ligand efficiency, and Tanimoto similarity to the supplied lead. Under the affinity-prioritized case specification, CAi shows the lowest observed median JAK1 Vina score. Ligand efficiency and lead similarity provide complementary characterization of the selected portfolio. 
+
+B.2 Baseline Execution and Trace Normalization 
+
+Each baseline is wrapped by an adapter that preserves the native control logic while writing a common artifact contract containing the final response, tool events, observations, execution status, and artifact paths. Codex and Hermes operate as general-purpose command-line agents. Biomni retains the biomedical tools and local worker dependencies provided by the native system. ChemCrow retains the chemistry-oriented LangChain tools, while AgentD enters the native target and lead extraction, generation, affinity, and ADMET pipeline. Unsupported capabilities are reported explicitly rather than emulated by a hidden replacement tool. Before scoring, native trajectories are normalized into capability-level operations, tool-success indicators, generated-molecule evidence, reported metrics, and filtering or ranking decisions. A corrected AgentD adapter was rerun only because the initial harness rejected inputs before reaching the native pipeline. The corrected overlay retains downstream generation artifacts as well as genuine external-service failures. No task was rerun solely to improve a score. CAi is a previously completed reference run normalized and scored under the same evaluation rubric, rather than a sixth queue in the baseline supervisor. 
+
+B.3 System-Level Comparison Protocol 
+
+CAiMD evaluates each baseline in its native executable configuration while preserving its released control logic and public tool implementation. To improve comparability, all systems receive matched task inputs and model budgets, and their trajectories are normalized under a shared artifact contract and scoring rubric. The resulting scores characterize practical end-to-end workflow reliability across complete systems, with capability availability and execution conditions treated as part of the evaluated system setting. 
+
+## C Target-Specific Case-Study Details 
+
+This section provides molecular-property diagnostics for the target-specific case study. The supple-mentary analyses characterize factors that are not captured by absolute docking score alone. 
+
+C.1 Molecular Property Diagnostics 
+
+Figure 3 compares the workflow-matched scaffold-based candidate sets using predicted JAK1 Vina score (lower is better), docking-based ligand efficiency computed as −Vina /N heavy (higher is better), 18 Matched baselines CAi 200 250 300 350 400      
+
+> Molecular weight
+> Matched baselines CAi 01234
+> cLogP
+> Matched baselines CAi 40 50 60 70 80 90 100 110 120
+> TPSA
+> Matched baselines CAi 0.5 0.6 0.7 0.8 0.9
+> QED
+> Matched baselines CAi 1234567
+> Rotatable bonds
+> Matched baselines CAi 0.1 0.2 0.3 0.4 0.5 0.6 0.7
+> Tanimoto to lead
+> SB chemical space: CAi candidates are larger, more lipophilic and closer to the lead
+
+Figure 4: Physicochemical distributions for workflow-matched scaffold-based outputs. Molecular weight, cLogP, TPSA, QED, rotatable bonds, and lead similarity provide context for interpreting differences in docking-based affinity. and Tanimoto similarity to the supplied lead (higher is better). CAi produces the most favorable JAK1 docking-score distribution while retaining a lead-centered candidate set. Its ligand-efficiency distribution is not uniformly dominant, indicating that the docking improvement reflects objective-aligned prioritization rather than a universal gain across size-normalized criteria. Figure 4 further characterizes the chemical space associated with this result. Relative to the matched baseline pool, CAi candidates tend to have higher molecular weight and cLogP, more rotatable bonds, and greater similarity to the supplied lead, while remaining within the observed QED and TPSA ranges. Together, the two figures show that CAi follows the affinity-prioritized case specification and exposes the accompanying molecular-property profile for expert review, rather than presenting the docking score as an isolated claim. 
+
+## D External Benchmark Protocols 
+
+D.1 SMDD-Bench 
+
+We evaluate the three SMDD-Bench task types that fall within CAi’s current capability scope [15]. The comparison uses all 25 instances of 2D Pharmacophore Identification, all 60 instances of Fragment Assembly, and the same randomly sampled subset of 30 Lead Optimization instances for both systems. In 2D Pharmacophore Identification, each instance provides a target sequence together with 10 active and 10 inactive molecules, and requires an executable Python function that identifies the inferred pharmacophore; the released evaluator tests this function on hidden actives and inactives. Lead Optimization provides a reference protein–ligand complex, properties to optimize, properties to hold constant, and hard molecular constraints, and evaluates the submitted molecule with the released RDKit, ADMET-AI, and Boltz2 checks. Fragment Assembly provides one or two 19 three-dimensional fragments positioned in a protein pocket and requires a single drug-like molecule that contains and, when necessary, links the fragments while satisfying the released structural and binding checks. We compare CAi with the original SMDD Harness using Qwen3.7-Max as the common language-model backbone. Both systems receive the same task instances, input files, and allowed task information, and their final submissions are scored by the official task-specific evaluators. The SMDD Harness retains its released minimalist ReAct control scaffold and tool environment, whereas CAi retains its native workflow controller and molecular tools; the experiment is therefore a same-backbone, system-level comparison rather than a tool-matched ablation. For each task type, success rate is the fraction of instances whose final submission passes all evaluator-defined requirements. We do not assign partial credit or map the native SMDD-Bench outcomes to the CAiMD rubric. 
+
+D.2 LIDDiA 
+
+CAi and LIDDiA are evaluated on 30 targets with Qwen3.7-Max, identical task inputs and evaluator, at most three rounds, 50 candidates per round, and 50 evaluated slots per target. The budget is matched at the candidate level because a CAi round covers a complete proposal–evaluation cycle, whereas a LIDDiA action may perform generation, optimization, or screening. Molecules removed by final screening count as failed slots under the fixed denominator. The same constraint-based rule selects the best completed round for both agents. Pass results report the percentage and mean count under the 50-slot denominator. Molecular-quality results report macro and micro averages. Metric directions follow the released evaluation, and unavailable entries are not scored. 
+
+D.3 MolBench 
+
+CAi and the released MolClaw reference are evaluated on all 190 MolBench examples spanning molecular screening, selection, editing, and optimization. Both use Qwen3.7-Max and the original task inputs and evaluators. CAi runs the control process locally and invokes chemistry tools on a remote node. Native metrics are retained for each subtask and reported separately rather than combined across heterogeneous capabilities. Unavailable receptor structures on the remote node are recorded as execution limitations rather than replaced with alternative inputs. 20

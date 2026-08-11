@@ -1,0 +1,673 @@
+Title: Sampling Free Energy Landscapes of Ionic Colloidal Crystal Systems using Machine-Learned Proxy Collective Variables
+
+URL Source: https://arxiv.org/pdf/2608.09714v1
+
+Published Time: Tue, 11 Aug 2026 02:29:25 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Sampling Free Energy Landscapes of Ionic Colloidal Crystal Systems using Machine-Learned Proxy Collective Variables 
+
+Michael S. Chen, 1, 2, 3, 4, a) Stefano Sacanna, 1 and Glen M. Hocky 1, 2, b) 
+
+> 1)
+
+Department of Chemistry, New York University, New York, NY 10003 USA 
+
+> 2)
+
+Simons Center for Computational Physical Chemistry, New York University, New York, NY 10003 USA 
+
+> 3)
+
+Department of Chemical and Materials Engineering, University of Kentucky, Lexington, KY 40506 USA 
+
+> 4)
+
+Department of Computer Science, University of Kentucky, Lexington, KY 40506 USA 
+
+(Dated: 11 August 2026) 
+
+Charged colloids coated with a polymer brush can be designed to preferentially self-assemble into different crystal structures by varying easy-to-tune experimental conditions. For a given set of conditions, we have observed in experiments and simulations a distribution of thermodynamically (meta)stable self-assembled crystal structures. Properly quantifying the free energy landscape of these colloidal systems is essential for rationally choosing conditions to preferentially target particular crystal structures. For some of the structures we have formed, standard crystalline order parameters are not able to differentiate between crystals or between crystals and amorphous aggregates. We show that local environment similarity descriptors are able to distinguish the relevant metastable states, but are too expensive for use in biased MD simulations. Here, we adopt an approach from machine-learned interaction potentials showing that SE(3)-equivariant transformer networks can serve as an efficient-to-evaluate machine-learned proxy. As a result, we can compute the relative free energies of accessible colloidal structures as a function of different experimentally-relevant physical knobs that can steer our system between two observed crystal types. As an example application, we then show how changing surface potentials of positive and negative colloids while maintaining the same attractive energy can shift which crystal structure is favored. 
+
+I. INTRODUCTION 
+
+Colloidal particles of nano- to micrometer diameters have garnered significant interest due to the tunabil-ity of their interactions and, consequently, the abil-ity to steer their self-assembly into a variety of ex-tended crystalline structures including those present-ing with desirable mechanical 1–4 , optical 5–7 , and elec-tronic properties 8,9 . A wide array of colloidal building blocks have been synthesized for different design chal-lenges ranging from spherical colloidal particles of vary-ing compositions to those that are anisotropic in shape or possess programmable interactions 10–18 . Among these, polymer-attenuated Coulombic self-assembly (PACS) 19 
+
+is a powerful platform whereby oppositely charged col-loidal particles interact with one another via electrostatic forces that are attenuated at close range by interactions between the polymer brushes coating their respective sur-faces. We have demonstrated that this versatile approach allows us to tune the interparticle interactions of these bi-nary ionic colloidal systems to promote the preferential self-assembly of a menagerie of different crystal struc-tures and different nucleation dynamics 19–22 .For a given set of PACS conditions, various ther-modynamically stable and kinetically accessible crystal polymorphs are oftentimes observed both in experiment 
+
+> a) Electronic mail: michael.chen@uky.edu
+> b) Electronic mail: hockyg@nyu.edu
+
+and simulations. Properly quantifying the relative free energies of different possible crystal polymorphs and metastable structures is essential for informing how to de-sign a system and associated conditions to preferentially form one structure, but this presents a difficult sampling problem given the presence of high free energy barriers in these systems. Enhanced sampling methods that selec-tively bias a system along its relevant slow degree(s) of freedom associated with the transition(s) of interest, i.e., collective variables (CVs), provide a means of efficiently mapping out these systems’ free energy landscapes 23–26 .However, the identification of a set of CVs that prop-erly capture the relevant degrees of freedom is essen-tial for obtaining accurate, well-converged free energy estimates via these approaches. Commonly used order parameters (OPs) like Steinhardt-Nelson parameters 27 
+
+and coordination numbers are effective CVs for biasing the sampling of simple crystalline systems 28–31 but are less efficient when more exotic, non-close packed struc-tures are involved as they can fail to resolve the differ-ent states of interest. More complex OPs can better re-solve the relevant (meta)stable states of a system, but the identification of these can be challenging given the many-body character of nucleation and crystallization processes. A diverse library of both analytical 27,32–38 
+
+and data-driven 39–42 OPs have been developed to bet-ter enable enhanced sampling simulations to study col-loidal crystal systems. However, many analytical ap-proaches can be too computationally demanding to serve as CVs for on-the-fly biased enhanced sampling simu-lations that require repeated differentiation of the OPs arXiv:2608.09714v1 [cond-mat.stat-mech] 10 Aug 2026 2with respect to particle positions 35,43 . On the other hand, data-driven approaches have often required addi-tional reweighting procedures to correct for the machine learning (ML) models’ mispredictions 39,40,44 .Here we have developed OPs that distinguish the rel-evant crystal structures under a given set of PACS con-ditions. Our OPs generalize a previously developed lo-cal environment similarity OP 34 to render them rota-tionally invariant. However, this requires performing an expensive alignment of each particle’s local environ-ment with respect to the target crystal structure(s) that makes them computationally infeasible to use for bi-ased enhanced sampling simulation to determine the sys-tem’s free energy landscape. To circumvent this com-putational bottleneck, we have trained SE(3) equivari-ant transformer networks to predict the values of these OPs. The computational acceleration afforded by these ML proxy models enabled us to employ them as CVs to drive metadynamics 23,45 simulations of ionic colloidal systems. We used an active learning protocol to iter-atively construct our training dataset by sampling new candidate configurations via metadynamics simulations and demonstrate that the ML model trained on the final dataset is accurate with respect to the analytical CV even over the course of lengthy metadynamics simulations. We showcase the utility of our approach by computing and comparing free energy landscapes for ionic colloidal sys-tems that can form both or either CsCl-like 46 and Th 3P4-like 47 crystals, highlighting how tuning the charges of the colloidal particles stabilizes one crystal structure over the other.   
+
+> II. METHODS AND COMPUTATIONAL DETAILS A. Polymer-attenuated Coulombic self-assembly (PACS)
+
+We have previously shown that binary PACS systems consisting of positive and negative ionic colloidal parti-cles can be designed to self-assemble into a wide variety of colloidal crystals by changing particle size ratio, surface potential/potential ratio, and salt concentration 21,22,48 .In Ref. 21, we observed particularly rich behavior for the size ratio 1:0.81, whereby a number of identified and unidentified crystals are observed under a custom dial-ysis setup. In simulation and experiment we observe a wide range of conditions where structures equivalent to the atomic crystals of CsCl, i.e., binary simple cubic crystals, and Th 3P4 form (Fig. 1); moreover, we have observed heterogeneous nucleation of a previously unob-served structure possessing a stoichiometric ratio of 3:4 between the larger and smaller particles on a charged substrate 21 .While these structures appear in standard MD simu-lations using the coarse-grained potential described be-low, we were not previously able to identify for some conditions whether either Th 3P4 or CsCl was thermody-namically favored or only kinetically favored. Moreover, for the majority of conditions where Th 3P4 formed, it took substantially longer than the simpler CsCl structure as nucleation tended to proceed through an amorphous droplet phase before eventually crystallizing after O(10 9)MD steps. Hence, for conditions where only aggregates are observed, we require a more advanced approach to de-termine thermodynamic stability. Here, we demonstrate that this is possible using a generalized environment sim-ilarity CV. Like our previous studies 19–22 , we performed molec-ular dynamics (MD) simulations with a coarse-grained representation of the system such that each colloid is represented as a single particle interacting with other col-loids via a pairwise potential that is a sum of screened electrostatic interactions due to innate surface charge and purely repulsive interactions due to overlap of poly-mer brushes on the surface. We have developed a flexi-ble simulation software framework, PACSim, that facil-itates performing simulations with this model 49 ; below, we briefly describe the model for completeness but we refer the interested reader to Ref. 49 for full details. We model the electrostatic potential energy ( Ve) be-tween pairs of colloids i and j according to Derjaguin-Landau-Verwey-Overbeek theory as 49,50 ,
+
+Ve(hij )
+
+kB T = 2 πϵa ij ψiψj e−hij /λ d , (1) where hij is the distance separating the surfaces of the two colloids, aij is the harmonic mean of the particles’ radii following the Derjaguin approximation 50 , λd is the Debye screening length, kB is the Boltzmann constant, 
+
+T is the temperature, ϵ is the solvent permittivity, and 
+
+ψi and ψj are the surface potentials of the respective colloids. We model the repulsive potential energy ( Vp) asso-ciated with interactions between polymer brushes ac-cording to the Alexander-de Gennes polymer brush model 49,51–53 as follows, 
+
+Vp(hij )
+
+kB T = 16 πa ij L2σ3/2
+
+35 
+
+"
+
+28 
+
+ 2Lhij 
+
+1/4
+
+− 1
+
+!
+
++ 20 11 1 −
+
+ hij 
+
+2L
+
+1/4!
+
++ 12 
+
+ hij 
+
+2L − 1
+
+#
+
+,
+
+(2) where L is the polymer brush length and σ is the surface brush density. Due to the relative expense of computing these CVs, we employed a smaller system than used for earlier stud-ies. Here, MD simulations consisted of 256 colloids in an equimolar mixture between positive and negative parti-cles. Diameters of the positive and negative particles were 170 nm and 210 nm, respectively, in a periodic box with side lengths of 1800 nm. We modeled our colloids interacting in a dilute salt solution, taking the solvent permittivity to be ϵ = 80 for that of water and the De-bye screening length λ = 5 .42 nm. For the polymer brush 3parameters, we set the brush length to L = 10 .0 nm and the surface brush density to be 0.09 nm −2. To test the effect of changing the surface potential ratio, we varied the surface potentials of the negative and positive colloids setting them to be either -40:+53, -53:+40, -70:+30 mV. Given the product form of the prefactor in the electro-static attraction in Eq. 1, these charges result in approxi-mately identical pairwise attractions, while changing the scale of the like-charge repulsion. We performed Langevin dynamics simulations, ther-mostatted to 300 K using a drag coefficient of 0.1 ps −1
+
+and a timestep of 0.05 ps. Configuration files to repro-duce these simulations are available as described in the Data Availability section. 
+
+B. Local environment order parameter 
+
+For a given positive particle i, we defined the following OP to quantify the overlap of its local environment χi
+
+with respect to a reference local environment χP (also centered on a positive particle), 
+
+OP(i ∈ P ) = max 
+
+> RP,RN
+
+12nP
+
+> nP
+
+X
+
+> j∈χi
+> nP
+
+X
+
+> k∈χP
+
+exp 
+
+
+
+− |⃗r ij − RP⃗r k|2
+
+4σ2P
+
+
+
++ 12nN
+
+> nN
+
+X
+
+> j∈χi
+> nN
+
+X
+
+> k∈χP
+
+exp 
+
+
+
+− |⃗r ij − RN⃗r k|2
+
+4σ2N
+
+
+
+,
+
+(3) where nP is the number of positive particles in the local environment not including the central particle, nN is the number of negative particles in the local environment, ⃗r ij 
+
+is the displacement between particle j in environment χi
+
+and the centered particle i,⃗r k is the position of particle 
+
+k in the reference environment χP where the central par-ticle is located at the origin, σ dictates the breadth of a particle’s density, and RP and RN are rotation matri-ces that are separately determined for the positive P and negative N neighbors. Note that the indices j and k in the first set of summation terms run over the positive par-ticles in the local environments χi and χP , respectively, but they run over the negative particles in the second set of summation terms. We similarly defined an OP for a given negative parti-cle i with respect to a reference local environment χN to be, 
+
+ON(i ∈ N ) = max 
+
+> RP,RN
+
+12nP
+
+> nP
+
+X
+
+> j∈χi
+> nP
+
+X
+
+> k∈χN
+
+exp 
+
+
+
+− |⃗r ij − RP⃗r k|2
+
+4σ2P
+
+
+
++ 12nN
+
+> nN
+
+X
+
+> j∈χi
+> nN
+
+X
+
+> k∈χN
+
+exp 
+
+
+
+− |⃗r ij − RN⃗r k|2
+
+4σ2N
+
+
+
+.
+
+(4) As stated earlier, this is an adaptation of the environ-ment similarity CV from Ref. 34 which is available in the 
+
+FIG. 1. Energy-minimized structures for CsCl-like (a) and Th 3P4-like (b) colloidal crystals viewed from an orthographic perspective and with the particle diameters set to 50% of their actual values. The system consists of both positive (red) and negative (blue) colloidal particles with diameters of 170 and 210 nm, respectively. Reference local environments χCsCl ,P
+
+and χTh 3P4,P around the positive particles are depicted in (c) and (d) while the reference local environments χCsCl ,N and 
+
+χTh 3P4,N around the negative particles are depicted in (e) and (f). 
+
+PLUMED open source sampling library 54 and illustrated in the PLUMED-tutorial example 22.012 55 .For CsCl-like crystals, the reference local environments for the positive ( XCsCl ,P) and negative ( XCsCl ,N) parti-cles are that of a binary simple cubic crystal where there are 8 equidistant oppositely charged nearest neighbors (Figures 1c and 1e). Both the calculations of OCsCl ,P and 
+
+OCsCl ,N use an overlap parameter σN = σP = 23 nm, but the former is computed with nN = 8 and nP = 6 whereas the calculation of the latter uses nN = 6 and nP = 8. For Th 3P4-like crystals, the reference local environment for the smaller positive particles ( XTh 3P4,P) consists of 
+
+nN = 6 and nP = 11 neighbors and overlap parameters of σN = 23 nm and σP = 45 nm whereas the reference local environment for the negative particles ( XTh 3P4,N)consists of nN = 8 and nP = 8 neighbors and overlap parameters of σN = 64 nm and σP = 32 nm. Note that the calculation of these OPs for each parti-cle i’s local environment involves a rotational alignment to determine the maximum overlap of χi with the corre-sponding reference environment. We employed the Kab-sch algorithm 56 to determine the rotation matrices R
+
+that give the maximal alignment between the set of par-ticles in particle i’s local environment and those of the reference environments. 
+
+C. Metadynamics and collective variables 
+
+We performed (untempered) metadynamics simula-tions to efficiently sample the relevant (meta)stable states 4
+
+FIG. 2. a) Our CVs, QCsCl and QTh 3P4 , over the course of an unbiased MD simulation starting from a disordered liquid that crystallized into CsCl (blue) where surface potentials of the negative and positive particles were -40 and +53 mV, respectively, and another simulation that resulted in a Th 3P4 crystal when using surface potentials of -53 and +40 mV. The CVs resolve the crystalline phases from each other and from the disordered phases. b+c) Time traces of the system’s QCsCl and QTh 3P4
+
+(blue and orange) track with the potential energy (black) during unbiased MD simulations along with the Steinhardt-Nelson 
+
+Q6 OP for comparison (green). 
+
+for our ionic colloidal crystal system and compute their relative free energies. This involves augmenting our sam-pling of a system’s canonical distribution with a history-dependent bias potential where Gaussian hills are de-posited in the space of a defined set of CVs. After observ-ing a number of transitions between metastable states of the system, we can estimate the free energy of the system by taking the negative of the summed bias potential 45 .Here, we employed untempered metadynamics because we were most interested in evaluating whether our CVs allowed us to explore the space of structures, and signif-icant bias is required to transition over very high energy barriers. Having defined local OPs that should distinguish our target crystal structures of interest, we applied a meta-dynamics bias on two global CVs, one that serves as a measure of how CsCl-like the system is, 
+
+QCsCl = 12NP
+
+> NP
+
+X
+
+> i=1
+
+¯OCsCl ,P(i) + 12NN
+
+> NN
+
+X
+
+> j=1
+
+¯OCsCl ,N(j), (5) and another that serves as a measure of how Th 3P4-like the system is, 
+
+QTh 3P4 = 12NP
+
+> NP
+
+X
+
+> i=1
+
+¯OTh 3P4,P(i) + 12NN
+
+> NN
+
+X
+
+> j=1
+
+¯OTh 3P4,N(j),
+
+(6) where the indices i and j run over the set of positive and negative colloidal particles in our systems with totals of 
+
+NP and NN, respectively. For calculating the CV of each crystal structure α we used their respective neighbor-averaged OPs, ¯Oα, P(i) = 12(1 + nP)
+
+Oα, P(i) + 
+
+> nP
+
+X
+
+> j∈χi
+
+Oα, P(j)
+
+
+
++ 12nN
+
+> nN
+
+X
+
+> k∈χi
+
+Oα, N(k),
+
+(7) ¯Oα, N(i) = 12(1 + nN)
+
+Oα, N(i) + 
+
+> nN
+
+X
+
+> j∈χi
+
+Oα, N(j)
+
+
+
++ 12nP
+
+> nP
+
+X
+
+> k∈χi
+
+Oα, P(k),
+
+(8) in a fashion similar to how neighbor-averaged local Stein-hardt order parameters are often used 32 .The Gaussian hills added to the potential over the course of our metadynamics simulations were deposited every 100 ps (2000 MD steps). We set the heights of the deposited Gaussian energy biases to be 1 kJ/mol and their standard deviations to be 0.025 for both QCsCl and 
+
+QTh 3P4 .
+
+D. Machine learning model and dataset construction 
+
+Since the evaluation of the CVs in Section II C and their gradients with respect to particle positions would computationally bottleneck our metadynamics simula-tions, we have developed ML models to serve as more efficient-to-evaluate proxies for both QCsCl and QTh 3P4 .We employed the equivariant transformer (ET) network architecture 57 , which has been used extensively for mod-eling ML potentials for various molecular systems 58,59 ,as implemented in the TorchMD-Net package 60 . How-ever, instead of using it as a map from atomic positions 5to the system’s potential energy, here we developed ET models that serve as a map between the positions of the colloidal particles and our CVs. Our ET models for both 
+
+QCsCl and QTh 3P4 employed a learnable 32-dimensional embedding for describing the local environment around a given colloid, with a lower radial cutoff of 180 nm and an upper radial cutoff of 380 nm, constructed from 64 radial basis functions. These initial particle embeddings were refined with two update layers that use a modified atten-tion mechanism consisting of four attention heads 61 . In all, each of our ET models consisted of 50300 trainable parameters. For each CV α, we minimized a loss function for a given configuration of NN negative and NP positive colloids that combines the square error of both the global CVs and per-particle local environment similarity OPs, 
+
+Lα =λQ
+
+ bQα − Qα
+
+2
+
++ λO
+
+NP
+
+> NP
+
+X
+
+> i
+
+ bOα, P(i) − Oα, P(i)
+
+2
+
++ λO
+
+NN
+
+> NN
+
+X
+
+> i
+
+ bOα, N(i) − Oα, N(i)
+
+2
+
+,
+
+(9) where the terms with carets indicate the corresponding ML model predictions, and the λ coefficients are used to weight the relative contribution between global and local losses. For training our models, we set λQ = 0 .1and λO = 100 to more heavily weight the training on the local environment order parameters. We nevertheless still employ a non-zero weight for the global term so as to reduce any sort of systematic bias in the local predictions. To optimize the weights of the ML models, we used the Adam 62 optimizer with a learning rate of 0.001, β1 = 0 .9, and β2 = 0 .999. Our dataset contains a total of 11355 periodic con-figurations each consisting of 256 colloidal particles and we employed a 90-10 training-validation split to train our ML models. We constructed the dataset via an active learning protocol 63 where we iteratively sampled new candidate training set configurations by performing metadynamics with our ML proxy CVs, post-processed the sampled trajectory to identify configurations that were mispredicted, and added those failure modes to the training set for subsequent iterations. The initial dataset consisted of 250 configurations sampled from each of two unbiased MD simulations depicted in Figure 2: (1) one simulation where the system was initialized in a disor-dered liquid state and self-assembled into a CsCl-like crystal by the end and (2) another simulation that self-assembled into a Th 3P4-like crystal. We then performed several active learning iterations employing a variety of different ML proxy CVs that evaluated how similar a given configuration’s structure is with the target struc-tures’ radial distribution functions (RDF) and angularly-resolved RDFs. Although we found these CVs to be in-sufficient for comprehensive configuration sampling via  
+
+> FIG. 3. The accuracy of predictions obtained from our ML models trained on reference particle-specific order parameters (OPs) gauging how similar their local environment is com-pared to that of Th 3P4-like (a) and CsCl-like (b) crystals. Our CVs (c+d) are the configuration average of our OPs and the values obtained from our ML models are well correlated with the reference values. The correlation plots show the ML predicted values as compared to the reference values as eval-uated on our 1135 configuration validation set.
+
+metadynamics, during this process we added a diverse set of 9713 configurations. In particular, we were never able to sample Th 3P4-like crystals with these earlier CVs. The remaining 1142 configurations were sampled via a second round of active learning where we now employed our local environment OPs as defined in Section II B as our CVs.  
+
+> III. RESULTS AND DISCUSSION
+
+To estimate free energies of the relevant colloidal crys-tal structures via metadynamics, our CVs should accu-rately resolve the system’s different metastable and tran-sition states. Figure 2a tracks both the CVs for how CsCl-like ( QCsCl ) and Th 3P4-like ( QTh 3P4 ) our 256 par-ticle periodic system is over the course of unbiased MD simulations where we initialize the system with a dis-ordered liquid-state initial configuration and observed it self-assemble into a CsCl-like (blue line) or Th 3P4-like (orange) crystal. Both unbiased MD simulations were performed with the settings specified in Section II A with the surface potentials of the negative and positive colloids set to -40 and +53 mV for the simulation that produced the CsCl crystal and -53 and +40 mV for the other. By construction (Equations 3)-4), the domain for each 6              
+
+> FIG. 4. Time traces of QCsCl and QTh 3P4over the course of a metadynamics simulation performed at iterations 1, 8, and 10 of our active learning protocol for constructing the dataset where the ML predicted CVs used to drive the metadynamics simulation are shown as dashed lines and the reference values for the CVs are represented by the shaded area. (a) Our ML model of both QCsCl and QTh 3P4trained to the initial dataset displays large errors. By iteration 8 our ML model for QCsCl is accurate but our model for QTh 3P4still displays errors at higher values, however both models accurately predict the CVs by iteration 10.
+
+of our local environment order parameters runs from 0, where there is no overlap of neighboring particles with that of the reference structure, to 1, where the displace-ments of the neighboring particles match those of the reference structure when optimally aligned. Hence, our CVs (Equations 5-6), which are averages of the local en-vironment OPs of each particle in the system, will also run from 0 to 1 with greater values indicating that more particles in the system have structured themselves into the particular reference crystal structure. The time trace of QCsCl over the course of the unbiased MD simulation presented in Figure 2b shows that it properly resolves the initial disordered liquid state from the fully struc-tured CsCl-like crystal at QCsCl ≈ 0.7. Similarly, Fig-ure 2c shows that QTh 3P4 well-resolves the initial liq-uid state from when the system ultimately self-assembles into a Th 3P4-like crystal beyond 100 ns at QT h 3P4 ≈ 0.6. Both QCsCl and QTh 3P4 also capture intermediate transi-tion states as the system nucleates and grows the crystal seeing as their respective time trace tracks with that of the system’s potential energy as the crystals self-assemble (dashed lines in Figures 2b-c). Although decreases in the potential energy like those in Figures 2b-c are strong in-dicators of the system crystallizing, the potential energy would be a poor CV given the multitude of degenerate structures that present with identical energies. On the other hand, we see from Figure 2a that regions in the 2D space spanned by QCsCl and Q Th 3P4 that are representa-tive of our two crystal structures of interest, as well as the associated transition states, are well-separated from each other and from the disordered state. Although in prin-ciple these CVs with their ability to resolve the relevant states of our colloidal system appear to be well-suited for performing metadynamics simulations, in practice they would be infeasible to employ because of the computa-tional challenge associated with computing their gradi-ents with respect to particle positions given the rotational alignment needed to determine the maximum alignment of each particle’s local environment with the reference environments (Equations 3-4). To enable the use of QCsCl and QTh 3P4 for metadynam-ics simulations, we have trained computationally efficient ML proxy models to a dataset of the local environment OPs (Section II D). Figure 3 highlights the accuracy of our ML proxy models as evaluated on a validation set of 1135 periodic configurations each consisting of 256 col-loidal particles. The correlation plots in Figures 3a-d show good agreement between the ML predicted global and local order parameters. The performance of our ML models over a diverse validation set of local environments spanning the entire range of both OCsCl and OT h 3P4 , and their configuration averages that serve as our CVs (Fig-ures 3c-d), gives us confidence that we can use our ML models as proxies for our QCsCl and QTh 3P4 . In addition to checking prediction accuracies on a select validation set of configurations, we also over the course of our ac-tive learning procedure for iteratively constructing the dataset (Section II D) sampled metadynamics trajecto-ries employing our best-of-yet ML proxy CVs and post-processed the trajectories to compute the reference CV values for identifying problematic regions of configura-tion space that could be added to the dataset to improve our models. Figure 4a shows the ML predicted values of 
+
+QCsCl and QTh 3P4 used to drive the metadynamics simu-7lation for iteration 1 of our active learning protocol. Over the course of this initial 500 ns metadynamics simulation, which was conducted for a system where the colloids ei-ther had +46 or -46 mV surface potentials, we observed that the ML predicted QCsCl and QTh 3P4 values deviated significantly from the reference values at the higher end of each of the CVs’ domains. Consequently, our metady-namics simulation for iteration 1, which was initialized in the disordered liquid phase, failed to sample configura-tions where the system crystallized into CsCl or Th 3P4.After refining our dataset iteratively via our active learn-ing protocol (Section II D), our ML proxy CVs at iter-ation 8 were robust enough to enable our metadynam-ics simulations to start sampling both crystal structures. However, Figure 4b shows that our ML proxy for QTh 3P4
+
+still occasionally made erroneous over-predictions (i.e., between 400 and 500 ns). It was relatively more chal-lenging to develop the ML proxy CV for Th 3P4 because its crystal structure presents with more complex local environments than that of the interlaced simple cubic structure of CsCl (Figure 1). Nevertheless, by iteration 10 both of our ML proxy CVs were consistently accurate over the course of the metadynamics simulations (Fig-ure 4c). We leveraged our accurate and more efficient ML proxy CVs to understand how the free energy landscape of our ionic colloidal systems varies as we modulate the surface potentials of the positive and negative colloidal particles while holding all other parameters fixed. For consistency, we selected surface potential combinations that would keep the Coulombic interaction between pairs of positive and negative colloids similar by fixing their product ψiψj
+
+to approximately -2100 mV 2. Figure 5 presents the re-sults of our free energy calculations where we employed our ML proxies for QCsCl and QTh 3P4 within metady-namics simulations. Here, we find that when we set the surface potentials of the larger negatively charged colloids to -40 mV and the smaller positive colloids to +53 mV, CsCl-like crystals are strongly stabilized with respect to Th 3P4-like crystals and the disordered phase (Figure 5a). By shifting more and more of the charge onto the larger negative particles, CsCl-like structures became more destabilized while Th 3P4-like structures be-came more stabilized. More specifically, when we flipped the surface potentials to -53,+40 mV Th 3P4-like crystals present with considerably lower free energies (Figure 5b). We can rationalize this change by considering how they affect the pairwise Coulombic interactions (Equation 1). Hence, the differences in relative free energies we ob-serve when tuning the surface potentials are attributable to changes in the repulsive Coulombic interactions be-tween particles of the same type. More specifically, the larger negative particles are packed closer together on av-erage when they adopt a CsCl-like structure as compared to when they structure like Th 3P4 (241 nm vs. 282 nm). When the magnitude of the surface potentials on the neg-ative particles is smaller (e.g., Figure 5a), neighboring negative particles are able to pack closer together into CsCl-like structures without incurring too much of an energetic penalty. On the other hand, when the magni-tude of the surface potentials on the negative particles is greater, the expected distances between neighboring negative particles in a CsCl-like arrangement lie further up the repulsive wall ( > 1 kB T ) while negative parti-cles for Th 3P4 are separated further apart and unaf-fected. As a consequence, as we see from Figure 5b for this case, Th 3P4-like structures have a lower free en-ergy than CsCl-like structures. However if we further increase the magnitude of the surface potentials on the negative particles (Figure 5c) then the repulsive inter-actions at larger distances increase to the point where Th 3P4-like structures are also destabilized and instead disordered condensates will have lower free energies. This is consistent with our recent experimental study where we demonstrated that particular crystal types can be se-lected by using surfactants to independently modulate the surface potentials of the positive and negative col-loids; although that study used different sized particles, we independently came to the same conclusion as to the effects of like-like repulsion on tipping the balance be-tween CsCl and Th 3P448 . This shows how our use of local environment CVs to compute relative free energies can predict the results of experimentally-accessible routes to directing the self-assembly of specific colloidal crystal structures.  
+
+> IV. CONCLUSIONS
+
+Metadynamics simulations can be useful for character-izing the free energy landscape of colloidal crystal sys-tems, but require identifying a set of CVs that serve as low dimensional representations of the system capable of resolving the different metastable structures and associ-ated transition states while being efficient to differentiate with respect to particle positions. Here we presented an approach that uses CVs measuring the similarity of lo-cal particle environments with those of relevant perfect crystal structures, and developed ML proxies for these CVs so that we could employ them efficiently for meta-dynamics simulations. We showed that one can construct datasets for training these ML models via an iterative ac-tive learning procedure such that they serve as accurate proxies. We demonstrated the utility of our approach by using the trained ML proxies for determining the free energy surface landscapes of ionic colloidal systems that tend to form CsCl-like and/or Th 3P4-like crystals. Our results showed that one can vary the surface potentials of the positive and negative colloidal particles in these sys-tems to preferentially stabilize one of these crystal struc-tures, and the trends we obtain from our metadynamics simulations employing our ML proxy CVs are qualita-tively consistent with experiments conducted on similar systems. The approach we developed here enables the use of CVs that would otherwise be too computationally expen-8
+
+FIG. 5. 2D free energy surfaces obtained from our metadynamics simulations employing our ML models of QCsCl and QTh 3P4
+
+when varying the surface potentials of the negative and positive particles showing how CsCl and Th 3P4 crystals can be thermodynamically favored under different conditions. Dashed lines show minimum free energy paths along the surface, with 1D free energies shown in the lower panels. In all 3 cases the negative particle has a diameter of 210 nm and the positive particle has a diameter of 170 nm. (a) When the surface potentials for negative and positive particles are -40 and +53 mV (-40,+53 mV), respectively, then CsCl-like crystals are favored. (b) When we flip things to -53,+40 mV we get a strong relative stabilization of Th 3P4-like crystals. (c) If we continue redistributing the surface potentials to -70,+30 mV we destabilize both crystals with respect to the disordered phases. 
+
+sive or infeasible to evaluate the gradients for on-the-fly biased enhanced sampling simulations of colloidal crystal systems. Note that the calculation of our local environ-ment order parameters necessitates that we have a prede-fined set of reference environments. If different reference environments need to be used, either because the new system has different relevant crystal structures and/or particle sizes, then our ML proxy models need to be re-trained accordingly. However, as we demonstrated here, training these system-specific ML proxy models can be achieved in a data efficient manner. The development of these models could be further sped up by leveraging transfer learning between similar systems (e.g., from one set of colloid diameters to another). We believe this ap-proach will generalize and be useful for calculating rela-tive free energies of other colloidal crystal systems going forward. 
+
+V. DATA AVAILABILITY 
+
+The datasets used to train our ML models, codes used to train those models and run our simulations, scripts to compute order parameters, and inputs for performing the simulations are available at https://github.com/hocky-research-group/Chen-ML-proxyCVs. 
+
+ACKNOWLEDGMENTS 
+
+This research was supported by the US Army Research Office under award number W911NF-26-2-A149 to SS and GMH. GMH also acknowledges support of a fellow-ship from the Alfred P. Sloan foundation. M.S.C. was supported as a fellow of the Simons Center for Com-putational Physical Chemistry at NYU (SCCPC, Si-mons Foundation Grant MPS-T-MPS-00839534, MET). M.S.C. gratefully acknowledges startup funds from the University of Kentucky. This work was supported in part through the NYU IT High Performance Computing re-sources, services, and staff expertise. 
+
+REFERENCES      
+
+> 1M. Jansen, W. A. Tisdale, and V. Wood, “Nanocrystal phonon-ics,” Nat. Mater. 22 , 161–169 (2023).
+> 2A. Michelson, T. J. Flanagan, S.-W. Lee, and O. Gang, “High-strength, lightweight nano-architected silica,” Cell Rep. Phys. Sci. 4(2023).
+> 3Y. Li, H. Jin, W. Zhou, Z. Wang, Z. Lin, C. A. Mirkin, and H. D. Espinosa, “Ultrastrong colloidal crystal metamaterials en-gineered with DNA,” Sci. Adv. 9, eadj8103 (2023).
+> 4C. Qian, E. Stanifer, Z. Ma, L. Yao, B. Luo, C. Liu, J. Li, P. Pan, W. Pan, X. Mao, and Q. Chen, “Nanoscale phonon dynamics in self-assembled nanoparticle lattices,” Nat. Mater. 24 , 1616–1625 (2025).
+> 5H. Pattabhiraman, G. Avvisati, and M. Dijkstra, “Novel py-rochlorelike crystal with a photonic band gap self-assembled us-
+
+9
+
+ing colloids with a simple interaction potential,” Phys. Rev. Lett. 
+
+119 , 157401 (2017). 
+
+> 6
+
+M. He, J. P. Gales, ´E. Ducrot, Z. Gong, G.-R. Yi, S. Sacanna, and D. J. Pine, “Colloidal diamond,” Nature 585 , 524–529 (2020). 
+
+> 7
+
+J. P. Gales, M. J. Kim, G. M. Hocky, and D. J. Pine, “Crystal-lization of non-convex colloids: the roles of particle shape and entropy,” Soft Matter 21 , 7021–7033 (2025). 
+
+> 8
+
+V. L. Colvin, M. C. Schlamp, and A. P. Alivisatos, “Light-emitting diodes made from cadmium selenide nanocrystals and a semiconducting polymer,” Nature 370 , 354–357 (1994). 
+
+> 9
+
+B. O. Dabbousi, M. G. Bawendi, O. Onitsuka, and M. F. Rubner, “Electroluminescence from CdSe quantum-dot/polymer compos-ites,” Applied Physics Letters 66 , 1316–1318 (1995). 
+
+> 10
+
+C. B. Murray, C. R. Kagan, and M. G. Bawendi, “Synthesis and characterization of monodisperse nanocrystals and close-packed nanocrystal assemblies,” Annual Review of Materials Research 
+
+30 , 545–610 (2000). 
+
+> 11
+
+S. C. Glotzer and M. J. Solomon, “Anisotropy of building blocks and their assembly into complex structures,” Nat. Mater. 6, 557– 562 (2007). 
+
+> 12
+
+F. Li, D. P. Josephson, and A. Stein, “Colloidal assembly: The road from particles to colloidal molecules and crystals,” Angew. Chem. Int. Ed. 50 , 360–388 (2011). 
+
+> 13
+
+S. Sacanna and D. J. Pine, “Shape-anisotropic colloids: Building blocks for complex assemblies,” Current Opinion in Colloid & Interface Science 16 , 96–105 (2011). 
+
+> 14
+
+J. Du and R. K. O’Reilly, “Anisotropic particles with patchy, multicompartment and janus architectures: preparation and ap-plication,” Chem. Soc. Rev. 40 , 2402–2416 (2011). 
+
+> 15
+
+M. A. Boles, M. Engel, and D. V. Talapin, “Self-assembly of colloidal nanocrystals: From intricate structures to functional materials,” Chemical Reviews 116 , 11220–11289 (2016), pMID: 27552640. 
+
+> 16
+
+W. Zhou, Y. Li, B. E. Partridge, and C. A. Mirkin, “Engineering anisotropy into organized nanoscale matter,” Chemical Reviews 
+
+124 , 11063–11107 (2024), pMID: 39315621. 
+
+> 17
+
+T. Hueckel, G. M. Hocky, and S. Sacanna, “Total synthesis of colloidal matter,” Nature Reviews Materials 6, 1053–1069 (2021). 
+
+> 18
+
+M. E. Leunissen, C. G. Christova, A.-P. Hynninen, C. P. Royall, A. I. Campbell, A. Imhof, M. Dijkstra, R. van Roij, and A. van Blaaderen, “Ionic colloidal crystals of oppositely charged parti-cles,” Nature 437 , 235–240 (2005). 
+
+> 19
+
+T. Hueckel, G. M. Hocky, J. Palacci, and S. Sacanna, “Ionic solids from common colloids,” Nature 580 , 487–490 (2020). 
+
+> 20
+
+S. Zang, A. W. Hauser, S. Paul, G. M. Hocky, and S. Sacanna, “Enabling three-dimensional real-space analysis of ionic colloidal crystallization,” Nat. Mater. 23 , 1131–1137 (2024). 
+
+> 21
+
+S. Zang, S. Paul, C. W. Leung, M. S. Chen, T. Hueckel, G. M. Hocky, and S. Sacanna, “Direct observation and control of non-classical crystallization pathways in binary colloidal systems,” Nat. Commun. 16 , 3645 (2025). 
+
+> 22
+
+S. van Kesteren, N. Smina, S. Zang, C. W. Leung, G. M. Hocky, and S. Sacanna, “Light-controlled colloidal crystalliza-tion,” Chem (2026), 10.1016/j.chempr.2025.102917. 
+
+> 23
+
+G. Bussi and A. Laio, “Using metadynamics to explore com-plex free-energy landscapes,” Nature Reviews Physics 2, 200–212 (2020). 
+
+> 24
+
+J. H´ enin, T. Leli` evre, M. R. Shirts, O. Valsson, and L. Delemotte, “Enhanced sampling methods for molecular dynamics simula-tions [article v1.0],” Living Journal of Computational Molecular Science 4, 1583 (2022). 
+
+> 25
+
+M. E. Tuckerman, Statistical Mechanics: Theory and Molecular Simulation, Second Edition (Oxford University Press, Oxford, 2023). 
+
+> 26
+
+F. Giberti, M. Salvalaglio, and M. Parrinello, “Metadynamics studies of crystal nucleation,” IUCrJ 2, 256–266 (2015). 
+
+> 27
+
+P. J. Steinhardt, D. R. Nelson, and M. Ronchetti, “Bond-orientational order in liquids and glasses,” Phys. Rev. B 28 , 784– 805 (1983). 
+
+> 28
+
+S. Auer and D. Frenkel, “Prediction of absolute crystal-nucleation rate in hard-sphere colloids,” Nature 409 , 1020–1023 (2001). 
+
+> 29
+
+F. Trudu, D. Donadio, and M. Parrinello, “Freezing of a Lennard-Jones Fluid: From Nucleation to Spinodal Regime,” Phys. Rev. Lett. 97 , 105701 (2006). 
+
+> 30
+
+L. Filion, M. Hermes, R. Ni, and M. Dijkstra, “Crystal nucle-ation of hard spheres using molecular dynamics, umbrella sam-pling, and forward flux sampling: A comparison of simulation techniques,” J. Chem. Phys. 133 , 244115 (2010). 
+
+> 31
+
+M. Badin and R. Martoˇ n´ ak, “Nucleating a different coordination in a crystal under pressure: A study of the b1−b2 transition in NaCl by metadynamics,” Phys. Rev. Lett. 127 , 105701 (2021). 
+
+> 32
+
+W. Lechner and C. Dellago, “Accurate determination of crystal structures based on averaged local bond order parameters,” J. Chem. Phys. 129 , 114707 (2008). 
+
+> 33
+
+W. Mickel, S. C. Kapfer, G. E. Schr¨ oder-Turk, and K. Mecke, “Shortcomings of the bond orientational order parameters for the analysis of disordered particulate matter,” J. Chem. Phys. 
+
+138 , 044501 (2013). 
+
+> 34
+
+P. M. Piaggi and M. Parrinello, “Calculation of phase diagrams in the multithermal-multibaric ensemble,” J. Chem. Phys. 150 ,244119 (2019). 
+
+> 35
+
+D. Fijan, M. R. Ward Rashidi, J. Bradley, and S. C. Glotzer, “Quantifying local point-group-symmetry order in complex par-ticle systems,” J. Chem. Phys. 164 , 144108 (2026). 
+
+> 36
+
+J. Russo and H. Tanaka, “Crystal nucleation as the ordering of multiple order parameters,” J. Chem. Phys. 145 , 211801 (2016). 
+
+> 37
+
+P. M. Larsen, S. Schmidt, and J. Schiøtz, “Robust structural identification via polyhedral template matching,” Modelling and Simulation in Materials Science and Engineering 24 , 055007 (2016). 
+
+> 38
+
+E. G. Teich, G. van Anders, and S. C. Glotzer, “Identity crisis in alchemical space drives the entropic colloidal glass transition,” Nat. Commun. 10 , 64 (2019). 
+
+> 39
+
+F. M. Dietrich, X. R. Advincula, G. Gobbo, M. A. Bellucci, and M. Salvalaglio, “Machine learning nucleation collective vari-ables with graph neural networks,” J. Chem. Theor. Comput. 20 ,1600–1611 (2024), pMID: 37877821. 
+
+> 40
+
+V. J. Meraz, Z. Zou, and P. Tiwary, “Simulating crystallization in a colloidal system using state predictive information bottleneck based enhanced sampling,” J. Phys. Chem. B 128 , 8207–8214 (2024), pMID: 39163635. 
+
+> 41
+
+J. Rogal, E. Schneider, and M. E. Tuckerman, “Neural-network-based path collective variables for enhanced sampling of phase transformations,” Phys. Rev. Lett. 123 , 245701 (2019). 
+
+> 42
+
+T. Karmakar, M. Invernizzi, V. Rizzi, and M. Parrinello, “Collec-tive variables for the study of crystallisation,” Molecular Physics 
+
+119 , e1893848 (2021). 
+
+> 43
+
+C. S. Zhao, S.-T. Tsai, and S. C. Glotzer, “Hybrid Monte Carlo metadynamics (hybridMC-MetaD),” J. Chem. Phys. 164 , 024107 (2026). 
+
+> 44
+
+F. M. Dietrich, M. A. Bellucci, and M. Salvalaglio, “Committor-regularized learning of differentiable collective variables from non-differentiable structural descriptors,” J. Chem. Phys. 164 ,104115 (2026). 
+
+> 45
+
+A. Laio and M. Parrinello, “Escaping free-energy minima,” Proceedings of the National Academy of Sciences 99 , 12562–12566 (2002), https://www.pnas.org/doi/pdf/10.1073/pnas.202427399. 
+
+> 46
+
+“Materials Data on CsCl by Materials Project,” (2020), 10.17188/1199031. 
+
+> 47
+
+“Materials Data on Th3P4 by Materials Project,” (2020), 10.17188/1189608. 
+
+> 48
+
+S. van Kesteren, S. Zang, S. Sacanna, and G. M. Hocky, “Struc-ture selection in ionic colloidal crystals via independent charge tuning,” (In revision). 
+
+> 49
+
+P. H¨ ollmer, N. Smina, J. P. Marquardt, M. S. Chen, S. van Kesteren, S. Sacanna, and G. M. Hocky, “PACSim: A Flexible Simulation Framework for Polymer-Attenuated Coulombic Self-10 
+
+Assembly,” arXiv:2605.12870 (2026). 
+
+> 50
+
+R. J. Hunter, Foundations of Colloid Science , 2nd ed. (Oxford Univ. Press, 2001). 
+
+> 51
+
+Alexander, S., “Polymer adsorption on small spheres. a scaling approach,” J. Phys. France 38 , 977–981 (1977). 
+
+> 52
+
+P.-G. Degennes, “Stabilit´ e de films polym` ere/solvant,” Comptes rendus de l’Acad´ emie des sciences. S´ erie 2, M´ ecanique, Physique, Chimie, Sciences de l’univers, Sciences de la Terre (1985). 
+
+> 53
+
+C. Likos, K. Vaynberg, H. L¨ owen, and N. Wagner, “Colloidal sta-bilization by adsorbed gelatin,” Langmuir 16 , 4100–4108 (2000). 
+
+> 54
+
+M. Bonomi, G. Bussi, C. Camilloni, G. A. Tribello, P. Banas, A. Barducci, M. Bernetti, P. G. Bolhuis, S. Bottaro, D. Brand-uardi, R. Capelli, P. Carloni, M. Ceriotti, A. Cesari, H. Chen, W. Chen, F. Colizzi, S. De, M. D. L. Pierre, D. Donadio, V. Drobot, B. Ensing, A. L. Ferguson, M. Filizola, J. S. Fraser, H. Fu, P. Gasparotto, F. L. Gervasio, F. Giberti, A. Gil-Ley, T. Giorgino, G. T. Heller, G. M. Hocky, M. Iannuzzi, M. Inv-ernizzi, K. E. Jelfs, A. Jussupow, E. Kirilin, A. Laio, V. Limon-gelli, K. Lindorff-Larsen, T. Lohr, F. Marinelli, L. Martin-Samos, M. Masetti, R. Meyer, A. Michaelides, C. Molteni, T. Morishita, M. Nava, C. Paissoni, E. Papaleo, M. Parrinello, J. Pfaendtner, P. Piaggi, G. M. Piccini, A. Pietropaolo, F. Pietrucci, S. Pipolo, D. Provasi, D. Quigley, P. Raiteri, S. Raniolo, J. Rydzewski, M. Salvalaglio, G. C. Sosso, V. Spiwok, J. Sponer, D. W. H. Swenson, P. Tiwary, O. Valsson, M. Vendruscolo, G. A. Voth, and A. White, “Promoting transparency and reproducibility in enhanced molecular simulations,” Nat. Methods 16 , 670–673 (2019). 
+
+> 55
+
+G. A. Tribello, M. Bonomi, G. Bussi, C. Camilloni, B. I. Arm-strong, A. Arsiccio, S. Aureli, F. Ballabio, M. Bernetti, L. Bonati, 
+
+et al. , “PLUMED Tutorials: A collaborative, community-driven learning ecosystem,” J. Chem. Phys. 162 (2025). 
+
+> 56
+
+W. Kabsch, “A solution for the best rotation to relate two sets of vectors,” Acta Crystallographica Section A: Crystal Physics, Diffraction, Theoretical and General Crystallography 32 , 922– 923 (1976). 
+
+> 57
+
+P. Th¨ olke and G. D. Fabritiis, “Equivariant transformers for neu-ral network based molecular potentials,” in International Con-ference on Learning Representations (2022). 
+
+> 58
+
+M. S. Chen, A. Robledo, C. Sch¨ afer, K. Y. Han, C. Clementi, and M. E. Tuckerman, “Machine learning-accelerated path integral molecular dynamics simulations of reactive organic electrolytes,” J. Chem. Phys. 163 , 144110 (2025). 
+
+> 59
+
+M. Munoz, M. S. Chen, G. de Araujo Lima e Souza, T. Simunovic, V. Khokhar, P. Qian, J. Wainright, R. Savinell, A. Parnell, S. Parnell, R. C. Kilbride, T. A. Zawodzinski, M. Dad-mun, S. G. Greenbaum, J. Rodr´ ıguez-L´ opez, M. Tuckerman, and B. Gurkan, “Structured electrolytes facilitate grotthuss-type transport for enhanced proton-coupled electron transfer reac-tions,” Proceedings of the National Academy of Sciences 123 ,e2530367122 (2026). 
+
+> 60
+
+R. P. Pelaez, G. Simeon, R. Galvelis, A. Mirarchi, P. East-man, S. Doerr, P. Th¨ olke, T. E. Markland, and G. De Fabritiis, “Torchmd-net 2.0: Fast neural network potentials for molecular simulations,” J. Chem. Theor. Comput. 20 , 4076–4087 (2024). 
+
+> 61
+
+A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin, “Attention is all you need,” in Advances in Neural Information Processing Systems , Vol. 30, edited by I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fer-gus, S. Vishwanathan, and R. Garnett (Curran Associates, Inc., 2017). 
+
+> 62
+
+D. P. Kingma and J. Ba, “Adam: A Method for Stochastic Op-timization,” in International Conference on Learning Represen-tations (ICLR) (2015). 
+
+> 63
+
+A. Krogh and J. Vedelsby, “Neural Network Ensembles, Cross Validation, and Active Learning,” in Advances in Neural In-formation Processing Systems , Vol. 7, edited by G. Tesauro, D. Touretzky, and T. Leen (MIT Press, 1994) pp. 231–238.

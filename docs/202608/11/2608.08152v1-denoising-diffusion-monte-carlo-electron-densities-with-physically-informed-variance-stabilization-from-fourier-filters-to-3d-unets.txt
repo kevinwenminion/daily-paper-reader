@@ -1,0 +1,1074 @@
+Title: Denoising Diffusion Monte Carlo Electron Densities with Physically Informed Variance Stabilization: From Fourier Filters to 3D UNETs
+
+URL Source: https://arxiv.org/pdf/2608.08152v1
+
+Published Time: Tue, 11 Aug 2026 00:53:08 GMT
+
+Number of Pages: 34
+
+Markdown Content:
+Denoising Diffusion Monte Carlo Electron Densities with Physically Informed Variance Stabilization: From Fourier Filters to 3D UNETs ∗
+
+Kenneth O. Berard 
+
+Department of Chemistry, Brown University, Providence, Rhode Island 02912, USA 
+
+Brenda Rubenstein 
+
+Department of Chemistry, Brown University, Providence, Rhode Island 02912, USA Department of Physics, Brown University, Providence, Rhode Island 02912, USA and Data Science Institute, Brown University, Providence, Rhode Island 02912, USA 
+
+Jaron T. Krogel †
+
+Materials Science and Technology Division, Oak Ridge National Laboratory, Oak Ridge, TN 37831, United States Conv3D MaxPooling3D UpSampling3D Noisy Electronic Density Blue Phosphorus UNET 
+
+> Denoised Electronic Density
+> Accelerating QMC with 3D Denoising
+
+Obtaining accurate electron densities is important for the fundamental description of molecular and condensed matter systems, as well as for the development of next-generation density functionals. Diffusion Monte Carlo (DMC), in particular, is known to produce benchmark-quality data; however, the predicted real-space electron densities contain substantial amounts of statistical noise. In this work, we study denoising approaches for DMC densities, judged on the basis of the information-theoretic Jensen-Shannon divergence. The denoising is facilitated by an approximate heteroscedastic to homoscedastic transformation leveraging the density functional theory density as a physical prior. We systematically compare a range of denoising techniques—including Fourier transform, regression, and 3D UNETs—on materials showing a wide range of density variations: carbon diamond, blue phosphorus, and rutile VO 2. Our results indicate that simple flattened machine learning models and 2D image-based models introduce line artifacts and struggle to capture the full spatial correlation. In contrast, when using variance stabilization, regression methods outperform all others in both the high and low-noise limits across all materials considered. The best denoisers reduce the required cost of density-generating DMC simulations by 10–100 ×, providing a promising route forward for application in noise-sensitive tasks such as DFT functional inversion.  
+
+> ∗
+
+Notice: This manuscript has been authored by UT-Battelle, LLC, under contract DE-AC05-00OR22725 with the US De-partment of Energy (DOE). The US government retains and the publisher, by accepting the article for publication, ac-knowledges that the US government retains a nonexclusive, paid-up, irrevocable, worldwide license to publish or repro-duce the published form of this manuscript, or allow oth-ers to do so, for US government purposes. DOE will pro-vide public access to these results of federally sponsored re-search in accordance with the DOE Public Access Plan ( http: //energy.gov/downloads/doe-public-access-plan ).  
+
+> †
+
+krogeljt@ornl.gov arXiv:2608.08152v1 [cond-mat.mtrl-sci] 8 Aug 2026 2 
+
+> I. INTRODUCTION
+
+Electron densities play a pivotal role in our un-derstanding of molecules and quantum materials.[1] By indicating the likelihood that electrons may be found at different positions in space, electron den-sities provide valuable insights into the types and strengths of bonds, chemical reactivity,[2] and the phase behavior of complex solids such as magnets and correlated metals.[3, 4] Experimentally, the density of electrons around nuclei can be determined using advanced X-ray diffraction, electron scattering, and other spectro-scopic techniques.[5, 6] While invaluable for ex-tracting the bulk thermodynamic and electronic properties of materials, high-accuracy experimen-tal determinations of the density are fraught with challenges. They are exceptionally expensive, highly dependent on competitive beamtime access at global synchrotron facilities, and often struggle with the well-known crystallographic phase prob-lem or the resolution of transient states. Conversely, benchtop X-ray platforms offer broader accessibil-ity, but suffer from inherently limited spatial reso-lution and accuracy, rendering them insufficient for mapping subtle correlation effects. Theoretically, electron densities are also key outputs of many electronic structure theories that enable direct comparisons with experiment and can thus provide pivotal insights into the per-formance of different theoretical methods. Den-sity functional theory (DFT)[1, 7] has historically served as the primary workhorse for calculating the spatial distribution of electrons. While DFT scales highly favorably with system size compared to wavefunction-based approaches for solving the many-body Schrödinger equation, its absolute ac-curacy is fundamentally bottlenecked by the nec-essary approximation of the exchange-correlation (XC) functional. As modern functional approxima-tions have ascended Jacob’s ladder,[8] they have be-come increasingly complex and heavily parameter-ized to reproduce experimental thermodynamic and kinetic data. However, heavily empirical forms of-ten stray from enforcing the underlying exact quan-tum mechanical constraints they were initially de-signed to capture, yielding artificially distorted elec-tron densities even when energetic predictions ap-pear accurate.[9, 10] Consequently, obtaining true, high-accuracy electron densities necessitates algo-rithms that explicitly treat many-body electronic correlation without empirical bias. Real-space quantum Monte Carlo methods, such as the diffusion Monte Carlo (DMC) method, have a long history of producing high-accuracy, many-body electron densities.[11] The explicitly corre-lated physics introduced by Jastrow factors—which exactly enforce the electron-electron and electron-nucleus cusp conditions—and the imaginary-time projection of the ground state in DMC provide highly valuable, mathematically rigorous ground-truth density references.[12, 13] As a result, VMC and DMC have become useful tools for simulat-ing the electronic properties of strongly-correlated solids whose sizes are often beyond the reach of other high-accuracy methods, such as coupled-cluster theory.[14] Nonetheless, while random sam-pling improves QMC’s scaling, it results in statisti-cal errors (noise) that accompany all QMC observ-ables, electron densities included. Prior algorithmic efforts, such as zero-variance zero-bias (ZVZB) es-timators, have been developed to mitigate this noise for various observables.[15, 16] However, because projecting data onto a dense 3D real-space grid in-herently reintroduces spatial statistical fluctuations, isolating perfectly smooth electronic densities still ultimately requires exhaustive sampling. This state of affairs often precludes the straight-forward use of QMC densities for comparison to those produced by other computational methods or experiment and in different machine learning tasks. Because DMC falls among the relatively few real-space many-body methods with low-order polyno-mial scaling, the lack of smooth densities makes it difficult to leverage DMC’s real-space advan-tage to assess basis set errors in other, orbital-based methods. Crucially, while data-driven ma-chine learning models hold immense promise for predicting electronic properties, training these mod-els requires massive datasets of highly accurate, continuous densities. Generating these datasets via brute-force QMC sampling is computationally in-tractable. Therefore, establishing a robust denois-ing surrogate is a strong prerequisite for leveraging QMC data in downstream machine learning tasks. One particularly interesting modern use of elec-3tron densities is in developing more exact exchange-correlation (XC) functionals for use in DFT. Two of the key theorems underpinning DFT are the Hohenberg-Kohn Theorems, which effectively state that exchange correlation functionals can be mapped one-to-one to ground state electron densi-ties. These theories are popularly used in the for-ward direction in which exchange-correlation func-tionals are constructed to yield accurate densities. But, as has been recognized for nearly 50 years, the one-to-one mapping implies that electron den-sities can be inverted to learn accurate function-als. Recent works have attempted to use highly accurate electron densities produced using explic-itly correlated methods to learn a more exact (if not exact) exchange-correlation functional. For exam-ple, numerical density-to-potential inversion tech-niques have been successfully applied to benchmark densities generated via full configuration interac-tion (FCI) and density matrix renormalization group (DMRG) theory to reverse-engineer exact correla-tion potentials [17, 18]. However, the steep poly-nomial or exponential scaling of these methods re-stricts the range of physical systems these meth-ods can address, heavily bottlenecking the learning of high-quality functionals for complex extended solids. Given this backdrop, a way to reduce the statisti-cal noise on QMC electron densities would open up several avenues of research by providing smooth, highly accurate, and relatively large-scale material densities. In this work, we study denoising ap-proaches as a means of reducing the statistical er-rors on QMC densities. Our underlying hypothe-sis is that advanced machine learning and numeri-cal denoising algorithms can overcome the funda-mental QMC sampling problem, rapidly producing high-quality continuous electron densities capable of guiding ab initio functional development. Fortunately, there is a rich algorithmic history dedicated to mitigating statistical noise in spatial data. Within the physical and medical sciences, a variety of sophisticated mathematical formulations, such as total variation (TV) denoising [19], Block-Matching and 3D filtering (BM3D) [20], and Block-Matching and 4D filtering (BM4D) [21] have been engineered to process noisy signals generated by ex-perimental instrumentation like magnetic resonance imaging (MRI) and computed tomography (CT) scanners. Most historical work in this domain has heavily focused on standard 2D image processing. In recent years, deep learning approaches, particu-larly convolutional neural networks (CNNs) and re-lated UNET architectures, have demonstrated state-of-the-art, super-resolution performance on 2D im-age data.[22, 23] The UNET’s encoder-decoder structure, fortified with skip connections, is theo-retically ideal for preserving high-frequency spa-tial features while successfully smoothing low-frequency background noise. However, the direct translation of these 2D vision models to our 3D quantum chemical densities is severely hindered by the fundamental physical nature of spatial correla-tion. In 3D electron densities, the physical correla-tion between adjacent voxels is governed by com-plex orbital decay, angular momentum, and multi-reference interactions, rather than macroscopic vi-sual features.[24] Furthermore, electronic densities span several orders of magnitude across a single simulation cell, making the data structure vastly more subtle and mathematically rigid than what can be treated accurately by simply coercing it into a standard 2D image format. Building upon this foundational work in signal processing and deep learning, we have designed and evaluated a suite of denoising techniques tailored specifically for the rigorous demands of 3D quan-tum electron densities. To comprehensively bench-mark these methods, we selected three chemically distinct systems: carbon diamond, blue phospho-rus, and vanadium dioxide. These systems represent varying degrees of physical complexity and algo-rithmic difficulty. Carbon diamond provides a base-line “easy” case characterized by smoothly vary-ing, well-defined covalent bonds and high crystal-lographic symmetry. Blue phosphorus represents a “medium” challenge: while its 2D in-plane elec-tronic density is relatively straightforward to re-solve, capturing its long, exponentially decaying evanescent vacuum tails without accidentally trun-cating or heavily distorting the distribution is highly difficult [25]. Finally, vanadium dioxide presents a “hard” case governed by strong electronic cor-relation and Mott insulator physics,[26, 27] distin-guished by complex spatial features arising from highly localized, high-density transition metal d-4orbitals interacting with diffuse oxygen p-orbitals. To visually demonstrate the efficacy of this ap-proach on real electron density data, Figure 1 illus-trates the 3D electron density isosurfaces for these three materials before and after applying our 3D UNET denoising procedure. The stochastic noise— which heavily obscures the true spatial distribution in low-sample QMC—is visibly eliminated without hallucinating artificial density or destroying valid physical signals. The denoised isosurfaces clearly resolve fine physical details that are otherwise in-distinguishable in the noisy versions; for example, a central sphere becomes clearly resolved in carbon diamond and distinct topological features become apparent in both blue phosphorus and VO 2.In this work, noisy 3D densities for these sys-tems were generated using both VMC and DMC with varied Jastrow factors. These noisy densities were subsequently processed using a spectrum of machine learning and numerical denoising method-ologies. Overall, algorithmic performance was sys-tematically gauged by the achieved effective com-putational speedup related to the statistical and sys-tematic fidelity of the reconstructed densities. This was enabled by using the Jensen-Shannon Diver-gence (JSD),[28] an information-theoretic measure of probability distribution overlap. To directly benchmark against off-the-shelf im-age processing models, we initially encoded the 3D densities into pseudo-images, mapping dis-crete 2D slices along the z-axis to independent color channels. We then rigorously compared these to custom denoisers that explicitly preserve and operate upon the native 3D physical structure. Our results demonstrate that massive computational speedups—effectively circumventing millions of required Monte Carlo steps—can be achieved us-ing these models without the need to leverage mas-sive swaths of costly QMC training data. While nu-merical 2D image denoising models exhibited mod-erately beneficial performance, they were outper-formed by explicitly trained, mathematically tai-lored 3D architectures. Ultimately, our specialized 3D pipelines produce smooth, physically accurate electron densities that are statistically representa-tive of QMC simulations requiring orders of magni-tude more sampling than the underlying noisy input, paving a viable pathway for the routine extraction of QMC densities for exact functional development and other electronic structure applications.  
+
+> II. THEORETICAL BACKGROUND AND DATA PRE-PROCESSING QMC Electron Densities as Histograms
+
+The exact definition of the electron density is 
+
+ρ(r) = 
+
+> Z
+
+dR P(R)
+
+> Ne
+
+# ∑
+
+> i=1
+
+δ (r − ri), (1) where Ne is the electron count, ri is the coordinate of the i-th electron, R = [ r1 · · · rNe ] is the joint coordi-nate of all of the electrons, and P(R) is the sampling distribution ( P = |ΨT |2 for VMC and P = |ΨT Ψ0|
+
+for DMC). The QMC electron density is commonly repre-sented as a volumetric histogram: 
+
+ρ(rm) = 
+
+> Z
+> Ωm
+
+drρ(r). (2) Here, Ωm represents voxel m centered at rm,with the histogram grid containing M total cells. The density is normalized to the electron count: 
+
+∑Mm=1 ρm = Ne. In the discussion that follows, we use ρ(rm) and ρm interchangeably. 
+
+> Poisson Model for Noisy Electron Densities
+
+The Poisson distribution accurately reflects situ-ations in which independent events occur at a con-stant localized rate. The form of the distribution is 
+
+Ppois (n; μ) = μne−μ
+
+n! (3) where μ is the mean number of occurrences and 
+
+∑∞ 
+
+> n=0
+
+Ppois (n; μ) = 1. For a stochastic variable η
+
+sampled from Ppois (μ) (denoted η ∼ Ppois (μ)), the expected value is ⟨η⟩ = μ.In a density histogram, the mean number of oc-currences in each cell is proportional to the density within that voxel. The entire density histogram can 5Blue Phosphorous  VO 2Diamond 
+
+FIG. 1: Denoised isosurfaces of low-sample DMC electron densities for diamond, blue phosphorus, and VO 2. The top row displays the raw, highly noisy DMC densities, while the bottom row shows the smooth, physically coherent isosurfaces recovered using the 3D UNET. be formulated as a probability distribution via renor-malization, p(rm) = ρ(rm)/Ne. If we consider N to-tal samples drawn from this 3D distribution, the av-erage count falling in a particular histogram cell is 
+
+N p m. If a QMC random walk has accumulated Nmc 
+
+walker configurations, the total number of single-particle samples is N = Nmc Ne, and the expected count is N p m = Nmc Ne pm = Nmc ρm. Here, ρm rep-resents the true, noise-free electron density in that cell. The histogram counts ( c) are distributed in each respective cell as: 
+
+Pcount (c; Nmc , m) = Ppois (c; Nmc ρm) (4) Therefore, if a random variate ˜ cm is drawn from the electron count distribution in cell m, i.e., ˜cm ∼ Pcount (Nmc , m), then ˜ρm = ˜cm/Nmc follows the corresponding electron density distribution, ˜ρm ∼ Pdens (ρ; Nmc , m) and has a mean of ⟨ ˜ρm⟩ =
+
+⟨ ˜cm⟩/Nmc = Nmc ρm/Nmc = ρm. When random sam-ples are drawn from Pdens for each cell, the result-ing 3D density represents a ”single sample” of the density histograms possible from Monte Carlo runs gathering Nmc configurations. In the high-sampling/low-noise limit (Nmc −→
+
+∞), Poisson distributions approximate a Gaus-sian (normal) distribution. Denoting a nor-mal distribution with mean μ and standard de-viation σ as N (μ, σ 2), a Poisson distribution with a large mean asymptotically approaches lim μ→∞ Ppois (μ) = N (μ, μ). Therefore, in the high-sampling limit, the random variates for elec-tron count and density in histogram cell m are de-fined as: ˜cm = Nsρm + pNmc ρmηm (5) ˜ρm = ρm +
+
+r ρm
+
+Nmc 
+
+ηm (6) where each ηm is drawn from a unit normal distri-bution. 6
+
+> Invertible Density Transformations to Facilitate Denoising
+
+Variable scales in both the signal and noise in noisy electron densities pose significant challenges for denoising techniques. Electron densities can span multiple orders of magnitude within a given material while also potentially exhibiting areas of rapidly varying localized charge (such as in 3d shells) and slowly varying dispersed charge (such as in evanescent regions extending into van der Waals gaps). As seen from the models in section IV, the noise also varies drastically in different re-gions, with low density regions in particular exhibit-ing small signal-to-noise ratios. Ultimately, the per-formance of a denoiser will depend on its ability to reduce noise across the material without introduc-ing much deformation in the density itself. From this point of view, invertible transformations of the density can help to reduce the variability in the den-sity signal, while also potentially evening out the scale of the noise. 
+
+Square Root Transformation: Because QMC statistical fluctuations follow a Poisson-like distribution—where the local variance scales proportionally with the expected electron density— taking the square root serves as a classical variance-stabilizing transformation. This mathe-matically compresses the extreme dynamic range of the core electron density. To ensure strict numerical stability, the absolute value is taken prior to transformation. The transformed input u(r) is 
+
+unoisy (r) = 
+
+q
+
+|ρnoisy (r)| (7) During inference, the physically continuous target density is exactly reconstructed by squaring the net-work’s predicted output: ρclean (r) = ( uclean (r)) 2.
+
+Approximate Homoscedastic Transformation Based on Physical Residuals: This transforma-tion makes use of the fact that the DFT density resembles the QMC density in many respects, as each carries physical information about the system. Therefore, the residual ρnoisy (r) − ρDFT (r) will be more slowly varying than the noisy density alone. In addition to this, the spatial variations in the noise (heteroscedasticity) can be mapped to nearly uniform Gaussian distributions with unit width (homoscedasticity) by dividing by the square root of the DFT density similar to a Z-score. The transformed input unoisy (r) is 
+
+unoisy (r) = ρnoisy (r) − ρDFT (r)
+
+pρDFT (r) + ε (8) Denoising in this space yields uclean (r). Following this, the denoised density is found via the inverse transformation: 
+
+ρclean (r) = ρDFT (r) + 
+
+p ρDFT (r) + ε
+
+
+
+uclean (r)
+
+(9) Here, ε is a small numerical stabilizer that becomes unnecessary once a modest sampling level has been reached. In the limit that the DFT density becomes exact, the task—from the point of view of regression—is to fit a flat hyperplane at zero to a uniform gaussian noise field. Since most denoisers and regressors de-veloped in the literature assume uniform Gaussian random noise, this transformation maps the density denoising problem into a space where these tech-niques are naturally most effective. As we will show later, this transformation is key to identify and re-move noise—without introducing substantial sys-tematic bias—in the low-noise limit that is charac-teristic of real DMC calculations. 
+
+> Error Metrics and Quality Evaluation
+
+To quantitatively assess the fidelity of the de-noised electron densities relative to the highly con-verged reference data, we require a rigorous statis-tical divergence metric. While the Kullback-Leibler (KL) divergence is a standard measure of relative entropy, it is inherently asymmetric and unbounded, making it difficult to establish an absolute scale of spatial convergence. Furthermore, standard KL di-vergence is physically ill-suited for electronic den-sities; because the exact physical density decays ex-ponentially to near-zero in vacuum regions, the log-arithmic ratio in the KL formulation asymptotically diverges, leading to severe numerical instability. We instead employ the Jensen-Shannon Diver-gence (JSD), a symmetrized and smoothed modi-fication of the KL divergence. For discrete proba-bility distributions p1 and p2 evaluated on a spatial 7grid, the JSD is defined as: 
+
+DJS (p1, p2) = 12 log 2 
+
+> M
+
+# ∑
+
+> m=1
+
+
+
+p1 log p1
+
+pmix 
+
++ p2 log p2
+
+pmix 
+
+
+
+(10) where pmix ≡ (p1 + p2)/2 is the mixture distribu-tion. Unlike the KL divergence, the mixture dis-tribution ensures that the logarithmic terms remain finite. Consequently, the JSD is symmetric, strictly bounded between 0 and 1, and serves as a reliable metric to evaluate the spatial proximity of the de-noised density to the exact target distribution. The high sampling asymptotics of the Jensen-Shannon Divergence play an important role in es-timating the proximity of a denoised density to the full noise-free limit. This is necessary to estimate the actual effective speedup gained by the denoising methods. As we derive in supplementary section S1, the JSD between two noisy distributions with the same underlying noise-free limit is 
+
+DJS (p1, p2) ≈ 18 log 2 
+
+ MN1
+
++ MN2
+
+
+
+(11) where M is the number of histogram cells and N1
+
+and N2 are the number of samples used to create the respective noisy distributions. The asymptotic di-vergence between a given distribution and its noise-free limit is then 
+
+DJS (pnoisy , pexact ) ≈ 18 log 2 
+
+MN (12) Importantly, the asymptotics are entirely indepen-dent of the distribution in question. This allows us to correct the divergence computed between a denoised density ρDN and a low-noise reference, where Nmc Monte Carlo samples were used to create the noisy input density: 
+
+DJS (pDN , pexact ) ≈ DJS (pDN , pnoisy ) − 18 log 2 
+
+MNmc 
+
+(13) These forms become good approximations at mod-erate sample counts, enabling their practical use in typical DMC calculations. 
+
+> Training Data Generation: A Synthetic Density Pipeline
+
+To efficiently generate robust training datasets and optimize model hyperparameters without rely-ing on expensive Markov chain sampling or exter-nal DFT baseline calculations, we developed a fully synthetic density generation pipeline. This pipeline generates idealized target densities and subjects them to simulated QMC-like heteroscedastic noise. The process consists of three steps: synthetic ini-tialization, physics-aware perturbation, and Poisson noise injection. We first simulate an idealized electron distribu-tion by placing three 3D Gaussian functions, rep-resenting pseudo-atomic centers, within a discrete volumetric grid. The raw synthetic reference den-sity is generated by summing isotropic Gaussian functions (variance spread σ = 6.0 voxels) cen-tered at these coordinates. The specific Carte-sian positions chosen for these pseudo-atomic cen-ters are strictly arbitrary. This intentional geo-metric randomness ensures that the neural network learns the fundamental statistical distribution and heteroscedastic noise profile of the data, rather than introducing geometric bias or overfitting to specific molecular symmetries and bond lengths. To simulate many-body electronic correlation and force the neural networks to learn diverse physical topologies rather than merely memoriz-ing smooth Gaussian profiles, we introduce aphysics-aware perturbation. We generate a smooth, low-frequency random continuous field F(r) ∈
+
+[−1, 1] scaled by a random strength parameter s ∈
+
+[0.05 , 0.15 ]:˜ρ(r) = ρraw (r) ( 1 + sF (r)) . (14) The resulting density is then purged of negative val-ues and renormalized to the total electron count. 
+
+> Conversion of 3D Density to Images
+
+To leverage standard 2D image processing archi-tectures, the 3D continuous volumes were encoded into pseudo-RGB image stacks. To manage the vast dynamic range while preserving the relative spatial 8structure of the electron density, the entire 3D vol-ume (dimensions N × 64 × 64 × 64) was globally normalized to a [0, 1] range using a single global min-max scaling factor, with a constant ε = 10 −6
+
+added to the denominator to prevent zero-division artifacts. The volume was decomposed along the z-axis into 64 discrete 2D slices. Each globally normalized 2D slice was subsequently duplicated across three identical color channels to synthesize a standard RGB format, yielding N × 64 individual 64 × 64 × 3image tensors. Following the application of the 2D algorithms, the inverse mapping was performed: the first channel of each processed RGB image was extracted, and exact physical values were re-established by reverse-applying the global volume scaling factors. 
+
+> Materials and Datasets
+
+We chose three qualitatively different materials to investigate the properties of electron density de-noising algorithms: carbon diamond ( a = 3.57 Å), blue phosphorus (ICSD-25253), and R-phase VO 2
+
+(ICSD-1504). Diamond represents a relatively easy case with a slowly varying density, blue phosphorus has low density vdW gaps between layers, and VO 2
+
+contains a wide variation in density (high near the V 3d shell, intermediate near the oxygen 2 p, and low in interstitial regions). In each case, we use a sin-gle primitive cell at the Γ-point. The electron den-sity histogram grids are as follows: 64 × 64 × 64 for diamond, 140 × 84 × 112 for blue phosphorus, and 116 ×116 ×72 for VO 2. The width of the histogram cells is approximately 0.04 Å in each dimension for all materials considered. QMC electron density histograms were collected for all materials using both VMC and DMC with Slater-Jastrow trial wavefunctions. VMC was also performed without a trial Jastrow-factor. In that case, the noise-free limit of the electron density is identical to the DFT density. Histograms were col-lected over the range of 3 .6 × 10 4 − 5.3 × 10 9
+
+walker configurations in exponentially increasing intervals, including powers of two. DFT densities were interpolated via B-splines and integrated over 4×4×4-centered grids in each QMC histogram cell to match the statistical binning process of the his-tograms. 
+
+> Computational Details
+
+All density functional theory calculations were performed with Quantum ESPRESSO [29, 30]. Density functionals were chosen within the LDA family: pure LDA for closed shell and weakly-correlated diamond and blue phosphorus, and LDA+U for strongly correlated VO 2. A Hubbard U value of 3.5 eV was used in accordance with prior QMC benchmark calculations of the VO 2 electron density [27]. Electronic densities were generated from extended QMCPACK runs using the Nexus workflow manager [31–33]. We note that, for the purpose of studying denoising, the accuracy of the density functional is not as important as in simula-tions meant to directly predict materials properties.  
+
+> III. DENOISING ALGORITHMS
+
+In this work, we employ a combination of classi-cal transform-domain filters and modern deep learn-ing architectures to isolate deterministic electronic density signals from stochastic QMC noise. 
+
+> Block-Matching and Collaborative Filtering (BM3D and BM4D)
+
+To establish a rigorous classical baseline, we evaluate the Block-Matching and 3D filtering (BM3D) algorithm [20] and its native volumet-ric extension, BM4D [21]. Both approaches exploit non-local spatial self-similarity. BM3D groups structurally similar 2D cross-sectional den-sity patches into 3D arrays, applying a 3D linear transform followed by hard-thresholding to truncate the uniformly distributed QMC noise. The trans-form is inverted to yield a local noise-attenuated es-timate. These overlapping estimates are then ag-gregated into the original spatial coordinates via a weighted average, where the weights are inversely proportional to the residual noise variance, w ∝9
+
+(σ 2Nnz )−1 (with Nnz representing the retained non-zero coefficients). This is refined in a second stage via empirical Wiener filtering. Because BM3D neglects out-of-plane physical correlations via 2D slicing, we predominantly rely on BM4D [21]. Operating natively on 3D voxel cubes, BM4D stacks similar cubes into a 4D group. A separable 4D transform simultaneously exploits local 3D spatial correlations and non-local global similarities, natively preserving the isotropic nature of the density and avoiding slicing artifacts entirely. 
+
+> Fourier Transform Filtering and Augmentation
+
+Spectral filtering via the 3D Fast Fourier Trans-form (FFT) separates the low-frequency structural harmonics of the continuous density from broad-spectrum QMC shot noise. We project the noisy density into the frequency domain, ˜ ρ(k), and dy-namically construct a Boolean frequency mask by evaluating a variance-ceiling function, fceil ( j) = 
+
+max m≥ j(| ˜ρnoisy (m)|), on the spectral amplitudes. This precisely identifies the critical cutoff where the stochastic white-noise floor overtakes the exponen-tially decaying physical signal of the clean reference density. The noisy spectral components beyond this cut-off are either removed (zeroed) or replaced with the pristine reference amplitudes (augmented). Follow-ing the inverse 3D FFT, a strict positivity constraint, ˆρ(r) = max (0, F −1{ ˜ρfiltered (k)}), is enforced on the spatial grid to rectify localized Gibbs ringing. 
+
+> Regression: SmoothN Penalized Least Squares Smoothing Spline
+
+The SmoothN algorithm [34–36] provides a ro-bust, non-parametric penalized least squares (PLS) smoothing framework. It computes a 3D smooth spline fit ˆ y(r) by minimizing a regularized energy functional: 
+
+E ( ˆy) = ∑
+
+> r
+
+w(r) |y(r) − ˆy(r)|2 + s
+
+> N
+
+# ∑
+
+> k=1
+
+∆2 
+
+> k
+
+ˆy(r) 22
+
+(15) This balances data fidelity against a multi-dimensional second-order Laplacian penalty ( s), heavily accelerated by the discrete cosine transform (DCT). To protect the field from heavy-tailed non-Gaussian noise, SmoothN employs an iteratively reweighted least squares (IRLS) M-estimation loop. The spatial weights w(r) are dynamically updated using Tukey’s bisquare objective function based on the Median Absolute Deviation (MAD) of the resid-ual error field. This progressively assigns anoma-lous noise spikes a weight of zero, ensuring the out-put remains faithful to the true underlying physical distribution. 
+
+> Regression: Sequential Local 1D Polynomial Smoothing
+
+As a highly localized spatial baseline, we imple-ment a moving-window 1D polynomial smoothing method. For each target voxel, an ordinary least squares polynomial P(t) = ∑nk=0 cktk of degree n is fitted to a localized 1D window of width 2 w + 1. The smoothed scalar is evaluated precisely at the central coordinate, P(w). This smoothing is applied sequentially along the z, y, and x dimensions, uti-lizing periodic boundary wrapping to eliminate the need for external padding. 
+
+> Deep Learning: Convolutional Autoencoder and 3D Residual UNET
+
+Deep learning methods parameterize the map-ping of noisy densities to clean target mani-folds. While a standard Convolutional Autoen-coder (CAE) effectively captures global dependen-cies, its strict spatial bottleneck irrevocably de-grades the fine-grained physical details required for exact physical reconstructions. To natively process volumetric densities without this loss, we utilize a 3D Residual UNET. This architecture routes high-resolution spatial feature maps directly from the encoder to the symmetric decoder via skip connections, utilizing 3 × 3 × 3volumetric convolutions, max pooling, and nearest-neighbor upsampling. Crucially, the model maps the transformed noisy input to the transformed true 10 residual noise via a strictly linear final activation: ˆy(r) = Wout ∗ Ffinal dec + bout (16) By minimizing the Mean Squared Error, LMSE = 
+
+> 1
+> N
+
+∑Ni=1 ∥yi − ˆyi∥22, the network isolates the stochas-tic fluctuations and circumvents the mathematical complexity of reconstructing a high-dynamic-range physical signal from scratch. 
+
+> Deep Learning: Swin-Conv-UNET (SCUNET) Architecture
+
+As a state-of-the-art 2D comparative baseline, we evaluate the Swin-Conv-UNET (SCUNET) [37]. SCUNET splits the input feature map to simul-taneously apply Residual Convolutional (RConv) blocks ( Y1) for translation-invariant local features, and Swin Transformer (SwinT) blocks ( Y2) for non-local global self-attention. The parallel representa-tions are fused and combined with the input via a residual connection: 
+
+Xout = Conv 1×1(Concat (Y1,Y2)) + Xin (17) This grouped split-and-fuse strategy maintains ro-bust hierarchical feature extraction while signifi-cantly reducing the computational complexity of standard windowed attention.  
+
+> IV. RESULTS AND DISCUSSION 2D Image Models versus Volumetric Architectures
+
+To visualize the performance of different denois-ing models, we compare the denoising capabili-ties of off-the-shelf image denoisers and several of our volumetric denoisers on a VMC diamond elec-tron density. We extracted a 2D cross-sectional slice ( z = 32) from each of the denoised densities for visual comparison, as illustrated in Figure 2. While the 1D sequential polynomial smoother (Lin-ear) and 2D models like BM3D and SCUNET suc-cessfully recover the bulk electron distribution, they introduce some horizontal line artifacts and non-physical smearing into interstitial low-density re-gions due to their restricted spatial receptive fields. The standard 2D CAE model, trained slice-by-slice directly on the noise-injected DFT density matrices, does a great job at mitigating these artifacts rela-tive to the pretrained SCUNET. Similarly, the 3D UNET model trained directly on the synthetic full volumetric data completely eliminates these slice-induced structural artifacts by natively accounting for three-dimensional correlations. Excellent quali-tative agreement and smooth visual fidelity are like-wise achieved by the FFT filter, the linear method, SmoothN, and the volumetric BM4D method. Figure 3 provides a side-by-side bar chart com-parison of the JSD values for each model. The primary takeaway from this perspective is twofold: first, our natively volumetric 3D models do not per-form worse than established community image de-noisers; second, standard 2D image denoisers are remarkably effective and highly applicable to volu-metric denoising. Although the 3D UNET generates visually cleaner profiles with fewer non-physical discontinuities, the 2D models achieve highly com-petitive JSD values. This indicates that the bulk of the statistical noise can be effectively mitigated even when artificially forcing a 2D matrix slicing. The viability of applying lower-dimensional models to volumetric data is further supported by the largely similar performance between the 2D BM3D and 3D BM4D algorithms across a broader sampling range (as detailed in the “Esti-mating Sigma” section of the supplementary ma-terial). Even more strikingly, the highly disadvan-taged 1D smoother (Linear) performs similarly to complex 2D and 3D frameworks, as evidenced by its competitive JSD score in Figure 3. This under-scores that, while native 3D cross-correlations are necessary for perfect structural fidelity, they are not strictly required to achieve a mathematically useful reduction in overall statistical divergence. Nevertheless, while 2D image models are sta-tistically viable, their direct application to elec-tron density data still introduces certain architec-tural inefficiencies. First, off-the-shelf pre-trained weights for models like SCUNET [37] are op-timized for synthetic camera sensor noise (e.g., AWGN, JPEG compression) rather than the het-eroscedastic, Poisson-distributed shot noise charac-teristic of QMC. Furthermore, forcing a continuous 3D volumetric scalar field into a 2D network neces-11 Raw/Noisy Reference      
+
+> SCUNET UNet (3D)
+> BM3D SmoothN
+> CAE Linear Regression
+> BM4D FFT (3D) 6.0
+> 5.5
+> 5.0
+> 4.5
+> 4.0
+> 3.5
+> log10(Density)
+
+FIG. 2: Visual comparison of a cross-sectional plane ( z = 32) of the diamond electron density profile denoised using various 1D, 2D image-based, and 3D volumetric methods. The comparison highlights structural anomalies, such as horizontal striping and low-density blurring, present in slice-by-slice 2D models compared to volumetric models. sitates slicing the matrices into independent planes, a process that mathematically severs essential phys-ical cross-correlations along the z-axis. Finally, natural images possess bounded, discrete pixel arrays (e.g., 8-bit integer values), whereas electron density maps exhibit extreme dynamic Raw/Noisy SCUNET BM3D BM4D SmoothN Linear Regression CAE UNet (3D) FFT (3D) 
+
+> 0.000 0.025 0.050 0.075 0.100 0.125 0.150 0.175 0.200
+> Divergence
+> 1.69e-01 3.96e-02 5.03e-03 1.79e-03 4.73e-03 2.79e-03 1.09e-03 1.09e-03 1.82e-04
+
+FIG. 3: Direct JSD comparison for different image-based and volumetric denoising models evaluated against the diamond VMC reference density. ranges—peaking sharply at nuclear coordinates and decaying exponentially into the vacuum [2, 25]. In contrast to these inherent 2D limitations, our na-tively trained 3D UNET model highlights the value of purpose-built, domain-specific architectures, ef-fectively leveraging the foundational principle of a deep neural network bottleneck to isolate the core deterministic electron density signal from stochas-tic fluctuations [22, 23] while preserving the full 3D spatial topology. 
+
+Role of Density Transforms and Asymptotic Divergence Corrections 
+
+As alluded to earlier, transformations of the den-sity can improve the performance of the denoising methods over the bare noisy data. The left panel of Figure 4 illustrates the relative performance of the BM4D denoiser under different density trans-formations. A comprehensive comparison of these transformations across all evaluated methods is pro-vided in Section S3 of the Supplementary Informa-tion. Each point on the plot corresponds to denois-ing a separate noisy density obtained with different levels of sampling effort, with the sampling/noise increasing/decreasing from left to right. The black line is the divergence between the untouched noisy 12 input densities and a reference density obtained at high sampling ( >5 billion samples). As can be seen from this log-log plot, the divergences of the bare noisy densities follow a power law, which is identi-cal to the asymptotic form discussed in Sec. II. The results of denoising with BM4D are shown as colored lines separately for each density transfor-mation. As can be seen, BM4D denoises effectively at low sampling/high-noise, but it rapidly plateaus, showing little to no further improvement beyond one million input samples. By contrast, the square root and residual transformations show significant improvement over most of the sampling range con-sidered. In comparing these two transformations, the residual transform outperforms the square root transform at all sampling levels. The horizontal dashed line is the predicted funda-mental limit in divergence when comparing the high sampling reference with the true noise-free limit. As is evident, neither the denoisers nor the bare in-put density with highest sampling (equal to the ref-erence) pass below this line. The close approach to this line by BM4D applied to transformed data sug-gests that substantial denoising is occurring, despite the otherwise apparent performance plateau. The right panel in Fig. 4 uses the asymptotic for-mulae in Sec. II to apply a correction to the di-vergence data, removing the effect of comparing against a reference with finite noise. As shown there, in reality, the performance of the denoisers remains uninterrupted even while processing den-sities generated with one billion samples. All data presented below include this correction to improve the conclusions derived at very high sampling. 
+
+> Divergence and Speedup vs. Samples for Hyperparameter-Tuned Denoisers
+
+By directly comparing the performance of the tuned denoising methods across materials, we gain insight into the noise regimes in which each method operates optimally. The left column of Figure 5 il-lustrates an improved DJS (y-axis) across all ma-terial systems compared to the baseline, utilizing a diverse suite of optimized denoisers (FFT, Lo-cal Regression, SmoothN, 3D UNET, BM4D, and SCUNET) where hyperparameters explicitly min-imize the DJS at each discrete sampling level (x-axis). As a point of reference, we plot the JSD of the bare noisy densities computed against the high-sample reference DMC density as a solid black line. The noisy data fall within the regime of validity for the low-noise asymptotic JSD formula, as evi-denced by the near linearity of the JSD for the noisy densities. Broadly, two distinct classes of behavior are ob-served: some models excel in the low-sample/high-noise regimes, while others perform optimally in the high-sample/low-noise regimes. Local Regression, the FFT filter, and the 3D UNET all demonstrate robust performance under high-noise/low sampling conditions. Conversely, SCUNET and SmoothN exhibit superior efficacy in the low-noise/high-sampling regime. Both BM4D and FFT maintain a fairly uniform performance across varying sample counts. While BM4D seldom achieves the best per-formance for any individual sampling level, it is one of the few denoisers that provides effective noise reduction across all sample counts. Crucially, the practical utility of these denoisers is demarcated by comparison against the DFT baseline (the horizon-tal dotted line). When a denoised density surpasses the DFT baseline while simultaneously improving upon the raw QMC divergence, it confirms that the filter is successfully exposing the inherently higher many-body accuracy of the QMC simulation with-out collapsing back to the baseline DFT representa-tion. One perspective on the benefit of denoising is that reduced QMC sampling is required to produce a density with an acceptable level of statistical bias. In this sense, denoising “speeds up” a DMC calcu-lation, which can be quantified in terms of an ef-fective number of samples corresponding to the re-duced Jensen-Shannon divergence. A general bene-fit of this representation of the impact of denoising is that it is expressed in a concrete manner, rather than the more abstract divergence value. To quantify the computational value of these methods, we consider the low-noise asymptotic limit. Under this condition, these definitions pro-13 10 5 10 7 10 9
+
+Samples          
+
+> 10 7
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> Divergence
+> 10 510 710 9
+
+Samples        
+
+> 10 7
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> BM4D [No Trans.] BM4D [Square Root] BM4D [Residual Noise]
+
+FIG. 4: Divergence of the denoised densities generated using BM4D with different density transformations relative to the reference. The denoising quality improves as one progresses from no transform (“value”) to square root and residual signal regularized noise. (Left) Bare divergences against the reference. At high sampling, the apparent effectiveness of the denoising wanes (sqrt and residual noise transforms). The horizontal dashed line demarcates the theoretical divergence floor when the high sampling reference is compared against the true noise-free density. (Right) Similar to the left panel, but now with the asymptotic correction applied to approximate the divergence of a denoised sample with the true noise free reference. vide: 
+
+DJS (pDN , pexact ) = 18 log (2)
+
+MNeff 
+
+(18) 
+
+DJS (pnoisy , pexact ) = 18 log (2)
+
+MNmc 
+
+We define the speedup S as the ratio of the effective sample count to the input sample count required to reach equivalent statistical errors: 
+
+S = Neff 
+
+Nmc 
+
+(19) 
+
+= DJS (pnoisy , pexact )
+
+DJS (pDN , pexact )= DJS (pnoisy , pref ) − M
+
+> 8 log 2 Nref
+
+DJS (pDN , pref ) − M
+
+> 8 log 2 Nref
+
+(20) where the asymptotic correction in Eq.13 has been applied in order to directly use the computed diver-gence between the denoised density and low-noise reference (made from Nref Monte Carlo samples). The right column of Figure 5 illustrates how much compute time is saved in terms of sampling effort. At peak efficiency, these algorithms achieve up to a 100-fold speedup, with the majority con-sistently exceeding a 10-fold reduction in required sampling—representing substantial computational savings. Consistent with the divergence metrics, BM4D and the FFT filter display fairly flat and con-sistent speedup profiles across the evaluated range. In the low-to-medium noise regimes, Local Re-gression and SmoothN emerge as the most sample-efficient methods. However, in the highly stochastic (high-noise) regime, the efficacy of the 3D UNET and Local Regression methods drops significantly, while SCUNET joins the leading methods such as SmoothN. Apart from SCUNET, across most de-noisers, a general decreasing trend in speedup is ob-served as the raw sample count increases; this decay 14 10 6     
+
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> Divergence
+
+## Diamond       
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+> 10 0
+> 10 1
+> 10 2
+> Speedup
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> Divergence
+
+## Blue Phosphorus     
+
+> 10 0
+> 10 1
+> 10 2
+> Speedup
+> 10 510 610 710 810 9
+
+Samples       
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> Divergence
+
+## VO 2    
+
+> 10 510 610 710 810 9
+
+Samples 
+
+> 10 0
+> 10 1
+> 10 2
+> Speedup
+
+FIG. 5: Divergences (left) and speedup (right) of denoised densities produced using hyper-tuned denoisers of each class on diamond (top), blue phosphorus (middle), and r-VO 2 (bottom). The horizontal dashed line is the divergence between the DFT density and the high-sampled reference, marking a threshold for densities achieving a “useful” noise reduction. Several denoisers display non-uniform noise reduction/increase across materials and input noise levels (sample counts). Multiple denoisers show distinctly different speedup behavior in the low and high sampling limits, with SmoothN and BM4D showing the greatest consistency. 15 reflects the fundamental difficulty of filtering in the extreme low-noise regime without introducing sys-tematic bias. 
+
+> Conservative Denoiser Scoring and Reliability
+
+To robustly distinguish the performance of these methods, we define a performance score, which computes the speedup of each method relative to the maximum speedup achieved across all systems and methods. A highly valuable computational tool requires consistency across both varying materials and distinct noise regimes. In order to assess the different denoisers, we use the following procedure to define an overall “worst-case” performance score for each denoiser. First, for each material, compute the maximum speedup attained by any method— separately in the mid-sampling and high-sampling limits—and divide the speedup of each respective method by the maximum to form a per-material per-sampling range score. To obtain the final score for each denoiser, take the minimum score across all materials and the two sampling levels. Thus, if a denoiser has a final score of 0.5, then it never per-formed worse than 50% of the best denoiser across all contexts. Figure 6 reveals that SmoothN provides the high-est and most consistent performance across all sys-tems, maintaining, at worst, 81% of the maximum attainable speedup. This high worst-case threshold guarantees that selecting SmoothN a priori heav-ily mitigates the risk of catastrophic algorithmic breakdown on unseen data. BM4D also demon-strates strong consistency, yielding the second-highest score at 31%. The FFT filter is some-what inconsistent across limits but scores favorably overall because lower-tier methods struggle signif-icantly more in those same domains. Unsurpris-ingly, the simple linear local regression yields per-formance reflective of its basic mathematical formu-lation, securing a lower tier. Finally, considering the neural network-based approaches, both the trained 3D UNET and SCUNET architectures show poor generalizability under this rigorous minimum-score metric. A clear performance hierarchy emerges based on the underlying mathematical machinery of the algorithms. The most robustly performant methods—BM4D [21] and SmoothN [34]—both leverage the Discrete Cosine Transform (DCT), al-beit through fundamentally different approaches. Garcia’s SmoothN algorithm and BM4D diverge primarily in their spatial application of the DCT. SmoothN applies the DCT globally across the en-tire data grid to diagonalize a differential operator, effectively converting a massive, complex penalized least-squares linear system into a fast, point-by-point algebraic operation for spline-based smooth-ing [34, 35], which is ultimately a regression ap-proach. In contrast, BM4D applies the DCT lo-cally and non-locally to clusters of highly corre-lated 3D image patches stacked into a 4D array, us-ing the transform to sparsify signal components so that noise can be filtered via coefficient thresholding [21], in a qualitatively similar manner to our FFT method. Ultimately, SmoothN utilizes the DCT as a mathematical accelerator to solve a global regres-sion problem, whereas BM4D employs it as a statis-tical tool for transform-domain shrinkage of repet-itive structural textures. Importantly, a lower score here does not strictly indicate overall model failure. Instead, it reflects variations in model reliability and generalization across distinct noise regimes and ma-terials, which helps guide the optimal selection for practical denoising. A comprehensive comparison of speedups and scores for each method and mate-rial is provided in Section S4 of the Supplementary Information. 
+
+> Unified Cross-Material Scaling
+
+While many of the methods demonstrate excep-tional performance well into the high-noise en-vironments, our metrics (Figure 6) identified the regression-based SmoothN denoiser as the most sta-tistically robust and generalized architecture across all evaluated sampling depths and material systems. Having established SmoothN as the optimal base-line, we conclude our analysis by interrogating its fundamental scaling behavior with respect to a uni-fying sampling metric: the number of electron visits per voxel. In Figure 7 (left), we observe a striking alignment in performance across each respective noise regime, 16 FFT Linear Reg. SmoothN UNET BM4D SCUNET 0.0 0.2 0.4 0.6 0.8 1.0 Score 
+
+> 0.26 0.09 0.81 0.01 0.31 0.18
+
+FIG. 6: Performance scores computed for each denoiser. A score is the percentage of the maximum speedup across all denoisers attained by a particular denoiser. The performance score is the minimum score attained by a denoiser across materials in the mid and high sampling limits. It measures both the quality and the consistency of each denoiser. SmoothN shows both high consistency and performance. demonstrating that the divergence tightly clusters based on the number of samples per voxel, despite the distinct morphological differences of the eval-uated materials. Divergences for denoised VMC and DMC densities cluster around separate curves. When the the number of samples per voxel is low, the DJS is high, decreasing monotonically as the number of samples per voxel increases. Notably, SmoothN significantly suppresses the DJS for any given number of samples per voxel compared to the baseline stochastic QMC. The right panel of Figure 7 clarifies that, in terms of equivalent speedup, VMC data is generally more amenable to denoising than DMC data, yield-ing uniformly greater acceleration factors. Further-more, as the number of samples per voxel increases, the speedup behavior exhibits an asymptotic decay that closely approximates a power law with sub-linear scaling, manifesting as a linear trend on a log-log scale. Extrapolating the trajectory of these lin-ear log-log trends suggests that substantial compu-tational benefits would persist even if the number of samples per voxel were increased by two orders of magnitude into the 500-billion sample regime, un-derscoring the extreme robustness and scalability of the SmoothN method. This limit is truly extreme, where the task becomes finding vanishingly small noise without introducing systematic bias on the un-derlying smooth electron density.  
+
+> V. CONCLUSION
+
+This study demonstrates that sophisticated post-processing denoising models offer orders-of-magnitude computational speedups in QMC electronic density generation compared to bare Monte Carlo sampling. Across a hierarchy of increasingly complex solid-state materials, we established that properly conditioned denoising algorithms can extract smooth, physically accurate electronic densities that closely mirror highly con-verged reference data. Crucially, the application of an approximate heteroscedastic to homoscedastic transformation proves essential for conditioning the density manifolds, enabling algorithms to isolate and remove heteroscedastic QMC noise without corrupting the underlying deterministic signal. While pre-trained 2D image models show good out-of-the-box performance, their 2D inductive bi-ases and discrete grid formulations introduce un-physical slicing artifacts, highlighting the neces-sity for natively volumetric approaches. Among the tested methods, a 3D smoothing regression al-gorithm, SmoothN, exhibited the highest general-izability and consistency across all evaluated noise regimes and material morphologies. Although sep-arate 3D neural networks comparatively struggle at the denoising task in the high-noise (SCUNET) and low-noise (UNET) limits, their strong perfor-mance on strongly correlated systems like VO 2 un-derscores their ability to capture complex spatial representations. Ultimately, purpose-built, volu-metric denoisers represent a highly efficient avenue for QMC workflows, drastically lowering the sam-pling barrier required to utilize exact many-body densities in downstream electronic structure appli-cations, such as the ab initio development of density functionals. 17 10 0 10 1 10 2 10 3 10 4          
+
+> Samples per Voxel
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> Divergence
+> DMC diamond DMC BP DMC VO 2
+> VMC diamond VMC BP VMC VO 210 010 110 210 310 4
+> Samples per Voxel
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> Speedup
+> DMC diamond DMC BP DMC VO 2
+> VMC diamond VMC BP VMC VO 2
+
+FIG. 7: Performance of the SmoothN denoiser across all materials in terms of divergence (left) and speedup (right). Alignment between the materials is achieved by plotting with respect to the number of samples per voxel (average samples per voxel) instead of the bare sample count. The denoising results cluster tightly in a detailed way for both VMC and DMC. At high number of samples per voxel, the speedup displays power-law behavior. While the volumetric denoising architectures evaluated in this study offer an immediate and pow-erful avenue for accelerating QMC workflows, sev-eral critical frontiers remain to be explored to max-imize their physical fidelity, architectural general-ity, and downstream utility. A primary objective of future work is to deploy these models across a broader and more structurally diverse suite of chem-ical and material environments, encompassing low-dimensional interfaces, molecular crystals, and het-erogeneous surfaces with strong correlation. Simultaneously, the predictive capacity and rep-resentational power of our deep volumetric neu-ral networks can be advanced through targeted architectural and data-engineering interventions. While the standard 3D UNET demonstrated strong speedups at intermediate sampling regimes, its convolutional layers are fundamentally constrained by local receptive fields. Integrating 3D self-attention mechanisms or axial attention blocks into the UNET bottleneck represents a major next step, enabling the network to dynamically weight and capture long-range, non-local multi-electron spatial correlations across the entire periodic simulation cell without exponentially compounding the param-eter count. Furthermore, because the performance of any su-pervised deep learning model is inherently tethered to its training distribution, significant focus must be directed toward refining our synthetic data genera-tion protocols. Future frameworks will explore the generation of highly diverse synthetic densities that span a wider array of fictitious electronic configura-tions and pseudo-atomic coordinates. More impor-tantly, we aim to implement target-conditioned data synthesis, wherein the synthetic training densities are explicitly engineered to match the local morpho-logical, coordination symmetries, and spatial gradi-ents of the specific physical system under investiga-tion, thereby minimizing out-of-distribution errors during deployment. Looking beyond architectural adjustments, fu-ture efforts will also aim to mitigate the underly-ing template bias that stems from our current re-liance on baseline DFT reference grids for the vari-ance transformation. While computationally inex-pensive and highly effective for guiding spectral fil-ters, this structural dependency risks suppressing exotic, multi-reference quantum fluctuations unique to many-body wavefunctions. Because inverse DFT procedures are historically hypersensitive to point-wise noise fluctuations, raw QMC densities present 18 challenges in direct application to this process. In their current form, our stabilized, denoised densi-ties represent computationally efficient, correlation-consistent QMC inputs for the extraction of high-quality Kohn-Sham exchange-correlation potentials directly from high-level many-body wavefunctions. 
+
+> ACKNOWLEDGMENTS
+
+This work was primarily supported by the U.S. Department of Energy, Office of Science, Basic En-ergy Sciences, Materials Sciences and Engineering Division, as part of the Computational Materials Sciences Program and Center for Predictive Simu-lation of Functional Materials. Authors J.T.K. (con-cept, QMC runs, method/code development, anal-ysis, writing, mentorship) and B.R. (mentorship, writing) acknowledge funding support from this source. Work conducted by K.B. (method/code de-velopment, analysis, writing) was supported by the U. S. Department of Energy (DOE), Office of Sci-ence, Office of Workforce Development for Teach-ers and Scientists, Office of Science Graduate Stu-dent Research (SCGSR) program. The SCGSR program is administered by the Oak Ridge Insti-tute for Science and Education (ORISE) for the DOE. ORISE is managed by Oak Ridge Associated Universities (ORAU) under contract number DE-SC0014664. This research used resources of the National Energy Research Scientific Computing Center (NERSC), a U.S. Department of Energy Office of Science User Facility operated under Contract No. DE-AC02-05CH11231. An award of computer time was provided by the Innovative and Novel Com-putational Impact on Theory and Experiment (IN-CITE) program. This research used resources of the Oak Ridge Leadership Computing Facility, which is a DOE Office of Science User Facility supported under Contract No. DE-AC05-00OR22725. 
+
+> DATA AVAILABILITY
+
+The data supporting the findings of this study are available in the supplementary material with full data hosted by the Materials Data Facility[38] [link to be provided upon acceptance].                                                                              
+
+> [1] Hohenberg, P. &Kohn, W. Inhomogeneous electron gas. Phys. Rev. 136 ,B864–B871 (1964). URL https://link.aps.org/doi/10. 1103/PhysRev.136.B864 .[2] Bader, R. Atoms in Molecules: A Quantum Theory. International series of monographs on chemistry (Clarendon Press, 1990). URL https://books. google.com/books?id=up1pQgAACAAJ .[3] Dagotto, E. Complexity in strongly corre-lated electronic systems. Science 309 ,257– 262 (2005). URL https://www.science. org/doi/abs/10.1126/science.1107559 .https://www.science.org/doi/pdf/10.1126/science.1107559. [4] Imada, M., Fujimori, A. & Tokura, Y. Metal-insulator transitions. Rev. Mod. Phys. 70 , 1039– 1263 (1998). URL https://link.aps.org/doi/ 10.1103/RevModPhys.70.1039 .[5] Coppens, P. & Hermansson, K. X-ray charge den-sities and chemical bonding. Physics Today 51 , 66 (1998). [6] Genoni, A. et al. Quantum crystallography: Current developments and future perspectives. Chemistry – A European Journal 24 , 10881–10905 (2018). [7] Kohn, W. & Sham, L. J. Self-consistent equa-tions including exchange and correlation ef-fects. Phys. Rev. 140 ,A1133–A1138 (1965). URL https://link.aps.org/doi/10.1103/ PhysRev.140.A1133 .[8] Perdew, J. P. & Schmidt, K. Jacob’s ladder of density functional approximations for the exchange-correlation energy (2001). URL https://api. semanticscholar.org/CorpusID:93552655 .[9] Kepp, K. P. Comment on “density func-tional theory is straying from the path toward the exact functional”. Science 356 ,496– 496 (2017). URL https://www.science. org/doi/abs/10.1126/science.aam9364 .https://www.science.org/doi/pdf/10.1126/science.aam9364. [10] Kim, M.-C., Sim, E. & Burke, K. Understanding and reducing errors in density functional calcula-
+
+19 
+
+tions. Phys. Rev. Lett. 111 , 073003 (2013). [11] Ceperley, D. M. & Alder, B. J. Ground state of the electron gas by a stochastic method. Phys. Rev. Lett. 
+
+45 , 566–569 (1980). URL https://link.aps. org/doi/10.1103/PhysRevLett.45.566 .[12] Foulkes, W. M. C., Mitas, L., Needs, R. J. & Rajagopal, G. Quantum monte carlo sim-ulations of solids. Rev. Mod. Phys. 73 , 33–83 (2001). URL https://link.aps.org/doi/10. 1103/RevModPhys.73.33 .[13] Kato, T. On the eigenfunctions of many-particle systems in quantum mechanics. Communications on Pure and Applied Mathematics 
+
+10 , 151–177 (1957). [14] ˇCížek, J. On the correlation problem in atomic and molecular systems. calculation of wavefunction components in ursell-type expan-sion using quantum-field theoretical methods. The Journal of Chemical Physics 45 , 4256–4266 (1966). URL https://doi.org/10.1063/1. 1727484 .[15] Assaraf, R. & Caffarel, M. Zero-variance prin-ciple for monte carlo algorithms. Phys. Rev. Lett. 
+
+83 , 4682–4685 (1999). URL https://link.aps. org/doi/10.1103/PhysRevLett.83.4682 .[16] Toulouse, J., Assaraf, R. & Umrigar, C. J. Zero-variance zero-bias quantum monte carlo estimators of the spherically and system-averaged pair den-sity. The Journal of Chemical Physics 126 , 244112 (2007). [17] Shi, Y. & Wasserman, A. Inverse kohn–sham density functional theory: Progress and challenges. The Journal of Physical Chemistry Letters 12 ,5308–5318 (2021). URL https://doi.org/10. 1021/acs.jpclett.1c00752 . PMID: 34061541, https://doi.org/10.1021/acs.jpclett.1c00752. [18] Kanungo, B., Zimmerman, P. & Gavini, V. Ex-act exchange-correlation potentials from ground-state electron densities. Nature Communications 10 ,4497 (2019). [19] Rudin, L., Osher, S. & Fatemi, E. Non-linear total variation based noise removal algo-rithms. Physica D: Nonlinear Phenomena 60 , 259– 268 (1992). [20] Dabov, K., Foi, A., Katkovnik, V. & Egiazar-ian, K. Image denoising by sparse 3-d transform-domain collaborative filtering. IEEE Transactions on Image Processing 16 , 2080– 2095 (2007). [21] Maggioni, M., Katkovnik, V., Egiazarian, K. & Foi, A. Nonlocal transform-domain filter for volumetric data denoising and reconstruction. IEEE Transactions on Image Processing 22 , 119– 133 (2013). [22] Ronneberger, O., Fischer, P. & Brox, T. U-net: Convolutional networks for biomedical image segmentation. In Medical Image Computing and Computer-Assisted Intervention – MICCAI 20 234–241 (Springer International Publishing, Cham, 2015). [23] Çiçek, Ö., Abdulkadir, A., Lienkamp, S. S., Brox, T. & Ronneberger, O. 3d u-net: Learn-ing dense volumetric segmentation from sparse annotation. In Ourselin, S., Joskowicz, L., Sabuncu, M. R., Unal, G. & Wells, W. (eds.) Medical Image Computing and Computer-Assisted Intervention – MICCAI 20 424–432 (Springer International Publishing, Cham, 2016). [24] Schütt, K. et al. Schnet: A continuous-filter convo-lutional neural network for modeling quantum inter-actions (2017). [25] Tal, Y. Asymptotic behavior of the ground-state charge density in atoms. Phys. Rev. A 18 , 1781– 1783 (1978). [26] Tomczak, J. & Biermann, S. Effective band struc-ture of correlated materials - the case of vo2. Journal of Physics: Condensed Matter 19 , 365206 (2007). [27] Zheng, H. & Wagner, L. K. Computation of the correlated metal-insulator transition in vanadium dioxide from first principles. Phys. Rev. Lett. 114 ,176401 (2015). [28] Lin, J. Divergence measures based on the shannon entropy. IEEE Transactions on Information Theory 
+
+37 , 145–151 (1991). URL https://api. semanticscholar.org/CorpusID:12121632 .[29] Giannozzi, P. et al. Advanced capabilities for materials modelling with quantum espresso. Journal of Physics: Condensed Matter 29 , 465901 (2017). URL https://doi.org/10.1088/ 1361-648X/aa8f79 .[30] Giannozzi, P. et al. Quantum espresso: amodular and open-source software project for quantum simulations of materials. Journal of Physics: Condensed Matter 21 , 395502 (2009). URL https://doi.org/10.1088/ 0953-8984/21/39/395502 .[31] Kim, J. et al. Qmcpack: an open source ab initio quantum monte carlo package for the electronic structure of atoms, molecules and solids. Journal of Physics: Condensed Matter 30 ,195901 (2018). URL https://doi.org/10. 1088/1361-648X/aab9c3 .[32] Kent, P. R. C. et al. Qmcpack: Advances in the development, efficiency, and applica-tion of auxiliary field and real-space varia-20 
+
+tional and diffusion quantum monte carlo. The Journal of Chemical Physics 152 , 174105 (2020). URL https://doi.org/10.1063/ 5.0004860 . https://pubs.aip.org/aip/jcp/article-pdf/doi/10.1063/5.0004860/16740875/174105_1_online.pdf. [33] Krogel, J. T. Nexus: A modular workflow management system for quantum simulation codes. Computer Physics Communications 
+
+198 , 154–168 (2016). URL https://www. sciencedirect.com/science/article/pii/ S0010465515002982 .[34] Garcia, D. Robust smoothing of gridded data in one and higher dimensions with missing val-ues. Computational Statistics & Data Analysis 
+
+54 , 1167–1178 (2010). URL https: //www.sciencedirect.com/science/ article/pii/S0167947309003491 .[35] Garcia, D. A fast all-in-one method for automated post-processing of piv data. Experiments in Fluids 
+
+50 , 1247–1259 (2011). [36] Wang, G., Garcia, D., Liu, Y., de Jeu, R. & Johannes Dolman, A. A three-dimensional gap filling method for large geophysical datasets: Application to global satellite soil moisture ob-servations. Environmental Modelling & Software 
+
+30 , 139–142 (2012). URL https://www. sciencedirect.com/science/article/pii/ S1364815211002453 .[37] Zhang, K. et al. Practical blind image de-noising via swin-conv-unet and data synthe-sis. Machine Intelligence Research 20 , 822– 836 (2023). URL https://doi.org/10.1007/ s11633-023-1466-0 .[38] Blaiszik, B. et al. The materials data facility: Data services to advance materials science research. JOM 
+
+68 , 2045–2052 (2016). Supplementary Information for: Denoising Diffusion Monte Carlo Electron Densities with Physically Informed Variance Stabilization: From Fourier Filters to 3D UNETs 2
+
+I. FULL DETAILS: ASYMPTOTICS OF THE JENSEN-SHANNON DIVERGENCE IN THE LOW-NOISE LIMIT 
+
+Here we consider the low-noise limit of the Jensen-Shannon divergence when com-paring two noisy distributions/histograms with the same mean distribution. The form of the JS divergence is 
+
+DJS (p1, p 2) = 12 log 2 
+
+> M
+
+X
+
+> m=1
+
+
+
+p1(rm) log p1(rm)
+
+pmix (rm) + p2(rm) log p2(rm)
+
+pmix (rm)
+
+
+
+(1) where pmix is the mixture distribution ( p1 + p2)/2. A noisy histogram ˜ pm with cells indexed by m can be written as ˜pm = pm + δp m (2) where each δp m is a random variate with zero mean ( ⟨δp m⟩ = 0) and pm is the noise-free mean distribution/histogram. In the small noise limit, we require each random variate to have infinitesimal variance, or var( δp m) = ⟨δp 2
+
+> m
+
+⟩ − ⟨ δp m⟩2 = ⟨δp 2
+
+> m
+
+⟩ ≪ 1 (3) Our goal is to calculate the expected value of the JS divergence between two noisy distributions each having the same mean/noise-free distribution in the low-noise limit. That is, we want ⟨DJS (˜ p1, ˜p2)⟩ where ˜ p1 = p + δp 1 and ˜ p2 = p + δp 2.Dropping the subscript m, we focus on the first logarithmic term in the JS divergence: (p + δp 1) log p + δp 1
+
+p + 12 (δp 1 + δp 2) = ( p + δp 1) log 
+
+
+
+1 + 12
+
+δp 1 − δp 2
+
+p + 12 (δp 1 + δp 2)
+
+
+
+≈ (p + δp 1) log 
+
+
+
+1 + δp 1 − δp 2
+
+2p
+
+3The full term in the brackets becomes (p + δp 1) log 
+
+
+
+1 + δp 1 − δp 2
+
+2p
+
+
+
++ ( p + δp 2) log 
+
+
+
+1 − δp 1 − δp 2
+
+2p
+
+
+
+= p log 
+
+
+
+1 − 14(δp 1 − δp 2)2
+
+p2
+
+
+
++ δp 1 log 
+
+
+
+1 + δp 1 − δp 2
+
+2p
+
+
+
++ δp 2 log 
+
+
+
+1 − δp 1 − δp 2
+
+2p
+
+
+
+≈ − 14(δp 1 − δp 2)2
+
+p + 12
+
+δp 21 − 2δp 1δp 2 + δp 22
+
+p
+
+= 14
+
+δp 21 − 2δp 1δp 2 + δp 22
+
+p
+
+Its expectation value is 14
+
+δp 21 − 2δp 1δp 2 + δp 22
+
+p
+
+
+
+= 14
+
+⟨δp 21⟩ + ⟨δp 22⟩
+
+p (4) Therefore, the expectation value of the divergence in the low-noise limit is 
+
+⟨DJ2( ˜ p1, ˜p2)⟩ = 18 log 2 
+
+> M
+
+X
+
+> m=1
+
+⟨δp 21m⟩ + ⟨δp 22m⟩
+
+p (5) For our particular case of electron density histograms, the noise in each cell follows a Gaussian/normal distribution with zero mean and a variance of var( δp m) = ⟨δp 2
+
+> m
+
+⟩ =
+
+pm/N , where N is the total number of samples drawn from p over all histogram cells. The expected divergence is then 
+
+⟨DJ2( ˜ p1, ˜p2)⟩ = 18 log 2 
+
+> M
+
+X
+
+> m=1
+
+ 1
+
+N1
+
++ 1
+
+N2
+
+
+
+= 18 log 2 
+
+ MN1
+
++ MN2
+
+
+
+(6) It follows that the divergence between a noisy distribution and its noise-free mean is 
+
+⟨DJ2(˜ p, p )⟩ = 18 log 2 
+
+MN (7) 4 
+
+> II. ESTIMATING SIGMA
+
+In QMC simulations, the electron density is derived from stochastic sampling. Be-cause the local sample counts ( N ) are often insufficient to satisfy the asymptotic lim-its of the Central Limit Theorem, the noise profile remains strictly signal-dependent, approximating a Poisson distribution with variance Var( dQMC ) ≈ dQMC /N . This signal dependence severely violates the Additive White Gaussian Noise (AWGN) as-sumption inherent in standard spatial denoisers such as BM3D and wavelet-based noise estimators. To bridge this statistical disparity, we employ a Variance Stabi-lizing Transformation (VST) defined as dtrans = ( dQMC − dDFT )/√dDFT , utilizing a baseline Density Functional Theory mean, dDFT . Applying the variance opera-tor to this transformation yields Var( dtrans ) = 1 
+
+> N
+
+(dQMC /d DFT ). While Variational and Diffusion Monte Carlo (VMC/DMC) densities capture many-body correlations that systematically differ from DFT, the baseline DFT density serves as a suffi-ciently accurate structural proxy such that dQMC /d DFT ≈ 1. Consequently, the VST effectively decouples the noise variance from the extreme dynamic range of the local molecular topology, mapping it to a nearly uniform standard deviation of σ ≈ 1/√N . The mathematical efficacy of this stabilization is empirically cor-roborated by evaluating the transformed matrices with a wavelet-based noise esti-mator ( skimage.restoration.estimate sigma ); the estimator successfully isolates the high-frequency spatial jitter to reliably reproduce the analytically anticipated 
+
+σ ≈ 1/√N , confirming the validity of applying Gaussian-centric denoising models to low-count QMC density data despite the minor local variance deviations driven by the dQMC /d DFT structural ratio. 510 4 10 5 10 6 10 7 10 8 10 9 10 10 
+
+Number of VMC Samples       
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> DJS  (Jensen-Shannon Divergence)
+> Noisy VMC Baseline BM3D (Analytical VST) BM4D (Analytical VST) DFT Baseline
+
+FIG. S1. JSD of BM4D and BM3D using σ = 1 /√N
+
+III. IMPACT OF TRANSFORMATIONS ON DENOISER PERFORMANCE 
+
+To systematically determine the overall impact of data transformation on denois-ing efficacy, we compare the performance of each denoiser across all materials using the available variance-stabilizing transformations. In addition to the standard trans-formations discussed in the main text, we evaluate several method-specific algorith-mic variants where applicable. For the Fast Fourier Transform (FFT), alongside the 6standard filter, we evaluate a zero-value variant (denoted as fftz val ), in which the high-frequency Fourier components are strictly zeroed out rather than being replaced by their corresponding density functional theory (DFT) spectral amplitudes. For lo-cal linear regression, we compare three variations of the sequential 1D polynomial smoother. The baseline linear model employs untuned hyperparameters, whereas 
+
+linear2 utilizes fully tuned hyperparameters. A third variant, linear3 , flattens the native 3D density matrix into a 1D array and performs a simple ordinary least squares regression to fit a second-degree polynomial over a highly localized moving window of four neighboring points, strictly without enforcing periodic boundary conditions. Finally, the SmoothN label corresponds to the algorithm operating with untuned hy-perparameters, while SmoothN2 indicates the use of explicitly tuned hyperparameters. The optimal choice of transformation exhibits notable method dependence. For ex-ample, when employing the SCUNET architecture, the square-root transformation proves most effective in the low-sample (high-noise) regime, whereas the residual transformation performs best in the high-sample (low-noise) regime across all evalu-ated materials. Conversely, for the SmoothN algorithm, the residual transformation consistently yields the greatest denoising improvement across all sampling regimes for every material tested.  
+
+> IV. SPEEDUPS AND SCORES BY SAMPLING LEVEL
+
+We evaluate the computational speedups and relative scores for each material sys-tem across the medium and high sampling regimes. Transitioning to higher sampling levels generally results in reduced absolute speedups and relative scores. Further-more, denoiser consistency varies significantly depending on the material and sample count; while some methods perform robustly across all test cases, others are only effective under specific conditions. Finally, analyzing the minimum relative scores 710 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 7
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+> Divergence
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1 FFT_val FFT_sq FFT_rn ffecz_val 
+
+FIG. S2. Divergence of DMC electronic densities for diamond, blue phosphorus, and VO 2
+
+denoised using FFT across all transformations. 10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+> Divergence
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 7
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1 linear_val linear_sq linear_rn linear2_rn linear3_val 
+
+FIG. S3. Divergence of DMC electronic densities for diamond, blue phosphorus, and VO 2
+
+denoised using Linear Regression across all transformations. 
+
+provides insight into the worst-case performance of each denoising method across the tested materials for a given sampling level. 810 5 10 6 10 7 10 8 10 9
+
+Samples           
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> Divergence
+> 10 510 610 710 810 9
+
+Samples           
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 510 610 710 810 9
+
+Samples        
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1SCUNET_val SCUNET_sq SCUNET_rn
+
+FIG. S4. Divergence of DMC electronic densities for diamond, blue phosphorus, and VO 2
+
+denoised using SCUNET across all transformations. 10 5 10 6 10 7 10 8 10 9
+
+Samples           
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> Divergence
+> 10 510 610 710 810 9
+
+Samples           
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 510 610 710 810 9
+
+Samples        
+
+> 10 6
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1SmoothN_val SmoothN_sq SmoothN_rn SmoothN2_rn
+
+FIG. S5. Divergence of DMC electronic densities for diamond, blue phosphorus, and VO 2
+
+denoised using SmoothN across all transformations. 
+
+V. VISUAL BIAS CHECK 
+
+To determine whether our UNET model introduces bias into our electronic den-sities, we denoised several samples—including the reference density—to check for visual artifacts on VO 2.910 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+> Divergence
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1 UNET_rn 
+
+FIG. S6. Divergence of DMC electronic densities for diamond, blue phosphorus, and VO 2
+
+denoised using UNET across all transformations. 10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+> Divergence
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1
+
+10 5 10 6 10 7 10 8 10 9
+
+Samples 
+
+10 7
+
+10 6
+
+10 5
+
+10 4
+
+10 3
+
+10 2
+
+10 1 BM4D_val BM4D_sq BM4D_rn 
+
+FIG. S7. Divergence of DMC electronic densities for diamond, blue phosphorus, and VO 2
+
+denoised using BM4D across all transformations. 10 FFT Linear Reg. SmoothN UNET BM4D SCUNET 010 20 30 40 50 Speedup 
+
+21.8 21.7 28.3 3.3 11.4 5.7 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+010 20 30 40 50 
+
+29.6 35.0 34.5 5.1 10.7 7.8 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+010 20 30 40 50 
+
+14.2 16.0 18.8 7.2 10.8 3.4 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0510 15 20 Speedup  12.4 1.1 11.8 0.1 7.6 12.2 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0510 15 20 
+
+9.4 6.0 11.2 0.2 7.7 8.2 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0510 15 20 
+
+2.3 0.9 7.2 0.8 8.9 8.0 
+
+FIG. S8. Speedup values across denoising methods for Diffusion Monte Carlo (DMC). The columns show data for diamond (left), blue phosphorus (middle), and VO 2 (right). The rows correspond to the medium (top) and high (bottom) sample regimes. 11 FFT Linear Reg. SmoothN UNET BM4D SCUNET 0.0 0.2 0.4 0.6 0.8 1.0 Score 
+
+0.77 0.77 1.00 0.12 0.40 0.20 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+0.85 1.00 0.98 0.15 0.31 0.22 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+0.75 0.85 1.00 0.38 0.58 0.18 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0.0 0.2 0.4 0.6 0.8 1.0 Score 
+
+1.00 0.09 0.95 0.01 0.61 0.99 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+0.84 0.53 1.00 0.02 0.69 0.73 
+
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+0.26 0.10 0.81 0.09 1.00 0.90 
+
+FIG. S9. Relative speedup scores for each denoising method using Diffusion Monte Carlo (DMC). The columns correspond to diamond (left), blue phosphorus (middle), and VO 2
+
+(right). The rows show results for the medium (top) and high (bottom) sample regimes. 12 FFT Linear Reg. SmoothN UNET BM4D SCUNET 0.0 0.2 0.4 0.6 0.8 1.0 Score   
+
+> 0.18 1.00 0.80 0.21 0.10 0.04
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET 0.0 0.2 0.4 0.6 0.8 1.0
+> 0.75 0.77 0.98 0.12 0.31 0.18
+> FFT Linear Reg. SmoothN UNET BM4D SCUNET 0.0 0.2 0.4 0.6 0.8 1.0
+> 0.26 0.09 0.81 0.01 0.61 0.73
+
+FIG. S10. Minimum relative speedup score obtained by each denoising method across all three materials (diamond, blue phosphorus, VO 2) using Diffusion Monte Carlo (DMC). The panels correspond to the low (left), medium (middle), and high (right) sample regimes. A) 
+
+B) 
+
+DMC Isosurfaces 
+
+UNET Denoised Isosurfaces 
+
+FIG. S11. Panel A displays, from left to right: 292,606; 4,598,503; and 18,309,668 samples, followed by the mean reference. Panel B illustrates the corresponding denoised densities obtained using the 3D UNET, demonstrating significant noise reduction. 13 
+
+VI. MATERIAL STRUCTURES 
+
+Below are the crystal structures for each material in XSF format. The cell is primitive in each case. Diamond 
+
+CRYSTAL PRIMVEC 1.78500000 1.78500000 0.00000000 0.00000000 1.78500000 1.78500000 1.78500000 0.00000000 1.78500000 PRIMCOORD 2 1 6 0.00000000 0.00000000 0.00000000 6 0.89250000 0.89250000 0.89250000 
+
+Blue phosphorus 
+
+CRYSTAL PRIMVEC 1.65700000 -5.23870000 0.00000000 3.31400000 0.00000000 0.00000000 0.00000000 0.00000000 4.37536000 PRIMCOORD 4 1 15 0.82850000 -1.55474139 0.35326657 15 2.48550000 -3.68395861 2.54094657 15 2.48550000 -1.55474139 1.83441343 15 4.14250000 -3.68395861 4.02209343 
+
+VO 214 
+
+CRYSTAL PRIMVEC 4.55460000 0.00000000 0.00000000 0.00000000 4.55460000 0.00000000 0.00000000 0.00000000 2.85280000 PRIMCOORD 6 1 8 1.36683546 1.36683546 0.00000000 8 3.18776454 3.18776454 0.00000000 8 3.64413546 0.91046454 1.42640000 8 0.91046454 3.64413546 1.42640000 23 0.00000000 0.00000000 0.00000000 23 2.27730000 2.27730000 1.42640000

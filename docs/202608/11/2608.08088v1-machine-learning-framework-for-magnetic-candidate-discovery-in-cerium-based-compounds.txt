@@ -1,0 +1,652 @@
+Title: Machine Learning Framework for Magnetic Candidate Discovery in Cerium-Based Compounds
+
+URL Source: https://arxiv.org/pdf/2608.08088v1
+
+Published Time: Tue, 11 Aug 2026 00:39:03 GMT
+
+Number of Pages: 18
+
+Markdown Content:
+# A Machine Learning Framework for Magnetic Candidate Discovery in Cerium-Based Compounds 
+
+Joshua A. Torres ∗,‡, Yaser M. Banad ‡, Benjamin O. Tayo †, and Tej Nath Lamichhane ∗,†
+
+> †
+
+School of Engineering, University of Central Oklahoma, Edmond, Oklahoma 73034, United States 
+
+> ‡
+
+School of Electrical and Computer Engineering, University of Oklahoma, Norman, Oklahoma 73019, United States E-mail: jatorres@ou.edu; tlamichhane@uco.edu 
+
+# Abstract 
+
+Cerium (Ce), the most abundant lanthanide, offers significant potential for developing sustainable mag-netic materials. Predicting ferromagnetic compounds with strong uniaxial magnetic anisotropy remains challenging because magnetic ordering depends sensitively on crystal structure, exchange geometry, and electronic interactions. Here, we present a physics-guided computational framework that integrates Ran-dom Forest (RF)-based structural screening, a Ce-specific modification of the Goodenough–Kanamori exchange model, Ising-model Monte Carlo simulations, and unsupervised representation learning to screen known Ce-based crystal structures, identify promising candidates exhibiting Ising-like ferromagnetic be-havior, and characterize their magnetic phase transitions and critical properties. The top candidate structures are simulated on their crystal-derived magnetic lattices to map phase be-havior across temperature and magnetization. Phase diagrams obtained from these simulations are used to extract critical exponents, enabling quantitative characterization of magnetic regimes and phase tran-sitions. To further strengthen the predictive framework, we analyze the simulated configurations using an autoencoder-based unsupervised learning approach. The resulting latent representations capture signa-tures of phase evolution and transition behavior, providing an interpretable connection between simulated spin configurations and emergent magnetic phenomena. Together, these methods establish a scalable framework that combines structural screening, statistical-mechanical simulation, critical exponent extraction, and unsupervised learning in the search for new mag-netic materials. Beyond classification alone, this approach advances the physics-informed filtering of known crystals and provides a pathway for identifying candidate compounds for future synthesis and experimen-tal validation. Ultimately, this work deepens understanding of magnetism in cerium-based compounds and offers a broader platform for exploring next-generation magnetic materials across the lanthanide and actinide families. 
+
+1arXiv:2608.08088v1 [cond-mat.mtrl-sci] 8 Aug 2026 Graphical Abstract mi = | Λd|−1 ∑     
+
+> j∈ Λ d
+> sj
+> encoder decoder
+> z
+> MT/TC
+> 011
+> β≈0.33
+
+# Introduction 
+
+Ferromagnetic materials occupy a privileged role in quantum materials physics because long-range spin order enables magnetic functional-ity in spintronic, magnetocaloric, and quantum-materials platforms. 1–3 Despite their techno-logical promise, systematic computational dis-covery of new cerium-based ferromagnetic can-didates remains limited. The target materi-als in this work are not merely ferromagnets, but ferromagnets with sufficiently strong uni-axial magnetic anisotropy to motivate an ef-fective Ising-like description. Accordingly, the Monte Carlo stage below should be understood as a coarse-grained phase-mapping model for candidate magnetic graphs; direct confirma-tion of easy-axis anisotropy remains a follow-up electronic-structure or experimental validation step. Cerium presents an exceptional opportunity in this space. The Ce 3+ ion carries a 4 f 1 con-figuration, so magnetic coupling in Ce com-pounds need not be restricted to a single micro-scopic mechanism; the dominant exchange can vary with bonding, coordination, and electronic structure. In this work we focus specifically on the anion-mediated Ce–anion–Ce pathways that can be extracted consistently from CIF structures and screened using Goodenough– Kanamori (GK) rules. 4,5 Studies of rare-earth monochalcogenides further show that exchange between localized 4 f moments can be affected by virtual excitations into unoccupied rare-earth 5 d levels, 6,7 while Ce compounds addi-tionally exhibit significant 4 f –ligand hybridiza-tion and crystal-field effects that modify the exchange interaction. 25 This motivates the Ce-specific screening correction used here: an anal-ogous f → 5d virtual channel is added to the GK estimate for Ce–anion–Ce pathways (here-after referred to as modified-GK) before can-didates are passed to Monte Carlo validation. Beyond its abundance and low cost, Ce exhibits rich magnetic behavior arising from compet-ing 4 f –5 d interactions and strong sensitivity to crystal structure and chemical bonding. Com-pared with the extensively investigated Nd-and Sm-based magnet systems, many Ce com-pounds remain comparatively unexplored, pro-viding significant opportunities for computa-tionally guided materials discovery. Machine learning has recently emerged as a transformative tool in computational materi-als discovery. 8 Supervised classifiers trained on structural and electronic descriptors have been used as fast surrogates for magnetic-order pre-diction in correlated f -electron materials, 9,10 
+
+while unsupervised approaches — notably au-toencoders — have been used to map or-der parameters and phase boundaries directly from simulation snapshots without prior knowl-edge of the transition. 11,12 The combination of supervised structural benchmarking, physics-based candidate screening, and unsupervised phase-diagram construction forms the concep-tual backbone of the present work. Accord-ingly, the manuscript follows this sequence: de-fine the Ce-containing materials space, bench-mark structural ferromagnetic prediction, ap-ply the modified-GK positive-exchange screen, estimate temperature windows with Glauber 2Figure 1: Ce-based ferromagnetic-candidate screening and simulation workflow. A Random For-est trained on Materials Project magnetic-order labels produces out-of-fold structural predictions, which are filtered by modified Goodenough–Kanamori screening. The retained candidates are passed through Glauber and Kawasaki Monte Carlo simulations, and local-affinity vectors are an-alyzed by an autoencoder to reconstruct phase boundaries. MC, reconstruct Kawasaki phase boundaries with local affinities and an autoencoder, and finally extract critical exponents from the com-pleted finite-size data. Here we adapt the constant-magnetization Ising protocol of Jang and Yethiraj 12 to material-derived Ce mag-netic graphs obtained from CIF structures and modified-GK screening. Several ML studies of magnetic ordering ex-ist, but most address 3 d transition metal ox-ides or focus exclusively on the critical point of the Ising model. 11,12 We are not aware of any systematic ML-based screening of 4 f com-pounds that propagates candidates through a full Monte Carlo phase-diagram pipeline. The goal of this work is precisely to close that gap: we build and validate a workflow that com-bines an RF structural-screening stage with GK screening, Glauber and Kawasaki MC simu-lation, and autoencoder phase-diagram anal-ysis specifically tuned for Ce-based ferromag-netic candidates that could later be priori-tized for uniaxial-anisotropy validation, and we demonstrate it against EuO as an exter-nal rare-earth ferromagnetic benchmark for the MC/autoencoder workflow. 6,13 
+
+# Model and Methods 
+
+Materials Space and Data Collec-tion 
+
+We query the Materials Project API 14,15 for all Ce-containing binary and ternary crystal structures. Crystal structure files (CIF format) are downloaded and converted to pymatgen 
+
+Structure objects 16 for subsequent analysis. Figure 3 summarizes the CIF-to-autoencoder workflow. 3Ferromagnetic Prediction Using Structural Characteristics 
+
+Following Broyles and colleagues, 10 we adopt the same three-class RF formulation (FM, AFM, and PM), but apply it here to Ce-containing compounds labeled from Materi-als Project magnetic ground-state annotations rather than the experimentally curated ura-nium dataset used in the original study. As in the reference work, each compound is repre-sented by a compact descriptor constructed from purely structural information, allow-ing magnetic-order prediction without explicit DFT-derived inputs. In the present implemen-tation, this descriptor combines bulk structural features with Smooth Overlap of Atomic Posi-tions (SOAP) overlaps. 17 Figure 2 summarizes the RF ensemble. The compact descriptor contains seven fea-tures: the unit-cell volume, mass density, num-ber of atomic sites, space group, atomic density (sites per unit volume), a Ce SOAP overlap, and a transition-metal (TM) SOAP overlap. The SOAP power spectra are computed with the DScribe package using nmax = 5, lmax = 3, and a cutoff radius rc = 5 ˚ A, and are then re-duced to per-species scalar overlaps by sum-ming over the angular and radial channels and over atomic sites. This construction preserves a low-dimensional representation of the crys-tal structure while retaining information about the local Ce-centered coordination environment and the degree of TM participation. Three dataset scopes are evaluated: a binary set of Ce compounds with exactly two distinct elements ( N = 208), a ternary set ( N = 803), and the combined set ( N = 1 ,011). All three datasets are class-imbalanced and are domi-nated by the FM label. In the binary set, the class distribution is 165 FM, 18 AFM, and 25 PM compounds, corresponding to 79 .3%, 8 .7%, and 12 .0% of the dataset, respectively. In the ternary set, the distribution is 556 FM, 130 AFM, and 117 PM compounds (69 .2%, 16 .2%, and 14 .6%), while the combined set contains 721 FM, 148 AFM, and 142 PM compounds (71 .3%, 14 .6%, and 14 .0%). The strong FM skew is therefore a central feature of all three classification problems and must be considered when interpreting model performance. To benchmark the descriptor under the same general RF framework used by Broyles and colleagues, 10 we train a Random Forest with 100 decision trees, Gini-impurity splitting, and a maximum of 10 features considered at each split. For the compact seven-feature descriptor this bound exceeds the descriptor dimension, so all seven features are available at every split and tree-to-tree variation arises from bootstrap sampling alone; for the abundance-augmented representation it acts as a genuine random fea-ture subset, as in the reference implementa-tion. Performance is estimated over 10,000 independent stratified 70 /30 train–test splits for each dataset scope. For the seven-feature structure-plus-SOAP descriptor, the stochastic-split mean accuracies are μ = 79 .3 ± 3.7% for the binary set, μ = 69 .0 ± 2.1% for the ternary set, and μ = 71 .0 ± 1.8% for the combined set. On representative fixed splits, the corre-sponding balanced accuracies are 0.590, 0.434, and 0.453, with macro-F1 scores of 0.615, 0.450, and 0.467 for the binary, ternary, and combined sets, respectively. These results show that over-all accuracy alone overstates performance be-cause it is influenced by the majority FM class. The more conservative balanced-accuracy and macro-F1 metrics indicate that the descriptor captures the dominant FM signal more reli-ably than the minority AFM and PM classes, which remain more difficult to resolve under the present class imbalance. The binary prob-lem gives the strongest baseline performance, whereas the ternary and combined sets are more challenging because the label space must be learned across a broader and more composition-ally diverse materials set. We also tested an expanded representa-tion that augments the seven structural fea-tures with elemental-abundance inputs. This abundance-augmented model yields the highest overall performance, with stochastic-split mean accuracies of μ ≈ 82 .0% for the binary set, 
+
+μ ≈ 74 .2% for the ternary set, and μ ≈ 76 .1% for the combined set. The improvement indi-cates that compositional weighting contributes useful predictive information beyond the com-4Figure 2: Random Forest classifier schematic used for ferromagnetic-label prediction from structural and SOAP-derived descriptors. Individual decision trees produce independent class votes, and the ensemble prediction is assigned by majority voting. pact structural-plus-SOAP descriptor alone, especially for the more data-rich ternary and combined datasets. Taken together, these RF results provide a rapid structural benchmark for magnetic-label prediction in Ce compounds and show that the feature space adapted from Broyles and colleagues remains informative when trans-ferred from uranium-based systems to Ce-based chemistries. To create the candidate pool with-out predicting a training structure with a model that has already seen its label, we apply re-peated stratified 10-fold cross-validation to the combined dataset. Each compound is held out and predicted in ten independent folds, and its mean class probabilities determine the out-of-fold RF assignment. This procedure predicts 838 of the 1,011 compounds as FM. These RF predictions, rather than the Materials Project training labels themselves, provide the input to the modified-GK screening funnel described be-low. 
+
+Goodenough–Kanamori Screening with f -Orbital Correction 
+
+Standard GK rules classify superexchange in-teractions based on the occupancy and ge-ometry of overlapping d orbitals on adjacent magnetic sites. 4,5 We use this framework as a high-throughput exchange screen rather than as a fully ab initio evaluation of the superex-change integral: the GK rules identify the ac-tive orbital/geometric channels and their FM or AFM signs, while Kanamori-style transfer-integral expressions provide semi-empirical rel-ative magnitudes. This approximation is used as a screening-level model for rare-earth com-pounds because exchange between localized 4f moments can acquire additional contri-5butions from virtual excitations into unoccu-pied rare-earth 5 d levels, as established in Eu chalcogenide literature and first-principles Eu monochalcogenide studies. 6,7 The Eu literature motivates the physical form of the screening correction but is not used to parameterize the Ce-specific model. For Ce, the relevant occu-pied orbital is 4 f rather than 3 d, and the ex-change estimate is further modified by low-lying 5d virtual states accessible through crystal-field mixing. We implement this as a Ce-specific additive channel model for each Ce–anion–Ce pathway, 
+
+Jp = X
+
+> c
+
+Jp,c = Jσ + Jπ + J90 ◦ + Jf →5d, (1) where the standard σ, π, and 90 ◦ terms fol-low the GK sign rules and the additional f →
+
+5d term is a positive virtual-excitation chan-nel of the form Jf →5d ∝ 2b2
+
+> f d
+
+/[(4 SiSj )∆ f d ], scaled by the pathway angular factor. The material-level screening descriptor is the mean over nonzero pathway sums, JCe = ⟨Jp⟩Jp̸ =0 .Materials with JCe > 0 are retained as FM can-didates; the remainder are classified as AFM or nonmagnetic within the screening model. The modified-GK values are used both to identify positive-exchange Ce graphs and, through their material-level mean, as the uniform coupling for the Glauber and Kawasaki models. Pathway-to-pathway variations are not inserted into the present Hamiltonian. The modified-GK screen is applied after the RF stage has identified the predicted ferro-magnetic candidate pool. Starting from 1,011 Ce-containing compounds, the out-of-fold RF screen predicts 838 as FM. Requiring zero transition-metal SOAP overlap narrows this set to 316 compounds dominated by pure Ce– anion–Ce pathways, and CIF availability leaves 311 structures for explicit modified-GK analy-sis. Applying the Ce-specific f → 5d channel model and retaining materials with JCe > 0yields 237 positive-exchange screening candi-dates for downstream prioritization. 
+
+Monte Carlo Simulation with Con-served Magnetization 
+
+For each screened candidate we construct a su-percell with the magnetic lattice extracted from the crystal structure. Following the constant-magnetization Ising protocol of Jang and Yethi-raj, 12 the Ising model has N two-state spins on a lattice, with one coarse-grained orientation variable assigned to each magnetic site. The Hamiltonian is 
+
+H = −J X
+
+> ⟨ij ⟩
+
+SiSj , (2) where Si ∈ {+1 , −1} is the spin on site 
+
+i and ⟨ij ⟩ denotes nearest-neighbor magnetic pairs. In the present materials workflow, these nearest-neighbor pairs are identified from the CIF-derived magnetic graph. Here Si encodes the orientation of the local moment and should not be interpreted as the microscopic spin quan-tum number of the ion. The modified-GK value is used for screening, for identifying the mag-netic Ce–anion–Ce connectivity, and as the uni-form material-level coupling J = JGK on every retained ferromagnetic bond. The Monte Carlo calculation therefore tests the phase behavior of a uniformly weighted exchange/connectivity graph using the mean modified-GK energy scale. Magnetocrystalline anisotropy remains a separate materials-validation criterion, and pathway-resolved GK magnitudes are not in-serted into the present Kawasaki Hamiltonian. All temperatures are reported in kelvin, with the material-level coupling expressed in meV and kB in meV K −1. To fix the absolute tem-perature range for each candidate, we first es-timate its critical temperature TC using non-conserved Glauber single-spin-flip dynamics, 18 
+
+locating TC from the crossing of the fourth-order Binder cumulant across system sizes. This provides TC in kelvin and sets the win-dow over which the conserved-magnetization Kawasaki runs are performed. The same material-level mean modified-GK coupling is used in the Glauber and Kawasaki Hamiltoni-ans, providing the material-specific energy scale for temperatures reported in kelvin. 6Constant-magnetization simulations are then evolved using Kawasaki dynamics: 19 a spin i
+
+is chosen at random, a spin j with Sj = −Si
+
+is chosen at random, and the pair exchange is accepted with the Metropolis probability 20 
+
+P = min 
+
+
+
+1, exp 
+
+
+
+− ∆HkB T
+
+ 
+
+. (3) The energy change for the swap is ∆H = −2J
+
+X
+
+> ⟨ik ⟩
+
+SiSk + X
+
+> ⟨jl ⟩
+
+Sj Sl
+
+ . (4) The system is equilibrated for 2 × 10 5 accepted moves per lattice site and properties are aver-aged over 10 6 accepted moves per lattice site. We collect 1,000 independent configurations per temperature for ML analysis. Simulations are performed for eight magnetization sectors, 
+
+M ∈ { 0.0, 0.25 , 0.375 , 0.5,
+
+0.625 , 0.75 , 0.8125 , 0.875 },
+
+across 61 temperatures spanning the candidate-specific window set by the Glauber TC esti-mate. All candidates are simulated on three-dimensional lattices, since each corresponds to a real crystal structure. The EuO bench-mark is treated in the same 3D workflow and serves as an external ferromagnetic reference for graph construction, conserved-magnetization MC, and autoencoder analysis. The refer-ence study uses cubic linear dimensions L ∈{16 , 20 , 24 , 32 } and corresponding system sizes of 4,096 to 32,768 spins. 12 For the CIF-derived lattices, n denotes the integer number of crys-tallographic supercell repeats, and N denotes the number of magnetic sites represented as Ising spins. EuO and CeGaO 3 each contain four magnetic sites per conventional cell, so both give N = 4 n3. For n = 2–6, this cor-responds to N = 32 , 108 , 256 , 500 , and 864. CeF 3 contains six Ce sites per conventional cell, giving N = 6 n3; its Glauber range n = 5– 9 corresponds to N = 750 , 1,296 , 2,058 , 3,072 ,
+
+and 4 ,374. These smaller size ladders provide multiple adjacent-size Binder-cumulant cross-ings over the 61-temperature grid. The re-ported Glauber transition estimates incorpo-rate the variation among the available adjacent-size crossings. The subsequent Kawasaki calcu-lations use larger material-specific sizes: EuO 
+
+n = 10 , 13 , 16 , 20, corresponding to N =4,000 , 8,788 , 16 ,384 , and 32 ,000; CeF 3 n =9, 11 , 13, corresponding to N = 4 ,374 , 7,986 ,
+
+and 13 ,182; and CeGaO 3 n = 9 , 10 , 13, corre-sponding to N = 2 ,916 , 4,000 , and 8 ,788. The Glauber size ladders are used to establish the temperature scale through adjacent-size Binder crossings, whereas the larger Kawasaki sizes are used for finite-size analysis of the conserved-magnetization phase boundaries. For every saved configuration, the total magnetization is checked to ensure exact conservation within the requested magnetization sector before local affinity features are extracted for the autoen-coder analysis. 
+
+Local Affinity Feature and Au-toencoder Analysis 
+
+Raw spin configurations carry no explicit in-formation about local correlations. Follow-ing Jang and Yethiraj, 12 and related feature-construction studies, 21,22 we compute a local affinity feature at each site i. In the original square/cubic Ising lattices, the local region Λ d
+
+is a diamond in 2D or a bipyramid in 3D. For CIF-derived magnetic graphs, the geometry-only adaptation is to define Λ d(i) as the graph-distance ball on the retained exchange network, Λd(i) = {j : dist G(i, j ) ≤ d},
+
+which contains the central site and its nearest-neighbor shell for d = 1 and expands analo-gously to the window used by Jang and Yethiraj for larger d. Its internal magnetization 
+
+Md(i) = X
+
+> j∈Λd(i)
+
+Sj (5) is computed, and the affinity is assigned as 
+
+vi =
+
+
+
++1 if Md(i) Si > 0,Si if Md(i) = 0 ,
+
+−1 if Md(i) Si < 0.
+
+(6) 7Figure 3: Kawasaki Monte Carlo and autoencoder phase-mapping workflow for CIF-derived three-dimensional simulations. Crystal structures are converted to magnetic lattices, equilibrated constant-magnetization Kawasaki configurations are sampled over temperature, local-affinity vec-tors are constructed from spin neighborhoods, and a standard autoencoder compresses these features to a one-dimensional latent coordinate for phase-boundary reconstruction. The Md(i) = 0 case follows the tie convention of Jang and Yethiraj: 12 when the local region has zero net magnetization, the affinity value is assigned the central spin value rather than a separate zero class. The graph-window size d
+
+is chosen per material, system size, and magne-tization sector by maximizing the standard de-viation of ⟨v⟩ over the full temperature range, the same selection criterion used by Jang and Yethiraj. The feature matrix V (rows = configurations, columns = lattice sites) is fed to the symmetric autoencoder in the final phase-mapping work-flow stage (Figure 3). The encoder and decoder each contain three fully connected hidden layers with node counts N 1 
+
+> u
+
+= 256, N 2 
+
+> u
+
+= 128, N 3 
+
+> u
+
+=64 and ReLU activations; the input/output lay-ers use a linear activation function, consistent with the physical requirement that the input and output representations are identical. The latent space is one-dimensional, and its mean 
+
+S and standard deviation σS serve as the or-der parameter and its susceptibility proxy, re-spectively. Training uses the ADAM optimizer with mean squared error (MSE) loss, a batch size of 10, a dropout rate of 0.25, and Gaussian weight initialization with σ = 0 .05. We train for 100 epochs with a fixed ADAM learning rate 
+
+η = 10 −5, following the reference protocol. Hy-perparameters are summarized in Table 1. 
+
+Table 1: Summary of Autoencoder Hy-perparameters 
+
+Hyperparameter Value 
+
+N 1 
+
+> u
+
+, N 2 
+
+> u
+
+, N 3 
+
+> u
+
+256, 128, 64 Epochs 100 Learning rate η 10 −5
+
+Dropout rate 0.25 Batch size 10 Loss function MSE Optimizer ADAM The binodal temperature Tbin is identified as 8the temperature at which σS is maximum. Fol-lowing the reference protocol, with n in place of the reference lattice dimension L, the bin-odal finite-size extrapolation follows Tbin ∼
+
+n−1/ν , with ν = 0.630 (3D Ising, M = 0critical region) and ν = 0.876 (3D percola-tion, off-critical sectors), determined by the Ginzburg criterion. 23 Binder-cumulant cross-ings and pseudocritical-temperature shifts pro-vide complementary finite-size checks on ν.
+
+Effect of Activation Functions 
+
+The choice of activation function in the autoen-coder input/output layers has a measurable ef-fect on the accuracy of the critical tempera-ture estimate. A linear activation (our default) treats the input and output layers symmetri-cally, consistent with the physical requirement that the autoencoder reconstruct its own in-put. Replacing the linear with a hyperbolic tangent (tanh) activation — as used in some prior studies 24 — introduces an asymmetry be-tween the input and output layers that biases the recovered critical temperature, because the reconstruction is no longer faithful. This find-ing underscores that ML must not be applied as a black box: domain knowledge about the sym-metry of the reconstruction task is essential for obtaining quantitatively reliable results. 
+
+# Results and Discussion 
+
+Candidate Selection 
+
+The overall pipeline in Figure 1 summarizes the successive reduction of the candidate space and its connection to the downstream sim-ulation workflow. Starting from 1,011 Ce-containing compounds, the out-of-fold RF stage predicts 838 ferromagnetic candidates. The no-transition-metal-overlap criterion and CIF availability then reduce the set to 311 struc-tures for explicit modified-GK analysis. The 
+
+f → 5d correction retains 237 positive-exchange candidates. Full Kawasaki MC phase-diagram calcula-tions are computationally expensive, so we did not simulate all 237; instead we selected two representative Ce compounds according to two practical criteria that make a compound both physically meaningful and amenable to clean finite-size scaling. First, the magnetic ordering must be driven by Ce–anion–Ce su-perexchange alone, with no competing mag-netic species, consistent with the goal of dis-covering a genuinely cerium-based ferromagnet. Second, the Ce coordination number must be high enough ( z ≳ 6) to produce a sharp, well-defined Binder-cumulant crossing; chain-like or low-coordination structures were excluded on this basis. Applying these criteria yields CeF 3
+
+(mp-22070; z = 10–11, modified-GK screening 
+
+JCe = +3 .66 meV) and CeGaO 3 (mp-1019598; uniform z = 8, JCe = +4 .73 meV). CeF 3
+
+serves as the comparatively well-characterized member, while CeGaO 3 represents an under-studied geometry. EuO (mp-21394) is carried through the same MC and autoencoder analysis as an external benchmark because it is a well-established rare-earth ferromagnet with a re-ported Curie temperature and a comparatively simple magnetic sublattice. 6,13 We note that the ferromagnetic labels used to train and evaluate the RF screen derive from Materials Project spin-polarized DFT rather than experimental measurement, so the two Ce candidates are best described as computationally predicted ferro-magnets whose Ising-limit phase behavior this pipeline quantifies. Their suitability as uniaxi-ally anisotropic ferromagnets requires a subse-quent magnetocrystalline-anisotropy or experi-mental easy-axis validation step. 
+
+EuO Benchmark Validation 
+
+EuO is used here as a well-established rare-earth ferromagnetic benchmark with a reported Curie temperature TC ≈ 69 K. 6,13 It pro-vides a reference structure for testing the same graph construction, conserved-magnetization MC, and autoencoder analysis applied to the Ce candidates. The Glauber Binder-cumulant analysis using the uniform modified-GK cou-pling JGK = 0 .5351 meV gives TC = 60 .6 ±
+
+0.9 K. This is 8.4 K (approximately 12.2%) be-low the experimental value of about 69 K. Fig-ure 4 compares the associated Glauber observ-90.0 0.2 0.4 0.6 0.8 1.0 
+
+> ⟨|M|⟩
+
+(a) Magnetization      
+
+> n= 2
+> n= 3
+> n= 4
+> n= 5
+> n= 6
+> 0510 15 20
+> χ
+
+(b) Susceptibility       
+
+> 30 40 50 60 70 80 90
+
+Temperature (K) 
+
+> 0.0 0.5 1.0 1.5
+> CV
+
+(c) Speci fi c heat       
+
+> 30 40 50 60 70 80 90
+
+Temperature (K)   
+
+> 0.0 0.2 0.4 0.6
+> U4
+> JGK = 0.5351 meV
+> TC= 60.6 ± 0.9 K
+
+(d) Binder cumulant 
+
+Uniform modi fi ed-GK-J Glauber observables: EuO (mp-21394) 0.0 0.2 0.4 0.6 0.8 1.0                               
+
+> ⟨|M|⟩
+> (a) Magnetization
+> n= 5
+> n= 6
+> n= 7
+> n= 8
+> n= 9
+> 0510 15 20 25 30
+> χ
+> (b) Susceptibility
+> 250 300 350 400 450 500
+> Temperature (K)
+> 0.00 0.25 0.50 0.75 1.00 1.25 1.50
+> CV
+> (c) Speci fi c heat
+> 250 300 350 400 450 500
+> Temperature (K)
+> 0.0 0.2 0.4 0.6
+> U4
+> JGK = 3.6631 meV
+> TC= 340.7 ± 15.2 K
+> (d) Binder cumulant
+> Uniform modi fi ed-GK-J Glauber observables: CeF3 (mp-22070) 0.0 0.2 0.4 0.6 0.8 1.0
+> ⟨|M|⟩
+> (a) Magnetization
+> n= 2
+> n= 3
+> n= 4
+> n= 5
+> n= 6
+> 0.0 0.5 1.0 1.5 2.0
+> χ
+> (b) Susceptibility
+> 200 300 400 500
+> Temperature (K)
+> 0.00 0.25 0.50 0.75 1.00 1.25 1.50
+> CV
+> (c) Speci fi c heat
+> 200 300 400 500
+> Temperature (K)
+> −0.2 0.0 0.2 0.4 0.6
+> U4
+> JGK = 4.7280 meV
+> TC= 326.8 ± 19.7 K
+> (d) Binder cumulant
+> Uniform modi fi ed-GK-J Glauber observables: CeGaO3 (mp-1019598)
+
+Figure 4: Glauber thermodynamic observables obtained using the material-level modified-GK cou-pling for EuO (top), CeF 3 (bottom left), and CeGaO 3 (bottom right). Each panel set shows absolute magnetization, susceptibility, specific heat, and the fourth-order Binder cumulant across the available system sizes. Dashed lines and shaded intervals mark the refined adjacent-size Binder estimates: TC = 60 .6 ± 0.9 K for EuO, 340 .7 ± 15 .2 K for CeF 3, and 326 .8 ± 19 .7 K for CeGaO 3. The EuO estimate lies 8.4 K (approximately 12.2%) below its experimental TC ≈ 69 K; the Ce values characterize the imposed positive uniform-J crystal-graph Ising models and are not experimentally validated Curie temperatures. ables for EuO, CeF 3, and CeGaO 3; the refined transition estimates are collected in Table 2. Finite-size extrapolation of the completed Kawasaki data using JGK = 0 .5351 meV gives the M = 0 binodal estimates TC = 60 .20 ±
+
+0.64 K from the autoencoder (AE) and TC =60 .59 ± 0.41 K from the local-affinity (LA) vari-ance. These values characterize the present crystal-graph Ising model and serve as an in-ternal workflow comparison with the Glauber estimate; they are not a replacement for the experimental EuO Curie temperature. The same completed data set is used to quantify the phase-boundary errors of the AE and LA meth-ods, following the validation strategy of Jang and Yethiraj. 12 
+
+The autoencoder order parameter S and its standard deviation σS are tracked as functions 10 40 50 60 70 80                  
+
+> T (K)
+> −10.0
+> −7.5
+> −5.0
+> −2.5 0.0 2.5 5.0 7.5
+> S
+> (a) n=20, M=0
+> 40 50 60 70 80
+> T (K)
+> −4
+> −20246
+> S
+> (b) n=20, M=0.25
+> 40 50 60 70 80
+> T (K)
+> −2024
+> S
+> (c) n=20, M=0.5
+> 40 50 60 70 80
+> T (K)
+> −0.5 0.0 0.5 1.0 1.5 2.0 2.5 3.0
+> S
+> (d) n=20, M=0.75
+> 01234
+> σS
+> 0.2 0.4 0.6 0.8
+> σS
+> 0.20 0.25 0.30 0.35 0.40 0.45
+> σS
+> 0.10 0.15 0.20 0.25 0.30
+> σS
+> EuO latent statistics ( J= 0.5351 meV): ten independent autoencoder cases
+
+Figure 5: EuO autoencoder latent statistics for the largest simulated size, n = 20, at representative conserved magnetizations. The blue curves show the mean latent order parameter S, the red curves show its within-temperature standard deviation σS , and shaded bands show the variation across ten independent 100-snapshot cases. Dashed vertical lines mark the maxima of σS used to identify 
+
+Tbin . Temperatures use the modified-GK value JGK = 0 .5351 meV. 
+
+Table 2: Glauber transition esti-mates using material-level modified-GK couplings, obtained from adjacent-size Binder-cumulant crossings. 
+
+Material Sizes JGK (meV) TC (K) EuO n = 2–6 0.5351 60 .6 ± 0.9CeF 3 n = 5–9 3.6631 340 .7 ± 15 .2CeGaO 3 n = 2–6 4.7280 326 .8 ± 19 .7
+
+of temperature for each fixed magnetization sec-tor. Figure 5 shows representative n = 20 results from the ten independent autoencoder cases. The maximum in σS defines Tbin , and the finite-size extrapolations in Figure 6 give the thermodynamic-limit binodal. 
+
+Critical Exponent Recovery 
+
+After Tbin is extracted across magnetization sec-tors, the order-parameter exponent β is ob-tained from a logarithmic plot of M versus 
+
+|Tbin − TC |, where M ∼ | Tbin − TC |β . For EuO, the completed analysis gives βAE = 0 .337 ±
+
+0.084 and βLA = 0 .330 ± 0.063, both consis-tent within uncertainty with the 3D Ising value 
+
+β ≈ 0.326. The mean absolute phase-boundary errors relative to the 3D Ising reference are 7.18% for AE and 2 .51% for LA. The larger AE deviations at high magnetization are retained in Figure 7 rather than filtered from the analysis. The present analysis reports the order-parameter exponent β from the phase bound-ary. The finite-size thermodynamic observ-ables generated by the Glauber stage provide routes to estimating the remaining critical ex-ponents: the specific-heat exponent α from 
+
+C ∼ | T − TC |−α or from the finite-size scal-ing of Cmax (L), the susceptibility exponent γ
+
+from χ ∼ |T − TC |−γ or χmax (L), and the correlation length exponent ν from Binder-cumulant crossings and the finite-size shift of pseudocritical temperatures. Equivalently, the 11 0.00 0.01 0.02 0.03 0.04 0.05 0.06 0.07            
+
+> n−1/ ν
+> 45 50 55 60 65
+> Tbin (n) (K)
+> (a) AE fi nite-size extrapolation
+> M=0 M=0.25 M=0.5 M=0.75
+> 0.00 0.01 0.02 0.03 0.04 0.05 0.06 0.07
+> n−1/ ν
+> 45.0 47.5 50.0 52.5 55.0 57.5 60.0 62.5
+> Tbin (n) (K)
+> (b) LA fi nite-size extrapolation
+
+Figure 6: Finite-size extrapolation of representative EuO binodal sectors using (a) the autoencoder latent fluctuation and (b) the local-affinity variance. Points show the ten-case means at n =10 , 13 , 16 , and 20, lines are linear fits in n−1/ν , and crosses mark the thermodynamic-limit intercepts. Following the 3D protocol of Jang and Yethiraj, ν = 0 .630 is used at M = 0 and ν = 0 .876 for the off-critical sectors. 12 Temperatures use JGK = 0 .5351 meV. 0.7 0.8 0.9 1.0                
+
+> Tbin /TC
+> 0.0 0.2 0.4 0.6 0.8
+> M
+> (a) Phase boundary
+> 3D Ising reference AE LA
+> 0.0 0.2 0.4 0.6 0.8
+> M
+> −20
+> −15
+> −10
+> −50510 15
+> relative error in  Tbin /TC (\%)
+> (b) Error vs 3D Ising
+> AE LA
+> 2510 20
+> |Tbin −TC| (K)
+> 10 0
+> 3 × 10 −1
+> 4 × 10 −1
+> 6 × 10 −1
+> M
+> (c) βextraction
+> AE: β= 0.337 ± 0.084 LA: β= 0.330 ± 0.063
+
+Figure 7: EuO phase-boundary reconstruction and critical-exponent analysis. (a) Thermodynamic-limit AE and LA binodals compared with the 3D Ising reference curve. 29 (b) Relative errors of the reconstructed reduced binodal temperatures. (c) Logarithmic fits of M versus |Tbin − TC | used to extract the order-parameter exponent β.finite-size scaling relations M (TC , L ) ∼ L−β/ν ,
+
+χmax (L) ∼ Lγ/ν , and Cmax (L) ∼ Lα/ν pro-vide cross-checks on the exponent set. Because all simulations are performed with a three-dimensional coarse-grained Ising Hamiltonian on crystal-derived lattices, the 3D Ising expo-nent set is the appropriate reference for this modeling framework. Agreement between the extracted exponents and the 3D Ising reference values provides a final check that the thermody-namic and autoencoder-derived observables en-code the physical critical behavior rather than spurious correlations. The completed EuO β
+
+extraction is summarized in Figure 7. 12 Ce-Based Candidate Phase Dia-grams 
+
+The three-size analysis uses CeF 3 lattice sizes 
+
+n = 9 , 11 , 13 and CeGaO 3 lattice sizes n =9, 10 , 13. Figure 8 shows the latent order pa-rameter and latent standard deviation for rep-resentative fixed-magnetization sectors. Both materials exhibit temperature-dependent max-ima in σS , from which the finite-size transition temperatures are obtained. The finite-size transition estimates are shown in Figure 9. For CeGaO 3, the reconstructed phase boundary gives βLA = 0.363 ± 0.057 and βAE = 0 .300 ± 0.209. The correspond-ing mean absolute phase-boundary errors are 5.37% for the local-affinity analysis and 19 .68% for the autoencoder analysis. Ferromagnetic or-der in CeGaO 3 has also been predicted by first-principles calculations, 26 and both exponents recovered here lie close to the three-dimensional Ising value β ≈ 0.326, 27 with the local-affinity estimate agreeing within uncertainty. Taken to-gether, these results identify CeGaO 3 as a can-didate Ising ferromagnet and motivate further study of this compound. For CeF 3, the fits give βAE = 0 .082 ± 0.175 and βLA = −0.102 ± 0.111. The mean abso-lute phase-boundary errors are 10 .14% for the 200 250 300 350 400 450                                      
+
+> T (K)
+> 8
+> 6
+> 4
+> 2
+> 0246
+> S
+> (a) n=13, M=0
+> 200 250 300 350 400 450
+> T (K)
+> 4
+> 2
+> 024
+> S
+> (b) n=13, M=0.25
+> 200 250 300 350 400 450
+> T (K)
+> 2
+> 1
+> 01234
+> S
+> (c) n=13, M=0.5
+> 200 250 300 350 400 450
+> T (K)
+> 0123
+> S
+> (d) n=13, M=0.75
+> 0.5 1.0 1.5 2.0 2.5
+> S
+> 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8
+> S
+> 0.15 0.20 0.25 0.30 0.35 0.40 0.45
+> S
+> 0.125 0.150 0.175 0.200 0.225 0.250 0.275
+> S
+> CeF3 latent statistics ( J= 3.6631 meV): ten independent autoencoder cases 200 250 300 350
+> T (K)
+> 7.5
+> 5.0
+> 2.5
+> 0.0 2.5 5.0 7.5
+> S
+> (a) n=13, M=0
+> 200 250 300 350
+> T (K)
+> 2
+> 024
+> S
+> (b) n=13, M=0.25
+> 200 250 300 350
+> T (K)
+> 2
+> 1
+> 0123
+> S
+> (c) n=13, M=0.5
+> 200 250 300 350
+> T (K)
+> 0.5
+> 0.0 0.5 1.0 1.5 2.0 2.5
+> S
+> (d) n=13, M=0.75
+> 0.0 0.5 1.0 1.5 2.0 2.5
+> S
+> 0.1 0.2 0.3 0.4 0.5 0.6 0.7
+> S
+> 0.1 0.2 0.3 0.4
+> S
+> 0.12 0.14 0.16 0.18 0.20 0.22 0.24 0.26
+> S
+> CeGaO3 latent statistics ( J= 4.7280 meV): ten independent autoencoder cases
+
+Figure 8: Latent statistics from the Jang-style autoencoder analysis for CeF 3 (top) and CeGaO 3
+
+(bottom). The latent order parameter S and its standard deviation σS are shown for representative fixed-magnetization sectors; the peak in σS defines the corresponding finite-size transition estimate. 13 0.00 0.02 0.04 0.06 0.08                     
+
+> n1/
+> 200 225 250 275 300 325 350 375 400
+> Tbin (n) (K)
+> (a) AE finite-size extrapolation
+> M=0 M=0.25 M=0.5 M=0.75
+> 0.00 0.02 0.04 0.06 0.08
+> n1/
+> 220 240 260 280 300 320 340 360
+> Tbin (n) (K)
+> (b) LA finite-size extrapolation 0.00 0.02 0.04 0.06 0.08
+> n1/
+> 200 250 300 350 400
+> Tbin (n) (K)
+> (a) AE finite-size extrapolation
+> M=0 M=0.25 M=0.5 M=0.75
+> 0.00 0.02 0.04 0.06 0.08
+> n1/
+> 240 260 280 300 320 340
+> Tbin (n) (K)
+> (b) LA finite-size extrapolation
+
+Figure 9: Three-size finite-size-scaling analysis for CeF 3 (top; n = 9 , 11 , 13) and CeGaO 3 (bottom; 
+
+n = 9 , 10 , 13). Autoencoder and local-affinity transition estimates are extrapolated independently for each magnetization sector. Including larger lattice sizes could provide additional constraints on the scaling fits and reduce their sensitivity to any single size. autoencoder analysis and 7 .41% for the local-affinity analysis. Although our model predicts CeF 3 to be ferromagnetic, its magnetic behav-ior remains debated: the strong exchange ob-tained here reflects the 4 f –5 d virtual-excitation channel, yet the recovered exponents are far from the Ising value and, in the local-affinity case, are not physically meaningful for an order-parameter exponent. This is consistent with a picture dominated by magnetic excitations rather than by a sharp Ising transition, and no distinct magnetic ordering was reported in the most recent single-crystal study of CeF 3.28 The reconstructed phase boundaries and exponent fits for both materials are shown in Figure 10. 14 0.7 0.8 0.9 1.0 
+
+Tbin /TC
+
+0.0 0.2 0.4 0.6 0.8 
+
+> M
+
+(a) Phase boundary 
+
+3D Ising reference AE LA 
+
+0.0 0.2 0.4 0.6 0.8 
+
+M
+
+20 
+
+10 
+
+010 20 
+
+> relative error in  Tbin /TC (\%)
+
+(b) Error vs 3D Ising 
+
+AE LA 
+
+10 20 50 
+
+|Tbin TC| (K) 
+
+3 × 10 1
+
+4 × 10 1
+
+6 × 10 1
+
+> M
+
+(c) extraction    
+
+> AE: = 0.082 ± 0.175
+> LA: =0.102 ± 0.111
+
+0.6 0.7 0.8 0.9 1.0 
+
+Tbin /TC
+
+0.0 0.2 0.4 0.6 0.8 
+
+> M
+
+(a) Phase boundary 
+
+3D Ising reference AE LA 
+
+0.0 0.2 0.4 0.6 0.8 
+
+M
+
+35 
+
+30 
+
+25 
+
+20 
+
+15 
+
+10 
+
+5
+
+0
+
+> relative error in  Tbin /TC (\%)
+
+(b) Error vs 3D Ising 
+
+AE LA 
+
+10 20 50 
+
+|Tbin TC| (K) 
+
+3 × 10 1
+
+4 × 10 1
+
+6 × 10 1
+
+> M
+
+(c) extraction   
+
+> AE: = 0.300 ± 0.209
+> LA: = 0.363 ± 0.057
+
+Figure 10: Reconstructed phase boundaries and critical-region fits for CeF 3 (top) and CeGaO 3
+
+(bottom), compared with the three-dimensional Ising reference. Autoencoder and local-affinity results are shown for each material. 15 Concluding Remarks 
+
+We have presented a multi-stage machine learn-ing pipeline for the systematic discovery and computational phase-diagram characterization of Ce-based ferromagnetic candidates, with the longer-term materials target being com-pounds that also exhibit strong uniaxial mag-netic anisotropy. The key innovations are: (1) a Random Forest structural-screening stage adapted from the structural-feature-plus-SOAP descriptor strategy of Broyles and colleagues 10 
+
+for defining the Ce ferromagnetic candidate pool; (2) a Ce-specific f → 5d correction to the GK superexchange screening step for se-lecting positive-exchange Ce candidates; (3) Glauber MC for critical-temperature estima-tion that sets the absolute temperature window in kelvin; (4) constant-magnetization Kawasaki MC phase-diagram calculations on material-derived magnetic graphs; and (5) an unsuper-vised autoencoder that maps spin-configuration data to a one-dimensional latent order param-eter and reconstructs the phase diagram with quantified binodal errors. The EuO benchmark provides an external ferromagnetic reference for testing the simu-lation and autoencoder workflow. The two Ce candidates — CeF 3 and CeGaO 3 — re-main cerium-based positive-exchange ferromag-netic candidates. Their three-size autoen-coder and local-affinity analyses produce the phase-boundary and critical-exponent results reported here. They should not yet be inter-preted as experimentally established uniaxial ferromagnets; that designation requires direct confirmation of easy-axis magnetic anisotropy. Several open directions remain. First, the present simulations employ a single effective ex-change parameter Jeff obtained from the aver-age exchange interaction predicted by the mod-ified Goodenough–Kanamori screening model. This effective coupling is applied uniformly to all retained magnetic interactions in the Ising Hamiltonian. Assigning distinct pathway-resolved exchange parameters from the GK model or from DFT+ U remains a future exten-sion of the Hamiltonian. Second, DFT-based confirmation of the predicted ferromagnetic ground states, including magnetocrystalline-anisotropy energies and easy-axis directions, would strengthen the case for experimental syn-thesis, since the underlying Materials Project labels are themselves DFT-derived rather than experimentally measured. The framework is general and can be extended beyond Ce com-pounds to broader rare-earth and actinide mag-netic systems, where analogous f -orbital cor-rections to the GK rules are expected to play a similar role, providing a scalable approach for AI-assisted magnetic materials discovery. 
+
+Acknowledgement The authors thank the Oklahoma State University High Performance Computing Center (Pete cluster) and the OU Supercomputing Center for Education and Re-search (OSCER/Schooner cluster) for computa-tional resources. This work was supported by the University of Central Oklahoma, its School of Engineering, and its Office of High-Impact Practices (OHIP) through an RCSA grant. 
+
+# Supporting Information, Data, and Code Availability 
+
+Supporting analysis materials, data-processing scripts, the modified-GK screening workflow, Monte Carlo simulation code, affinity-feature extraction, and autoencoder analysis code will be made publicly available on GitHub. The accompanying materials include details of the SOAP descriptor parameterization, Random Forest hyperparameter tuning, the Ginzburg criterion analysis for determination of the crit-ical region, binodal comparisons using different finite-size scaling exponents, and principal com-ponent analysis of the latent space. 
+
+# References 
+
+(1) ˇZuti´ c, I.; Fabian, J.; Das Sarma, S. Spin-tronics: Fundamentals and applications. 
+
+Rev. Mod. Phys. 2004 , 76 , 323–410. (2) Pecharsky, V. K.; Gschneidner, K. A., Jr. Magnetocaloric effect and magnetic re-16 frigeration. J. Magn. Magn. Mater. 1999 ,
+
+200 , 44–56. (3) Coey, J. M. D. Magnetism and Magnetic Materials ; Cambridge University Press: Cambridge, 2010. (4) Goodenough, J. B. Magnetism and the Chemical Bond ; Interscience: New York, 1963. (5) Kanamori, J. Superexchange interaction and symmetry properties of electron or-bitals. J. Phys. Chem. Solids 1959 , 10 ,87–98. (6) Kasuya, T.; Yanase, A. Anomalous trans-port phenomena in Eu-chalcogenide al-loys. Rev. Mod. Phys. 1968 , 40 , 684–696. (7) Kuneˇ s, J.; Ku, W.; Pickett, W. E. Ex-change coupling in Eu monochalcogenides from first principles. J. Phys. Soc. Jpn. 
+
+2005 , 74 , 1408–1411. (8) Bedolla, E.; Padierna, L. C.; Casta˜ neda-Priego, R. Machine learning for condensed matter physics. J. Phys.: Condens. Mat-ter 2021 , 33 , 053001. (9) Ghosh, A.; Ronning, F.; Nakhmanson, S. M.; Zhu, J.-X. Machine learning study of magnetism in uranium-based com-pounds. Phys. Rev. Materials 2020 , 4,064414. (10) Broyles, C.; Charles, W.; Ran, S. Structure-driven prediction of mag-netic order in uranium compounds. 
+
+Phys. Rev. Mater. 2024 , 8, 114405. (11) Wang, L. Discovering phase transitions with unsupervised learning. Phys. Rev. B 
+
+2016 , 94 , 195105. (12) Jang, I.; Yethiraj, A. Unsupervised ma-chine learning method for the phase behavior of the constant magnetization Ising model in two and three dimensions. 
+
+J. Phys. Chem. B 2025 , 129 , 532–539. (13) Mauger, A.; Godart, C. The magnetic, optical, and transport properties of rep-resentatives of a class of magnetic semi-conductors: The europium chalcogenides. 
+
+Phys. Rep. 1986 , 141 , 51–176. (14) Jain, A.; Ong, S. P.; Hautier, G.; Chen, W.; Richards, W. D.; Dacek, S.; Cholia, S.; Gunter, D.; Skinner, D.; Ceder, G.; Persson, K. A. Commentary: The Materi-als Project: A materials genome approach to accelerating materials innovation. APL Mater. 2013 , 1, 011002. (15) Ong, S. P.; Cholia, S.; Jain, A.; Brafman, M.; Gunter, D.; Ceder, G.; Persson, K. A. The Materials Application Programming Interface (API): A simple, flexible and ef-ficient API for materials data based on REpresentational State Transfer (REST) principles. Comput. Mater. Sci. 2015 , 97 ,209–215. (16) Ong, S. P.; Richards, W. D.; Jain, A.; Hautier, G.; Kocher, M.; Cholia, S.; Gunter, D.; Chevrier, V. L.; Pers-son, K. A.; Ceder, G. Python Materials Genomics (pymatgen): A robust, open-source python library for materials anal-ysis. Comput. Mater. Sci. 2013 , 68 , 314– 319. (17) Bart´ ok, A. P.; Kondor, R.; Cs´ anyi, G. On representing chemical environments. 
+
+Phys. Rev. B 2013 , 87 , 184115. (18) Glauber, R. J. Time-dependent statistics of the Ising model. J. Math. Phys. 1963 ,
+
+4, 294–307. (19) Kawasaki, K. Diffusion constants near the critical point for time-dependent Ising models. I. Phys. Rev. 1966 , 145 , 224–230. (20) Metropolis, N.; Rosenbluth, A. W.; Rosenbluth, M. N.; Teller, A. H.; Teller, E. Equation of state calculations by fast com-puting machines. J. Chem. Phys. 1953 ,
+
+21 , 1087–1092. 17 (21) Ponte, P.; Melko, R. G. Kernel methods for interpretable machine learning of or-der parameters. Phys. Rev. B 2017 , 96 ,205146. (22) Jang, I.; Kaur, S.; Yethiraj, A. Im-portance of feature construction in ma-chine learning for phase transitions. 
+
+J. Chem. Phys. 2022 , 157 , 094904. (23) Als-Nielsen, J.; Birgeneau, R. J. Mean field theory, the Ginzburg criterion, and marginal dimensionality of phase transi-tions. Am. J. Phys. 1977 , 45 , 554–560. (24) Alexandrou, C.; Athenodorou, A.; Chrysostomou, C.; Paul, S. The criti-cal temperature of the 2D-Ising model through deep learning autoencoders. 
+
+Eur. Phys. J. B 2020 , 93 , 226. (25) Jo, T.; Imada, S. Hybridization, crystal field and magnetism in rare earths and core level spectroscopy. J. Alloys Compd. 
+
+1993 , 193 , 170–174. (26) Kabi, O.; Samih, A.; El Fdil, R.; Fadil, Z.; Abu-Jafar, M. S.; Farout, M.; Salmani, E.; Erum, N.; Kim, S. C.; Raorane, C. J.; Husain, F. M. A first-principles study of structural, electronic, magnetic, and me-chanical properties in CeGaO 3. Physica B: Condens. Matter 2025 , 699 , 416857. (27) Campostrini, M.; Pelissetto, A.; Rossi, P.; Vicari, E. Improved high-temperature expansion and critical equation of state of three-dimensional Ising-like systems. 
+
+Phys. Rev. E 1999 , 60 , 3526–3563. (28) Savinkov, A. V.; Korableva, S. L.; Tagirov, M. S. Revised measurements and interpretation of magnetic properties of oriented CeF 3 single crystals. J. Low Temp. Phys. 2016 , 185 , 603–608. (29) Talapov, A. L.; Bl¨ ote, H. W. J. The magnetization of the 3D Ising model. 
+
+J. Phys. A: Math. Gen. 1996 , 29 , 5727. 18

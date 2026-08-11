@@ -1,0 +1,1005 @@
+Title: Machine-learning octet AB-type binary compounds across chemical space with domain knowledge of the interatomic bond
+
+URL Source: https://arxiv.org/pdf/2608.09257v1
+
+Published Time: Tue, 11 Aug 2026 01:59:28 GMT
+
+Number of Pages: 27
+
+Markdown Content:
+Machine-learning octet AB-type binary compounds across chemical space with domain knowledge of the interatomic bond 
+
+Rohan Kumar, 1, ∗ Mariano Forti, 1, † Aakash A. Naik, 2, 3 Luca M. Ghiringhelli, 4 and Thomas Hammerschmidt 1
+
+> 1
+
+Interdisciplinary Centre for Advanced Materials Simulation (ICAMS), Ruhr-Universit¨ at Bochum, 44801 Bochum, Germany 
+
+> 2
+
+Department of Materials Chemistry, Federal Institute for Materials Research and Testing, 12205 Berlin, Germany 
+
+> 3
+
+Institute of Condensed Matter Theory and Optics, Friedrich-Schiller-Universit¨ at Jena, 07743 Jena, Germany 
+
+> 4
+
+Scientific Computing Center, Karlsruhe Institute of Technology, Karlsruhe, Germany 
+
+(Dated: August 11, 2026) The prediction of the structural stability of octet AB -type binary compounds is a classical materials informatics problem. The challenge is to capture the relative stability of 4-fold coordinated atoms in zincblende ( β-ZnS) structure and 6-fold coordinated atoms in rocksalt (NaCl) structure, modulated by charge transfer and atomic-size differences. Previous structure maps and machine-learning approaches used atomic features such as valence-electron count, ionization potential and atomic radii, using either physical intuition or symbolic regression. Here, we demonstrate that explicitly incorporating the domain knowledge of the interatomic bonds can significantly and systematically improve the prediction of β-ZnS/NaCl stability. We encode this bonding information through a coarse-grained representation of the local electronic structure obtained by a recursive solution of a tight-binding bond model. The underlying pairwise Hamiltonians are taken from downfolded eigenstates of density-functional theory calculations for diatomic molecules and thereby include domain knowledge of the bond between specific A − B pairs. The benefit of this description is demonstrated with an ensemble of independently trained Kernel Ridge or symbolic regression models combined with sequential feature selection. The obtained models are compared to a previous symbolic-regression model using the same set of ab initio calculations for octet binaries as training data. We find a significant improvement in the prediction of the formation energy difference of 
+
+AB compounds as compared to previous works and demonstrate that an increasing amount of bond-informed recursion features improves the predictive accuracy.  
+
+> Keywords: octet binary compounds, domain knowledge, formation energy, recursion coefficients, symbolic regression, machine learning, materials informatics, density functional theory
+
+I. INTRODUCTION 
+
+The quality of machine-learning models for predicting material properties depends critically on the features that are used to represent the material. At the atomistic level, the features need to capture geometric details of the crystal structures as well as chemical details of the constituent chemical elements. A classical example for the inherent challenges of predicting the structural stability with ML approaches across chemical space is the case of octet binaries. These compounds have two elements and 8 valence electrons per formula unit. The chemical bonding in octet binaries ranges from highly ionic to covalent, crystallizing either in rocksalt or zincblende structures. Rocksalt crystal structures have 6-fold octahedral coordination with more ionic bonding while zincblende structures exhibit 4-fold tetrahedral coordination with covalent and directional bonding. Generally, a large electronegativity difference and a more ionic character of elements in octet binary compounds favours the rocksalt structure. The structural stability of the octet binaries   
+
+> ∗rohan.kumar@icams.rub.de
+> †mariano.forti@icams.rub.de
+
+is driven by atomic-size differences that determine lattice compatibility and by charge-transfer properties that determine the fulfillment of the octet rule. Pilania et al. [1] classified ZB/RS structures in octet binary compounds based on dynamical charges. They used a two-dimensional feature pair of the difference in Born effective charges between ZB and RS structures and Harrison’s bond polarity to train a support vector machine (SVM) classifier on 82 octet binary compounds. This model reached 0 .956 average classification accuracy with excess Born effective charge (∆ Z∗
+
+> ex
+
+) and pseudo-potential orbital radii ( rσ1), and a comparable 0 .932 with Born effective charge and bond polarity (∆ Z∗, α p). Their results demonstrate that small changes in dynamical charge and bond polarity reflect an atom’s response to its coordination and are powerful predictors of phase stability. Adutwum and Oliynyk [2] extended this classification to a larger dataset of 706 octet binary compounds. They used cluster resolution feature selection on an initial set of 56 elemental features and trained partial least-squares discriminant analysis (PLS-DA) and SVM with selected features to classify binary AB compounds into seven prevalent crystal structures. Their SVM model also achieved a classification accuracy of 93.2%. Independently of each other, Least Absolute Shrinkage arXiv:2608.09257v1 [cond-mat.mtrl-sci] 10 Aug 2026 2and Selection Operator (LASSO) regression [3] for ab initio data and structure maps [4] for experimental data showed that only three features derived from basic properties of the chemical elements, number of valence electrons, atomic radii, and electronegativity differences, are sufficient for a robust prediction of the ground state of octet binaries. In the work by Ghiringhelli et al. [3], energy differences between RS and ZB structures were computed for 82 octet binary materials. Using a LASSO-based feature selection on a diverse set of atomic descriptors, they identified a three dimensional descriptor that reached a cross validated root-mean-square error (RMSE) of 0.08 eV and a maximum absolute error (MaxAE) of 0.16 eV, averaged over 150 random leave-10%-out splits. An extension of these features based on general properties of the chemical elements is the representation of the electronic-structure of a particular compound in a particular crystal structure. Post-processing self-consistent DFT calculations leads to electronic fingerprints that range from binning the bandstructure and total density of states (DOS) to one-dimensional feature vectors [5], similarity coefficients between two total DOS [6] to atom-resolved DOS and bond-resolved crystal orbital indicators from projection onto an atomic orbital basis [7]. Attempts to avoid the computationally expensive self-consistent DFT calculations include one-hot encoding of the interatomic bonds as orbital-interaction matrix [8] and the inference of Fermi level, valence-band maximum and conduction-band minimum from non-self-consistent DFT calculations with pseudo-atomic orbitals [9]. In this work, we demonstrate that chemistry-aware features of the atom-resolved DOS can also be obtained from coarse-grained electronic-structure calculations. We use a computationally inexpensive approach to compute the local DOS by recursion [10, 11] with a tight-binding (TB) bond model. The local DOS is represented in terms of recursion coefficients [12–14] that capture the major part of the information for discriminating different local atomic environments already in the first few recursion levels [13, 15–19]. These DOS features can directly be used to train ML models as shown in previous works [20– 22]. The performance of the resulting ML models can be further improved by introducing domain knowledge of the interatomic bond to the DOS features via TB Hamiltonians with bond-specific projections of DFT eigenstates to an atom-centered minimal basis [23]. Here, we apply this methodology to the case of binary AB -type octet binaries and compare the resulting chemistry-aware ML models to previous work using the same DFT dataset.   
+
+> II. METHOD A. Domain knowledge of interatomic bond
+
+Atomic and composition based features are widely used in machine-learning property-prediction studies. However, atomic features lack fine and large structural details and long-range interactions which are critical for understanding chemical behaviour in many practical applications. Though DFT gives more accurate results, it has limits to scalability to large systems, due to the high computational cost. Here, we utilized recursion-based features to describe the interatomic interaction. The recursion coefficients are computed with the BOPfox software [24] on the basis of pairwise tight-binding Hamiltonians Hiαjβ between atom i, orbital α and atom j, orbital β in two-center approximation. Chemistry-specific Hamiltonian matrix elements Hiαjβ are taken from a downfolding of DFT eigenstates of two-atomic molecules to an atom-centered minimal basis [23]. The resulting Hamiltonian is transformed to a tri-diagonal form using a Lanczos algorithm [25] with corresponding recursion coefficients 
+
+an and bn [26]: 
+
+⟨um| Hij |un⟩ =
+
+
+
+a0 b1
+
+b1 a1 b2
+
+b2 a2 b3
+
+b3 a3 b4
+
+. . . . . . . . .. . . . . . . . .
+
+
+
+(1) where |ui⟩ are the Lanczos states generated from the orbital of interest. Increasing order n of the recursion coefficients corresponds to sampling an extended environment around atom i.The recursion coefficients are directly related to the local electronic DOS niα (E) of orbital α of atom i by 
+
+niα (E) = − 1
+
+π Im 
+
+
+
+1
+
+E − aiα  
+
+> 0
+
+− (biα  
+
+> 1
+
+)2
+
+E − aiα  
+
+> 1
+
+− (biα  
+
+> 2
+
+)2
+
+...
+
+|u0⟩ |u1⟩ |u2⟩
+
+. . . b1 b2 b3
+
+a0 a1 a2
+
+FIG. 1: Graphical representation of the tri-diagonal Hamiltonian obtained by Lanczos recursion. 3Here, the recursion coefficients for s and p orbitals are computed using one s and three p orbitals per atom. Following the concept of reduced TB for sp -valent systems [27], we use the average of the atomic recursion coefficients as atomic feature, 
+
+an = ( asn + 3 apn)/4 (2) Descriptors resolving s and p orbitals produce only a small improvement with respect to these averaged descriptors (see SI). 
+
+B. Dataset description 
+
+We used the same dataset of 82 octet binary compounds as in Ref. 3 to predict the formation energy difference ∆EAB between rocksalt (RS) and zincblende/wurtzite (ZB/WZ) structures. ∆EAB = ∆ HRS  
+
+> F,AB
+
+− ∆HZB  
+
+> F,AB
+
+(3) where ∆ HφF,AB is the formation enthalpy of the AB 
+
+compound in the φ-phase ( φ = RS or ZB). A negative value of ∆EAB indicates that a compound is more stable in RS structure. The dataset includes AB -type compounds from main-group elements, excluding transition metals to ensure consistent oxidation states, but certain post-transition elements are also included in a few compounds with fixed oxidation states. The compounds included in the dataset are visualized in Figure 2. Alkali metals, group 2 and group 13 elements like Li, Na, K, Mg, Al, and Ga are also present. This dataset covers a broad range of bonding character, from predominantly ionic halides and oxides to covalent nitrides, phosphides, and homoatomic group-IV compounds. The target variable defined in equation (3) ranges from −0.38 eV (SrTe) to 2 .63 eV (C 2). 
+
+C. Dataset featurization 
+
+For a single compound AB , per-site scalar features can be calculated. For building a robust feature space, we start our feature vector using fundamental atomic and electronic properties such as electronegativity, orbital radii ( s, p, d), nuclear charge, valence electrons, HOMO and LUMO energy, ionization potential and many other properties of both elements. Here, A refers to the element with the lower first ionization potential, which provides a consistent and quantitative criterion for distinguishing the two elements across all binary compounds in the dataset. This feature set is referred to as AtomF and its final shape is given by the concatenation of intrinsic material descriptors Be C O Na Al P Cl Ca Zn Ge Se Rb Ag In Sb I Ba Be CONa Al PCl Ca Zn Ge Se Rb Ag In Sb IBa Li B N F Mg Si S K Cu Ga As Br Sr Cd Sn Te Cs            
+
+> Elements
+> Li BNFMg Si SKCu Ga As Br Sr Cd Sn Te Cs
+> Elements 1.0 0.5 0.0 0.5 1.0 1.5 2.0 2.5
+> Energy Difference (RS-ZB)
+> 0246810 12
+> Frequency
+> = 0.11 ,= 0.45
+> 3=1.24
+> + 3 = 1.46
+> C2BN BP (a) (b)
+
+FIG. 2: (a) Matrix visualization of octet binary dataset (only one half of symmetric data is shown) (b) Distribution of the target variable. Broken and dotted vertical lines denote mean value and 3 σ range of the distribution, respectively. 
+
+AtomF = M
+
+> q
+
+{qA, q B } (4) where L indicates vector concatenation, in this case over all possible scalar features q.Note that for a given chemical composition AB , both RS and ZB structures would yield the same qA and qB ,and then a unique AtomF AB as defined in equation 4 is sufficient as a feature of the compound although unable to differentiate atomic structures. On top of these atomic properties, we computed recursion-based features. Recursion coefficients are computed for n ≤ 8 (from the 1st to the 8th order), to capture complex bonding interactions. Now, recursion coefficients depend not only on the chemical composition but also on atomic positions. Then, we featurize a guess unit cell built from the structural prototypes scaled to 4an ideal mix of the atomic volumes according to Vegard’s law [28, 29]. For a given crystal structure (i.e. RS or ZB), the recursion-based features for a compound AB can be calculated from comparison between the site-resolved recursion coefficients of the two inequivalent sites, 
+
+Qmax ϕ = max {qAϕ , q Bϕ }
+
+Qmin ϕ = min {qAϕ , q Bϕ }
+
+Qave ϕ = qAϕ + qBϕ
+
+2(5) where ϕ expands over the two structures, RS and ZB, and the scalar features are now given by the atomic recursion coefficients an and bn.In addition to this, the target property is the difference between the formation energies of the ZB and RS structures. Hence, we can define chemistry specific features by defining per-compound features from comparison operators. Specifically, we compute the difference (∆) and the ratio ( r) between the per-structure feature from equation 5 
+
+Qf 
+
+> ∆
+
+= QfRS − QfZB 
+
+Qfr = QfRS 
+
+QfZB 
+
+(6) where f expands over the min , max and ave operators defined above. As the recursion coefficients can be calculated per site and later compared between RS and ZB structures as defined in equations (5) and (6), we define a feature vector vn as the concatenation of all those results, 
+
+vn = M
+
+> f,O
+
+{(an)fO , (bn)fO , } (7) where O expands over the comparison operators ∆ and r.In particular, a recursion feature vector of order n would retain knowledge up to the n-th shell of neighbours. However, as RS and ZB are relatively simple structures, we expect that a ML model would benefit already from the first few recursion levels. Then, to capture the importance of domain knowledge on the structure retained in the features, we consider feature vectors with increasing order of the recursion coefficients, 
+
+Rec N = v1
+
+M · · · M vN (8) These recursion-based descriptors capture how bonding characteristics (e.g., bond order, angular terms, and hybridization trends) shift between RS and ZB structures, giving the model insight into structural preferences at the electronic level. 1.00 1.25 1.50 1.75 2.00 2.25 2.50 2.75 3.00 
+
+> (a3)max r
+> 0246810
+> Frequency
+> LiBr LiCl
+> Inliers Outliers
+
+FIG. 3: Distribution of ( a3)max r showing the outliers.  
+
+> D. Data pre-processing
+
+We used isolation forest [30] in two stages to identify outliers in our dataset. First, we used only the target variable together with the AtomF descriptors. BN and C 2 appear as outliers due to exceptionally large positive ∆ E as shown in Figure 2b, indicating a very strong preference for the ZB structure, which lies outside the typical range of the target variable. In the second stage, we expanded the feature set to include 
+
+Rec N feature vector. With this larger feature space, LiBr and LiCl behave as outliers, shown in Figure 3. Although their formation-energy differences are not extreme, they show unusually large shifts in certain recursion features (for example, in (a1)min r , ( b2)max  
+
+> ∆
+
+, ( a3)max r ). By identifying these four outliers, we constructed two versions of the dataset: dataset 1 (D1) with all 82 data points and dataset 2 (D2) with 78 data points after removing all outliers. This allows us to systematically evaluate the impact of these outliers on model learning and performance. For both datasets, multiple machine learning models are trained on different feature sets, starting with 
+
+AtomF feature vector and incorporating Rec N with increasingly larger N and Nmax = 8. This step-wise approach allows us to systematically evaluate and visualize how the inclusion of higher-order structural information influences ensemble model performance.  
+
+> E. Machine-learning architecture
+
+We develop a supervised ML workflow as schematized in Figure 4, which shows how the small dataset is utilized within an ensemble model architecture. Since our datasets contain either 82 or 78 samples only, we used an ensemble strategy to get more robust and generalized models. First, we perform sequential feature selection (SFS) as implemented in the mlxtend 
+
+package [31] to reduce each feature set to a compact 5Dataset 82/78 Samples (Original/Outliers Removed) Ensemble Cross-Validation ShuffleSplit: 150 Splits Test size: 10% For Single Split i     
+
+> Training: 73/70 samples Testing: 9/8 samples Ensemble Training Create 20 Independent Models Sub-split j
+> Sub-train: 65/63 samples; Sub-test: 8/7 samples Hyperparameter Tuning GridSearchCV 10-fold CV, 20% validation 52/50 training, 13 validation Train KRR j
+> Get best parameters on 65/63 samples, evaluate and store validation and sub-test MSE All 20 models ready? Ensemble Model and Prediction Use the 20 trained models with scores, compute weights and get weighted prediction function SISSO 2D feature construc-tion, SIS screening, linear model on the full split training set Compute Ensemble Metrics Get ensemble predictions on testing samples and calculate R 2score, MSE, RMSE All 150 Splits Completed? Final Results R2 Score, MAE, RMSE featurization + SFS (Yes) (Yes) (No) (No)
+
+FIG. 4: Flowchart showing model architecture and dataset utilization. subset of descriptors. This is a greedy forward search that adds, at each step, the feature that gives the largest improvement, with a conditional exclusion step that removes a previously added feature whenever this improves the score [32, 33]. Candidate subsets are scored by the mean squared error of a KRR model with a polynomial kernel in a 10-fold cross-validation, and the subset size with the best score is retained. The procedure is carried out separately for each feature set, so that the 
+
+AtomF model and each AtomF + Rec N model are built on their own selected features. The SFS is performed once on the complete dataset, prior to the train-test splits described below, and the selected features are then kept fixed for all subsequent splits. To obtain statistically robust estimates, we trained and evaluated 150 ensemble models using a repeated ShuffleSplit cross-validation scheme. Specifically, the dataset was randomly split 150 times with a fixed random seed in each split, 90% of the data was used for training and 10% for testing, similar to the approach of Ghiringhelli et al. [3]. Within each outer-split, the training set is shuffled and resampled 20 times into 90:10 sub-training and sub-test sets, and one base model is trained on each of these sub-splits. A KRR and a SISSO model are independently trained for each sub-training set and evaluated on the sub-testing set, and their validation and sub-test errors are recorded. The 20 KRR or SISSO models are combined into an ensemble model where the final estimation is obtained from a weighted average of the individual predictions, where the weights are derived from the recorded individual sub-test and validation performances (30 % and 70 % respectively) and converted into inverse MSE. This ensemble approach helps to reduce the variance, improves the predictive reliability and achieves better performance than relying on a single model trained on the full dataset. The ensemble model performance is evaluated on the 10% held-out test set for each outer split. Statistically robust estimates are obtained from the 150 resulting ensembles, with uncertainties determined from the standard deviation of the 150 ensemble models. Some of the 150 outer splits produced ensembles with negative R 2 and catastrophically large RMSE and MAE. Those splits were ruled out when averaging the metrics reported below. For each valid outer split, we calculated R 2 score, mean absolute error (MAE), and root mean square error (RMSE) on both the training and held-out test sets. After computing these metrics across all splits, we evaluated the model performance in terms of mean and standard deviation of outer R 2, MAE, and RMSE for the training and testing samples. We also reported the maximum MAE and RMSE over all 150 folds, which is critical to understand the ensemble’s worst-case performance under different splits and reveal how poorly the model can perform under certain conditions, such as rare data patterns, outliers, or less representative feature sets. Finally, we also investigated the performance of three features from a previous study [3] and used those metrics as a reference to compare recursion features within the ensemble model. 
+
+F. SISSO 
+
+The Sure Independence Screening and Sparsifying Operator (SISSO) [34] is a compressed-sensing method that identifies low-dimensional descriptors by applying mathematical operators to primary features and retaining the combination minimizing regression error. For direct comparison to [3], we use the SISSO++ code [35] to construct two-dimensional (2D) and three-dimensional (3D) descriptors from our AtomF + Rec N6after the SFS selection. These descriptors are linear combinations of 2 and 3 analytic terms respectively. The mathematical operators used for obtaining SISSO models can be summarized as ˆH(m) ≡ { +, −, ×, ÷, exp , − exp , log , || ,
+
+|ϕ1 − ϕ2|, √, 3
+
+√,−1 ,2 ,3 [ϕ1, ϕ 2] . (9) where ϕ1 and ϕ2 denote descriptors in the primary descriptor vector Φ 0, i.e., SFS selected descriptors. The superscript ( m) enforces physical unit consistency, such that operations between descriptors with incompatible units are excluded. The hyperparameters used to obtain the SISSO descriptors are as follows. The selection of high-ranking constructed descriptors is controlled by the number of descriptors retained during the sure-independence screening step, (nsis ), which is set to 100. The number of residuals considered, ( nresiduals ), is set to 10. Finally, the complexity of the constructed descriptors is limited by restricting the maximum number of successive mathematical operations (the maximum rung) to 2. Since a descriptor is constructed anew within every ensemble member, the ensemble selects a large number of distinct descriptors rather than a single one. The most frequently selected 3D descriptors, and the selection frequency of the primary features that enter them, are listed in the SI.  
+
+> III. RESULTS AND DISCUSSION
+
+First, we assessed the split-level stability of both KRR and SISSO ensembles by counting the outer splits whose held-out R 2 is negative (i.e. worse than predicting the mean). On the refined dataset D2 such invalid splits are rare, amounting to 0 .1% of the 150 splits for the KRR ensemble and 4 .8% for the 3D SISSO ensemble, whereas on the full dataset D1 they rise to 2 .1% and 13 .7%, respectively. The 2D SISSO ensemble fails on a comparable fraction of the splits (5 .1% on D2 and 8 .4% on D1), so the higher descriptor dimension buys accuracy without buying stability. The outlier LiBr is present in the majority of the failing splits on D1 (86% for the KRR ensemble, 71% for the 2D SISSO ensemble). A detailed per-compound analysis of these invalid splits is provided in the supplementary material.  
+
+> A. ML model for the full dataset
+
+The results of our benchmark and model comparisons are shown in Figure 5. On dataset D1, the ensemble model trained on the AtomF set achieved better performance compared to the reference model. Specifically, it reached a mean RMSE of 0 .036 ± 0.005 eV on the training set and 0 .067 ± 0.033 eV on the test set, whereas the reference model gives higher mean RMSE of 0 .120 ± 0.014 eV for training and 0 .139 ± 0.088 eV for testing. The 3D SISSO ensemble, evaluated on the same 150 splits, also improves on the reference model, but remains less accurate than the KRR ensemble across the whole feature ladder: its mean test RMSE decreases from 0.079 eV for the atomic descriptors to about 0 .076 eV at best. As the recursion coefficients are incrementally added to AtomF feature set, the model performance on the test set continued to improve. An ML model with the best performance is obtained when considering atomic features combined with recursion features up to the 4th order, which yields the lowest mean RMSE of 0 .015 ±
+
+0.002 eV for training and 0 .046 ± 0.026 eV for testing. Notably, this physically-informed feature set already outperforms the 3D SISSO ensemble. Besides mean metrics, we also calculated maximum MAE and RMSE across 150 outer splits for all ensemble models which gives us insight into whether the model consistently performs well or if it still struggles with certain subsets of the data. The reference model is not able to perform well for all the splits and gives high maximum MAE of 0.106 eV for training and 0.382 eV for testing samples. However, as recursion features are added up to the 4th order, the model performance significantly improves as already observed in the mean RMSE metrics, reducing the maximum MAE to 0 .015 eV for training and 0.101 eV for testing. This represents a major improvement in robustness compared to the 3D SISSO ensemble, whose maximum test MAE stays higher, in the range 0 .13–0 .36 eV across the ladder. Further metrics are available in the supplementary material.  
+
+> B. ML model for the refined dataset
+
+On D2 dataset, which excludes extreme target and descriptor values, the ensemble models produce lower prediction errors than on D1. Here we show 3D SISSO ensembles in comparison to KRR ensembles, as they always perform better than the 2D SISSO ensembles, as detailed in the supplementary material. We show in Figure 6 that our feature set AtomF+Rec N, even when using only atomic features, always outperforms the reference model and provides more accurate predictions. The best predictive performance was achieved using 
+
+AtomF along with recursion features up to the 6th order ( AtomF + Rec 6), resulting in a mean RMSE of 0.009 ± 0.001 eV and 0 .029 ± 0.010 eV for the train and test splits, respectively. This ML model significantly exceeds the accuracy of the 3D SISSO ensemble, whose mean test RMSE decreases with recursion order but plateaus around 0.062–0 .074 eV, well above the KRR ensemble. The AtomF + Rec 6 ensemble reaches this high-accuracy plateau without requiring additional symbolically discovered descriptors. Notably, our ensemble model shows better accuracy in predictions even under the most adverse conditions 7AtomF AtomF+Rec AtomF+Rec  
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.02 0.04 0.06 0.08 0.10 0.12 0.14
+> Mean RMSE (eV)  train
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.00 0.05 0.10 0.15 0.20 0.25 test
+
+Mean RMSE KRR vs SISSO ensembles (D1, 82 samples)    
+
+> Ghiringhelli et al. KRR ensemble 3D SISSO ensemble AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.02 0.04 0.06 0.08 0.10 0.12
+> Maximum MAE (eV)  train
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.10 0.15 0.20 0.25 0.30 0.35 0.40 test
+
+Maximum MAE KRR vs SISSO ensembles (D1, 82 samples)   
+
+> KRR ensemble 3D SISSO ensemble Ghiringhelli et al.
+
+(a) (b) (c) (d) 
+
+FIG. 5: Train and test performance of ensemble models evaluated on dataset D1 (82 samples). Mean RMSE ((a) and (b)) and maximum MAE ((c) and (d)) of the KRR ensemble are compared, on the same 150 splits, against the 3D SISSO ensemble and the reference model of Ghiringhelli et al. [3] (dashed green). Both ensemble curves are aggregated over the valid splits (R 2≥ 0). among the 150 splits. The reference model shows poor stability across data subsets, with a high maximum test MAE of 0.155 eV. While the 3D SISSO ensemble is more stable than the reference model at higher recursion orders (maximum test MAE around 0 .13–0 .16 eV), it remains significantly less robust than our model. A consistent reduction in the training maximum MAE is observed, decreasing from 0.048 eV when using only atomic features to 0.009 eV upon incorporating Rec 6, beyond which the performance converges. The testing set shows a more non-monotonic variation in maximum MAE across recursion features, but overall it shows a clear improvement from 0.134 eV with only atomic features to 0.049 eV with recursion features up to the 6th order, and a slight further decrease to 0.045 eV when extended to 8th order. However, the ensemble model incorporating recursion features up to the 8th order ( AtomF + Rec 8) yields a slightly higher mean RMSE, suggesting that the combination of atomic features with recursion coefficients up to the 6th order yields the most reliable and consistent performance across 150 splits. Other metrics are available in the supplementary material. Furthermore, we conducted the same comparative analysis using 2D SISSO descriptors to check how much the symbolic baseline owes to the higher descriptor dimension. The 3D descriptors are consistently the more accurate of the two, yet both remain well above the KRR ensemble on every feature set, so the conclusions drawn here do not depend on the dimension chosen for SISSO. The corresponding metrics are provided in the supplementary material. 8AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.02 0.04 0.06 0.08 0.10
+> Mean RMSE (eV)  train
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.03 0.05 0.08 0.10 0.12 0.15 0.18
+> test
+
+Mean RMSE KRR vs SISSO ensembles (D2, 78 samples)    
+
+> Ghiringhelli et al. KRR ensemble 3D SISSO ensemble AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.02 0.04 0.06 0.08
+> Maximum MAE (eV)  train
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> 0.05 0.10 0.15 0.20 0.25 test
+
+Maximum MAE KRR vs SISSO ensembles (D2, 78 samples)   
+
+> KRR ensemble 3D SISSO ensemble Ghiringhelli et al.
+
+(a) (b) (c) (d) 
+
+FIG. 6: Train and test performance of ensemble models with atomic and increasing order of recursive features, evaluated on dataset D2 (78 samples). Mean RMSE ((a) and (b)) and maximum MAE ((c) and (d)) of the KRR ensemble are compared, on the same 150 splits, against the 3D SISSO ensemble and the reference model of Ghiringhelli et al. [3] (dashed green). Both ensemble curves are aggregated over the valid splits (R 2≥ 0). The 2D SISSO ensemble is left out here for clarity and is shown alongside the 3D one in the supplementary material.  
+
+> C. Feature importance and selection frequency
+
+A detailed feature selection analysis on models trained both with D1 and D2 (with and without outliers) highlights how atomic and recursion-based features contribute to prediction performance. Across both datasets, core atomic features such as ionization potential (IP A, IP B ), atomic orbital radii (rpA, r sB
+
+etc.), frontier orbital energies (EHOMO , E LUMO ) were frequently selected from the simplest to the best-performing model, confirming their significant role in determining electronic structure and reactivity. Recursion features were also selected during feature selection process when they were included in the feature set. In ensemble models trained on D2, both the diversity and number of selected recursion features increase progressively as recursion features from the 1st to 6th order are incrementally introduced. Lower order recursion features ( a3)ave  
+
+> ∆
+
+, ( a1)min  
+
+> ∆
+
+, ( b2)max  
+
+> ∆
+
+were most frequently selected across several models because these features quantify nearest neighbour interactions such as bond lengths and bond order [24], and effectively capture local coordination and bonding environment difference. As the recursion order increases, the features increasingly encode information from atoms in higher coordination shells, thereby capturing longer-range structural and chemical interactions. As mentioned earlier, the ensemble model trained with atomic features and recursion features up to the 6th order achieved the best performance across all models. This 90.0 0.5 1.0 1.5 2.0 2.5 3.0 
+
+> Performance Loss (MAE)
+> IP A
+> EHOMO
+> A
+> (a3)max
+> EHOMO
+> B
+> (a3)min
+> (b1)avg
+> IP B
+> EN B
+> (b2)max
+> (a6)avg
+> (a3)avg
+> (a4)min
+> r
+> (a1)min
+> r
+> (a5)max
+> r
+> Features
+> (1.291±1.690) (0.989±1.345) (0.402±0.453) (0.321±0.472) (0.320±0.518) (0.211±0.296) (0.188±0.242) (0.172±0.184) (0.149±0.311) (0.097±0.177) (0.091±0.051) (0.085±0.105) (0.077±0.073) (0.065±0.076) (0.064±0.081)
+
+FIG. 7: Permutation feature importance of best performing ensemble model. Bar length is the mean MAE increase when a feature is permuted and error bar showing the standard deviation over permutation repeats. model revealed a well balanced feature set that combines atomic, electronic and structural descriptors including frequently selected atomic features and at least one recursion feature from each order between the 1st and 6th orders. This feature set allows the model to capture both local and extended coordination environments effectively. SFS ignores the 7th order recursion coefficients and only retains one 8th order feature when considering 
+
+Rec 7 and Rec 8 feature sets. These results suggest that recursion orders 1–6 capture the majority of the relevant physics and achieve the optimal balance between accuracy and generalization, particularly when trained with clean, outlier-free data for simple octet binaries. For models trained on D1 (82 samples, with outliers), more recursion features were selected overall, but their selection was less consistent across models, reflecting the higher descriptor variance introduced by the outliers. Removing the outliers (D2, 78 points) reduced this variance and stabilized the selected feature set. This indicates that atypical data can inflate the apparent importance of high order recursion features and blur what the model actually learns. These convergence results from both datasets, with and without outliers, show that even the lowest-order recursion coefficients capture valuable structural information, most likely because the lower order recursion features directly correlate with bond strength differences between RS and ZB. 0.0 0.2 0.4 0.6 0.8 1.0  
+
+> Performance Loss (MAE)
+> EHOMO
+> A
+> IP A
+> EHOMO
+> B
+> IP B
+> (a3)min
+> EN B
+> (a3)max
+> (b2)max
+> (b1)max
+> (a3)avg
+> rsA
+> Val_elec A
+> (b1)avg
+> EN A
+> (a4)min
+> r
+> r
+> (a2)min
+> r
+> Val_elec B
+> (a6)avg
+> Features
+> 123456789Number of Models (n)
+
+FIG. 8: Permutation feature importance averaged across the ensemble models. Color bar encodes the selection frequency. 
+
+IV. CONCLUSION 
+
+To understand the influence of features quantitatively, we evaluated permutation feature importance (PFI)[36] using MAE as the metric, which measures the variation of MAE when a feature’s values are randomly modified. Figure 7 shows the PFI of top 15 features of the best performing ensemble model. Atomic and electronic features such as ionization potential and HOMO energies have highest permutation importance, confirming that the model captures fundamental electronic drivers of stable structure. Several recursion features, particularly from the 3rd and 6th orders, also show significant increase in MAE during PFI analysis, confirming their contribution to the model accuracy. Notably, the model selects average, maximum and minimum values of site resolved recursion descriptors, indicating that both overall bonding environment and differences between local environments pf A and B sites contribute to the prediction of structural stability. The problem of the relative stability of the RS and ZB octet binaries across chemical space has been revisited from an improved ML point of view. We propose an ML workflow based on a physically informed feature set that combines fundamental atomic properties with recursion-based descriptors derived from coarse-grained electronic-structure calculations in comparison with SISSO symbolic regression. The ensemble model incorporating recursion-based features alongside atomic features (AtomF ) yields substantially lower 10 errors than the reference model trained on the three features of Ghiringhelli et al. [3], confirming the added predictive power of the physics-informed recursion-based descriptors. We further benchmarked against descriptors identified by 2D and 3D SISSO, where the algorithm was provided with the same atomic features alongside differences and ratios of recursion features to construct compact nonlinear symbolic descriptors. While SISSO-derived features alone improve over the reference model, the gains remain comparable to those achieved by SFS applied directly to the recursion-based feature set. This confirms that the predictive improvement is primarily driven by the recursion-based descriptors, with SISSO providing a complementary but secondary route through nonlinear symbolic combinations of the same underlying features. We also demonstrate that features based on coarse-grained electronic-structure calculations with TB Hamiltonians yield atom-resolved features that lead to improved performance of ML models for structural-stability predictions. The representation of the atomic bonds in terms of recursion coefficients leads to rapid convergence of the ML accuracy with increasing recursion levels corresponding to increasing farsightedness of the features and increasing level of detail of the DOS shape. The recursion coefficients are furthermore equipped with domain-knowledge of the interatomic bond via utilising chemistry-specific pairwise TB Hamiltonians. Our ML prediction of the structural stability of octet binary compounds across chemical space shows a significant improvement over previous works. The maximum absolute error and the mean RMSE across 150 random data splits were significantly decreased from 0.160 eV to 0.049 eV and from 0.080 eV to 0.029 eV, respectively. The resulting chemistry-aware features lead to ML models with remarkably high robustness given the broad variation of chemical compositions in a very small dataset. The significance of the chemistry-aware DOS features in comparison to general properties of chemical elements is verified by their high ranks in a feature importance analysis. 
+
+> DATA AVAILABILITY
+
+The datasets and Jupyter notebooks used in this study are hosted in a dedicated repository and will be made available to reviewers for the evaluation process. They will be made fully public upon acceptance of the manuscript. 
+
+> ACKNOWLEDGEMENTS
+
+RK, MF and TH acknowledge funding of this work by the German Deutsche Forschungsgemeinschaft (DFG No. 505643559 and 535248809). LMG and TH acknowledge funding from the German Research Foundation (DFG) through the NFDI consortium “FAIRmat”, project 460197019.                                                                                      
+
+> [1] G. Pilania, J. E. Gubernatis, and T. Lookman, Classification of octet AB-type binary compounds using dynamical charges: A materials informatics perspective, Scientific Reports 5, 17504 (2015). [2] A. Oliynyk, L. Adutwum, J. Harynuk, and A. Mar, Classifying crystal structures of binary compounds AB through cluster resolution feature selection and support vector machine analysis, Chem. Mater. 28 , 6672 (2016). [3] L. M. Ghiringhelli, J. Vybiral, S. V. Levchenko, C. Draxl, and M. Scheffler, Big data of materials science: Critical role of the descriptor, Phys. Rev. Lett. 114 , 105503 (2015). [4] A. Bialon, T. Hammerschmidt, and R. Drautz, Three-parameter crystal-structure prediction for sp-d valent compounds, Chem. Mater. 28 , 2550 (2016). [5] O. Isayev, D. Fourches, E. Muratov, C. Oses, K. Rasch, A. Tropsha, and S. Curtarolo, Materials cartography: Representing and mining materials space using structural and electronic fingerprints, Chem. Mater. 27 , 735 (2015). [6] M. Kuban, S. Rigamonti, M. Scheidgen, and C. Draxl, Density-of-states similarity descriptor for unsupervised learning from materials data, Sci. Data 9, 646 (2022). [7] A. Naik, C. Ertural, N. Dhamrait, P. Benner, and J. George, A quantum-chemical bonding database for solid-state materials, Sci. Data 10 , 610 (2023). [8] M. Karamad, R. Magar, Y. Shi, S. Siahrostami, I. Gates, and A. Barati Farimani, Orbital graph convolutional neural network for material property prediction, Phys. Rev. Mater. 4, 093801 (2020). [9] A. Zadoks, A. Marrazzo, and N. Marzari, Spectral operator representations, npj Comput. Mater. 10 , 278 (2024). [10] R. Haydock, Recursive solution of the Schr¨ odinger equation, Comput. Phys. Commun. 20 , 11 (1980). [11] R. Haydock, Recursive solution of Schr¨ odinger’s equation, Sol. Stat. Phys. 35 , 215 (1980). [12] F. Cryot-Lackmann, On the electronic structure of liquid transition metals, Adv. Phys 16 , 393 (1967). [13] F. Ducastelle and F. Cyrot-Lackmann, Moments developments and their application to the electronic charge distribution of d bands, J. Phys. Chem. Solids
+> 31 , 1295 (1970). [14] F. Ducastelle and F. Cyrot-Lackmann, Moments developments -II. Application to the crystalline structures and the stacking fault energies of transition metals, J. Phys. Chem. Solids 32 , 285 (1971). [15] P. Turchi, G. Treglia, and F. Ducastelle, Electronic structure and phase stability of A15 transition metals and alloys, J. Phys.: Met. Phys. 13 , 2543 (1983). [16] A. Bieber, F. Ducastelle, F. Gautier, G. Treglia, and R. Turchi, Electronic structure and relative stabilities of
+
+11 
+
+L1 2 and D0 22 ordered structures occuring in transition metal alloys, Solid State Commun. 45 , 585 (1983). [17] B. Seiser, T. Hammerschmidt, A. N. Kolmogorov, R. Drautz, and D. G. Pettifor, Theory of structural trends within 4d and 5d transition metals topologically close-packed phases, Phys. Rev. B 83 , 224116 (2011). [18] T. Hammerschmidt, A. Ladines, J. Koßmann, and R. Drautz, Crystal-structure analysis with moments of the density-of-states: Application to intermetallic topologically close-packed phases, Crystals 6, 18 (2016). [19] J. Jenke, A. P. Subramanyam, M. Densow, T. Hammerschmidt, D. G. Pettifor, and R. Drautz, Electronic structure based descriptor for characterizing local atomic environments, Phys. Rev. B 98 , 1 (2018). [20] C. Sutton, L. M. Ghiringhelli, T. Yamamoto, Y. Lysogorskiy, L. Blumenthal, T. Hammerschmidt, J. R. Golebiowski, X. Liu, A. Ziletti, and M. Scheffler, Crowd-sourcing materials-science challenges with the NOMAD 2018 Kaggle competition, npj Comput. Mater. 
+
+5, 1 (2019). [21] C. D¨ osinger, T. Hammerschmidt, O. Peil, D. Scheiber, and L. Romaner, Descriptors based on the density of states for efficient machine learning of grain-boundary segregation energies, Comput. Mater. Sci. 247 , 113493 (2025). [22] M. Forti, A. Malakhova, Y. Lysogorskiy, W. Zhang, J.-C. Crivello, J.-M. Joubert, R. Drautz, and T. Hammerschmidt, Data-efficient machine-learning of complex Fe-Mo intermetallics using domain knowledge of chemistry and crystallography, npj Comput. Mater. 
+
+12 , 161 (2026). [23] J. Jenke, A. N. Ladines, T. Hammerschmidt, D. G. Pettifor, and R. Drautz, Tight-binding bond parameters for dimers across the periodic table from density-functional theory, Phys. Rev. Materials 5, 023801 (2021). [24] T. Hammerschmidt, B. Seiser, M. E. Ford, A. N. Ladines, S. Schreiber, N. Wang, J. Jenke, Y. Lysogorskiy, C. Teijeiro, M. Mrovec, M. Cak, E. R. Margine, D. G. Pettifor, and R. Drautz, BOPfox program for tight-binding and analytic bond-order potential calculations, Comput. Phys. Commun. 235 , 221 (2019). [25] C. Lanczos, An iterative method for the solution of the eigenvalue problem of linear differential and integral, J. Res. Natl. Bur. Stand. 45 (1950). [26] M. Aoki, Rapidly convergent bond order expansion for atomistic simulations, Phys. Rev. Lett. 71 , 3842 (1993). [27] J. Gehrmann, D. G. Pettifor, A. N. Kolmogorov, M. Reese, M. Mrovec, C. Els¨ asser, and R. Drautz, Reduced tight-binding models for elemental si and n, and ordered binary si-n systems, Phys. Rev. B 91 , 054109 (2015). [28] L. Vegard, Die Konstitution der Mischkristalle und die Raumf¨ ullung der Atome, Zeitschrift f¨ ur Physik 5, 17 (1921). [29] A. R. Denton, Vegard’s law, Physical Review A 43 , 3161 (1991). [30] F. T. Liu, K. M. Ting, and Z.-H. Zhou, Isolation-based anomaly detection, ACM Transactions on Knowledge Discovery from Data 6, 3:1 (2012). [31] S. Raschka, Mlxtend: Providing machine learning and data science utilities and extensions to python’s scientific computing stack, Journal of Open Source Software 3, 638 (2018). [32] P. Pudil, J. Novoviˇ cov´ a, and J. Kittler, Floating search methods in feature selection, Pattern Recognition Letters 
+
+15 , 1119 (1994). [33] F. J. Ferri, P. Pudil, M. Hatef, and J. Kittler, Comparative study of techniques for large-scale feature selection, in Machine Intelligence and Pattern Recognition , Vol. 16 (Elsevier, 1994) pp. 403–413. [34] R. Ouyang, S. Curtarolo, E. Ahmetcik, M. Scheffler, and L. M. Ghiringhelli, SISSO: A compressed-sensing method for identifying the best low-dimensional descriptor in an immensity of offered candidates, Phys. Rev. Mater. 2,083802 (2018). [35] T. A. R. Purcell, M. Scheffler, and L. M. Ghiringhelli, Recent advances in the SISSO method and their implementation in the SISSO++ code, The Journal of Chemical Physics 159 , 114110 (2023). [36] L. Breiman, Random forests, Machine learning 45 , 5 (2001). Supplementary material for article “Machine-learning octet AB-type binary compounds across chemical space with domain knowledge of the interatomic bond” 
+
+Rohan Kumar, 1, ∗ Mariano Forti, 1, † Ralf Drautz, 1 and Thomas Hammerschmidt 1, ‡
+
+> 1
+
+Interdisciplinary Centre for Advanced Materials Simulation (ICAMS), Ruhr-Universit¨ at Bochum, 44801 Bochum, Germany    
+
+> ∗rohan.kumar@icams.rub.de
+> †mariano.forti@icams.rub.de
+> ‡thomas.hammerschmidt@icams.rub.de
+
+1I. DESCRIPTION OF ATOMIC FEATURES 
+
+TABLE S1: Atomic descriptors used in this work Feature name Description 
+
+ZA Nuclear charge (atomic number) of element A 
+
+rsA s-orbital covalent radius of element A 
+
+rpA p-orbital covalent radius of element A 
+
+rdA d-orbital covalent radius of element A 
+
+Period A Periodic table row (period) of element A 
+
+EA A Electron affinity of element A 
+
+IP A Ionization potential of element A 
+
+EHOMO A Highest occupied molecular orbital energy of element A 
+
+ELUMO A Lowest unoccupied molecular orbital energy of element A 
+
+ZB Nuclear charge (atomic number) of element B 
+
+rsB s-orbital covalent radius of element B 
+
+rpB p-orbital covalent radius of element B 
+
+rdB d-orbital covalent radius of element B 
+
+Period B Periodic table row (period) of element B 
+
+EA B Electron affinity of element B 
+
+IP B Ionization potential of element B 
+
+EHOMO B Highest occupied molecular orbital energy of element B 
+
+ELUMO B Lowest unoccupied molecular orbital energy of element B 
+
+r -bond characteristic orbital radius 
+
+r -bond characteristic orbital radius 
+
+EN A Electronegativity of element A 
+
+EN B Electronegativity of element B 
+
+Val _elec A Number of valence electrons of element A 
+
+Val _elec B Number of valence electrons of element B 
+
+II. PERFORMANCE METRICS OF THE ENSEMBLE MODELS AND THE 2D AND 3D SISSO ENSEMBLES 
+
+This section reports the full set of performance and stability metrics across the 150 outer splits, comparing the KRR ensemble against both the 2D and the 3D SISSO ensembles, together with an orbital-resolved ( s/p ) KRR ensemble. The main manuscript shows only the mean RMSE and the maximum MAE, and against the 3D SISSO ensemble alone, since 2it is the more accurate of the two symbolic baselines and a single SISSO curve keeps those figures readable. Here every metric is given, organized by metric: each figure stacks the mean over the 150 splits (top row) and the maximum over the same splits (bottom row), with the train panel on the left and the test panel on the right. The R2 score is shown as its mean only, since its maximum is not informative. On every panel the orbital-resolved (s/p ) KRR ensemble is drawn as a purple line without error bars: in this variant the s and p
+
+recursion coefficients are kept as separate features instead of being averaged as in the main text ( an = ( asn + 3 apn)/4). It tracks the averaged KRR ensemble closely on every metric, so resolving the orbital channels adds little predictive value. The 3D descriptors give the lower mean test RMSE on every feature set of both datasets, by a margin that reaches about 0 .03 eV for the atomic descriptors and shrinks to about 0.01 eV at the best-performing feature sets, but they are not the more stable ones: on D1 the fraction of invalid splits grows from 8 .4% in 2D to 13 .7% in 3D, whereas on D2 the two are comparable (5 .1% against 4 .8%). Both remain well above the KRR ensemble throughout, so the comparison drawn in the main text does not depend on the SISSO dimension. 3AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 0.12 0.14 
+
+> Mean RMSE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.00 0.05 0.10 0.15 0.20 0.25 test 
+
+Mean RMSE KRR vs SISSO ensembles (D1, 82 samples) 
+
+KRR (s/p resolved) Ghiringhelli et al. KRR ensemble 2D SISSO ensemble 3D SISSO ensemble AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.05 0.10 0.15 0.20 0.25 
+
+> Maximum RMSE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.20 0.30 0.40 0.50 0.60 0.70 test 
+
+Maximum RMSE KRR vs SISSO ensembles (D1, 82 samples) 
+
+KRR ensemble 2D SISSO ensemble 3D SISSO ensemble KRR (s/p resolved) Ghiringhelli et al. (a) (b) FIG. S1: Mean (a) and maximum (b) RMSE across the 150 splits for dataset D1 (82 samples), with the train panel on the left and the test panel on the right. The KRR ensemble is compared against the 2D and 3D SISSO ensembles and the orbital-resolved (s/p ) KRR ensemble (purple, no error bars). The mean-RMSE panel is the one carried over to the main text, Figure 5. 4AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 
+
+> Mean MAE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.03 0.05 0.08 0.10 0.12 0.15 0.18 test 
+
+Mean MAE KRR vs SISSO ensembles (D1, 82 samples) 
+
+KRR (s/p resolved) Ghiringhelli et al. KRR ensemble 2D SISSO ensemble 3D SISSO ensemble AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 0.12 
+
+> Maximum MAE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.10 0.15 0.20 0.25 0.30 0.35 0.40 test 
+
+Maximum MAE KRR vs SISSO ensembles (D1, 82 samples) 
+
+KRR ensemble 2D SISSO ensemble 3D SISSO ensemble KRR (s/p resolved) Ghiringhelli et al. (a) (b) FIG. S2: Mean (a) and maximum (b) MAE across the 150 splits for dataset D1 (82 samples), train (left) and test (right). Curves as in Figure S1. The maximum-MAE panel is the one carried over to the main text, Figure 5. 5AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.6 0.7 0.8 0.9 1.0 1.1 
+
+> Mean R² Score
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+test 
+
+Mean R² Score KRR vs SISSO ensembles (D1, 82 samples) 
+
+Ghiringhelli et al. KRR ensemble 2D SISSO ensemble 3D SISSO ensemble FIG. S3: Mean R2 score across the 150 splits for dataset D1 (82 samples), train (left) and test (right). Curves as in Figure S1. 6AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 0.12 
+
+> Mean RMSE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.05 0.10 0.15 0.20 test 
+
+Mean RMSE KRR vs SISSO ensembles (D2, 78 samples) 
+
+KRR (s/p resolved) Ghiringhelli et al. KRR ensemble 2D SISSO ensemble 3D SISSO ensemble AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 0.12 
+
+> Maximum RMSE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.05 0.10 0.15 0.20 0.25 0.30 0.35 test 
+
+Maximum RMSE KRR vs SISSO ensembles (D2, 78 samples) 
+
+KRR ensemble 2D SISSO ensemble 3D SISSO ensemble KRR (s/p resolved) Ghiringhelli et al. (a) (b) FIG. S4: Mean (a) and maximum (b) RMSE across the 150 splits for dataset D2 (78 samples), train (left) and test (right). Curves as in Figure S1. The mean-RMSE panel is the one carried over to the main text, Figure 6. 7AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 
+
+> Mean MAE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.03 0.05 0.08 0.10 0.12 0.15 test 
+
+Mean MAE KRR vs SISSO ensembles (D2, 78 samples) 
+
+KRR (s/p resolved) Ghiringhelli et al. KRR ensemble 2D SISSO ensemble 3D SISSO ensemble AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.02 0.04 0.06 0.08 0.10 
+
+> Maximum MAE (eV)
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.05 0.10 0.15 0.20 0.25 test 
+
+Maximum MAE KRR vs SISSO ensembles (D2, 78 samples) 
+
+KRR ensemble 2D SISSO ensemble 3D SISSO ensemble KRR (s/p resolved) Ghiringhelli et al. (a) (b) FIG. S5: Mean (a) and maximum (b) MAE across the 150 splits for dataset D2 (78 samples), train (left) and test (right). Curves as in Figure S1. The maximum-MAE panel is the one carried over to the main text, Figure 6. 8AtomF AtomF+Rec AtomF+Rec 
+
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+0.6 0.7 0.8 0.9 1.0 1.1 
+
+> Mean R² Score
+
+train 
+
+> AtomF AtomF+Rec AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+> AtomF+Rec
+
+test 
+
+Mean R² Score KRR vs SISSO ensembles (D2, 78 samples) 
+
+Ghiringhelli et al. KRR ensemble 2D SISSO ensemble 3D SISSO ensemble FIG. S6: Mean R2 score across the 150 splits for dataset D2 (78 samples), train (left) and test (right). Curves as in Figure S1. 9III. INVALID SPLITS AND OUTLIER CO-OCCURRENCE 
+
+For a fraction of the 150 outer splits, the held-out test subset yields a negative coefficient of determination ( R2 < 0), i.e. the ensemble performs worse than a constant predictor; we call these invalid (failing) splits. Because the KRR ensemble and the 2D SISSO ensemble share the identical split protocol, every split contains the same test compounds in both methods, enabling a direct compound-level attribution of the failures. Table S2 lists the number of failing test splits for each feature set. Pooled over the nine feature sets AtomF to AtomF+Rec 8, the failing fraction is small on the refined dataset D2, where the KRR ensemble is essentially always valid (0 .1% failing) while the 2D SISSO ensemble fails on 5 .1% of the splits. On the full dataset D1, which retains the four outliers (BN, C 2, LiBr, LiCl) identified by the isolation forest, the failing fraction rises to 2 .1% (KRR) and 8 .4% (SISSO). TABLE S2: Number of failed test splits (test R2 < 0) out of 150, for the 2D SISSO ensemble and the KRR ensemble, on datasets D1 (82 compounds, outliers included) and D2 (78 compounds, outliers removed). SISSO fails on roughly four times as many splits as KRR on D1, and removing the outliers does not cure it.                                                      
+
+> Method Dataset AtomF +Rec 1+Rec 2+Rec 3+Rec 4+Rec 5+Rec 6+Rec 7+Rec 8Total SISSO 2D D1 034 2516 720 10 20 114
+> D2 810 420 223218 69
+> KRR D1 214 320420128 D2 1000000001
+
+To identify which compounds drive the failures, we define for each compound c the failure enrichment 
+
+E(c) = P (c ∈ test | split failed) /P (c ∈ test) (1) values E(c) ≫ 1 indicate over-representation among the failing splits (Figure S7). On D1 the outlier LiBr dominates, appearing in 86% (KRR) and 71% (2D SISSO) of all failing splits. 10 Marginal enrichment alone cannot separate a compound that fails independently from one that merely shares its test split with LiBr. We therefore recompute the enrichment restricted to the splits in which LiBr is absent from the test set. Figure S8 shows the conditional co-occurrence P (column ∈ test | row ∈ test , split failed): a bright LiBr column marks compounds that fail only in the company of LiBr. Under the LiBr-absent control, compounds such as GaN, GaAs and KCl retain a high enrichment and are therefore genuine, independent sources of instability, whereas KI, InAs, AlAs, CsF, SrO and NaF lose essentially all enrichment: they fail only alongside LiBr and cannot be blamed independently of it. LiBr KI InAs NaF Si2 AlAs GaN CuCl CaTe GaAs KCl SrO CsF GeSi SiC 
+
+> 012345
+> mean test failure-enrichment D1 (82): compounds most over-represented in failing splits (red = IsolationForest outlier removed in D2)
+
+FIG. S7: Compounds most over-represented in the failing test splits of dataset D1 (mean failure enrichment across feature sets). Red bars mark the isolation-forest outliers; the dashed line is the no-enrichment baseline ( E = 1). 11 * LiBr GaAs CuCl KCl KI InAs BeTe GeSi SrO SnSn ZnSe InP GaN CsF AlAs InN * LiBr GaAs CuCl KCl KI InAs BeTe GeSi SrO SnSn ZnSe InP GaN CsF AlAs InN 
+
+D1 KRR: P(col test | row test, split failed) 
+
+(bright LiBr column row fails alongside LiBr; * = outlier) 
+
+> * LiBr CaTe GaSb GeSi CuCl GaAs ZnSe SiC InAs BeTe CsI InP CsBr AgF KI GaP * LiBr CaTe GaSb GeSi CuCl GaAs ZnSe SiC InAs BeTe CsI InP CsBr AgF KI GaP
+
+D1 SISSO: P(col test | row test, split failed) 
+
+(bright LiBr column row fails alongside LiBr; * = outlier) 
+
+0.0 0.2 0.4 0.6 0.8 1.0 conditional co-occurrence FIG. S8: Conditional co-occurrence of compounds in the failing test splits of dataset D1, 
+
+P (column ∈ test | row ∈ test , split failed), for the KRR ensemble (left) and 2D SISSO ensemble (right). A bright leftmost (LiBr) column identifies rows that fail predominantly in the presence of the outlier LiBr (guilt by association); asterisks mark the outliers. 12 IV. SISSO DESCRIPTORS 
+
+Every SISSO++ run returns a rank-2 (2D) descriptor, that is, a linear model built from two analytic terms. Because a descriptor is constructed anew inside each ensemble member, the nine feature sets, the 150 outer splits and the 20 members per split give 9 ×150 ×20 ×2 = 54 000 term selections for each dataset. The ensemble therefore does not produce a single descriptor: pooled over all feature sets, 3 555 (D1) and 3 778 (D2) distinct terms are selected, and even the most frequent one accounts for only about 4% of all selections. This spread is the descriptor-level counterpart of the split-to-split instability of the SISSO ensemble reported above. Figure S9 (D1) and Figure S10 (D2) show the globally most frequently selected descriptor terms, pooled over all nine feature sets. The recursion features are written in the notation of the main text, ( an)agg  
+
+> r
+
+and ( bn)agg ∆ for the ratio and the difference of the recursion coefficients between the RS and ZB structures, with the aggregation agg ∈ { ave , min , max } over the two atoms. 13 0 2000 
+
+Number of selections (out of 54,000 pooled over the 9 feature sets)     
+
+> (a2)ave r(a1)ave r
+> |Val _elec ArsA|
+> (a4)ave rVal _elec A
+> (a3)max rIP A
+
+# |1.0 
+
+> EN B
+
+|(b2)min r (b1)max r ||
+
+# | IP B
+
+> Val _elec A
+
+(IP B IP A)|
+
+(a3)ave EHOMO B (a3)ave Val _elec A
+
+# | rdB 
+
+> EN B
+> (a1)max r
+> rdB
+
+# |
+
+|((b1)ave r )3 (b1)min (b1)max r |
+
+((a3)ave  
+
+> (b2)max r
+
+)3
+
+||(b1)max (a2)max | ((a2)max r + Val _elec A)|  
+
+> (a3)ave
+> rpA
+> (b4)ave r+rpB
+
+||(b1)max (a2)max | ((b2)max r + Val _elec A)|
+
+|(b2)min (b1)max | 
+
+> (a4)max rrpA
+
+e (a3)ave    
+
+> (b2)max r
+> 1.0
+> EHOMO A
+> rdB
+> IP B
+> EHOMO AIP A
+> r+r
+
+1.1% 1.1% 1.1% 1.2% 1.2% 1.4% 1.4% 1.5% 1.5% 1.7% 2.0% 2.0% 2.5% 3.0% 4.2% 
+
+D1 (82 compounds, outliers included): 3,555 distinct descriptors FIG. S9: Globally most frequently selected 2D SISSO descriptor terms for dataset D1 (82 compounds, outliers included). The selections are pooled over all nine feature sets (9 × 150 × 20 × 2 = 54 000 term selections); the fifteen most frequent terms are shown, with the bar length the number of selections and the annotation its global share. The title gives the total number of distinct terms selected. Even the most frequent descriptor is chosen in only about 4% of all selections, so the ensemble does not converge on a single descriptor. 14 0 1000 2000 
+
+Number of selections (out of 54,000 pooled over the 9 feature sets) 
+
+## | Val _elec A |(b2)max r r ||
+
+((a3)ave )2 Val _elec A
+
+(a3)max r
+
+EA 2
+
+A ((b1)ave r + ( b1)ave )
+
+((b1)min + ( a3)ave ) ((a3)max + ( a3)ave )
+
+|(a1)min (a3)ave |
+
+(a5)max r (a3)ave 
+
+((a1)min + ( a3)ave ) (a3)max r
+
+rsA
+
+> (b1)ave
+> rsA
+
+ln ((b1)ave r )
+
+Val _elec B
+
+rpA
+
++ ((a3)ave )2
+
+(b1)max (b1)ave 
+
+ln ((b1)ave r )
+
+(b1)ave + ( a3)ave 
+
+r + rpA
+
+(IP B + IP A) ((b1)min + ( a3)ave )
+
+> Val _elec B
+> rpA
+
+r + r
+
+Period B EA A ((b1)min r + ( a3)ave )
+
+# |IP B
+
+IP A
+
+EHOMO B
+
+EHOMO A |
+
+EHOMO A IP A
+
+r IP B
+
+1.0% 1.0% 1.1% 1.1% 1.1% 1.1% 1.2% 1.3% 1.3% 1.6% 1.7% 1.9% 2.1% 2.3% 3.9% 
+
+D2 (78 compounds, outliers removed): 3,778 distinct descriptors FIG. S10: Globally most frequently selected 2D SISSO descriptor terms for dataset D2 (78 compounds, outliers removed); as in Figure S9 but for the refined dataset. 15 A. Feature importance of the SISSO ensemble 
+
+SISSO does not provide a permutation feature importance, because the descriptor is re-built for every member rather than evaluated on a fixed feature set. The natural importance measure is instead the selection frequency of each primary feature, i.e. the fraction of the 6000 descriptor terms in which the feature appears. This is the same consensus quantity used for the KRR ensemble, so the two can be compared directly. Figure S11 shows the selection frequency of the primary features, averaged over the nine feature sets, for D1 and D2. 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7        
+
+> mean selection frequency (fraction of selected descriptors)
+> (a3)avg
+> Δ
+> rπ
+> (a3)max
+> Δ
+> rsA
+> rpA
+> (a2)max
+> Δ
+> rpB
+> Val_elec A
+> (a4)max
+> r
+> (b2)min
+> Δ
+> (b1)max
+> Δ
+> (b2)min
+> r
+> (b2)max
+> r
+> (a2)avg
+> r
+> (a3)max
+> r
+> (a1)max
+> r
+> (a3)min
+> r
+> (b1)max
+> r
+> D1 —82 compounds (with outliers)
+> atomic recursion
+> 0.0 0.2 0.4 0.6
+> mean selection frequency (fraction of selected descriptors)
+> (a3)avg
+> Δ
+> (b1)avg
+> Δ
+> rpA
+> (b1)min
+> Δ
+> rπ
+> rsA
+> Val_elec A
+> (a3)max
+> r
+> (b1)avg
+> r
+> rσ
+> (a3)max
+> Δ
+> (a5)max
+> r
+> Val_elec B
+> (a1)min
+> Δ
+> (b1)min
+> r
+> (a1)avg
+> Δ
+> IP A
+> (b1)max
+> Δ
+> D2 —78 compounds (outliers removed)
+> 1234567
+> # feature sets using it
+> 123456789
+> # feature sets using it
+
+2D SISSO ensemble — consensus primary-feature importance (selection frequency across the 9 feature sets) 
+
+FIG. S11: Selection frequency of the primary features in the 2D SISSO ensemble, averaged over the nine feature sets, for datasets D1 and D2. A feature counts as selected whenever it enters one of the two analytic terms of a rank-2 descriptor; the frequency is the share of the 6000 term selections per feature set in which it appears. 16

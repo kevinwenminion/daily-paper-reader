@@ -6,63 +6,50 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-10
-- 运行时间：2026-08-10 20:14:52 UTC
+- 最新运行日期：2026-08-11
+- 运行时间：2026-08-11 19:50:51 UTC
 - 运行状态：成功
-- 本次总论文数：13
-- 精读区：10
-- 速读区：3
+- 本次总论文数：10
+- 精读区：6
+- 速读区：4
 
 ### 今日简报（AI）
-今日研读13篇论文，精读10篇、速读3篇，聚焦材料模拟与机器学习方法。
-
-最值得关注：玻璃态固体电解质中局域结构决定离子输运与力学性能；hcp锌的EXAFS结合机器学习势揭示局域晶格动力学。
-
-建议普通读者优先从玻璃态电解质的结构-性能关系切入，再延伸至机器学习势能的应用场景。
-- 详情：[/202608/10/README](/202608/10/README)
+今日精读聚焦机器学习预测二元化合物与锂金属界面模拟，速读覆盖化学信息学平台及AI辅助分子设计。最值得关注的是结合原子间键域知识提升AB型化合物预测精度，以及锂金属表面界面相的多尺度模拟方法。普通读者可优先浏览精读论文，速读部分则适合关注工具与工作流自动化。
+- 详情：[/202608/11/README](/202608/11/README)
 
 ### 精读区论文标签
-1. [Local Structure Dictates Ionic Transport and Mechanical Properties in Glassy Solid Electrolytes for Lithium Batteries](/202608/10/2608.06895v1-local-structure-dictates-ionic-transport-and-mechanical-properties-in-glassy-solid-electrolytes-for-lithium-batteries)  
-   标签：评分：10.0/10、query:aimat-mlpot
-   evidence：使用机器学习原子间势分子动力学揭示玻璃态电解质结构与输运的关系
-2. [Local lattice dynamics of hcp zinc from EXAFS and machine-learning interatomic potentials](/202608/10/2608.07081v1-local-lattice-dynamics-of-hcp-zinc-from-exafs-and-machine-learning-interatomic-potentials)  
-   标签：评分：10.0/10、query:aimat-mlpot
-   evidence：结合EXAFS与机器学习原子间势研究锌的晶格动力学
-3. [ED-CSP: Crystal Structure Prediction from Electron Diffraction](/202608/10/2608.06448v1-ed-csp-crystal-structure-prediction-from-electron-diffraction)  
+1. [Machine-learning octet $AB$-type binary compounds across chemical space with domain knowledge of the interatomic bond](/202608/11/2608.09257v1-machine-learning-octet-ab-type-binary-compounds-across-chemical-space-with-domain-knowledge-of-the-interatomic-bond)  
    标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用机器学习从电子衍射预测晶体结构
-4. [CrystalGRPO: Target-Aligned and Coverage-Preserving Reinforcement Learning for Flow-Based Crystal Structure Prediction](/202608/10/2608.06582v1-crystalgrpo-target-aligned-and-coverage-preserving-reinforcement-learning-for-flow-based-crystal-structure-prediction)  
+   evidence：利用原子间键领域知识的机器学习预测AB型二元化合物结构稳定性
+2. [Predictive Simulation of Interphases on Li Metal Surface](/202608/11/2608.09791v1-predictive-simulation-of-interphases-on-li-metal-surface)  
    标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用MACE机器学习势的强化学习进行晶体结构预测
-5. [Cross-Geometry Transferability Assessment of Universal Machine Learning Interatomic Potentials: From Bulk Materials to Atomic Nanowires](/202608/10/2608.06662v1-cross-geometry-transferability-assessment-of-universal-machine-learning-interatomic-potentials-from-bulk-materials-to-atomic-nanowires)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：在ZrO2多种结构上系统评估通用机器学习原子间势的迁移性
-6. [Physics-Grounded Materials Artificial Intelligence for Reliable Materials Discovery](/202608/10/2608.06680v1-physics-grounded-materials-artificial-intelligence-for-reliable-materials-discovery)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：关于物理驱动材料人工智能以促进可靠材料发现的观点
-7. [Autonomous Optimization of Complex Oxides for Thermochemical Fuel Production](/202608/10/2608.06877v1-autonomous-optimization-of-complex-oxides-for-thermochemical-fuel-production)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：自主优化复杂氧化物材料以用于热化学燃料生产
-8. [Fast Isotropic Li-Ion Diffusion in Zeolitic Imidazolate Framework Glass Electrolytes for Batteries](/202608/10/2608.06902v1-fast-isotropic-li-ion-diffusion-in-zeolitic-imidazolate-framework-glass-electrolytes-for-batteries)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：使用机器学习原子间势模拟ZIF玻璃电解质中的锂离子传输
-9. [DynaCrys: Crystal Generation with Dynamic Space-Group Diffusion](/202608/10/2608.07401v1-dynacrys-crystal-generation-with-dynamic-space-group-diffusion)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：利用扩散模型动态演化空间群并以生成创新晶体材料
-10. [Permutation invariant neural network prediction of vacancy formation under deformation and varying chemical environment in FCC high entropy alloys](/202608/10/2608.07445v1-permutation-invariant-neural-network-prediction-of-vacancy-formation-under-deformation-and-varying-chemical-environment-in-fcc-high-entropy-alloys)  
-   标签：评分：9.0/10、query:aimat-mlpot
-   evidence：置换不变神经网络预测FCC高熵合金的空位形成能
+   evidence：结合通用极化力场和通用机器学习力场模拟界面相化学，是机器学习原子间势的典型应用
+3. [Predicting large-supercell defect formation energies from machine-learning charge density models trained on small supercells](/202608/11/2608.07997v1-predicting-large-supercell-defect-formation-energies-from-machine-learning-charge-density-models-trained-on-small-supercells)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：机器学习电荷密度模型预测缺陷形成能，是材料性质的ML预测且为MLIP替代路线
+4. [Multimodal deep learning framework to predict strain localization of Mg/LPSO two-phase alloys](/202608/11/2608.08071v1-multimodal-deep-learning-framework-to-predict-strain-localization-of-mglpso-two-phase-alloys)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：利用深度学习从三维微观结构预测Mg/LPSO合金局部应变分布
+5. [Machine Learning Framework for Magnetic Candidate Discovery in Cerium-Based Compounds](/202608/11/2608.08088v1-machine-learning-framework-for-magnetic-candidate-discovery-in-cerium-based-compounds)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：基于物理指导的机器学习框架，利用随机森林分类器和结构/SOAP描述符筛选铈基纯铁磁候选材料，属于AI驱动的材料发现
+6. [Nonadiabatic Molecular Dynamics on Real-time Excited-State Surfaces via Machine Learning Hamiltonians](/202608/11/2608.08095v1-nonadiabatic-molecular-dynamics-on-real-time-excited-state-surfaces-via-machine-learning-hamiltonians)  
+   标签：评分：8.0/10、query:aimat-mlpot
+   evidence：提出用于凝聚态激发态非绝热分子动力学的机器学习哈密顿量框架
 
 ### 速读区论文标签
-1. [A Multi-Agent Framework for Automated Coarse-Grained Molecular Dynamics of Polymers](/202608/10/2608.06694v1-a-multi-agent-framework-for-automated-coarse-grained-molecular-dynamics-of-polymers)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：多智能体LLM框架自动化聚合物粗粒化分子动势的推导与验证
-2. [3D Molecular Representation Learning for Organic Mixtures: Viscosity and Density Prediction](/202608/10/2608.06697v1-3d-molecular-representation-learning-for-organic-mixtures-viscosity-and-density-prediction)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：利用三维分子表示学习预测有机混合物的粘度和密度
-3. [Towards trajectory-unsupervised physics-informed neural solvers for molecular dynamics](/202608/10/2608.07232v1-towards-trajectory-unsupervised-physics-informed-neural-solvers-for-molecular-dynamics)  
-   标签：评分：8.0/10、query:aimat-mlpot
-   evidence：无需模拟器生成轨迹，基于物理定律训练神经求解器进行分子动力学模拟
+1. [CheMLFlow: An Open-Source Platform for Cheminformatics and Materials Informatics Applications](/202608/11/2608.04942v1-chemlflow-an-open-source-platform-for-cheminformatics-and-materials-informatics-applications)  
+   标签：评分：7.0/10、query:aimat-mlpot
+   evidence：开源平台支持构建化学信息学与材料信息学端到端机器学习工作流
+2. [CAi Copilot: Reducing Operational Workload in Molecular Design through Intent-Driven Agentic Workflows](/202608/11/2608.06961v1-cai-copilot-reducing-operational-workload-in-molecular-design-through-intent-driven-agentic-workflows)  
+   标签：评分：6.0/10、query:aimat-mlpot
+   evidence：人工智能智能体用于分子设计与性质预测工作流
+3. [Denoising Diffusion Monte Carlo Electron Densities with Physically Informed Variance Stabilization: From Fourier Filters to 3D UNETs](/202608/11/2608.08152v1-denoising-diffusion-monte-carlo-electron-densities-with-physically-informed-variance-stabilization-from-fourier-filters-to-3d-unets)  
+   标签：评分：6.0/10、query:aimat-mlpot
+   evidence：深度学习去噪DMC电子密度以支撑材料研究
+4. [Sampling Free Energy Landscapes of Ionic Colloidal Crystal Systems using Machine-Learned Proxy Collective Variables](/202608/11/2608.09714v1-sampling-free-energy-landscapes-of-ionic-colloidal-crystal-systems-using-machine-learned-proxy-collective-variables)  
+   标签：评分：6.0/10、query:aimat-mlpot
+   evidence：利用机器学习代理集体变量开展原子级材料模拟的自由能采样
 
 
 <div class="dpr-home-promo-card">

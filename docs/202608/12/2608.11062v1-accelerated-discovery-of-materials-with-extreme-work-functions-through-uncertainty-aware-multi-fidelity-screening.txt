@@ -1,0 +1,948 @@
+Title: 2608.11062v1.pdf
+
+URL Source: https://arxiv.org/pdf/2608.11062v1
+
+Published Time: Wed, 12 Aug 2026 01:18:31 GMT
+
+Number of Pages: 20
+
+Markdown Content:
+1
+
+# Accelerated Discovery of Materials with Extreme Work Functions through 
+
+# Uncertainty-Aware Multi-Fidelity Screening 
+
+Authors: Jun Meng, 1,* Ryan Jacobs, 1,* Rehan Kapadia, 2 John Booske 3 
+
+> 1
+
+Department of Materials Science and Engineering, University of Wisconsin-Madison, Madison, WI, USA  
+
+> 2
+
+Department of Electrical and Computer Engineering, University of Southern California, Los Angeles, USA, 90089  
+
+> 3
+
+Department of Electrical and Computer Engineering, University of Wisconsin-Madison, Madison, WI, USA 
+
+*Corresponding author e-mail:  jmeng43@wisc.edu , rjacobs3@wisc.edu 
+
+# Abstract 
+
+Work function plays a pivotal role in technologies ranging from energy conversion and electronics to 
+
+catalysis. In this work, we integrated machine learning (ML) with multi-fidelity screening to develop a data-
+
+driven framework for accelerating the discovery of materials with extreme work functions. We augmented a 
+
+previously published Random Forest (RF) model for work function to include prediction uncertainty calibration 
+
+and domain of applicability assessment to enhance prediction robustness. By combining the augmented RF 
+
+model with universal ML interatomic potential simulations and targeted ab initio calculations, we screened 
+
+≈5.5 million compounds from the GNoME and Alexandria databases. This workflow identified 209 surfaces 
+
+with extreme low work functions below 2.0 eV and 227 surfaces with extreme high work functions above 6.0 
+
+eV, corresponding to 136 and 172 unique materials, respectively.  The resulting candidates revealed trends 
+
+consistent with established chemical principles, including the tendency of alkali- and alkaline-earth-terminated 
+
+surfaces to exhibit low work functions. While it also uncovered less conventional motifs: lanthanide-rich 
+
+surface terminations were strongly associated with extremely low work functions, whereas surfaces containing 
+
+metalloids or phosphorus at the top layer were correlated with exceptionally high work functions. This work 
+
+demonstrates a scalable strategy that leverages ML models and multi-fidelity computational efforts to 
+
+accelerate the discovery of materials with extreme work functions for advanced electronic, energy-conversion, 
+
+and catalytic applications. 
+
+# 1. Introduction 
+
+The work function  Φ is a fundamental electronic property of a material's surface, and quantifies the 
+
+minimum energy required to remove an electron from the the bulk Fermi level to the vacuum level outside the 
+
+material . Work function therefore governs electron exchange  at interfaces (both material-vacuum and 
+
+material-material) and plays a pivotal role across technologies such as solid-state electronics, vacuum 
+
+electronics,  thermionic energy conversion, photovoltaics, photoelectrochemical cells, and catalysis.[1 –9] 
+
+Materials with low work functions (  Φ < 2.5 𝑒𝑉  ) efficiently emit electrons, making them essential for 
+
+thermionic and field emitters, thermionic conversion devices, and for contacts to emerging semiconductor 
+
+materials.[2,4,6] Since the emission current density is exponentially sensitive to  Φ , determined by the 
+
+Richardson –Laue-Dushman equation for thermionic emission,  or Fowler-Nordheim equation for field emission ,
+
+even reductions of as little as 100-200 meV in  Φ can lead to orders of magnitude increases in emission current 
+
+at a fixed temperature or allow for lower temperature operation at a fixed current, enhancing both energy 2
+
+efficiency and device longevity. Beyond electron emission, materials with low work functions can act as 
+
+catalysts for reduction reactions. As strong electron donors, materials like perovskite oxides and MXenes 
+
+exhibit low work functions, facilitate efficient electron transfer, and boost catalytic performance in various 
+
+reactions, particularly in electrocatalysis.[9 –16] Conversely, high work function materials (> 6.0 eV) serve as 
+
+effective electron sinks, making them critical to create efficient hole-transport layers (HTLs) or electron-
+
+blocking layers in organic light-emitting diodes (OLEDs), organic photovoltaics (OPVs), and perovskite solar 
+
+cells.[17,18] By matching the material's Fermi level to the frontier orbitals of the active organic or perovskite 
+
+layer, high-Φ electrodes minimize the energy barrier for charge injection or extraction, thereby improving 
+
+device efficiency and reducing operating voltage. 
+
+Work function is highly sensitive to surface-specific characteristics, making its measurement and 
+
+prediction inherently complex. First, it exhibits pronounced crystallographic anisotropy whereby different 
+
+crystal facet orientations (e.g., (100), (110), (111)) of the same material can present varying atomic 
+
+arrangements and surface dipoles, leading to a range of work function values. The impact of surface orientation 
+
+on the work function can also vary widely based on material type. For example, metals tend to only show 0.1-
+
+0.3 (typically < 0.5 eV) variations in work function between different facet orientations, [19,20]  while more 
+
+ionically bonded solids such as perovskite oxides may show eV-scale differences in work function.[1,12] Surface 
+
+atoms often deviate from ideal bulk terminations through relaxation or reconstruction, altering surface dipoles 
+
+and significantly influencing the work function, which, for oxides, can again have an eV-scale effect.[15,21] 
+
+Additionally, the presence of adsorbates, even at sub-monolayer coverage, can drastically change the work 
+
+function. For example, the commercialized thermionic dispenser cathodes used for various high power vacuum 
+
+electronic applications use W metal as a base material, with an average work function of 4.5 eV, but a sub-
+
+monolayer coverage of Ba-O adsorbates reduces the measured effective work function to  ≈2 eV. These 
+
+complexities pose significant challenges for both experimental characterization and computational prediction. 
+
+Experimental techniques such as Ultraviolet Photoelectron Spectroscopy (UPS), and Kelvin Probe Force 
+
+Microscopy (KPFM) are standard tools, but their results can be difficult to interpret for micro- or nano-
+
+scopically heterogeneous surfaces such as polycrystalline samples, single crystals with multiple exposed facets 
+
+or terminations , or environmental conditions like high temperature or specific gas ambient that are expected 
+
+to alter the work function. On the computational side, Density Functional Theory (DFT) using a slab model is 
+
+the standard approach for calculating work functions. However, the accuracy of these calculations is dependent 
+
+on numerous factors, including the choice of exchange-correlation functional (e.g. Perdew-Burke-Ernzerhof 
+
+(PBE) vs. Heyd-Scuseria-Ernzerhof (HSE)), the thickness of the slab, and the size of the vacuum region. Despite 
+
+these complexities, there is significant physical understanding of what qualitatively affects a material ’s work 
+
+function. For example, the presence of surface adsorbed electropositive species like alkali and alkaline metals 
+
+typically lowers the work function, while electronegative species such as halogens typically increase the work 
+
+function. However, there are exceptions to these basic trends, and detailed approaches for understanding and 
+
+predicting work function on a per-material and even per-surface facet basis are still needed.[22] 
+
+The past decade has witnessed the acceleration of materials discovery by the advent of high-
+
+throughput computational screening. Enabled by the confluence of powerful computing resources, automated 
+
+workflow software, maturation of data science and machine learning, and large, open-access databases of DFT-
+
+calculated properties like the Materials Project,[23,24] C2DB,[25] AFLOW,[26] and OQMD,[27] researchers can 
+
+now systematically explore vast chemical spaces. This data-driven approach has accelerated the pace of 
+
+discovery in diverse application spaces, from superconductors and thermoelectrics to catalysts and battery 
+
+materials. This revolution has extended to the study of materials with extrem e work functions.[13,14,28,29] 3
+
+Early DFT studies mapped the landscape of work functions for various material classes, leading to the successful 
+
+identification of promising low work function material candidates. Some of the first studies in this space 
+
+attempting to find novel classes of extreme work function materials came simultaneously in 2016 from Jacobs 
+
+et al .[12] and Hansmann et al .[9] These initial studies only examined a small number of potential perovskite 
+
+oxide materials (order ~20 different compositions), but found that materials like SrVO 3 and BaZrO 3 had 
+
+promising low work functions of about 2 eV and 0.82 eV, respectively.[9,12] As a next step, Ma et al . used DFT 
+
+method and fast-to-calculate electronic structure descriptors that serve as a proxy for work function, screened 
+
+over 2900 perovskite oxides in search of stable, conductive, low-work-function materials, and 
+
+identified BaMoO 3 and SrNb 0.75 Co 0.25 O3 with work functions of 1.1 eV and 1.5 eV, respectively.[11] Moving 
+
+beyond purely DFT-based screening, a landmark contribution came from Schindler et al ., who created the 
+
+largest database of calculated work functions to date (58,332 surfaces from 3,716 materials) and used it to 
+
+train the first random forest (RF) machine learning (ML) model for rapid work function prediction.[4] This model 
+
+enabled rapid discovery of 34 ultra-low and 56 ultra-high work function surfaces, and successfully identified 
+
+the (100)-Ba-O termination of BaMoO 3 with work function of 1.25 eV, consistent with a previous DFT study.[11] 
+
+To further improve the predictive accuracy, Hsu et al. introduced a Force-Informed, Relaxed Equivariance 
+
+Graph Neural Network (FIRE-GNN) that enables accurate and rapid prediction of materials surface properties, 
+
+including work function and cleavage energy across vast chemical spaces.[30] By integrating surface-normal 
+
+symmetry breaking and machine learning interatomic potential (MLIP)-derived force information, this 
+
+architecture achieves a twofold reduction in mean absolute error compared to the prior RF model. 
+
+While these advancements have significantly increased the speed of work function prediction, 
+
+assessing the reliability of model predictions remains critical for autonomous materials discovery. In particular, 
+
+the uncertainty estimates from an RF model reflect the spread of predictions across individual decision trees 
+
+in the ensemble, but does not necessarily correspond to the true prediction error ( Φ𝑀𝐿 − Φ 𝐷𝐹𝑇 ). As a result, 
+
+the raw uncertainty estimate from an RF model can provide misleading confidence in the predicted work 
+
+function values. In this work, we augmented  the RF model  built upon the previous study[4] with calibration of 
+
+the uncertainty estimates and domain of applicability assessment. Uncertainty calibration produced error bars 
+
+that are statistically consistent with the observed errors. Domain of applicability classification separated in-
+
+domain (ID) predictions from out-of-domain (OD) predictions, allowing candidates that have less trustworthy 
+
+predictions to be filtered out. Leveraging this augmented RF model, in combination with a graph-network 
+
+model for bandgap prediction,[31] high-throughput surface relaxation using the  universal machine learning 
+
+interatomic potential (U-MLIP), and targeted DFT calculations, we screened approximately 5.5 million 
+
+compounds from the Graph Networks for Materials Exploration (GNoME)[32] and Alexandria materials 
+
+databases.[33] This multi-fidelity screening workflow enabled reliable and accelerated discovery of 219 
+
+surfaces with low work functions (below 2.0 eV) and 227 surfaces with high work functions (above 6.0 eV), 
+
+corresponding to 136 and 172 unique materials, respectively, which are of potential interest for various 
+
+applications requiring extreme work function materials. 
+
+# 2. Methods 
+
+2.1 Random Forest model augmentation with uncertainty calibration and domain of applicability 
+
+assessment 
+
+The RF ML model was trained and analyzed using the MAterials Simulation Toolkit for Machine 
+
+learning (MAST-ML),[34] which is an open-source software package designed with a particular focus on 4
+
+regression models for predicting materials properties, including state-of-the-art approaches for uncertainty 
+
+calibration and domain of applicability assessment. Following the work by Schindler et al. ,[4] the RF model was 
+
+trained on the dataset comprising 58,332 DFT-calculated work functions of unrelaxed surfaces. The use of 
+
+unrelaxed surfaces was necessary to keep the amount of DFT computational time tractable. Relaxation of the 
+
+terminating surface may result in atomic structures with corresponding work functions that differ significantly 
+
+from those obtained in the unrelaxed variant of the surface, and we address this issue more below in Sec.  2.2 .
+
+The features were chosen from the previous work,[4] including surface atomic features such as 
+
+electronegativity, inverse atomic radius, first ionization energy, and Mendeleev number of elements present 
+
+at the top and second layers; and surface geometric features such as packing fraction per layer, distances 
+
+between atomic layers, and angles associated with surface atom arrangement. The performance of the RF 
+
+model was assessed by random 5 ‑fold cross-validation (CV), leave-out-material CV, and leave-out-extreme WF 
+
+CV to evaluate the generalization of the model across different data regimes. Feature importances are analyzed 
+
+by using the Shapley Additive ExPlanations (SHAP) approach.[35] 
+
+The RF model comprises an ensemble of decision trees, where each tree is trained on a different 
+
+bootstrapped subset of the training data. The predicted work function ( Φ𝑀𝐿 ) is the mean of the individual tree 
+
+predictions, while the standard deviation among these predictions serves as the raw uncertainty estimate 
+
+σ̂ 𝑟𝑎𝑤 . However, these raw uncertainty estimates are not guaranteed to match the observed true error, defined 
+
+here by the residual between the ML prediction and the DFT-calculated value,  Φ𝑀𝐿 − Φ 𝐷𝐹𝑇  . To obtain 
+
+uncertainty estimates that accurately reflect these observed errors, we calibrated the RF model’s  σ̂ 𝑟𝑎𝑤  using 
+
+the calibrated bootstrap method proposed by Palmer et al. ,[36] which has demonstrated high effectiveness in 
+
+uncertainty (i.e. error bar) calibration for RF models across many datasets in the materials science and 
+
+engineering field.[37] The calibrated uncertainty estimate  σ̂ 𝑐𝑎𝑙  , was obtained by linearly rescaling  σ̂ 𝑟𝑎𝑤 
+
+through a log-likelihood optimization procedure such that the resulting  𝑧 -scores ( (Φ 𝑀𝐿 − Φ 𝐷𝐹𝑇 )/σ̂ 𝑐𝑎𝑙 ), follow 
+
+a standard normal distribution as closely as possible. 
+
+In addition, it is essential to assess the domain of applicability as a  guardrail  to flag predictions that 
+
+are sufficiently dissimilar from the training data, which often exhibit high prediction errors, poorly calibrated 
+
+uncertainty ( σ̂ 𝑐𝑎𝑙 ), or both due to extrapolation. Here, we use the recently developed method by Schultz et 
+
+al. ,[38] which quantifies how dissimilar a new data point is from the training data distribution. The method 
+
+works by first fitting a Kernel Density Estimation (KDE) model to the feature vectors of the entire training 
+
+dataset. The KDE provides a non-parametric representation of the probability density function of the training 
+
+data in the high-dimensional feature space. When a new candidate material is evaluated, its feature vector is 
+
+assessed using this KDE model. The dissimilarity is calculated as the negative log-likelihood of the test point 
+
+feature vector. A high dissimilarity score suggests that the point lies in a region of low probability density, far 
+
+from the bulk of the training data, and therefore may be considered out-of-domain (OD). This metric provides 
+
+a powerful tool to automatically flag predictions that are less reliable due to the poor extrapolation of RF 
+
+model, allowing them to be filtered out before committing to more expensive computational or experimental 
+
+validation. 
+
+2.2 Multi-Fidelity High-throughput Screening Workflow 
+
+We screened approximately 5.5 million compounds from the GNoME and Alexandria databases using 
+
+a multi-fidelity screening framework. Candidate materials were first filtered for non-radioactive, 
+
+thermodynamically stable metallic compounds using database-derived stability metrics and a graph neural 5
+
+network band gap model.[31] The resulting materials were then screened using the uncertainty-aware RF 
+
+model for rapid work function prediction, followed by surface relaxation with the U-MLIP M3GNet,[39] and 
+
+targeted DFT calculations for high-fidelity work function evaluation. An overview of the screening approach 
+
+and number of materials passing each criterion is shown in  Figure 1 . The GNoME database consists of 384,872 
+
+stable compounds on the convex hull as calculated by DFT, and the Alexandria database consists of 5,068,744 
+
+DFT-relaxed compounds in the 3D inorganic portion of the database. We first applied three preliminary 
+
+screening criteria to the compound pool: (1) excluding compounds containing radioactive elements (Ac, Th, Pa, 
+
+U, Np, Pu, Am, Cm, Bk, Cf, Es, Fm, Md, No, Lr, Rf, Db, Sg, Bh, Hs, Mt, Ds, Rg, Cn, Nh, Fl, Mc, Lv, Ts, Og, Tc, Pm, 
+
+Po, At, Rn, Fr, Ra); (2) retaining only thermodynamically stable entries with energy above the convex hull  𝐸 hull ≤
+
+50  meV/atom, and (3) restricting the dataset to metallic materials only as the RF model was trained on metallic 
+
+materials. The work function for metals is unambiguously the energy difference of vacuum level to Fermi level, 
+
+while for semiconductors and insulators, the minimum energy required for electron emission may range from 
+
+the ionization energy (i.e. the energy difference of vacuum level to valence band maximum) to the electron 
+
+affinity (i.e., the energy difference of vacuum level to conduction band minimum). Accurate band-edge 
+
+placement for non-metallic materials requires higher-fidelity DFT (e.g., with hybrid functionals), careful k-point 
+
+sampling, and stricter electrostatic controls. In addition, semiconductors and insulators are more prone to 
+
+exhibit complex surface reconstructions, which can lead to a drastically different work function from that 
+
+obtained with simple surface cleaving, resulting in computational predictions  that don’t represent the work 
+
+function that would be observed  in the actual material. Mixing metals with semiconductors or insulators 
+
+therefore may result in misleading rankings. For practical reasons, we restricted the research interest to 
+
+metallic compounds in this study, and emphasize that more thorough screening and analysis of non-metals is 
+
+a worthy topic for future work. To restrict the search to metallic materials, we first excluded compounds with 
+
+nonzero DFT-PBE band gaps reported in the GNoME and Alexandria databases. To further reduce false metallic 
+
+classifications arising from the well-known band gap underestimation of PBE, we applied a graph neural 
+
+network model trained on band gap data spanning multiple fidelity levels, including DFT-PBE, DFT-HSE, and 
+
+experimental measurements.[31] The graph-network model was used to predict high-fidelity HSE-equivalent 
+
+band gaps, and compounds with predicted  𝐸 𝑔𝑎𝑝 HSE > 0  eV were excluded from further consideration.  
+
+> Figure 1 Schematic of high-throughput screening workflow for materials with extreme work functions.
+
+6
+
+After these initial screening steps, we retained 143,469 bulk compounds from the GNoME database and 211,353 bulk compounds from the Alexandria database. For each bulk material, we enumerated symmetry-distinct, low-index surfaces (i.e. (100), (001), (010), (110), (101), (111)) using the WFRFModel toolkit from Schindler et al. ,[4] to generate slab terminations and the 15 near-surface descriptors (elemental and geometry descriptors of the top three layers). These bulk compounds yielded approximately 6.5 million and 4.2 million low-index surfaces from GNoME and Alexandria database, respectively. The augmented ML model was then used to predict the work function  Φ, the calibrated uncertainty (error bar)  σ̂ 𝑐𝑎𝑙 , and the domain of applicability dissimilarity score  𝑑  for each surface. Based on analysis of results in Sec.  3.3 , only predictions with  𝑑 ≤ 0.97  were considered in-domain (ID) and retained. 
+
+2.3 Universal Machine Learning Interatomic Potential (U-MLIP) and Density Functional Theory 
+
+(DFT) calculations 
+
+After removing surfaces that were flagged as out-of-domain (OD), we prioritized approximately 10,000 surfaces each for the low work function regime below 2.2 eV and the high work function regime above 5.8 eV. These surfaces were constructed with a total vacuum thickness of 40 Å along the surface normal direction, distributed symmetrically as 20 Å on the top side and 20 Å on the bottom side of the slab. This symmetric vacuum spacing minimizes spurious interactions between periodic images and provides a sufficient vacuum plateau. These surfaces were relaxed using M3GNet,[39] which is trained on a diverse dataset consisting of DFT calculations for 62,783 compounds from Materials Project and provides near-DFT accuracy but with orders of magnitude lower computational cost. The M3GNet relaxations were performed by allowing only the top surface region to relax, while keeping the bottom part of the slab fixed to approximate the bulk substrate. Specifically, atoms were sorted by their fractional coordinate along the surface normal direction, and only the top 1/3 atoms were allowed to relax, while the bottom 2/3 were constrained during optimization. The relaxation was considered converged when the maximum force on each atom was below 0.05 eV/Å. 
+
+After M3GNet relaxation,  DFT  calculations were performed using the projector augmented wave method[40] as implemented in the Vienna Ab initio Simulation Package (VASP).[41,42] The PBE generalized gradient approximation exchange-correlation functional[43] was applied for a single-shot static self-consistent field (SCF) electronic structure calculation. The kinetic energy cutoff for the plane wave basis was set to 520 eV. Gamma-centered k-point meshes were generated based on the slab lattice vectors with the k-points sampling density of 0.04 Å -1 in the Brillouin zone. To account for asymmetric slab geometries and avoid artificial electric fields arising from periodic boundary conditions, dipole corrections were applied along the surface normal direction. Electronic convergence was achieved with an energy tolerance of 10 -6 eV/cell. Gaussian smearing with a small smearing parameter of 0.05 eV was applied for the SCF calculation. The work function was calculated as  Φ = 𝑉 vac − 𝐸 𝐹  from the converged electrostatic potential in the vacuum region and the Fermi level, respectively. The vacuum potential was extracted from the plateau region of the planar-averaged electrostatic potential along the surface normal direction. 
+
+# 3. Results and Discussion 
+
+3.1 Performance of the augmented RF model and interpretation of features 7
+
+> Figure 2 Performance evaluation and feature importance analysis of the machine learning model for work function prediction. Parity plots for (a) the full fit, (b) random 5-fold cross-validation, (c) leave-out material group 5-fold cross-validation, (d) leave-out extreme work functions prediction.
+
+To ensure the reliability and robustness of the augmented RF ML model before large-scale screening, 
+
+we conducted a comprehensive evaluation encompassing baseline performance benchmarking, cross-
+
+validation (CV) under extrapolative regimes, and assessment of uncertainty and domain metrics. Using the 
+
+original dataset of 58,332 DFT-calculated work functions, the full augmented model demonstrates excellent 
+
+agreement between predicted and ground truth DFT-calculated work functions on the full dataset ( Figure 2 a), 
+
+achieving a coefficient of determination  𝑅 2 of 0.995 and a low mean absolute error (MAE) of 0.032 eV, 
+
+consistent with the reported value of 0.03 in the previous study.[4] Robustness was further verified through 
+
+cross-validation strategies. The random 5-fold cross-validation (CV) yields only a modest degradation of 
+
+accuracy with  𝑅 2 of 0.951 and  MAE  of 0.104 eV ( Figure 2 b), demonstrating strong generalization when the 
+
+training and test sets share similar chemistries. In the leave-materials-out CV ( Figure 2 c), surfaces from the 
+
+same bulk material were excluded in each fold to evaluate the model’s ability to generalize to new surface s8
+
+from unseen materials. This CV test is the most indicative of how we envision most researchers would employ 
+
+this model and how we do so in our screening, where one is interested in predicting the work function of a 
+
+totally new materials not in the training dataset. The MAE increased only slightly to 0.12 eV compared to the 
+
+random 5-fold CV, indicating strong generalization to unseen materials. However, the model exhibits limited 
+
+extrapolation capability when tested on extreme values outside the training distribution. In  Figure 2 d, when 
+
+trained on surfaces with work functions between 2 to 10 eV and tested on those below 2 eV or above 10 eV, 
+
+the model exhibited a negative  𝑅 2 and an MAE of 1.87 eV on the test dataset, showing the difficulty of 
+
+extrapolation beyond the training domain. This extrapolation difficulty is due to the reason that RF models’ 
+
+predictions are based on averages of training set targets within terminal tree leaves. As a result, predictions 
+
+for values outside the training data are often pulled back toward the training distribution, i.e. the tendency to 
+
+underpredict high work functions and overpredict low work functions. This limitation motivates the use of 
+
+domain of applicability assessment to support trustworthy high-throughput screening, as discussed below. 
+
+These results suggest that when materials with a target work function regime are present in the training data, 
+
+the RF model can effectively identify new materials and surface terminations with similar work functions by 
+
+interpolation within the learned chemical space. This capability is valuable for discovering alternative candidate 
+
+materials near known low or high work function regimes. 
+
+> Figure 3. SHAP summary plot illustrating feature importance and impact on model predictions. Features are ranked vertically from top to bottom based on their mean absolute SHAP value, which represents the overall magnitude of the feature's impact. Each point represents an individual data sample. The color indicates the actual feature value (red for high, blue for low), while the horizontal axis displays the SHAP value. Positive values increase the predicted work function, while negative values decrease it.
+
+To investigate the factors governing the prediction accuracy of the model, we analyzed feature 
+
+contributions using SHAP (SHapley Additive exPlanations), which quantify how much each feature shifts an 9
+
+individual prediction.  Figure 3  ranks features by their overall importance, measured as the mean absolute SHAP 
+
+value across all predictions, and shows the contribution of each feature. The minimum electronegativity among 
+
+all elements at the top layer  min(𝜒 1), turns out to be the most influential feature. Surfaces with high values of 
+
+min(𝜒 1) (red dots) overwhelmingly contribute to positive SHAP values, increasing the prediction of work 
+
+function. Whereas low  min(𝜒 1) surfaces (blue points) contribute to negative SHAP values, and lower the 
+
+prediction. This analysis shows that the prediction of work function is highly sensitive to the minimum 
+
+electronegativity at the top layer. This aligns exactly with the well-known physical expectations that elements 
+
+with low electronegativity often have low work functions. Mendeleev number ⟨𝑛 𝑚𝑒𝑛𝑑, 1⟩ and the first 
+
+ionization energy ⟨𝐸 𝑖𝑜𝑛,1 ⟩ are the following high-rank features, indicating that surfaces enriched with elements 
+
+possessing deeper valence states or stronger electron binding tend to exhibit higher work functions. 
+
+Collectively, the top three features account for 44% of the total RF feature importance, while  min(𝜒 1) alone 
+
+contributes 26%, demonstrating that the prediction of work function is predominantly governed by elemental 
+
+electronic descriptors associated with the terminating surface. The inverse atomic radius descriptors 
+
+min(1/𝑟 1) and  < 1𝑟 1
+
+> also contribute positively, indicating that small-size ions (such as highly charged cations) 
+
+will likely elevate the work function. Beyond these leading variables, geometric descriptors such as the inverse 
+
+packing fraction (number of atoms per unit cell area)  𝐴 𝑝𝑎𝑐𝑘,1 −1  , and interlayer distances  𝑑 1−2  and  𝑑 2−3  exhibit 
+
+moderate positive trends, showing that less densely packed surfaces and smaller interlayer spacings increase 
+
+the prediction. These effects are secondary to those of the dominant electronic descriptors but reflect subtle 
+
+structural correlations captured by the RF model. 
+
+3.2 ML model uncertainty recalibration 
+
+As discussed in Sec.  2.1 , the RF model’s raw uncertainty  σ̂ 𝑟𝑎𝑤  is estimated from the standard deviation 
+
+of the individual tree predictions, which is not guaranteed to be consistent with the observed true error ( 𝑒 = 
+
+Φ𝑀𝐿 − Φ 𝐷𝐹𝑇  ). Therefore, we  calibrated  the raw uncertainty to better correlate with the true error statistically 
+
+using the calibrated bootstrap method.[36]  Figure 4 a compares the distribution of the  𝑧 -scores ( 𝑧 -scores = 
+
+𝑒/σ̂ ) for the leave-out test data before calibration using  σ̂ 𝑟𝑎𝑤  (grey), and after calibration using  σ̂ 𝑐𝑎𝑙  (blue). For 
+
+a well-calibrated model, the  𝑧 -score should follow a standard normal distribution, where it has the mean of 0 
+
+and standard deviation of 1. The mean remains close to zero both before and after calibration, with values of 
+
+−0.001 and 0.0207, respectively, indicating little systematic bias in the RF model ’s prediction, i.e.  Φ𝑀𝐿 . Before 
+
+calibration, however, the standard deviation is 0.676, substantially below the ideal value of 1. This indicates 
+
+that the  σ̂ 𝑟𝑎𝑤  are systematically larger than the true errors. After calibration, the standard deviation increases 
+
+to 0.999, demonstrating that the  σ̂ 𝑐𝑎𝑙  reflect the true errors statistically more accurately. 
+
+Figure 4 b provides a complementary assessment of calibration quality by plotting the  𝑧  -score 
+
+distributions as a function of binned reduced uncertainty  σ̂/σ 𝑦 , which is normalized by the standard deviation 
+
+of the dataset. The plotted symbols indicate the mean  𝑧 -score within each bin, and the error bars indicate the 
+
+corresponding standard deviation. This visualization highlights how this calibration improves the uncertainty 
+
+estimates across the entire range of uncertainty magnitudes. Notably, calibration compresses the range of 
+
+reduced uncertainty values from approximately 0 - 3 before calibration to roughly 0 - 2 after calibration. The 
+
+broad range of  σ̂ 𝑟𝑎𝑤 /σ 𝑦 , together with the deviation of the  𝑧 -score distributions from the ideal standard-
+
+normal behavior at  σ̂ 𝑟𝑎𝑤 
+
+> σ𝑦
+
+> 2.2 , indicates that the  σ̂ 𝑟𝑎𝑤  were larger compared with the actual scale of work 
+
+function variation in the dataset. After calibration, the  σ̂ 𝑐𝑎𝑙 /σ 𝑦  are compressed into a smaller range, and most 10 
+
+bins show  𝑧 -score distributions that are close to the ideal standard normal distribution. This demonstrates that 
+
+the calibration improves the statistical consistency between the  σ̂ 𝑐𝑎𝑙  and the true errors.  Figure 4 c evaluates 
+
+the overall quality of the uncertainty estimates by quantifying the discrepancy (i.e. miscalibration area) 
+
+between t he cumulative distribution function (CDF) of the  𝑧 ‑scores and that of a standard normal distribution .
+
+Smaller value indicate better agreement of  𝑧 ‑scores distribution with the standard normal distribution. Across 
+
+the full range of reduced uncertainty, the calibrated  σ̂ 𝑐𝑎𝑙  generally exhibits lower miscalibration areas, i.e. 
+
+better agreement with the normal distribution, than the uncalibrated  σ̂ 𝑟𝑎𝑤 . The average miscalibration area 
+
+decreases from approximately 0.08 before calibration to 0.053 after calibration, showing that the calibrated 
+
+uncertainties more accurately capture the distribution of true errors .
+
+Figure 4 d evaluates the correlation between the true error and the reduced uncertainty, as well as the 
+
+impact of calibration on improving this relationship. The plot shows reduced root mean square residuals (i.e. 
+
+true errors) versus binned reduced uncertainty estimates, providing a direct measure of how well predicted 
+
+uncertainties track true errors. Ideally, perfect correlation would yield a slope of 1 and an intercept of 0. The 
+
+uncalibrated model yields a slope of 0.73, substantially below the ideal value of 1, indicating systematic 
+
+overestimation of true errors. After calibration, the slope improves markedly to 1.09, much closer to the ideal, 
+
+showing that the magnitude of the uncertainty estimates now closely matches the true errors. It is worth noting 
+
+that overestimation of error bar magnitudes  before calibration is a common trait of RF  models, at least when 
+
+applied to materials property prediction.[37] Overall, these results show that the calibration significantly 
+
+improves the quantitative accuracy of the uncertainty estimates, bringing the calibrated uncertainties much 
+
+closer to agreement with the true errors.  
+
+> Figure 4. Calibration of RF model uncertainty estimates. For all plots, the grey and blue data correspond to data before and after
+
+11           
+
+> calibration, respectively. (a) Distribution of 𝑧 -scores before and after calibration, where the 𝑧 -score is the observed true error divided by the RF model ’s uncertainty estimate. A well-calibrated model should yield a standard normal distribution with mean of 0 and standard deviation of 1. (b) 𝑧 -score distributions as a function of reduced uncertainty, normalized by the standard deviation of the dataset. Points show the mean 𝑧 -score in each bin, and error bars show the corresponding standard deviation. (c) Miscalibration area as a function of reduced uncertainty, measuring the deviation between the observed 𝑧 -score cumulative distribution function (CDF) and an ideal standard normal CDF; smaller values indicate better calibration. (d) Reduced RMS residuals as a function of reduced uncertainty. The dashed red line indicates perfect calibration. Calibration brings the RF uncertainty estimates into closer agreement with the true errors. Each bin contains 1006 data points, with 174 bins in total.
+
+3.3 ML model domain 
+
+Next, we evaluated the domain of applicability (DoA) for each prediction using the method developed 
+
+by Schultz et al. ,[38] which is implemented in the MAST-ML framework. In this approach, the kernel density 
+
+estimate (KDE) is used to determine the distance of the candidate from the training dataset. The resulting KDE 
+
+distance,  𝑑 , is then related to the reduced  root-mean-square-error  𝐸 𝑅𝑀𝑆𝐸 
+
+𝜎 𝑦 
+
+⁄ , which reflects the prediction 
+
+accuracy, and the miscalibration area  𝐸 𝑎𝑟𝑒𝑎 , which reflects the predicted error bar accuracy. Candidates that 
+
+lie farther from the training distribution generally exhibit larger  𝐸 𝑅𝑀𝑆𝐸 /𝜎 𝑦  and  𝐸 𝑎𝑟𝑒𝑎  , indicating reduced 
+
+reliability in both the predicted work functions and their associated uncertainty estimates.[37,38] In this 
+
+approach, Schultz et al. [38] determine the cutoff by comparing candidate dissimilarity thresholds against a 
+
+chosen ground truth of in -domain (ID)  vs.  out-of-domain  (OD) labels, and selecting the threshold that 
+
+maximizes classification quality, i.e., F1 score. Note that there is no universal ground truth to determine ID  vs. 
+
+OD  (e.g., Schultz et al. use a  𝐸 𝑅𝑀𝑆𝐸 /𝜎 𝑦  value of 1.0), and it is up to the user to decide on a value that 
+
+corresponds to a tolerable error. Here, our goal is to focus only on highly reliable predictions, so we apply a 
+
+threshold of  𝑑  =0.97 at which the  𝐸 𝑅𝑀𝑆𝐸 /𝜎 𝑦  reaches approximately 0.5. This choice is motivated by the 
+
+observation that  𝐸 𝑅𝑀𝑆𝐸 /𝜎 𝑦  generally increases with distance from the training data, and values below about 
+
+0.5 correspond to very good performance.[37] Thus, using  𝐸 𝑅𝑀𝑆𝐸 /𝜎 𝑦 ≈ 0.5  as the operative  cutoff provides a 
+
+practical criterion to maximize our chances of success in finding new extrem e work function materials .
+
+Figure 5 a-b show binned reduced RMSE and miscalibration area as functions of KDE distance ( 𝑑 ). Both 
+
+plots reveal that as KDE distance increases, the model ’s accuracy declines (higher reduced RMSE) and error bar 
+
+reliability decreases (higher miscalibration area). Using  𝑑  = 0.97 as the cutoff,  ID  points are denoted in green 
+
+and  OD  in red.  Figure 5 c provides a confusion matrix , which shows how well the KDE-distance cutoff,  𝑑 =0.97, 
+
+separates reliable ID predictions from OD predictions. The diagonal entries represent correctly classified points, 
+
+while the off-diagonal entries represent misclassifications. The model correctly classifies the correct domain 
+
+about 9 5.4% (84% and 9.4% for ID and OD correct classification, respectively)  of the time, with a false positive 
+
+rate (i.e., the undesirable classification where the model predicts a point as ID when really it is OD) of only 
+
+0.64%.  Figure 5 d further illustrates the correlation between KDE distance and both reduced RMSE and 
+
+miscalibration area, confirming that larger KDE distance values correspond to poorer predictive accuracy and 
+
+less reliable uncertainty estimates. 
+
+Finally,  Figure 5 e summarizes domain classification of the whole training dataset. The histogram 
+
+distributions of the ID and OD classifications for the training dataset show that most of the training data are 
+
+classified as ID, confirming that the KDE ‑based domain criterion does not excessively exclude points within the 
+
+original training distribution. OD points constitute only a small fraction of the dataset and are distributed across 
+
+the whole range. However, the surfaces at the extreme high end of the distribution ( Φ > 7 eV) are all flagged 12 
+
+as OD, suggesting reduced reliability in these regions. The domain assessment analysis provides a powerful, 
+
+data-driven justification as a practical guardrail. Any new prediction flagged as OD is automatically deprioritized 
+
+for computationally expensive follow-up studies. This strategy enables an efficient and prioritized discovery 
+
+workflow by focusing resources on the most reliable predictions. 
+
+> Figure 5. Domain of Applicability assessment. (a) Plot of binned reduced RMSE vs. KDE feature distance. (b) Plot of binned reduced error bar miscalibration areas vs. KDE feature distance. In (a) and (b), the green points denote in domain (ID), and the red point denote out of domain (OD). The green dashed line is the ground truth threshold between in and out of domain. (c) Confusion matrix for classification of in - vs. out-of-domain , expressed as a fraction of the total data. (d) Plot of reduced error bar miscalibration area vs. reduced RMSE with color denoting KDE feature distance. (e) Domain of applicability of data in the training dataset.[4]
+
+3.4 Multi-fidelity Screening on Metallic Compounds 
+
+We screened two open-source materials databases: GNoME, comprising approximately  ≈385k  DFT-
+
+calculated stable crystals (using the PBE functional), and Alexandria, containing 5.07 million DFT-relaxed 3D inorganic structures. As described in Sec.  2.2 , we applied the following filters: (i) excluding compounds containing radioactive elements; (ii) retaining only thermodynamically stable compounds; and (iii) restricting the dataset to metallic compounds. These filters yielded a refined search space of  ≈355k metallic candidates, a ≈44% reduction from the initial set. It is worth noting that the training dataset and the screened GNoME and Alexandria compounds cover the same set of chemical elements, spanning approximately 80 elements across the periodic table, including alkali metals, alkaline earth metals, transition metals, metalloids, chalcogens, halogens, and lanthanides, except noble gases and actinides. 
+
+For each compound, low-index surfaces ((100), (001), (010), (110), (101), (111)) were enumerated 
+
+using the WFRFModel toolkit,[4] generating  ≈11 million unique surfaces from 355k bulk materials. Each 
+
+surface was characterized with the 15 descriptors previously identified as most relevant to work function. The 
+
+augmented RF model was then applied to predict three key quantities for each surface: the work function , the 
+
+calibrated uncertainty, and the domain-of-applicability dissimilarity distance score  𝑑 . Surfaces with  𝑑  above 
+
+0.97 were flagged as OD and excluded. This filtering retained  ≈10.5 million surfaces, with up to 95% classified 
+
+as ID , demonstrating the model’s broad applicability. 13   
+
+> Figure 6. Parity plot comparing ML-predicted work functions on relaxed surfaces vs. unrelaxed surfaces, with residual distribution for extreme low and high work functions.
+
+We next focused on materials with extreme predicted work functions by selecting the  ≈20k highest-
+
+and lowest-ranked surfaces for subsequent relaxation calculations, ensuring that subsequent calculations 
+
+remained computationally tractable. This screened subset comprised 6.3k surfaces with  Φ𝑀𝐿  below 2.5 eV and 
+
+4.1k surfaces with  Φ𝑀𝐿  above 5.8 eV from GNoME dataset, together with 5k surfaces with  Φ𝑀𝐿  below 2.2 eV 
+
+and 5k surfaces with  Φ𝑀𝐿  above 5.6 eV from the Alexandria database. We then performed surface relaxation 
+
+using the M3GNet, serving as a computationally efficient approach for capturing realistic surface geometries. 
+
+We then re-predicted work functions for relaxed surfaces. From the GNoME database, 3.4k out of 6.3k 
+
+remained with  Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≤ 2.5 eV (46% reduction), while only 377 surfaces retained with  Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≥ 5.8 eV 
+
+(92% reduction). From the Alexandria database, 3.5k surfaces retained with  Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≤ 2.5 eV (30% 
+
+reduction), and 1.5k surfaces retained with  Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≥ 5.6 eV (69% reduction). 
+
+In  Figure 6 , we show the difference between predicted work functions of unrelaxed and relaxed 
+
+surfaces, where surface relaxation substantially modifies the predicted work functions and, therefore, cannot 
+
+be neglected when screening for extreme values. For surfaces with low unrelaxed work functions, relaxation 
+
+typically produces ±0.2 eV shifts, despite the fact that a subset of surfaces exhibits larger increases. In contrast, 
+
+surfaces with high unrelaxed work functions experience a downward shift of 0.5-0.6 eV upon relaxation, with 
+
+a few cases showing modest increases (<0.2 eV). While the absolute magnitudes of these changes differ 
+
+between the low and high work function regimes, the corresponding relative changes are both on the order of 
+
+10% of the actual work function values.  The magnitude of these findings is in good agreement with the previous 
+
+work, where they found that surface relaxation can raise low work function values by 0.2 eV and lo wer high 
+
+work function values by 0.6 eV.[4] Overall, these results highlight that surface relaxation is a critical component 14 
+
+of the screening workflow, as it can significantly alter candidate materials that pass through thresholds. 
+
+Finally, we conducted the static self-consistent DFT calculations on the retained  ≈1.5k relaxed surfaces 
+
+using the PBE functional. First, however, we further narrowed the candidate pool by applying more restrictive 
+
+thresholds to the relaxed surfaces, focusing only on 383 surfaces with  Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≤ 2.2 eV and 377 surfaces with 
+
+Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑 ≥ 5.8 eV from the GNoME database, and 322 surfaces with  Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≤ 2.0 eV and 438 surfaces with 
+
+Φ𝑀𝐿 𝑟𝑒𝑙𝑎𝑥𝑒𝑑  ≥ 5.8 eV from the Alexandria database. These DFT-PBE calculations yielded 209 surfaces with 
+
+Φ𝐷𝐹𝑇 < 2.0 eV  and 227 surfaces with  Φ𝐷𝐹𝑇 > 6.0 eV . The top 10 candidates with the lowest/highest work 
+
+functions are presented in  Table 1  along with their associated surface index and terminating elements. The 
+
+retained dataset constitutes a set of high ‑confidence, novel material candidates for in-depth investigation. 
+
+Table 1. DFT-PBE calculation work functions for metallic material surfaces with extreme work functions. 
+
+Materials with low work function 
+
+Composition  Surface Index  Surface Element  DFT Work Function(eV)  Source 
+
+Rb 2CdIn 4Au 3 001  Rb  1.28  Alexandria 
+
+La 6NdS 8 110  La, S  1.50  Alexandria 
+
+La 6PrS 8 110  La, S  1.50  Alexandria 
+
+RbIn 6Pt  001  Rb  1.58  Alexandria 
+
+NaPr 3S4 010  Pr, S  1.66  GNoME 
+
+Pr 6SmS 8 110  Pr, S  1.66  Alexandria 
+
+La 4Pr 3S8 100  La, Pr, S  1.67  Alexandria 
+
+RbIn 6Cu  001  Rb  1.67  Alexandria 
+
+Pr 6NdS 8 110  Pr, S  1.68  Alexandria 
+
+La 5AsS 4 001  La, S  1.68  Alexandria 
+
+Materials with high work function 
+
+Composition  Surface Index  Surface Element  DFT Work Function(eV)  Source 
+
+As 4Er 2Ni 4SrTb  001  As  7.00  GNoME 
+
+DyEu 2Se 3 001  Se  6.66  GNoME 
+
+Ba 2MnNbS 6 001  S 6.56  Alexandria 
+
+Eu 2PSe  001  Se  6.54  Alexandria 
+
+HfNbB 4 001  B 6.44  Alexandria 
+
+Sm 2PPb  100  P 6.36  Alexandria 
+
+ZrTaB 32  001  B 6.35  Alexandria 
+
+EuP 2Zr  001  P 6.34  GNoME 
+
+EuHfP 2 100  P 6.32  GNoME 
+
+TmTaB 32  100  B 6.32  Alexandria 
+
+3.5 Discussion 
+
+Figure 7  illustrates the parity plot between ML-predicted and DFT-calculated work functions for relaxed surfaces in both the low (panel a) and high (panel b) work function regimes . Uncertainty estimates are 15 
+
+included for both the ML predictions and the DFT reference values. The ML error bars are the calibrated uncertainty estimates  σ̂ 𝑐𝑎𝑙  described in  Sec  3.2 , while a fixed uncertainty of ±0.1 eV is assigned to the DFT-calculated work functions based on empirical estimate.  For low work functions ( Figure 7 a), 79% of data points fall within their uncertainty bounds, indicating high prediction confidence and minimal variance. Similarly, for high work functions ( Figure 7 b), 81% of data points fall “on” the parity line within their uncertainty bounds, suggesting high prediction confidence. The inserted residuals distribution provides a more nuanced view of the prediction errors. For surfaces with low work functions, the distribution of differences between DFT and ML predictions is approximately symmetric around zero, indicating that the ML model neither systematically overestimates nor underestimates. However, for high work function surfaces, the distribution exhibits a noticeable tail toward negative values, suggesting a tendency for the ML model to overpredict work functions. 
+
+> Figure 7. (a) Parity plot comparing ML-predicted vs. DFT-calculated work functions on relaxed surfaces with low work functions. (b) Parity plot comparing ML-predicted vs. DFT-calculated work functions on relaxed surfaces with high work functions. Inserted pictures illustrate the distribution of residuals.
+
+To distill chemical insights from these promising candidates, we analyzed the results across various chemical families.  Figure 8 a illustrates the elemental categories present at the top atomic layers of materials exhibiting extreme work functions. Clear trends emerge from this analysis: surfaces featuring alkali, alkaline earth metals, or lanthanides at the top layer consistently exhibit low work functions. In contrast, surfaces enriched with metalloids, phosphorus, sulfur, or selenium tend to display high work functions. These observations align well with established principles for the rational design of materials with targeted electronic properties, such as that alkali metals, and alkaline earth metals at the top atomic layer tend to exhibit low work functions.  Beyond these expected trends, the results also revealed unconventional combinations. Notably, the presence of metalloids or phosphorus at the top layer was found to correlate with exceptionally high work functions, as shown by the two representative surfaces in  Figure 8 b. Lanthanide-rich surfaces showed a significantly increased likelihood of exhibiting extreme low work functions  with two representative surfaces shown in  Figure 8 b. These findings underscore the value of data-driven screening in uncovering novel chemical configurations that may not be immediately apparent from known design principles. 16 
+
+> Figure 8. (a) Frequency distribution of elements present at the top atomic layer of surfaces with extreme work functions. (b) Surface structures of representative candidates with extreme work functions.
+
+# Summary and Conclusion 
+
+In summary, this study presents a robust, multi-fidelity screening approach that integrates machine learning, universal machine learning interatomic potentials M3GNet, and DFT calculations to accelerate the discovery of materials with extreme work functions. We augmented a previously developed random forest model with state-of-the-art uncertainty calibration and domain-of-applicability assessment, enabling more trustworthy predictions for previously unseen materials and surface terminations. We augmented the previously random forest machine learning model with the state-of-the-art uncertainty calibration and domain of applicability assessment, enabling trustworthy predictions on unseen materials and surface terminations. With this augmented model, we screened  ≈11 million symmetry-distinct surfaces generated from  ≈355k metallic bulk compounds drawn from the GNoME and Alexandria databases, reducing the search space by more than 99.8% before computationally expensive relaxation and DFT calculations. This workflow identified 209 low- (  Φ𝐷𝐹𝑇 < 2.0 eV  ) and 227 high ‑work ‑function (  Φ𝐷𝐹𝑇 > 6.0 eV  ) surfaces, respectively. Surface relaxation was found to shift predicted values by several hundred meV, demonstrating that incorporating surface relaxation is essential for reliable screening. The chemical intuition extracted from the most promising materials in this study revealed both expected and unconventional trends. The SHAP analysis shows that work function is dominated by electronic descriptors of the surface termination, particularly electronegativity, ionization energy, and atomic size. Surfaces terminated by alkali metals, alkaline earth metals, and lanthanides consistently exhibit low work functions. In contrast, surfaces enriched with metalloids, phosphorus, sulfur, and selenium are statistically associated with high work functions. More broadly, The uncertainty-aware multi-fidelity screening workflow demonstrated here can enable reliable exploration of vast materials spaces while maintaining computational efficiency. The approach highlights the importance of model trustworthiness and physical insight in high-throughput materials discovery and offers practical guidance for future computational and experimental investigations of work function engineering. 17 
+
+# Acknowledgements: J.M, J.B, and R.J. acknowledge the support of Air Force Office of Scientific Research Grant No. SCON-00004108. R.K acknowledges the support of Air Force Office of Scientific Research Grant FA9550-22-1-0433. This work utilized the computational support from the Advanced Cyberinfrastructure Coordination Ecosystem: Services & Support (ACCESS) program, under Award No. MAT240071, supported by National Science Foundation (NSF) grants #2138259, #2138286, #2138307, #2137603, and #2138296. This research used the computer resources and assistance of the UW – Madison Center for High Throughput Computing (CHTC) in the Department of Computer Sciences. 
+
+# Ethical statement: The authors have no conflicts of interest to declare. 
+
+# Data and Code Availability:  All data and codes required to reproduce the findings of this work are available on Figshare:  https://doi.org/10.6084/m9.figshare.33201405  and Github:  https://github.com/uw-
+
+cmg/Uncertainty-Aware-Multi-Fidelity-Screening-.git 
+
+# References 
+
+[1] L. Lin, R. Jacobs, T. Ma, D. Chen, J. Booske, D. Morgan, Work Function: Fundamentals, Measurement, Calculation, Engineering, and Applications, Phys. Rev. Appl. 19 (2023). https://doi.org/10.1103/physrevapplied.19.037001. 
+
+[2] A. Bellucci, The Quest for Low Work Function Materials: Advances, Challenges, and Opportunities, Crystals (Basel). 16 (2026) 47. https://doi.org/10.3390/cryst16010047. 
+
+[3] Z. Chen, T. Ma, W. Wei, W. Wong, C. Zhao, B. Ni, Work Function‐Guided Electrocatalyst Design, 
+
+Advanced Materials 36 (2024). https://doi.org/10.1002/adma.202401568. 
+
+[4] P. Schindler, E.R. Antoniuk, G. Cheon, Y. Zhu, E.J. Reed, Discovery of Stable Surfaces with Extreme Work 
+
+Functions by High‐Throughput Density Functional Theory and Machine Learning, Adv. Funct. Mater. 34 
+
+(2024). https://doi.org/10.1002/adfm.202401764. 
+
+[5] S. Axnanda, M. Scheele, E. Crumlin, B. Mao, R. Chang, S. Rani, M. Faiz, S. Wang, A.P. Alivisatos, Z. Liu, Direct work function measurement by gas phase photoelectron spectroscopy and its application on PbS nanoparticles., Nano Letters (Print) (2013). https://doi.org/10.1021/nl403524a. 
+
+[6] R. Jacobs, D. Morgan, J. Booske, Work function and surface stability of tungsten-based thermionic electron emission cathodes, (2017). https://doi.org/10.1063/1.5006029. 
+
+[7] X. Zhao, J. Wang, X. Niu, High-Throughput Screening Approach for Catalytic Applications through Regulation of Adsorption Energies via Work Function, Langmuir 40 (2024) 26532 –26539. https://doi.org/10.1021/acs.langmuir.4c03385. 
+
+[8] A. Bellucci, D.M. Trucchi, G. Segev, R. Jacobs, D. Morgan, J. Booske, M.M. Hasan, R. Zulkharnay, N.A. Fox, P.W. May, L.K. Ang, C. Franey, M. Ghashami, A. Mezzi, J.W. Schwede, N.A. Loubet, K. Bezdjian, E. López, A. Datas, M. Jalili, A. Nojeh, E. Rahman, X. Zhang, P. Schindler, E.D. Juette, V.P. Carey, J.-P. Fleurial, M. Mastellone, G. Zheng, L. Wang, G. Xiao, H. Qiu, The 2026 thermionic converters roadmap, J. Phys. D Appl. Phys. 59 (2026) 263001. https://doi.org/10.1088/1361-6463/ae611e. 
+
+[9] Z. Zhong, P. Hansmann, Tuning the work function in transition metal oxides and their heterostructures, Phys. Rev. B 93 (2016) 235116. https://doi.org/10.1103/PhysRevB.93.235116. 18 
+
+[10] S. Zhou, W. Pei, Y. Zhao, X. Yang, N. Liu, J. Zhao, Low-dimensional non-metal catalysts: principles for regulating p-orbital-dominated reactivity, NPJ Comput. Mater. 7 (2021) 1–34. https://doi.org/10.1038/s41524-021-00654-x. 
+
+[11] T. Ma, R. Jacobs, J. Booske, D. Morgan, Discovery and engineering of low work function perovskite materials, J. Mater. Chem. C Mater. 9 (2021) 12778 –12790. https://doi.org/10.1039/d1tc01286j. 
+
+[12] R. Jacobs, J. Booske, D. Morgan, Understanding and Controlling the Work Function of Perovskite Oxides Using Density Functional Theory, Adv. Funct. Mater. 26 (2016) 5471 –5482. https://doi.org/10.1002/adfm.201600243. 
+
+[13] P. Roy, L. Rekhi, S.W. Koh, H. Li, T.S. Choksi, Predicting the work function of 2D MXenes using machine-learning methods, Journal of Physics: Energy 5 (2023) 034005. https://doi.org/10.1088/2515-7655/acb2f8. 
+
+[14] L. Shang, Y. Yang, Y. Yu, P. Xiang, L. Ma, Z. Guo, M. Dai, Stacked machine learning for accurate and 
+
+interpretable prediction of MXenes’ work function, Journal of Materials Informatics 5 (2025) 52. 
+
+https://doi.org/10.20517/jmi.2025.36. 
+
+[15] Y. Xiong, W. Chen, W. Guo, H. Wei, I. Dabo, Data-driven analysis of the electronic-structure factors controlling the work functions of perovskite oxides, Physical Chemistry Chemical Physics 23 (2021) 6880 –6887. https://doi.org/10.1039/D0CP05595F. 
+
+[16] T. Schultz, N.C. Frey, K. Hantanasirisakul, S. Park, S.J. May, V.B. Shenoy, Y. Gogotsi, N. Koch, Surface Termination Dependent Work Function and Electronic Properties of Ti3C2Tx MXene, Chemistry of Materials 31 (2019) 6590 –6597. https://doi.org/10.1021/acs.chemmater.9b00414. 
+
+[17] S. Ahn, T.-H. Han, K. Maleski, J. Song, Y.-H. Kim, M.-H. Park, H. Zhou, S. Yoo, Y. Gogotsi, T.-W. Lee, A 2D Titanium Carbide MXene Flexible Electrode for High-Efficiency Light-Emitting Diodes, Advanced Materials 32 (2020) 2000919. https://doi.org/10.1002/adma.202000919. 
+
+[18] J. Chen, X. Liu, Z. Li, F. Cao, X. Lu, X. Fang, Work-Function-Tunable MXenes Electrodes to Optimize p-CsCu2I3/n-Ca2Nb3-xTaxO10 Junction Photodetectors for Image Sensing and Logic Electronics, Adv. Funct. Mater. 32 (2022) 2201066. https://doi.org/10.1002/adfm.202201066. 
+
+[19] H.B. Michaelson, The work function of the elements and its periodicity, J. Appl. Phys. 48 (1977) 4729 –
+
+4733. https://doi.org/10.1063/1.323539. 
+
+[20] R. Tran, X.-G. Li, J.H. Montoya, D. Winston, K.A. Persson, S.P. Ong, Anisotropic work function of elemental crystals, Surf. Sci. 687 (2019) 48 –55. https://doi.org/10.1016/j.susc.2019.05.002. 
+
+[21] T. Ma, R. Jacobs, J. Booske, D. Morgan, Understanding the interplay of surface structure and work function in oxides: A case study on SrTiO3, APL Mater. 8 (2020). https://doi.org/10.1063/1.5143325. 
+
+[22] T.C. Leung, C.L. Kao, W.S. Su, Y.J. Feng, C.T. Chan, Relationship between surface dipole, work function and charge transfer: Some exceptions to an established rule, Phys. Rev. B 68 (2003) 195408. https://doi.org/10.1103/PhysRevB.68.195408. 
+
+[23] M.K. Horton, P. Huck, R.X. Yang, J.M. Munro, S. Dwaraknath, A.M. Ganose, R.S. Kingsbury, M. Wen, J.X. Shen, T.S. Mathis, A.D. Kaplan, K. Berket, J. Riebesell, J. George, A.S. Rosen, E.W.C. Spotte-Smith, M.J. McDermott, O.A. Cohen, A. Dunn, M.C. Kuner, G.-M. Rignanese, G. Petretto, D. Waroquiers, S.M. Griffin, 19 
+
+J.B. Neaton, D.C. Chrzan, M. Asta, G. Hautier, S. Cholia, G. Ceder, S.P. Ong, A. Jain, K.A. Persson, Accelerated data-driven materials science with the Materials Project, Nat. Mater. 24 (2025) 1522 –1532. https://doi.org/10.1038/s41563-025-02272-0. 
+
+[24] A. Jain, S.P. Ong, G. Hautier, W. Chen, W.D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, K.A. Persson, Commentary: The Materials Project: A materials genome approach to accelerating materials innovation, APL Mater. 1 (2013) 11002. https://doi.org/10.1063/1.4812323. 
+
+[25] S. Haastrup, M. Strange, M. Pandey, T. Deilmann, P.S. Schmidt, N.F. Hinsche, M.N. Gjerding, D. Torelli, P.M. Larsen, A.C. Riis-Jensen, J. Gath, K.W. Jacobsen, J.J. Mortensen, T. Olsen, K.S. Thygesen, The Computational 2D Materials Database: High-throughput modeling and discovery of atomically thin crystals, 2d Mater. 5 (2018). https://doi.org/10.1088/2053-1583/aacfc1. 
+
+[26] S. Curtarolo, W. Setyawan, G.L.W. Hart, M. Jahnatek, R. V. Chepulskii, R.H. Taylor, S. Wang, J. Xue, K. Yang, O. Levy, M.J. Mehl, H.T. Stokes, D.O. Demchenko, D. Morgan, AFLOW: An automatic framework for high-throughput materials discovery, Comput. Mater. Sci. 58 (2012) 218 –226. https://doi.org/10.1016/j.commatsci.2012.02.005. 
+
+[27] S. Kirklin, J.E. Saal, B. Meredig, A. Thompson, J.W. Doak, M. Aykol, S. Rühl, C. Wolverton, The Open Quantum Materials Database (OQMD): assessing the accuracy of DFT formation energies, NPJ Comput. Mater. 1 (2015) 15010. https://doi.org/10.1038/npjcompumats.2015.10. 
+
+[28] L. Cui, Q. Li, Y. Zhang, J. Zhang, Z. Wang, J. Chen, B. Zheng, Machine learning-assisted high-throughput screening of transparent organic light-emitting diode anode materials, Chem. Sci. 15 (2024) 19375 –
+
+19389. https://doi.org/10.1039/D4SC05598E. 
+
+[29] W. Hashimoto, Y. Tsuji, K. Yoshizawa, Optimization of Work Function via Bayesian Machine Learning Combined with First-Principles Calculation, The Journal of Physical Chemistry C 124 (2020) 9958 –9970. https://doi.org/10.1021/acs.jpcc.0c01106. 
+
+[30] C. Hsu, C. Schlesinger, K. Mudaliar, J. Leung, R. Walters, P. Schindler, FIRE-GNN: Force-Informed, Relaxed Equivariance Graph Neural Network for Rapid and Accurate Prediction of Surface Properties, Advanced Intelligent Discovery n/a (2025) e202500162. https://doi.org/10.1002/aidi.202500162. 
+
+[31] X.G. Li, B. Blaiszik, M.E. Schwarting, R. Jacobs, A. Scourtas, K.J. Schmidt, P.M. Voyles, D. Morgan, Graph network based deep learning of bandgaps, Journal of Chemical Physics 155 (2021). https://doi.org/10.1063/5.0066009. 
+
+[32] A. Merchant, S. Batzner, S.S. Schoenholz, M. Aykol, G. Cheon, E.D. Cubuk, Scaling deep learning for materials discovery, Nature 624 (2023) 80 –85. https://doi.org/10.1038/s41586-023-06735-9. 
+
+[33] M.M. Ghahremanpour, P.J. Van Maaren, D. Van Der Spoel, Data Descriptor: The Alexandria library, a quantum-chemical database of molecular properties for force field development, Sci. Data 5 (2018) 1 –
+
+10. https://doi.org/10.1038/sdata.2018.62. 
+
+[34] R. Jacobs, T. Mayeshiba, B. Afflerbach, L. Miles, M. Williams, M. Turner, R. Finkel, D. Morgan, The Materials Simulation Toolkit for Machine learning (MAST-ML): An automated open source toolkit to accelerate data-driven materials research, Comput. Mater. Sci. 176 (2020) 109544. https://doi.org/10.1016/j.commatsci.2020.109544. 
+
+[35] S.M. Lundberg, S.-I. Lee, A unified approach to interpreting model predictions, in: Proceedings of the 20 
+
+31st International Conference on Neural Information Processing Systems, Curran Associates Inc., Red Hook, NY, USA, 2017: pp. 4768 –4777. 
+
+[36] G. Palmer, S. Du, A. Politowicz, J.P. Emory, X. Yang, A. Gautam, G. Gupta, Z. Li, R. Jacobs, D. Morgan, Calibration after bootstrap for accurate uncertainty quantification in regression models, NPJ Comput. Mater. 8 (2022) 1 –9. https://doi.org/10.1038/s41524-022-00794-8. 
+
+[37] R. Jacobs, L.E. Schultz, A. Scourtas, K.J. Schmidt, O. Price-Skelly, W. Engler, I. Foster, B. Blaiszik, P.M. Voyles, D. Morgan, Machine learning materials properties with accurate predictions, uncertainty estimates, domain guidance, and persistent online accessibility, Mach. Learn. Sci. Technol. 5 (2024). https://doi.org/10.1088/2632-2153/ad95db. 
+
+[38] L.E. Schultz, Y. Wang, R. Jacobs, D. Morgan, A general approach for determining applicability domain of machine learning models, NPJ Comput. Mater. (2025) 1 –22. https://doi.org/10.1038/s41524-025-01573-x. 
+
+[39] C. Chen, S.P. Ong, A universal graph deep learning interatomic potential for the periodic table, Nat. Comput. Sci. 2 (2022). https://doi.org/10.1038/s43588-022-00349-3. 
+
+[40] G. Kresse, D. Joubert, From ultrasoft pseudopotentials to the projector augmented-wave method, Phys. Rev. B 59 (1999) 1758 –1775. https://doi.org/10.1103/PhysRevB.59.1758. 
+
+[41] G. Kresse, J. Furthmüller, Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set, Phys. Rev. B 54 (1996) 11169 –11186. https://doi.org/10.1103/PhysRevB.54.11169. 
+
+[42] G. Kresse, J. Furthmüller, Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set, Comput. Mater. Sci. 6 (1996) 15 –50.  https://doi.org/10.1016/0927-
+
+0256(96)00008-0 .
+
+[43] J. Perdew, K. Burke, M. Ernzerhof, Generalized Gradient Approximation Made Simple, Phys. Rev. Lett. 77 (1996) 3865 –3868. https://doi.org/10.1103/PhysRevLett.77.3865.

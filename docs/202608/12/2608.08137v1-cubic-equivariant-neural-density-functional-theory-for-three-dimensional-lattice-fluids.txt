@@ -1,0 +1,712 @@
+Title: Cubic-Equivariant Neural Density Functional Theory for Three-Dimensional Lattice Fluids
+
+URL Source: https://arxiv.org/pdf/2608.08137v1
+
+Published Time: Tue, 11 Aug 2026 00:42:08 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# Cubic-Equivariant Neural Density Functional Theory for Three-Dimensional Lattice Fluids 
+
+Jens Weimar, a) Martin Oettel, and Alessandro Simon b) 
+
+Institute of Applied Physics, University of T¨ ubingen, Germany 
+
+We construct a neural classical density functional that acts directly on unrestricted three-dimensional density profiles. As a computationally tractable test bed, we consider parallel hard cubes of side length three on a simple cubic lattice. A fully convolutional network learns the one-body direct-correlation functional c(1) [ρ] from data obtained with grand-canonical Monte Carlo simulations in randomized external potentials. Complete profiles are used during both training and inference; a stochastic Bernoulli mask on the output sites makes full-profile training effective without explicitly extracting and storing overlapping local density windows. Averaging the first-layer kernels over all 48 rotations and reflections of the cubic point group additionally imposes exact cubic equivariance without data augmentation. We compare the learned functional with independent simulation data and with the lattice fundamental-measure functional of Lafuente and Cuesta. The neural functional markedly improves the homogeneous equation of state and the density profile at a planar hard wall. For the anisotropic pair distribution around a fixed particle, both functionals reproduce the principal packing shells, with their relative accuracy depending on crystallographic direction. These results demonstrate neural density-functional calculations on complete three-dimensional profiles while also identifying accurate full-dimensional training data, thermodynamic consistency, and structural correlations as the central challenges for extensions to continuum fluids. 
+
+I. INTRODUCTION 
+
+Classical density functional theory (DFT) replaces the equilibrium many-body problem by a variational problem for the one-body density ρ(r)1,2 . If the intrinsic excess free-energy functional were known exactly, the theory would provide equilibrium structure and thermodynam-ics in arbitrary external fields at a cost far below that of repeated particle simulations. Exact nontrivial func-tionals are, however, known only in special cases, most prominently the one-dimensional hard-rod fluid 3. Funda-mental measure theory (FMT) provides highly successful geometrically motivated approximations for continuum hard particles 4–8 and for hard-core lattice gases 9,10 , but its accuracy remains model and observable dependent. Machine learning offers a complementary route in which the functional is inferred from equilibrium density profiles. Existing approaches range from direct representations of a free energy, mean-field kernel learning, to weighted-density, correlation-matching constructions and neural operator learning 11–19 . In the neural-functional method introduced by Samm¨ uller et al. , the network represents the one-body direct correlation c(1) rather than an explicit scalar free energy 20,21 . The target follows directly from the Euler–Lagrange equation, so grand-canonical simu-lations in randomized external fields supply supervised training pairs without requiring free-energy labels. This strategy has achieved near-simulation accuracy for hard spheres 20 and has since been applied to phase coexistence, mixtures, and ionic fluids 22–24 .The original local-learning construction uses a multi-layer perceptron (MLP) to map a fixed-size density win-
+
+> a) Electronic mail: jens.weimar@uni-tuebingen.de
+> b) Electronic mail: alessandro.simon@uni-tuebingen.de
+
+dow centered at one spatial point to the scalar c(1) at that point 20,21 . Most subsequent implementations retained this MLP/window formulation 22–35 because it is simple and flexible. For example, temperature and the pair poten-tial can be supplied as additional inputs nodes 22,23,26–28 .However, it ties the network architecture to the data pipeline: a separate window must be extracted for every target point, and a complete c(1) profile is obtained by evaluating these windows and reassembling their scalar outputs. This overhead is irrelevant for one-dimensional profiles but grows rapidly with dimension because both the number of windows and the number of density values in each window grow as powers of the spatial resolution. Glitsch et al. disentangled the local map from explicit window extraction by rewriting it as a fully convolutional network 36 . One finite-range convolution evaluates the first MLP layer at every position, while subsequent 1 × 1convolutions implement the remaining pointwise channel mixing. The resulting network can evaluate an entire profile efficiently. Crucially, however, a convolutional ar-chitecture does not require training on complete profiles. It was found that treating every site of a profile as one update amounts to an extremely large batch of strongly overlapping, correlated windows and gives an overly av-eraged, low-diversity gradient. Therefore sampled local windows during training were retained from the original formulation of Samm¨ uller et al. while the benefits of the convolutional form for full-profile inference could be used. Here we retain both advantages in three dimensions: convolutional evaluation of complete fields and stochastic training updates, without ever constructing a window-expanded data set. Every forward pass acts on several full 50 × 50 × 50 profiles, but only an independently sam-pled Bernoulli subset of valid c(1) outputs contributes to the loss. The mask prevents each update from averaging over all spatial targets, while batching different profiles arXiv:2608.08137v1 [cond-mat.stat-mech] 8 Aug 2026 2introduces variation across external fields and thermo-dynamic states. This combination removes the memory and indexing costs of explicit three-dimensional windows and is the practical step that makes full-profile training feasible. The lattice model retains excluded-volume corre-lations, packing oscillations, and direction-dependent pair structure while permitting sufficiently accurate training fields to be generated at manageable cost. Our network uses one finite-range spatial convolution followed by a pointwise residual network. The first-layer kernels are projected onto the full cubic point group, making the density-to-c(1) map exactly equivariant under every lattice rotation and reflection. The invariant first-layer kernels compress each 7 × 7 × 7 neighborhood into linear combinations of its 20 cubic-orbit density sums (see Appendix A). This guarantees cubic equivariance but constitutes a stronger restriction than symmetry alone, because variations within each orbit are not retained. We assess the learned functional against grand-canonical Monte Carlo (GCMC) data that are indepen-dent of the training profiles and against the analytical lattice FMT of Lafuente and Cuesta (LC). The compar-isons cover the homogeneous equation of state, a planar hard-wall slit, and the full three-dimensional test-particle problem. The neural functional is substantially more accurate for the first two observables, whereas the pair-structure comparison is more nuanced.   
+
+> II. THEORY AND MODEL A. Lattice hard cubes
+
+We consider a simple cubic lattice Λ of spacing a and linear size L, with periodic boundary conditions unless stated otherwise. Particle orientations are fixed along the lattice axes. A particle centered at r0 occupies the sites r
+
+whose minimum-image coordinate differences satisfy 
+
+|rα − r0,α |P ≤ s − 12 , α ∈ { x, y, z }, (1) where the integer s is the cube side in lattice units and 
+
+|·| P denotes a periodic minimum-image distance. No lattice site may be occupied by more than one cube. Consequently, two centers are incompatible if all three of their coordinate separations are at most s − 1. We use 
+
+s = 3 throughout, so a particle occupies 3 3 = 27 sites and excludes the center of another particle from a 5 × 5 × 5region. For a homogeneous center density ρ, we define the packing fraction 
+
+η = s3ρ. (2) Lengths are reported in units of a, and kBT is the energy unit. We note that the homogeneous fluid of 3 × 3 × 3 lattice cubes has previously been studied using virial expan-sions and grand-canonical Monte Carlo simulations 37–39 
+
+and preliminary simulations have also addressed its high-density ordered phases 40 . We instead focus on the inho-mogeneous, low to intermediate density state here. The simulations sample the grand-canonical ensemble with particle insertion, deletion, and nearest-neighbor translation moves. The external potential Vext (r) acts on the particle center only. Overlaps are detected through an auxiliary site-occupancy field, while particle centers are stored separately for efficient translations. One-body den-sities are obtained by histogramming the center positions, 
+
+ρ(r) = ⟨ˆρ(r)⟩. 
+
+> B. One-body direct-correlation functional
+
+For a lattice density field, the dimensionless grand-potential functional is 
+
+βΩ[ ρ] = X
+
+> r∈Λ
+
+ρ(r)ln ρ(r) − 1 + βF ex [ρ]+ X
+
+> r∈Λ
+
+ρ(r)βV ext (r) − βμ ,
+
+(3) where the reference contribution to the chemical potential has been absorbed into μ. The one-body direct correlation functional is given by 
+
+c(1) (r; [ ρ]) = −β δF ex [ρ]
+
+δρ (r) . (4) Stationarity of Eq. (3) gives 
+
+ρ(r) = exp 
+
+h
+
+βμ − βV ext (r) + c(1) (r; [ ρ]) 
+
+i
+
+. (5) For an equilibrium GCMC profile, Eq. (5) can be inverted pointwise to obtain the supervised target 
+
+c(1) GCMC (r) = ln ρ(r) + βV ext (r) − βμ. (6) The neural model approximates the functional map ρ 7 →
+
+c(1) [ρ]. Once trained, it is inserted into Eq. (5) and solved self-consistently for a new external potential.  
+
+> C. Lafuente–Cuesta lattice functional
+
+The hard-core lattice model admits an FMT construc-tion following Lafuente and Cuesta 9,10 . We use this LC functional as the analytical reference in every comparison. For monodisperse parallel cubes of odd side length s = 3, its excess free energy is 
+
+βF LC ex [ρ] = X
+
+> r∈Λ
+
+X
+
+> k∈{ 0,1}3
+
+(−1) 3−| k|Φ0
+
+
+
+n(k)(r)
+
+
+
+, (7) where |k| = kx + ky + kz and Φ0(η) = η + (1 − η) ln(1 − η) (8) 3is the exact excess free energy of a zero-dimensional cavity. With the support convention used in our implementation, the eight weighted densities are 
+
+n(k)(x, y, z ) = 
+
+> 1+ kx
+
+X
+
+> i=0 1+ ky
+
+X
+
+> j=0 1+ kz
+
+X
+
+> ℓ=0
+
+ρ(x + i, y + j, z + ℓ). (9) All indices in Eq. (9) are periodic. The support extends in the positive coordinate directions only and therefore looks asymmetric about ( x, y, z ). This is only a choice of origin for the discrete weights: taking the functional derivative applies the adjoint weights and restores the full symmetry of c(1) LC . Other translated or reflected support conventions give the same functional. The LC one-body direct correlation is calculated analyt-ically from c(1) LC = −δβF LC ex /δρ and inserted into Eq. (5). For a uniform density, n(k) = vk ρ with vk = Q
+
+> α
+
+(2 + kα), which also gives the LC bulk free energy and equation of state directly. Because Eq. (7) is an explicit scalar functional, its thermodynamic derivatives and mixed func-tional derivatives are internally consistent by construction.   
+
+> III. SIMULATION DATA AND NEURAL FUNCTIONAL A. Three-dimensional training fields
+
+The local-learning construction of Refs. 20,21 associates the value of c(1) at one site with a finite neighborhood of the density. For a field containing L3 sites and a receptive field containing K3 density values, pre-extracting all MLP inputs produces L3K3 stored values before targets and intermediate activations are included. In the present case, one 50 ×50 ×50 profile would expand from 125,000 density values to 42,875,000 entries in its overlapping 7 × 7 × 7windows, a factor of 343. Generating only the requested windows on demand avoids this stored expansion but reintroduces repeated indexing and copying. Our fully convolutional network instead evaluates the same shared local map at every site directly from the unexpanded profile 36 .All training profiles have shape 50 × 50 × 50. Their smooth part is generated from periodic Gaussian fields 
+
+βV smooth (r) = 
+
+> NG
+
+X
+
+> i=1
+
+Ai exp 
+
+h
+
+−αi |r − ri|2P
+
+i
+
+, (10) where the centers ri are uniform on the lattice and 
+
+αi ∈ [10 −3, 1]. The training corpus combines broad-amplitude Gaussian fields, narrower-amplitude fields con-taining random hard cuboids, and Gaussian fields inside a cavity closed by hard walls on all six faces. Table I in the Appendix summarizes the four campaigns. Combining these environments exposes the functional to bulk-like regions, smoothly varying fields, sharp exclusions, edges, and corners. All campaigns use at least 4 ×10 9 production moves per replica and discard the first 10 8 thermalization moves, and then sample the density every 100 moves. In campaign C the hard cuboids have independently sampled side lengths from three to six sites. In campaign D five center-exclusion layers are placed at each face, leaving an accessible 40 ×
+
+40 × 40 cavity. Fifty of the 443 complete profiles have mean packing fraction above 0 .60 and are excluded. The final corpus therefore contains 393 profiles spanning mean packing fractions from approximately 0 .063 to 0 .6.  
+
+> B. Network architecture and cubic equivariance
+
+The neural c(1) functional is a fully convolutional scalar-field network. Its first layer applies 32 kernels of size 7 ×
+
+7 × 7, with unit stride and circular padding by three sites. The receptive field of every output value is consequently a 7 × 7 × 7 density neighborhood. A Leaky-ReLU activation with negative slope 0 .05 follows the spatial convolution. A 1 × 1 × 1 convolution projects the 32 local features to 128 hidden channels. Three residual blocks then act pointwise; each block contains two 1 × 1 × 1 convolutions with 128 input and output channels and Leaky-ReLU activations. A final pointwise convolution produces one c(1) value per lattice site. There is no pooling, normalization, or spatial downsampling. The stored model contains 114,433 trainable parameters, though a large part of the kernel parameters are redundant because of the cubic symmetry. This ordering is the fully convolutional counterpart of the original windowed MLP: the 7 × 7 × 7 convolution applies the first dense layer to every local neighborhood in parallel, and the 1 × 1 × 1 layers apply the remaining nonlinear map independently at every site. Glitsch et al. also introduced an FMT-inspired alterna-tive with a finite-range convolution both before and after the pointwise nonlinear network 36 . The first convolution constructs learned weighted densities and the second per-forms an FMT-like back-convolution to c(1) . Although splitting a receptive field between two smaller kernels can reduce the forward kernel volume, the final finite-range convolution must backpropagate through a dense spatial convolution into every latent channel and then through the complete pointwise network, which increases the computational demand considerably with increasing dimensionality. Since performance is similar for both architectures in the 2D case 36 , we restrict ourself to the convolutional counterpart of the original formulation. The hard-cube Hamiltonian is invariant under the full point group of the simple cubic lattice. We impose this symmetry on the neural map following the general princi-ple of group-equivariant convolutional networks 15,41 . Let 
+
+G = Oh be the 48-element cubic point group, represented on the lattice by all signed permutations of the three coordinate axes. Its action on a scalar density Tg ρ is defined by (Tg ρ)( r) = ρ(g−1r), g ∈ Oh. (11) 4Every raw first-layer kernel Kq (u) is projected onto the 
+
+G-invariant subspace, 
+
+Kq (u) = 1
+
+|G|
+
+X
+
+> g∈G
+
+Kq (g−1u). (12) In practice, Eq. (12) is evaluated as the eight independent axis reflections followed by the six permutations of the axes during every forward pass. Convolution with Kq
+
+is equivariant under G. All subsequent operations act independently at each site through pointwise channel mix-ing, nonlinearities, and residual additions, and therefore commute with Tg . The complete model obeys 
+
+c(1)  
+
+> θ
+
+(r; [ Tg ρ]) = c(1)  
+
+> θ
+
+(g−1r; [ ρ]) = ( Tg c(1)  
+
+> θ
+
+[ρ])( r) (13) up to floating-point roundoff. Shared convolutional weights and circular padding additionally provide lattice-translation equivariance. The distinction between invariance and equivariance is useful here. Each effective spatial kernel, and hence the scalar response to a transformed local environment at its center, is invariant under Oh. Evaluating this response at every lattice site makes the complete density-field-to-c(1) -field map equivariant. This is a deliberately restricted scalar-channel construction, not a general steer-able network 42 with orientation-indexed features, and it enforces only the discrete symmetry of the cubic lattice rather than arbitrary continuous rotations, which are naturally restricted by the lattice geometry.  
+
+> C. Training and model selection
+
+The 393 profiles are divided by a fixed random per-mutation into 354 training and 39 validation profiles. Each optimization batch contains ten complete fields, and Eq. (6) is evaluated on the fly. A single 50 × 50 × 50 field supplies as many as 125,000 target sites, so an unmasked batch would average up to 1 .25 × 10 6 local contributions. These are not independent samples: neighboring out-puts have strongly overlapping receptive fields, and all sites within one profile share the same chemical potential and external environment. Averaging every site there-fore produces a very large effective window batch with little stochastic variation and can wash out informative gradient differences between local environments. We retain full-field convolution but stochastically sub-sample its outputs when constructing the loss. Sites with c(1) GCMC ≤ − 10 or nonfinite targets are first excluded, which removes hard-wall sites and regions with insufficient density statistics. At every optimization step, an indepen-dent Bernoulli mask with retention probability p = 0 .5is then drawn for every remaining site. We can choose this comparatively large value because the corresponding density windows remain relatively small for the lattice system. For continuous systems, p needs to be chosen much smaller to prevent gradient flattening. If M denotes the selected profile–site pairs, the loss is 
+
+L(θ) = 1
+
+|M| 
+
+X
+
+> (p, r)∈M
+
+h
+
+c(1)  
+
+> θ
+
+(r; [ ρp]) − c(1) 
+
+> p, GCMC
+
+(r)
+
+i2
+
+. (14) The mask does not reduce the dense convolutional forward pass. Instead, its purpose is to provide a stochastic spa-tial estimate of the loss while preserving the memory and throughput advantages of unwindowed data. Batching ten independently generated profiles supplies the com-plementary variation between external fields and state points. Thus, the convolutional architecture, full-profile data loading, and spatial loss sampling are separate de-sign choices. Validation is deterministic and uses every finite site above the same target cutoff. We train in single precision for 400 epochs with Adam, learning rate 10 −3, and weight decay 10 −5. The check-point is updated whenever the validation loss decreases and the minimum-validation checkpoint is restored after training. This selection avoids the intermittent late-epoch validation spikes. A preliminary otherwise comparable model with 16 rather than 32 first-layer kernels gave un-satisfactory validation and downstream profile accuracy; all results below therefore use 32 kernels. The learned kernels and this channel-count observation are discussed further in the Appendix. For inhomogeneous predictions, Eq. (5) is solved by Picard iteration with mixing, 
+
+ρ(n+1) = (1 − γ)ρ(n) + γ exp 
+
+h
+
+βμ − βV ext + c(1) [ρ(n)]
+
+i
+
+,
+
+(15) with inaccessible sites reset to zero after each step. The mixing parameter γ is reduced when required for stability. All reported ML and LC profiles satisfy their stated fixed-point convergence criteria.   
+
+> IV. RESULTS A. Homogeneous equation of state
+
+For a constant density and zero external field, the neural Euler equation reduces to 
+
+βμ ML (ρ) = ln ρ − c(1) ML (ρ). (16) We evaluate this relation on a dense density grid and invert its monotonic fluid branch. The LC bulk relation follows analytically from Eq. (7). Independent GCMC data comprise 20 chemical potentials between βμ = −8and 1 .5, eight replicas per state, and a periodic 48 ×48 ×48 box commensurate with the particle side length. Each replica contains 10 7 density samples after thermalization. Pressure is reconstructed consistently from 
+
+∂(βP )/∂ (βμ ) = ρ. The integration is anchored at 
+
+βμ = −8 by the second-virial expression (accurate at low densities) βP = ρ + B2ρ2, where B2 = (2 s − 1) 3/2for the present lattice cubes. GCMC pressure intervals 5−8 −6 −4 −2 0
+
+βμ 
+
+> 0.0 0.1 0.2 0.3 0.4 0.5 0.6
+> η = s3ρ
+
+(a)     
+
+> GCMC neural DFT Lafuente-Cuesta
+> −8 −6 −4 −2 0
+
+βμ 
+
+> 0.00 0.02 0.04 0.06 0.08
+> packing-fraction residual
+
+(b)       
+
+> GCMC - neural DFT GCMC - LC
+> 0.0 0.1 0.2 0.3 0.4 0.5 0.6
+
+η
+
+> 0.00 0.02 0.04 0.06 0.08
+> βP
+
+(c) 
+
+> GCMC neural DFT Lafuente-Cuesta
+
+FIG. 1. Homogeneous equation of state. (a) Packing fraction 
+
+η = s3ρ as a function of chemical potential. (b) GCMC-minus-model packing-fraction residuals. (c) Pressure obtained by thermodynamic integration. The standard deviation for the GCMC data is smaller than the symbol size. 
+
+are propagated by resampling the independent replicas before integration. Figure 1(a) shows that the neural functional closely follows the simulated adsorption isotherm throughout the trained fluid range. The LC curve develops an increasing negative density bias with increasing chemical potential. The neural training-density boundary η = 0 .60 is reached at βμ ML = 1 .265. Values above it demonstrate the extrap-olation capabilities of the learned network. Figure 1(c) 0 10 20 30 40 
+
+z / a
+
+> 0.0 0.2 0.4 0.6 0.8 1.0 1.2
+> η(z)
+> hard wall neural DFT Lafuente-Cuesta GCMC
+
+FIG. 2. Packing-fraction profile in a planar hard-wall slit at 
+
+βμ = 0. The shaded regions are inaccessible to particle centers. The neural and LC profiles are converged solutions of their Euler equations; symbols show the symmetry-averaged GCMC result from 24 replicas. The GCMC uncertainty is smaller than the symbol size. 
+
+demonstrates that the accuracy of the learned density relation carries over to the integrated pressure, whereas the LC pressure increasingly departs from the GCMC result at high packing fraction. 
+
+B. Planar hard walls 
+
+We next consider a pure planar slit that was not it-self included among the training profiles. Infinite center potentials occupy five layers at each of the two faces normal to z, leaving 40 accessible layers in the periodic 50 × 50 × 50 simulation box. The validation profile at 
+
+βμ = 0 is averaged over 24 independent GCMC repli-cas, each with 2 × 10 7 density samples. Translational averaging over the two lateral directions and reflection averaging between the equivalent walls further reduce the simulation uncertainty. All three profiles in Fig. 2 exhibit the strong contact peak and damped packing oscillations induced by the walls. The neural functional tracks the peak amplitudes and the oscillatory interior more accurately than LC. 
+
+C. Pair distribution around a fixed particle 
+
+The test-particle route provides a genuinely three-dimensional structural test 43 . Fixing one cube at the center creates an infinite external potential for mobile-particle centers in the surrounding 5 × 5 × 5 exclusion region. For a homogeneous bulk state of density ρb, the 6      
+
+> FIG. 3. Volume rendering of the neural test-particle pair distribution g(r) in the central region of the box. The dark central cube is the 5 ×5×5 region excluded to particle centers; the surrounding shells reveal the cubic anisotropy that is lost in a spherical average. Quantitative directional cuts are shown in Fig. 4.
+
+resulting equilibrium profile gives the anisotropic pair distribution 
+
+g(r) = ρ(r | fixed particle) 
+
+ρb
+
+. (17) Because the particles and lattice have only cubic symme-try, g depends on the vector r rather than on its magnitude alone. The GCMC calculation uses a 50 × 50 × 50 box, βμ =
+
+−2, and eight paired bulk and fixed-particle replicas. It gives ηb = 0 .345. To separate inhomogeneous structural errors from bulk equation-of-state errors, each functional is evaluated at the chemical potential that reproduces this same bulk density: βμ = −2.00 for the neural model and −1.86 for LC. Figure 3 illustrates the resulting three-dimensional neu-ral profile, while Fig. 4 shows quantitative cuts along the three principal crystallographic families. Signed and permutation-equivalent rays are averaged for every method. The two functionals both capture the exclusion region, the first packing maximum, and the rapid decay toward 
+
+g = 1. Their relative accuracy depends on direction. Both methods describe the [100] direction well, except for the contact value, which is slightly overestimated with LC and underestimated with the neural functional. For the other directions the correlation is rather small to begin with and well described in both cases, though the neural functional is marginally more accurate for [110]. Unlike the bulk and wall results, this comparison does not support a claim of uniform neural superiority.  
+
+> V. CONCLUSIONS AND OUTLOOK
+
+We have constructed a neural approximation to the one-body direct-correlation functional of parallel hard cubes that acts on complete three-dimensional lattice fields. The network combines a finite 7 × 7 × 7 receptive field with pointwise residual channel mixing and an exact projection of the spatial kernels onto the 48-element cubic point group. The local scalar response is invariant and the complete density-to-c(1) field map is equivariant under all lattice rotations and reflections. This constraint pre-vents symmetry-equivalent environments from acquiring different learned responses. The central computational step is the transition from an explicitly windowed MLP pipeline to full-profile convo-lution during both training and application. Convolution alone resolves the cost of constructing and repeatedly evaluating overlapping windows, but it does not by it-self provide useful stochastic training updates: an entire three-dimensional field represents a very large collection of correlated local environments. Combining unexpanded profiles with Bernoulli subsampling of the output loss and batches containing several profiles separates efficient field evaluation from gradient sampling. This preserves variation both within and between external environments and makes the approach practical at three-dimensional field sizes. The learned functional reproduces the homogeneous GCMC equation of state with a packing-fraction RMSE of 1.99 × 10 −4 over the common supported range, compared with 1 .36 × 10 −2 for the Lafuente–Cuesta functional. The fixed-particle test is more demanding: both functionals reproduce the principal anisotropic packing shells, but neither is uniformly more accurate across crystallographic directions. These mixed structural results are important because they distinguish accurate self-consistent one-body profiles and bulk thermodynamics from a complete repre-sentation of pair correlations. LC remains a valuable reference. It is built from zero-dimensional consistency and dimensional crossover and, unlike the present network, is the derivative of an explicit excess free energy. Directly learning c(1) does not guar-antee that its functional Jacobian is symmetric or that a path-independent scalar Fex exists. The finite receptive field, the cutoff at mean packing fraction 0 .60, and the diversity and statistical precision of the training profiles provide additional controlled limitations. Preliminary training with 16 first-layer kernels was inadequate, indi-cating that even after cubic symmetrization the present task requires a moderately rich local feature representa-tion. Although our demonstration uses a lattice fluid, the method is not restricted to lattice models. The same pro-cedure can be applied to continuum fluids after represent-ing their equilibrium densities on a spatial grid, provided the training data are sufficiently accurate and diverse. In practice, obtaining smooth fully three-dimensional his-tograms, and therefore reliable logarithmic c(1) targets, 70 5 10 15 20 25 
+
+r/a
+
+> 0.0 0.5 1.0 1.5 2.0
+> rdf  g(r)
+
+(a) 
+
+[100]      
+
+> neural DFT Lafuente-Cuesta GCMC
+> 0510 15 20 25
+
+r/a
+
+(b) 
+
+[110]      
+
+> 0510 15 20 25
+
+r/a
+
+(c) 
+
+[111] 
+
+FIG. 4. Directional pair distribution at matched bulk packing fraction ηb = 0 .3: (a) [100], (b) [110], and (c) [111]. GCMC symbols and standard errors are obtained from eight paired replicas after averaging all symmetry-equivalent rays. Neural and LC calculations use chemical potentials adjusted separately to reproduce the GCMC bulk density. The fixed particle excludes separations inside the central 5 × 5 × 5 cube. 
+
+is the principal bottleneck. For an isotropic continuum fluid, the present Oh projection would impose only the cubic subgroup of the full rotational symmetry; an O(3)-or E(3)-equivariant steerable construction would be more appropriate but also more difficult to implement 42 .Several extensions follow naturally. Learning an equiv-ariant scalar excess free energy would guarantee integra-bility, while pair-correlation matching or explicit sum-rule regularization could improve higher-order structure. Mul-tiscale receptive fields could describe longer-ranged corre-lations without an excessively large dense kernel. Finally, extending the training set to ordered phases, mixtures, and more complex confinement would test whether the present three-dimensional strategy can retain its accuracy beyond the single-component fluid regime. 
+
+ACKNOWLEDGMENTS 
+
+This work is supported by the Deutsche Forschungsge-meinschaft (DFG, German Research Foundation), project 535083866. 
+
+Appendix A: Learned kernels and principal components 
+
+The first convolution contains 32 effective kernels 
+
+Kq ∈ R7×7×7. Equation (12) makes every one of them constant on orbits of the cubic point group. For off-sets with components in {− 3, . . . , 3}, the 343 sites col-lapse to only 20 distinct orbits, labeled by sorted triples (|ux| , |uy | , |uz |) with 0 ≤ | ux| ≤ | uy | ≤ | uz | ≤ 3. The 32 filters are therefore different linear combinations of the same 20 symmetry-orbit sums. To quantify common structure among the filters, we −3 −2 −1 0 1 2 3                  
+
+> Δx
+> −3 −2 −1 0123
+> Δy
+> PC 1 (67.8%)
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> PC 2 (14.4%)
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> PC 3 (11.3%)
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> PC 4 (4.2%)
+> −0.10 −0.05 0.00 0.05 0.10
+
+FIG. 5. Central xy cuts through the first four principal com-ponents of the 32 effective first-layer kernels. Percentages give the fraction of centered kernel-to-kernel variance associated with each component. 
+
+flatten each effective 7 × 7 × 7 kernel to 343 entries, sub-tract the mean kernel across the 32 channels, and perform principal-component analysis by singular-value decompo-sition. This voxel-space procedure retains the natural multiplicity of each cubic orbit. The first four compo-nents account for 67 .76%, 14 .45%, 11 .30%, and 4 .17% of the centered across-kernel variance, respectively, for a cumulative 97 .68%. The principal components in Fig. 5 are orthonormal 8−3 −2 −1 0 1 2 3                                                                                                                                                                                          
+
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 0
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 1
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 2
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 3
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 4
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 5
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 6
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 7
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 8
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 9
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 10
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 11
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 12
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 13
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 14
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 15
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 16
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 17
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 18
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 19
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 20
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 21
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 22
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 23
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 24
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 25
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 26
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 27
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 28
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 29
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 30
+> −3 −2 −1 0123
+> Δx
+> −3 −2 −1 0123
+> Δy
+> kernel 31
+> −0.050 −0.045 −0.040 −0.035 −0.030 −0.025 −0.020
+
+FIG. 6. Central xy cuts ( uz = 0) through the 32 effective, cubic-symmetrized 7 × 7 × 7 kernels. The kernels are latent features optimized jointly with the pointwise network and should not individually be identified with FMT weight functions. TABLE I. Composition of the training corpus. Each density field is an average over 20 independent GCMC replicas. Gaussian amplitudes are in units of kBT ; all campaigns use αi ∈ [10 −3, 1]. campaign external environment Gaussian parameters sampled βμ 
+
+A periodic smooth field NG = 100, Ai ∈ [−3, 10] uniform in [ −2, 3] B periodic smooth field NG = 100, Ai ∈ [−3, 10] uniform in [ −2.5, 1.8] C smooth field and 10 hard cuboids NG = 50, Ai ∈ [−3, 2] uniform in [ −2.5, 1.8] D smooth field and six hard walls NG = 50, Ai ∈ [−3, 2] grid spanning [ −2.5, 2.0] 
+
+directions in kernel space, not additional trained filters. The cumulative 97 .68% means that most of the variation in first-layer kernel shapes lies in a four-dimensional lin-ear subspace around their mean. It does not mean that four components explain the same fraction of the network predictions, accuracy, or thermodynamic behavior; down-stream weights and nonlinearities determine how strongly each filter affects c(1) . The PCA nevertheless suggests additional empirical compression beyond the exact reduc-tion to 20 cubic orbits and motivates a controlled low-rank architecture study. Figure 6 shows the central xy cut of each effective kernel. The expected reflection and axis-exchange sym-metries are visible in every panel, while the radial and shell-like variations differ across channels. These kernels need not admit a unique physical interpretation: subse-quent pointwise layers form nonlinear combinations of all 32 responses. Nevertheless, the poor results of the preliminary 16-filter model are consistent with the need to combine a sufficiently varied set of local measurements. 
+
+Appendix B: External potentials used for training data generation 
+
+In Table I we list the different kinds of external po-tentials that were used for generating the profiles used during training, including ranges of sampled values. 
+
+1R. Evans, “The nature of the liquid-vapour interface and other topics in the statistical mechanics of non-uniform, classical fluids,” Adv. Phys. 28 , 143–200 (1979). 
+
+2N. D. Mermin, “Thermal properties of the inhomogeneous electron gas,” Phys. Rev. 137 , A1441–A1443 (1965). 
+
+3J. K. Percus, “Equilibrium state of a classical fluid of hard rods in an external field,” Journal of Statistical Physics 15 , 505–511 (1976). 
+
+4Y. Rosenfeld, “Free-energy model for the inhomogeneous hard-sphere fluid mixture and density-functional theory of freezing,” Phys. Rev. Lett. 63 , 980–983 (1989). 
+
+5R. Roth, “Fundamental measure theory for hard-sphere mixtures: a review,” J. Phys.: Condens. Matter 22 , 063102 (2010). 
+
+6H. Hansen-Goos and R. Roth, “Density functional theory for hard-sphere mixtures: the white bear version mark ii,” Journal of Physics: Condensed Matter 18 , 8413 (2006). 
+
+7J. F. Lutsko, “Explicitly stable fundamental-measure-theory mod-els for classical density functional theory,” Phys. Rev. E 102 ,062137 (2020). 9
+
+> 8
+
+M. G¨ ul, R. Roth, and R. Evans, “Using test particle sum rules to improve approximations in classical density functional the-ory: White-bear and white-bear mark ii versions of the lutsko functional,” Phys. Rev. E 113 , 034104 (2026). 
+
+> 9
+
+L. Lafuente and J. A. Cuesta, “Fundamental measure theory for lattice fluids with hard-core interactions,” J. Phys.: Condens. Matter 14 , 12079–12097 (2002). 
+
+> 10
+
+L. Lafuente and J. A. Cuesta, “Density functional theory for general hard-core lattice gases,” Phys. Rev. Lett. 93 , 130603 (2004). 
+
+> 11
+
+S.-C. Lin and M. Oettel, “A classical density functional from machine learning and a convolutional neural network,” SciPost Phys. 6, 025 (2019). 
+
+> 12
+
+S.-C. Lin, G. Martius, and M. Oettel, “Analytical classical density functionals from an equation learning network,” J. Chem. Phys. 
+
+152 , 021102 (2020). 
+
+> 13
+
+P. Cats, S. Kuipers, S. de Wind, R. van Damme, G. M. Coli, M. Dijkstra, and R. van Roij, “Machine-learning free-energy func-tionals using density profiles from simulations,” APL Mater. 9,031109 (2021). 
+
+> 14
+
+J. Dijkman, M. Dijkstra, R. van Roij, M. Welling, J.-W. van de Meent, and B. Ensing, “Learning neural free-energy functionals with pair-correlation matching,” Phys. Rev. Lett. 134 , 056103 (2025). 
+
+> 15
+
+M. M. Kelley, J. Quinton, K. Fazel, N. Karimitari, C. Sutton, and R. Sundararaman, “Bridging electronic and classical density-functional theory using universal machine-learned functional ap-proximations,” The Journal of Chemical Physics 161 , 144101 (2024). 
+
+> 16
+
+A. Simon and M. Oettel, “Machine learning approaches to clas-sical density functional theory,” in Artificial Intelligence and Intelligent Matter: Nanoscience, Soft Matter, Philosophy , edited by M. te Vrugt (Springer Nature Switzerland, Cham, 2026) pp. 83–113. 
+
+> 17
+
+A. Simon, J. Weimar, G. Martius, and M. Oettel, “Machine learning of a density functional for anisotropic patchy particles,” Journal of Chemical Theory and Computation 20 , 1062–1077 (2024). 
+
+> 18
+
+A. Simon, L. Belloni, D. Borgis, and M. Oettel, “The orientational structure of a model patchy particle fluid: Simulations, integral equations, density functional theory, and machine learning,” The Journal of Chemical Physics 162 , 034503 (2025). 
+
+> 19
+
+R. Pan, X. Fang, K. Azizzadenesheli, M. Liu-Schiaffini, M. Gu, and J. Wu, “Neural operators for forward and inverse potential–density mappings in classical density functional theory,” The Journal of Chemical Physics 163 , 164120 (2025). 
+
+> 20
+
+F. Samm¨ uller, S. Hermann, D. de las Heras, and M. Schmidt, “Neural functional theory for inhomogeneous fluids: Fundamentals and applications,” Proc. Natl. Acad. Sci. 120 , e2312484120 (2023). 
+
+> 21
+
+F. Samm¨ uller, S. Hermann, and M. Schmidt, “Why neural func-tionals suit statistical mechanics,” J. Phys.: Condens. Matter 36 ,243002 (2024). 
+
+> 22
+
+F. Samm¨ uller, M. Schmidt, and R. Evans, “Neural density func-tional theory of liquid-gas phase coexistence,” Phys. Rev. X 15 ,011013 (2025). 
+
+> 23
+
+S. Robitschko, F. Samm¨ uller, M. Schmidt, and R. Evans, “Learn-ing the bulk and interfacial physics of liquid–liquid phase separa-tion with neural density functionals,” The Journal of Chemical Physics 163 , 161101 (2025). 
+
+> 24
+
+A. T. Bui and S. J. Cox, “Learning classical density functionals for ionic fluids,” Phys. Rev. Lett. 134 , 148001 (2025). 
+
+> 25
+
+F. Samm¨ uller and M. Schmidt, “Neural density functionals: Lo-cal learning and pair-correlation matching,” Phys. Rev. E 110 ,L032601 (2024). 
+
+> 26
+
+S. M. Kampa, F. Samm¨ uller, M. Schmidt, and R. Evans, “Metadensity functional theory for classical fluids: Extracting the pair potential,” Phys. Rev. Lett. 134 , 107301 (2025). 
+
+> 27
+
+S. M. Kampa, F. Samm¨ uller, and M. Schmidt, “Metadensity functional learning for classical fluids: Regularizing with pair correlations,” The Journal of Physical Chemistry B 130 , 6231– 6244 (2026), pMID: 42240207. 
+
+> 28
+
+S. M. Kampa, M. Schmidt, and F. Samm¨ uller, “Spherical metaden-sity functional learning for inhomogeneous classical fluids,” arXiv preprint arXiv:2606.14370 (2026). 
+
+> 29
+
+F. Samm¨ uller, S. Robitschko, S. Hermann, and M. Schmidt, “Hyperdensity functional theory of soft matter,” Phys. Rev. Lett. 
+
+133 , 098201 (2024). 
+
+> 30
+
+F. Samm¨ uller and M. Schmidt, “Why hyperdensity functionals describe any equilibrium observable,” J. Phys.: Condens. Matter 
+
+37 , 083001 (2024). 
+
+> 31
+
+F. Samm¨ uller and M. Schmidt, “Determining the chemical poten-tial via universal density functional learning,” Phys. Rev. Lett. 
+
+136 , 068202 (2026). 
+
+> 32
+
+A. T. Bui and S. J. Cox, “A first-principles approach to elec-tromechanics in liquids,” Journal of Physics: Condensed Matter 
+
+37 , 285101 (2025). 
+
+> 33
+
+A. T. Bui and S. J. Cox, “Dielectrocapillarity for exquisite control of fluids,” Nature Communications 17 , 2661 (2026). 
+
+> 34
+
+A. T. Bui and S. J. Cox, “A unified machine-learning framework for ab initio multiscale modeling of liquids,” Proceedings of the National Academy of Sciences 123 , e2610049123 (2026). 
+
+> 35
+
+K. L. Y. Zhou, A. T. Bui, and S. J. Cox, “Roles of bulk and surface thermodynamics in the selective adsorption of a confined azeotropic mixture,” The Journal of Physical Chemistry B 130 ,4455–4466 (2026). 
+
+> 36
+
+F. Glitsch, J. Weimar, and M. Oettel, “Neural density functional theory in higher dimensions with convolutional layers,” Phys. Rev. E 111 , 055305 (2025). 
+
+> 37
+
+S. K. Mitra and A. R. Allnatt, “Approximate and exact virial coefficients for hard rectangular parallelepipeds and cubes on a simple cubic lattice,” The Journal of Chemical Physics 71 ,2105–2108 (1979). 
+
+> 38
+
+J. R. Davis, M. V. Piccarreta, R. B. Rauch, T. K. Vanderlick, and A. Z. Panagiotopoulos, “Phase behavior of rigid objects on a cubic lattice,” Industrial & Engineering Chemistry Research 45 ,5421–5425 (2006). 
+
+> 39
+
+H. C. M. Fernandes, Y. Levin, and J. J. Arenzon, “Equation of state for hard-square lattice gases,” Physical Review E 75 , 052101 (2007). 
+
+> 40
+
+N. Vigneshwar, D. Mandal, K. Damle, D. Dhar, and R. Rajesh, “Phase diagram of a system of hard cubes on the cubic lattice,” Physical Review E 99 , 052129 (2019). 
+
+> 41
+
+T. Cohen and M. Welling, “Group equivariant convolutional networks,” in Proceedings of the 33rd International Conference on Machine Learning , Proceedings of Machine Learning Research, Vol. 48 (PMLR, 2016) pp. 2990–2999. 
+
+> 42
+
+M. Weiler, M. Geiger, M. Welling, W. Boomsma, and T. S. Cohen, “3D steerable CNNs: Learning rotationally equivariant features in volumetric data,” in Advances in Neural Information Processing Systems , Vol. 31 (Curran Associates, Inc., 2018). 
+
+> 43
+
+J. K. Percus, “Approximation methods in classical statistical mechanics,” Phys. Rev. Lett. 8, 462–463 (1962).

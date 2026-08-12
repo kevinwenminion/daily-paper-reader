@@ -1,0 +1,918 @@
+Title: Optimizing Parameterized Physics-Informed Neural Networks to Solve Multilayered Static Linear Elastic PDEs
+
+URL Source: https://arxiv.org/pdf/2608.09981v1
+
+Published Time: Wed, 12 Aug 2026 00:02:15 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+# Optimizing Parameterized Physics-Informed Neural Networks to Solve Multilayered Static Linear Elastic PDEs 
+
+Hanbo Song ∗
+
+Bellarmine College Preparatory 
+
+San Jose, US me@hanbosong.com Joseph Lim ∗
+
+Bellarmine College Preparatory 
+
+San Jose, US joey@josephdlim.com Zhen Zhang 
+
+Division of Applied Mathematics Brown University 
+
+Providence, US zhen zhang2@brown.edu 
+
+Abstract —Designing multilayered materials for controlled de-formation is heavily bottlenecked by the immense computational costs and time of traditional, industrial-grade finite element methods (FEM). This excessive expense severely limits design space exploration and gradient-based optimization. To stream-line the workflow, we propose a framework for parameterized physics-informed neural networks (P2INNs). The framework encompasses three core components: I. a FEM baseline with a Hex8 element and trilinear basis functions, II. a P2INN displacement field model across variable material stiffness and layer thicknesses, and III. FEM-referenced evaluation. The PINN enforces static linear elasticity via Navier-Cauchy residuals with training strategies that prioritize physics, including layerwise PDE decomposition, interface continuity penalty, and compliance aware scaling. For one-layer, pure physics-driven configurations, the PINN achieves a mean volume MAE of 1.56% and worst-case volume MAE of 2.87% against the FEM benchmark. For three-layer configurations with controlled supervised training, the PINN achieves a mean volume MAE of 2.53% and worst-case volume MAE of 4.66%, meeting the near-5% worst-case volume-MAE target for preliminary design-space exploration. The trained P2INN model remains a lightweight model with a simple forward pass for future calculations, creating an alternative to traditional FEM. By drastically reducing the need for expensive FEM evaluations, this approach could accelerate the inverse design and optimization of advanced layered architectures for protective structures in various load-heavy or potentially collision-heavy fields. 
+
+Index Terms —physics-informed neural networks, static linear multilayer elasticity, finite element method, parameterized partial differential equations 
+
+I. I NTRODUCTION 
+
+The application of physics-informed neural networks (PINNs) to solid mechanics problems has garnered significant attention in coordination with scientific machine learning [1], [2]. PINNs, developed by Raissi et al. [1], offer the potential to solve partial differential equations (PDEs) without requiring traditional mesh-based discretization, while simultaneously enforcing physical constraints through penalties embedded into the neural network’s loss function penalties. However, achieving reliable accuracy for practical engineering problems, particularly those involving parametric variations in geometry and material properties, remains challenging [3], [4]. These challenges have been analyzed from multiple perspectives [5]. This paper addresses the specific problem of simulating the behavior of multilayer elastic plate-like structures under surface loading. Such configurations could arise in numerous engineering contexts, including composite materials, protec-tive armor systems, and automobile structural integrity. The core challenge lies in developing a parametric model that can predict mechanical response across variations in Young’s modulus and thickness over many layers while maintaining physical consistency and quantitative verification versus suc-cessful numerical solutions. We create a workflow that integrates a trusted and qualified FEM baseline built on linear elasticity theory, a parametrized PINN displacement field model with controlled and designed physics constraints, an automated FEM-referenced evaluation for quantitative assessment, and a lightweight surrogate model for rapid design-space exploration [6]. In this paper, we will discuss the following: A. technical background on FEM and PINNs, B. related works [7]–[9], their shortcomings, and how work is distinguished from prior solutions, Physics-constrained surrogates without simulation data have been demonstrated [10], and physics-constrained learning extends to climate downscaling [11]. C. presenting the problem formulation, D. the specifics of the workflow and detailing PINN architecture with its physics constraints, E. the FEM baseline and evalua-tion methodology, F. final tuned configuration and results, and end with G. significance, limitations, conclusions, and future works. 
+
+A. Finite Element Method for Linear Elasticity 
+
+The finite element method provides the numerical founda-tion for our verification baseline. For linear elasticity problems, 8-node hexahedral elements with trilinear shape functions represent the standard discretization approach [12], [13]. The strong form of static equilibrium is 
+
+−∇ · σ = f in Ω, (1) where f is the body force. The weak form of the equilibrium equations is obtained by multiplying the strong form by test arXiv:2608.09981v1 [cs.CE] 4 Aug 2026 functions and integrating over the domain, yielding: 
+
+Z
+
+> Ω
+
+σ : ε(v) dΩ = 
+
+Z
+
+> Ω
+
+f · v dΩ + 
+
+Z
+
+> Γt
+
+t · v dΓ (2) where v represents test functions, f is the body force, and t is the traction on the Neumann boundary Γt. Element stiffness matrices are assembled via Gaussian quadrature, with material properties assigned based on element centroid positions for multilayer configurations. The FEM implementation in our workflow follows the established practices. The element stiffness matrix is computed via Gaussian quadrature with the analytical isoparametric formulation. For multilayer problems, material properties are assigned to elements based on their centroid location rela-tive to layer interfaces. Hughes [12] provides comprehensive overview of linear static and dynamic finite element method-ology, while Zienkiewicz et al. [13] establish the theoretical foundations including convergence analysis and error estima-tion. The FEM solution, while subject to minor discretization error, provides a trusted baseline against which PINN predic-tions can be accurately and quantitatively assessed. 
+
+B. Physics-Informed Neural Networks 
+
+Physics-informed neural networks [1], embed PDE residuals into the loss functions of neural networks during automatic differentiation. The fundamental approach minimizes a com-posite loss function: 
+
+L(θ) = 
+
+Z
+
+> Ω
+
+D[uθ ]( x) − f (x) 2 dx 
+
++ λ
+
+Z
+
+> ∂Ω
+
+B[uθ ]( x) − g(x) 2 dσ (x) (3) where D is the differential operator, B is the boundary operator, and uθ represents the neural network approximation with parameters θ. In other words, training loss is defined as the sum of the physics loss and boundary loss. This setup enables a mesh-free solution for PDEs while encoding physical constraints directly into the learning process [2], [14], [15]. Alternative physics-informed architectures include extreme learning machines [16]. The majority of PINN research has focused on fluid me-chanics applications [17]. PINNs for hidden fluid mechanics [18] and NSFnets [19] provided special architectures, and they have been thoroughly reviewed [20]. Data-driven discovery of governing equations complements direct formulations [21], and spectral analysis of turbulence has informed related ap-proaches [22]. For solid mechanics applications, PINNs enforce equilib-rium equations (such as those present in continuum mechanics, fluid dynamics, and thermodynamics), constitutive relations, and boundary conditions through soft penalty terms. Early work by Lagaris et al. [14] and Yu et al. [23] demonstrated neural network solutions for differential equations, while the Deep Ritz method [15] provided a variational framework for boundary value problems. Energy-based problems [24], hyper-elasticity applications [25], and transfer learning approaches [26] have further extended the methodology to nonlinear realms, although the main focus of this paper remains time-independent linear elastic equilibrium. Extensions to stiff problems have been explored [27], and coupled PDE-PDE systems have also been addressed [28]. Over time, PINNs have garnered substantial academic progress regarding their accuracy, including introducing variation energy into the loss terms of the neural network [29]. Fractional derivatives have been incorporated into physics-informed frameworks [30]. But significant challenges remain. Wang et al. [3] and Krish-napriyan et al. [4] demonstrates that PINNs fail in challenging physical setups due to optimization difficulties. These findings motivated our approach with carefully designed loss weights and architecture selection. 
+
+C. Parametric PDEs, Neural Operators, and Domain Decom-position 
+
+Parametric PINNs, introduced by Cho et al. [31], extend the scope of a traditional PINN by treating material properties, geometric parameters, or boundary conditions as additional network inputs [31]–[33]. Parametric learning with sparse data has been investigated [34]. This enables a single trained model to generalize across a broader, similar family of design spaces, effectively learning to reach an accurate solution over a parameterized domain. However, generalizing over parameters introduces extra complexity since parameters induce signifi-cant variations in solution magnitude or spatial structure [35]. Neural operator methods offer an alternative paradigm for parametric PDEs. DeepONet [32] leverages the universal ap-proximation theorem for operators, using branch and trunk networks to map input functions to output solutions, most with non-linear solutions. Fourier Neural Operators (FNO) [33] operate in the spectral domain, achieving computational efficiency through Fast Fourier Transform with O(N log N )
+
+complexity. Physics-informed DeepONets [35] combine oper-ator learning with physics constraints. While these methods excel at learning relations between function spaces and map-ping them, they typically require substantial training data and may lack a grounded, physics-based constraint. For more complex geometries, domain decomposition meth-ods partition the domain into subregions with separate neural networks. Parallel PINNs [36] assigned different networks to different subdomains and exchange information during train-ing. Combining machine learning with domain decomposition [37] leverages classical Schwarz and iterative substructuring methods. 
+
+D. Boundary and Interface Conditions 
+
+Boundary conditions, in the context of PINNs, are con-straints on their solutions spatially and temporally on the boundaries of the domain, which is essential for defining a physical problem. There are two types of BCs enforced: soft constraints [38] through the loss function, where penalty terms discourage solutions that violate the BCs, or hard constraints [39] through modifying the architecture of the network. En-forcing precise BC remains a challenge for PINNs, espe-(a) One-layer configuration ( NL = 1 )              
+
+> xyz
+> Lx= 1.0 Ly= 1.0
+> Load: p0= 1.0
+> x,y[Lx/3, 2 Lx/3]
+> E1,t1=H= 0.1
+> Clamped
+> u=0
+> = { E1,t1}
+
+(b) Three-layer configuration ( NL = 3 )                                    
+
+> xyz
+> Lx= 1.0
+> Load: p0= 1.0
+> x,y[Lx/3, 2 Lx/3]
+> Layer 1: E1= 10.0
+> t1= 0.05 (steel-like) Layer 2: E2= 1.0
+> t2= 0.03 (polymer-like) Layer 3: E3= 5.0
+> t3= 0.02 (aluminum-like)
+> Clamped
+> u=0
+> = { E1,t1,E2,t2,E3,t3}
+> Material Parameters : Ei: Young modulus = 0.3 (Poisson ratio) |Parameter Ranges : Ei[1.0, 10.0] ti[0.05, 0.15] (one-layer) / [0.02, 0.10] (three-layer)
+
+Fig. 1: Example problem schematic for a physics-driven parametrized one-layer and three layer elastic plate. (a) One-layer configuration ( NL = 1 ): a single homogeneous plate of thickness t1 = H = 0 .1 with Young’s modulus E1. (b) Three-layer configuration ( NL = 3 ): a plate partitioned into three layers with varied thicknesses t1 = 0 .05 , t2 = 0 .03 , t3 = 0 .02 and independent moduli (to resemble real-life materials) E1 = 10 .0 (steel-like), E2 = 1 .0 (polymer-like), E3 = 5 .0 (aluminum-like). Both configurations share the same in-plane dimensions Lx = Ly = 1 .0, a distributed load p0 = 1 .0 over the central top-surface patch, and clamped side boundaries ( u = 0). The validated ranges of the parameters are: Ei ∈ [1 .0, 10 .0] , ti ∈ [0 .05 , 0.15] 
+
+(one-layer) / [0 .02 , 0.10] (three-layer), ν = 0 .3.cially in multilayered structures, where interface conditions between layers present particular challenges. A solution was to strengthen interface sampling with dedicated loss terms, and boundary logic is further improved with PDE decomposition through soft and hard constraints. 
+
+E. Error Estimation 
+
+Recent work has addressed error estimation and adaptivity for PINNs. Error estimation frameworks [40] provide posteri-ori bounds on the solution error. Adaptive sampling strategies [40] refine collocation points in high-error regions. General-ization error estimates [41] characterize how PINN solutions converge to true PDE solutions as network capacity increases. Our FEM-referenced evaluation protocol provides quantitative error assessment against a baseline. The normalized MAE metric enables comparison across parameter regimes with widely varying displacement magnitudes, providing a scale-invariant evaluation criterion. 
+
+F. Training Algorithms and Optimization 
+
+PINN training typically proceeds in two phases: Adam optimization [42] for initial exploration followed by L-BFGS refinement [43] for convergence. Adam, the original and universal optimization method, adapts learning rates per pa-rameter using first and second moment estimates, while L-BFGS approximates the Hessian matrix for faster convergence near minima. Self-adaptive strategies [44] dynamically adjust loss weights during training to balance competing objectives. Some alternatives include SOAP, developed by Vyas et al. [45], where the highly effectiveness of Shampoo is coupled with the cheap computational costs of Adam, creating an optimizer that continuously updates the running average of the second moment, but only in the changing coordinate basis. Our work includes the incorporation of the SOAP optimizer for its efficiency and ability to navigate larger model sizes when compared to Adam and its variants. II. P ROBLEM FORMULATION 
+
+A. Domain and Geometry 
+
+We consider a 3D rectangular plate with nominal dimen-sions 
+
+Lx = 1 .0, Ly = 1 .0, H = 0 .1 (4) in normalized units. The domain is partitioned into NL layers in the thickness direction. For a one-layer configuration: The total thickness is as-signed as a single layer with thickness t1 such that 
+
+t1 = Htotal . (5) Similarly, with a three-layer configuration: The total thick-ness is partitioned into three layers with thicknesses t1, t2,and t3 such that 
+
+t1 + t2 + t3 = Htotal . (6) For both problem setups, each layer is assigned an inde-pendent Young’s modulus Ei, with Poisson’s ratio ν = 0 .3
+
+held constant across all layers. A distributed load of magnitude 
+
+p0 = 1 .0 is applied over a rectangular patch on the top surface: 
+
+x ∈
+
+ Lx
+
+3 , 2Lx
+
+3
+
+
+
+, y ∈
+
+ Ly
+
+3 , 2Ly
+
+3
+
+
+
+. (7) B. Governing Equations 
+
+The governing physics is static linear elasticity. The strain-displacement relation is 
+
+ε(u) = 12
+
+ ∇u + ∇uT  , (8) where u = ( ux, u y , u z ) is the displacement field. The consti-tutive relation follows Hooke’s law: 
+
+σ = λ tr (ε)I + 2 με, (9) with Lam´ e parameters 
+
+λ = Eν 
+
+(1 + ν)(1 − 2ν) , μ = E
+
+2(1 + ν) . (10) where σ is the stress tensor; λ is Lam´ e’s First Parameter, representing the relationship between stress and volumetric strain; and μ is Lam´ e’s Second Parameter, representing the shear modulus or rigidity modulus of a material. Static equilibrium requires 
+
+−∇ · σ = 0 in Ω. (11) Boundary conditions include: (i) clamped (zero displace-ment) side faces at x = 0 , x = Lx, y = 0 , y = Ly ; (ii) traction-free top and bottom surfaces outside the load patch; (iii) prescribed normal traction −p0 over the load patch. 
+
+C. Parameterization 
+
+One-layer configuration: The PINN accepts spatial coordi-nates (x, y, z ) and a parameter vector 
+
+μ1L = [ E1, t 1]. (12) Three-layer configuration: The PINN accepts spatial coor-dinates (x, y, z ) and a parameter vector 
+
+μ3L = [ E1, t 1, E 2, t 2, E 3, t 3]. (13) The validated scope focuses on static linear elasticity with 
+
+NL ∈ { 1, 3} layers, with material and geometric parameters in the ranges Ei ∈ [1 .0, 10 .0] and ti ∈ [0 .02 , 0.10] for the three-layer model. The range for Young’s modulus remains the same for the one-layer model, but the thickness range becomes 
+
+t ∈ [0 .05 , 0.15] . While it is possible to parametrize restitution, friction coefficient, and impact velocity of a specific problem setup in the codebase since the infrastructure accepts addi-tional dynamic parameters, these values are held constant and do not contribute to the verified solution for static elasticity. A complete visualization of both problem setups can be found at Figure 1. III. W ORKFLOW ARCHITECTURE 
+
+The workflow comprises three interconnected components, depicted conceptually as a processing pipeline. 
+
+A. FEM Baseline Generation 
+
+The FEM solver uses 8-node hexahedral (brick) elements with trilinear basis functions. Stiffness matrix assembly fol-lows standard procedures with 2-point Gaussian quadrature in each coordinate direction [12]. Clamped boundary conditions on side faces are enforced via penalty methods. The solver outputs nodal coordinates and displacement fields for verifica-tion. For multilayer configurations, the solver assigns element stiffness matrices based on layer membership determined by element centroid positions. This ensures material discontinu-ities are captured at layer interfaces. The load patch may use a smooth distribution such as 
+
+m(x, y ) = 16 · ξ(1 − ξ) · η(1 − η), (14) where ξ and η are normalized coordinates within the patch. This smooth distribution represents one example of a patch load formulation that avoids discontinuities. 
+
+B. PINN Training 
+
+The PINN is trained to minimize a weighted combination of PDE residual, boundary condition, interface continuity, and optional supervised data losses. Training proceeds in two phases: SOAP optimization for initial exploration followed by L-BFGS refinement for convergence in three-layer model and disabled in the one-layer model [45], [46]. 
+
+C. Automated Evaluation 
+
+Evaluation performs systematic sweeps over parameter ranges, computing volume mean absolute error (VolMAE) between PINN predictions and FEM reference solutions. The metric is defined as 
+
+VolMAE( c) = 100 
+
+> 13Nc
+
+PNc 
+
+> j=1
+
+u(c) 
+
+> θ
+
+(xj ) − u(c)FEM (xj ) 1
+
+max 1≤j≤Nc, q ∈{ x,y,z } u(c)FEM ,q (xj )
+
+.
+
+(15) The mean includes all three displacement components at every node of the complete three-dimensional evaluation mesh. This normalization enables meaningful comparison across parameter regimes with widely varying displacement magni-tudes. All quantitative PINN-vs-FEM comparisons use the volume mean absolute error (VolMAE) computed over the same set of evaluation points for a fixed parameter configuration. For configuration c, with PINN displacement prediction u(c) 
+
+> θ
+
+(xj )
+
+and FEM displacement reference u(c)FEM (xj ) at Nc sampled points, we calculate VolMAE with Equation (15). For a parameter sweep containing M configurations, the reported mean volume MAE and worst-case volume MAE are 
+
+Mean VolMAE = 1
+
+M
+
+> M
+
+X
+
+> c=1
+
+VolMAE( c), (16) 
+
+Worst VolMAE = max  
+
+> 1≤c≤M
+
+VolMAE( c). (17) Thus, “Mean VolMAE” denotes the average normalized error across the evaluated parameter sweep, while “Worst VolMAE” denotes the largest normalized error observed among those configurations. The same definitions are used for the verifica-tion and ablation tables below. IV. PINN A RCHITECTURE 
+
+A. Network Architecture 
+
+The baseline PINN uses a multilayer perceptron with 4 hidden layers of 64 neurons each, with hyperbolic tangent activation. The network predicts a 3-component displacement field. 
+
+B. Input Normalization 
+
+Spatial coordinates and material parameters are normalized to [0 , 1] based on their specified ranges. The through-thickness coordinate is normalized as 
+
+ˆz = zHeff 
+
+(18) where Heff = t1 for the one-layer model and Heff = t1 +t2 +t3
+
+for the three-layer model. In the latter cases, the value will vary on different parametric verifications, but will always be normalized to between 0 and 1. 
+
+C. Layerwise Material Handling 
+
+For the three-layer model, material properties vary discon-tinuously across layer interfaces. Input features encode layer boundaries: normalized signed distances to interfaces 
+
+˜z1 = z − t1
+
+H , ˜z2 = z − t1 − t2
+
+H , (19) and soft layer indicators σ(β ˜zi) with β = 20 . These differen-tiable indicators enable gradient-based training across material discontinuities. For physics computations, the constitutive law uses layer-specific stiffness selected by spatial position: 
+
+Elocal (z) = 
+
+
+
+E1, z ≤ t1
+
+E2, t1 < z ≤ t1 + t2
+
+E3, z > t 1 + t2
+
+(20) 
+
+D. Compliance Scaling 
+
+The network output v is converted to physical displacement via a 
+
+u = v × 1
+
+Ep
+
+> eff
+
+×
+
+ Href 
+
+Heff 
+
+α
+
+(21) where Eeff = E1 (one-layer) or Eavg = ( E1 + E2 + E3)/3
+
+(three-layer), Href = 0 .1, with α = 1 .234 , p = 0 .973 for the one-layer model and α = 3 .0, p = 0 .95 for the three-layer model. 
+
+E. Boundary Condition Handling 
+
+Side boundaries are clamped ( u = 0). Hard enforcement applies a multiplicative mask: 
+
+umasked = 16 · x(1 − x) · y(1 − y) · uraw . (22) Both models enforce hard boundary conditions through clamped-side displacements enforcement with hard-masks (an-alytically zeroing displacement at x = 0 , x = 1 , y = 0 , y = 1 ), supplemented by a soft penalty loss. In the design space, these enforcements are enforced on the side walls. Meanwhile, soft enforcement then adds boundary residual penalties to the loss function to enforce displacement. Traction boundary conditions on the top and bottom surfaces are enforced purely as soft penalties. 
+
+F. Loss Functions 
+
+The total loss combines six terms: 
+
+Ltotal = wPDE LPDE + wBC LBC + wload Lload 
+
++ wenergy Lenergy + winterface Linterface + wdata Ldata . (23) PDE Residual Loss. Enforces static equilibrium ∇ · σ = 0
+
+at interior collocation points: 
+
+LPDE = 1
+
+N1
+
+X
+
+> i∈Ω1
+
+r2 
+
+> i
+
++ 1
+
+N2
+
+X
+
+> i∈Ω2
+
+r2 
+
+> i
+
++ 1
+
+N3
+
+X
+
+> i∈Ω3
+
+r2 
+
+> i
+
+, (24) where ri = −∇ · σ(xi) · Href is the scaled residual and Ωk
+
+denotes collocation points in layer k.Boundary Condition Loss. Enforces zero displacement on clamped side boundaries ( x = 0 , L x and y = 0 , L y ): 
+
+LBC = 1
+
+Nsides 
+
+> Nsides
+
+X
+
+> i=1
+
+∥u(xi)∥2, xi ∈ Γsides . (25) Load Patch Traction Loss. Enforces prescribed downward traction p0 on the central load patch: 
+
+Lload = 1
+
+Nload 
+
+> Nload
+
+X
+
+> i=1
+
+∥T(xi) − tprescribed ∥2, xi ∈ Γload , (26) where T = σ · n is the traction vector and tprescribed =[0 , 0, −p0]⊤ on the load patch. Energy Consistency Loss. Enforces balance between inter-nal strain energy and external work: 
+
+Lenergy = 12 ⟨σ, ε⟩Ωh − (−p0)⟨uz ⟩Γload Apatch , (27) where ⟨·⟩ denotes the mean over collocation points and Apatch 
+
+is the load patch area. Interface Continuity Loss. Enforces continuity of the full traction vector across layer interfaces. 
+
+Linterface =
+
+> 2
+
+X
+
+> k=1
+
+Ex∈Γk
+
+h  
+
+σ(k) 
+
+> xz
+
+− σ(k+1) 
+
+> xz
+
+2
+
++
+
+
+
+σ(k) 
+
+> yz
+
+− σ(k+1) 
+
+> yz
+
+2
+
++
+
+
+
+σ(k) 
+
+> zz
+
+− σ(k+1) 
+
+> zz
+
+2 i
+
+,
+
+(28) where Γk denotes the interface between layers k and k + 1 ,and the loss is evaluated at interface collocation points. Data Supervision Loss. Penalizes deviation from sparse FEM reference data: 
+
+Ldata = 1
+
+Ndata 
+
+> Ndata
+
+X
+
+> i=1
+
+∥vpred (xi) − vtarget (xi)∥2, (29) where vtarget = uFEM /compliance scale (E, t ) maps physical displacement to the network’s compliance-scaled space. V. FEM R EFERENCE SOLVER AND EVALUATION 
+
+PROTOCOL 
+
+A. FEM Reference Solver 
+
+The FEM baseline serves as the numerical reference for all verification experiments. The solver uses 8-node brick ele-ments with trilinear shape functions, and the element stiffness matrix is assembled via Gaussian quadrature with the analyt-ical isoparametric formulation. For multilayer configurations, elements are assigned material properties according to their centroid location relative to the layer interfaces. This con-struction enables piecewise-constant elastic properties across the thickness while preserving a standard linear-elastic finite-element formulation. Although, the solver is not flawless and still remains subject to minor discretization errors. However, these errors remain insignificant, proving the baseline to be a qualified verification metric. 
+
+B. FEM Baseline Validation 
+
+To validate the FEM baseline for its accuracy, a mesh convergence study was performed on representative cases. Figure 2 shows peak displacement v. mesh refinement, as well as relative error v. mesh size for both one-layer ( E = 10 , t =0.05 ) and three-layer ( E = [10 , 10 , 10] , t = [0 .02 , 0.10 , 0.02] )configurations. In both cases, the solution converges monoton-ically as mesh density increases. The benchmark mesh (16 x 16 x 8) was selected to balance accuracy and computational cost. Subsequent PINN and FEM comparisons are performed on identical meshes to ensure consistency. The study confirms that the solver behaves correctly. Since the convergence error remains low, it can thus be concluded that the FEM model converges successfully and thus can act as a trustworthy baseline. The relative L2 error metric for the varying FEM mesh sizes are calculated as follows: 
+
+∥e∥rel  
+
+> L2
+
+= 100 ×
+
+qR
+
+> Ω
+
+(uh − uref )2 dΩ
+
+qR 
+
+> Ω
+
+u2 
+
+> ref
+
+dΩ
+
+, (30) where uh denotes the FEM solution on a mesh with char-acteristic size h, uref denotes the FEM solution on the finest reference mesh ( 32 × 32 × 16 ), and dΩ = dx dy dz is the volume element. On the uniform evaluation grid, this integral is approximated by the discrete sum 
+
+Z
+
+> Ω
+
+f d Ω ≈
+
+> Nx
+
+X
+
+> i=1
+> Ny
+
+X
+
+> j=1
+> Nz
+
+X
+
+> k=1
+
+f (xi, y j , z k) ∆ x∆y∆z. (31) 
+
+C. Evaluation Regime 
+
+To assess parametric generalization, we deploy two evalua-tion protocols. For the one-layer model, 100 random interior configurations were sampled uniformly from 
+
+E ∈ [1 .0, 10 .0] , t ∈ [0 .05 , 0.15] ,
+
+For the three-layered model, 100 random interior configu-rations were sampled from 
+
+Ei ∈ [1 .0, 10 .0] , ti ∈ [0 .02 , 0.10] , i ∈ { 1, 2, 3}.
+
+Both primary verification studies use 100 uniformly sampled random interior parameter configurations, the fixed random seed 0430, a 16 × 16 × 8 element FEM mesh, 2,601 evaluation nodes, and all three displacement components. For each con-figuration, FEM reference solutions are computed on the same mesh resolution used for representative visualization cases. Performance is quantified using the volume mean absolute error in Equation (15), which enables meaningful comparison across regimes with widely varying displacement magnitudes. Displacement errors are evaluated over all three displacement components at every node of the three-dimensional evaluation mesh. 
+
+D. Computational Cost and Efficiency 
+
+A central motivation for the PINN framework is to reduce the computational costs over repeated testing in conventional FEM solvers. Since they require a new calculation for every test case rather than a simple forward pass post-training, FEM’s high-level costs lie in its inability to be quickly reused. The FEM baseline solves a linear system for each distinct parameter configuration. For the 16 × 16 × 8 hexahedral mesh used in verification (2048 elements, 17x17x9 = 2601 nodes before constraints), a single Python-based FEM solve requires stiffness-matrix assembly via 2 × 2 × 2 Gaussian quadrature followed by a direct linear solve. Each such solve constitutes an independent computation. The PINN, by contrast, front-loads computation into a one-time training phase that could be generalized over a large parameterized design space. The final model is trained for 400 SOAP epochs with ∼43,000 collocation points per batch on a 4-layer, 64-neuron MLP. Once trained, inference reduces to a single forward pass that evaluates the displacement field at an arbitrary or user-selected parameter configuration. This requires only matrix-vector products through the network, independent of the PDE discretization. Table I and Table II contrast the two approaches for a single-case evaluation as well as a finer parameter sweep with 10 6
+
+configurations representative of a practical design exploration. Each configuration is stochastically chosen through Monte Carlo sampling, and the fine sweep test conservatively models that. In all cases, the PINN avoids repeated assembly-solve cycles, which becomes burdensome for a fine-mesh FEM. The key efficiency distinction is not just the speed of a single solve, since the coarse FEM mesh remains small, but rather the scaling with design space cardinality. As shown through the 10 1 3 × 10 2   
+
+> 4 × 10 2
+> 6 × 10 2
+> 2 × 10 1
+
+Mesh size h = 1/ ne, x 
+
+> 10 1
+> 10 0
+> 10 1
+> Relative error in peak  |uz| vs 32 ×32 ×16 (%)
+> Benchmark 16 ×16 ×8
+
+(a) One-Layer: Peak Displacement Convergence 
+
+E = 1 , t = 0.15          
+
+> Peak |uz|convergence Reference: 32 ×32 ×16 O( h2) reference
+> 10 13 × 10 2
+> 4 × 10 2
+> 6 × 10 2
+> 2 × 10 1
+
+Mesh size h 
+
+> 10 1
+> 10 0
+> 10 1
+> 10 2
+> Relative  L 2 error vs 32 ×32 ×16 (%)
+> Benchmark 16 ×16 ×8
+
+(b) One-Layer: L 2 Convergence Rate 
+
+E = 1 , t = 0.15           
+
+> FEM L2convergence Reference: 32 ×32 ×16 O( h2) reference
+> 10 13 × 10 2
+> 4 × 10 2
+> 6 × 10 2
+> 2 × 10 1
+
+Mesh size h = 1/ ne, x 
+
+> 10 1
+> 10 0
+> 10 1
+> Relative error in peak  |uz| vs 32 ×32 ×16 (%)
+> Benchmark 16 ×16 ×8
+
+(c) Three-Layer: Peak Displacement Convergence 
+
+E = [10, 10, 10] , t = [0.02, 0.10, 0.02]          
+
+> Peak |uz|convergence Reference: 32 ×32 ×16 O( h2) reference
+> 10 13 × 10 2
+> 4 × 10 2
+> 6 × 10 2
+> 2 × 10 1
+
+Mesh size h 
+
+> 10 1
+> 10 0
+> 10 1
+> 10 2
+> Relative  L 2 error vs 32 ×32 ×16 (%)
+> Benchmark 16 ×16 ×8
+
+(d) Three-Layer: L 2 Convergence Rate 
+
+E = [10, 10, 10] , t = [0.02, 0.10, 0.02]     
+
+> FEM L2convergence Reference: 32 ×32 ×16 O( h2) reference
+
+FEM Solver Validation: Mesh Convergence Study Reference: 32 x 32 x 16 mesh Fig. 2: FEM baseline validation: peak displacement and relative L2 error versus mesh size for one-layer and three-layer configurations, demonstrating monotonic convergence. TABLE I: One-Layer Model (Physics-Driven) v. FEM 
+
+Stage FEM P2INN 
+
+Per-configuration eval 1 assembly + 1 solve 1 forward pass Training (one-time) — 6.2 min Time per eval 0.47 s 0.0025 s Post-training cost O(N ) solves O(N ) forward passes 
+
+Speedup 188 ×
+
+Fine sweep ( 10 6 configs) 10 6 solves 10 6 queries Total time 132 hrs 0.8 hrs 
+
+TABLE II: Three-Layer Model (Data + Physics) v. FEM 
+
+Stage FEM P2INN 
+
+Per-configuration eval 1 assembly + 1 solve 1 forward pass Training (one-time) — 1.57 min Time per eval 0.44 s 0.0030 s Post-training cost O(N ) solves O(N ) forward passes 
+
+Speedup 149 ×
+
+Fine sweep ( 10 6 configs) 10 6 solves 10 6 queries Total time 122.4 hrs 0.9 hrs 
+
+temporal comparisons between the two methods over larger numbers of solves, the PINN severely outperforms the FEM for design space fine sweeps. For parametric optimization, where gradient-based search may require thousands to millions of function evaluations, the PINN’s millisecond forward pass efficiency replaces a repeated FEM assembly-solve cycle. It is also important to note that the training interval for the three-layered model is shorter than that of the one-layered model. But this originates from the existence of data super-vision that was lacking in the one-layered model. The three-layered model, guided by partial supervision data, requires less training epochs and thus less temporal requirements for convergence. 
+
+E. Sparse FEM Supervision 
+
+In addition to physics-based training via sampled colloca-tion points, lightweight FEM supervision is used to stabilize the most extreme compliance regimes. Each of the three layers has two design parameters, Young’s modulus Ei and thickness 
+
+ti. Both parameters are sampled at their extreme values only: 
+
+Ei ∈ {1.0, 10 .0} and ti ∈ {0.02 , 0.10 }. Supervision is generated for every combination of these per-layer extremes, giving (E1, t 1) × (E2, t 2) × (E3, t 3) = 4 3 = 64 distinct FEM configurations spanning the corners of the six-dimensional material–thickness parameter space. The supervision budget of 36,000 nodal displacement values is allocated across these 64 configurations, with bias toward thinner stacks through a thickness-weighting power of 3.0. Within each FEM solution, sampled nodes are arranged in the following manner: 60% from the loaded top surface, 30% from the layer interfaces, and 10% from the bulk interior. Supervision data is generated once before training and cached for reuse. In order to prevent the model from becoming over-reliant on data points and thereby degenerating into a pure data-driven surrogate, the FEM supervision is deliberately sparse in both coverage and sampling. Because supervision is provided ex-clusively at parameter extremes and never at interior parameter combinations (e.g. E = 5 or ti = 0 .06 ), the model must rely on learned physics to simulate across the full parameter space, maintaining a balance between a pure physics-driven network versus a pure FEM-based surrogate that favors the former. The thickness-weighting bias concentrates supervision in thin-stack regimes, where compliance effects are most severe and physics alone is least reliable. This design improves accuracy in high-compliance regimes without turning the method into a predominantly data-driven surrogate. VI. V ERIFICATION RESULTS 
+
+A. Verification Objective 
+
+The primary objective is to obtain a parameterized PINN that predicts single-layer and multilayer elastic response across stiffness and thickness extremes while matching the FEM reference of around a 5% worst-case MAE. This target is intended for preliminary design-space exploration as a pre-cursor to a more in-depth workflow, where accuracy must remain stable even in mechanically challenging regimes. It is also important to note key distinctions between the pure physics-driven training of the one-layer model against the data-supported training of the three-layer model. 
+
+B. Effect of the Proposed Training Design 
+
+The final model performance arises from a combination of physics-first design choices rather than pure data fitting and supervision. The most important ingredients are:  
+
+> •
+
+layerwise PDE residual decomposition, which balances residual contributions across stiff and soft layers, pre-venting stiff layers from dominating the soft layers in a unified loss landscape;  
+
+> •
+
+strong interface continuity enforcement, which improves displacement consistency across material boundaries and modeling a realistic transfer of force across a multilayer system;  
+
+> •
+
+compliance-aware scaling in thickness and stiffness, which better reflects the mechanics of multilayer plate response;  
+
+> •
+
+sparse FEM supervision at parameter extremes, which an-chors the solution in high-compliance regimes, adhering to a high-fidelity solution; and  
+
+> •
+
+strengthened interface sampling, which concentrates training effort where discontinuous material structure creates the greatest difficulty. Table III summarizes the final three-layer configuration used. Table IV summarizes the final one-layer configurations used. 
+
+C. PINN-vs-FEM Quantitative Results 
+
+Table V reports the PINN-vs-FEM verification results for the one-layer and three-layer configurations, measured using the volume-MAE definitions above. For one-layer configurations, the model achieves a sweep mean volume MAE of 1.56% and a sweep worst-case volume MAE of 2.87%. For three-layer configurations, the final model achieves a sweep mean volume MAE of 2.53% and a sweep worst-case volume MAE of 4.66%, satisfying the near-5% worst-case volume-MAE target. The worst three-layer case occurs at 
+
+E = [1 .201 , 9.348 , 7.196] ,t = [0 .06322 , 0.02582 , 0.05095] ,
+
+And the worst one-layer case occurs at 
+
+E = 9 .203 , t = 0 .05375 .
+
+These results indicate that the framework remains accurate even under thin-stack and high-stiffness combinations that are typically difficult for parametric PINNs, proving the effective-ness our method of a unified workflow with defined loss terms TABLE III: Final Three-Layer PINN Configuration                            
+
+> Parameter Value Physics Collocation Points (Unsupervised)
+> Interior PDE points 15,000 Side boundary points 2,000 Top load patch points 6,000 Top free surface points 2,000 Bottom surface points 2,000 Interface points (total) 16,000 Interface sample fraction 0.75
+> Total physics points per batch ∼43,000
+> FEM Supervision Points
+> Supervision points 36,000 FEM mesh for supervision 16 ×16 ×8
+> Supervision thickness power 3.0
+> Loss Weights
+> PDE weight 10.0 Boundary condition weight 0.7 Load weight 5.0 Interface continuity weight 300.0 Data (supervision) weight 400.0
+> Physics-First Design
+> PDE decompose by layer Enabled Thickness compliance exponent α3.0 Stiffness compliance exponent p0.95 Displacement compliance scale 1.0
+
+provides. Figure 3 compares the one-layered models with the FEM while Figure 4 visually compares three-layered model with the FEM solution. 
+
+D. Ablation Study 
+
+To isolate the effect of the major framework components, we conducted an ablation study to evaluate the contribution of compliance-aware scaling, layerwise residual decomposition, interface continuity enforcement, and sparse FEM supervision. The results, measured using the same volume-MAE definition as the primary verification studies, for single-layer and three-layer models are presented as followed. Table VI shows which components are most responsible for the observed improvement in worst-case verification error for the three-layer configuration. The three-layer ablation uses the same documented configuration file as the primary verification study, with 100 random interior parameter configurations, a 
+
+16 ×16 ×8 FEM mesh, and the same volume-MAE definition. Every ablation variant is trained from the same initialization, with one component removed independently in each row. Re-moving compliance-aware scaling, sparse FEM supervision, or all proposed components substantially increases volume MAE. Removing layerwise PDE decomposition produces a slightly lower error, while removing interface continuity produces a comparable result. These small differences are interpreted as training variability rather than monotonic improvements from each component. All three-layer ablation variants were independently trained from the same initialization using a fixed random seed and evaluated on the same 100 random interior configurations. The full-framework ablation row is therefore a controlled retraining rather than the selected final checkpoint reported in TABLE IV: Final One-Layer PINN Configuration 
+
+Parameter Value Physics Collocation Points (Unsupervised) 
+
+Interior PDE points 15,000 Side boundary points 2,000 Top load patch points 6,000 Top free surface points 2,000 Bottom surface points 2,000 Interface points (total) N/A (single layer) Interface sample fraction N/A (single layer) 
+
+Total physics points per batch ∼27,000 
+
+FEM Supervision Points 
+
+Supervision points Disabled FEM mesh for supervision N/A 
+
+Loss Weights 
+
+PDE weight 10.0 Boundary condition weight 0.7 Load weight 5.0 Interface continuity weight N/A Data (supervision) weight 0.0 
+
+Physics-First Design 
+
+PDE decompose by layer N/A Thickness compliance exponent α 1.234 Stiffness compliance exponent p 0.973 Displacement compliance scale 1.0 
+
+TABLE V: PINN-vs-FEM verification results. 
+
+Configuration Mean Volume MAE (%) Worst Volume MAE (%) 
+
+One-layer 1.56 2.87 Three-layer 2.53 4.66 0.0 0.5 1.0           
+
+> x
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+> One-Layer FEM E=9.203, t=0.054
+> 0.0 0.5 1.0
+> x
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+> One-Layer PINN
+> 0.0 0.5 1.0
+> x
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+> Absolute Error VolMAE = 2.87%
+> −1.602 −1.401 −1.201 −1.001 −0.801 −0.600 −0.400 −0.200 0.001
+> −1.602 −1.401 −1.201 −1.001 −0.801 −0.600 −0.400 −0.200 0.001 0.00 0.04 0.08 0.12 0.16 0.20 0.24 0.28 0.32 0.0 0.5 1.0
+> x
+> 0.00 0.02 0.04
+> z
+> One-Layer FEM Cross-Section
+> 0.0 0.5 1.0
+> x
+> 0.00 0.02 0.04
+> z
+> One-Layer PINN Cross-Section
+> 0.0 0.5 1.0
+> x
+> 0.00 0.02 0.04
+> z
+> Absolute Error Cross-Section VolMAE = 2.87%
+> −1.603 −1.403 −1.202 −1.002 −0.802 −0.601 −0.401 −0.200 0.000
+> −1.603 −1.403 −1.202 −1.002 −0.802 −0.601 −0.401 −0.200 0.000 0.00 0.04 0.08 0.12 0.16 0.20 0.24 0.28 0.32
+
+Fig. 3: Representative PINN-vs-FEM displacement compar-isons for single-layer cases. The top row shows the top-surface displacement contour for a representative configuration, fol-lowed by the cross-sectional views highlighting agreement between the PINN and FEM solutions through the structure. 0.0 0.5 1.0           
+
+> x
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+> Three-Layer FEM E=[1.201, 9.348, 7.196] t=[0.063, 0.026, 0.051]
+> 0.0 0.5 1.0
+> x
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+> Three-Layer PINN
+> 0.0 0.5 1.0
+> x
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+> Absolute Error VolMAE = 4.66%
+> −0.3896 −0.3409 −0.2922 −0.2435 −0.1948 −0.1461 −0.0974 −0.0487 0.0001
+> −0.3896 −0.3409 −0.2922 −0.2435 −0.1948 −0.1461 −0.0974 −0.0487 0.0001
+> 0.000 0.015 0.030 0.045 0.060 0.075 0.090 0.105 0.120 0.135 0.0 0.5 1.0
+> x
+> 0.00 0.05 0.10
+> z
+> Three-Layer FEM Cross-Section
+> 0.0 0.5 1.0
+> x
+> 0.00 0.05 0.10
+> z
+> Three-Layer PINN Cross-Section
+> 0.0 0.5 1.0
+> x
+> 0.00 0.05 0.10
+> z
+> Absolute Error Cross-Section VolMAE = 4.66%
+> −0.3923 −0.3432 −0.2942 −0.2452 −0.1961 −0.1471 −0.0981 −0.0490 0.0000
+> −0.3923 −0.3432 −0.2942 −0.2452 −0.1961 −0.1471 −0.0981 −0.0490 0.0000
+> 0.000 0.015 0.030 0.045 0.060 0.075 0.090 0.105 0.120 0.135
+
+Fig. 4: Corresponding figure for the three-layered model. Table V. The difference between these results reflects training-run variability and checkpoint selection. Table VII also displays the components most responsible for the observed improvement in the one-layer configuration. This table uses the same documented configuration file as the primary one-layer verification study, with 100 random interior configurations, a 16 ×16 ×8 FEM mesh, all three displacement components, and the same parameter cases and volume-MAE definition. Again, each row is independent of the others, so each row only removes its corresponding component from the full framework. Since the one-layer model is physics-driven and does not need to account for logic between layers, layer-wise methods and controlled supervision have been removed. TABLE VI: Ablation study of the three-layer model. 
+
+Variant Mean MAE (%) Worst MAE (%) Full framework 5.78 7.35 
+
+− Compliance-aware scaling 31.73 119.12 
+
+− Layerwise PDE decomposition 5.39 7.03 
+
+− Interface continuity 5.84 7.38 
+
+− Sparse FEM supervision 7.89 9.02 Vanilla PINN baseline 30.23 129.93 
+
+TABLE VII: Volume-MAE ablation study of the one-layer model. 
+
+Variant Mean MAE (%) Worst MAE (%) Full framework 1.56 2.87 
+
+− Compliance-aware scaling 2.89 6.14 Vanilla PINN baseline 8.31 9.62 
+
+E. Visualization and Qualitative Assessment 
+
+Representative qualitative outputs include top-surface dis-placement contours, cross-sectional displacement profiles, and error heatmaps. Cross-sectional plots are particularly useful for visualizing interface continuity, while error maps reveal where the model is least accurate. These qualitative views complement the scalar MAE metrics by identifying the spatial structure of error and by showing whether the learned field remains mechanically plausible across layer transitions. The following are heat maps of the extremities of the models, both in terms of its top-surface absolute error and cross-sectional absolute error across a mean for randomly-selected parameter values. 0.0 0.5 1.0 
+
+x
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+
+Top-Surface Absolute Error VolMAE = 2.87%     
+
+> 0.00 0.25 0.50 0.75 1.00
+
+x
+
+> 0.00 0.02 0.04
+> z
+
+Cross-Section Absolute Error VolMAE = 2.87% 
+
+> 0.00 0.04 0.08 0.12 0.16 0.20 0.24 0.28 0.32 0.00 0.04 0.08 0.12 0.16 0.20 0.24 0.28 0.32
+
+One-Layer Error Maps 
+
+Fig. 5: Spatial error structure for a representative one-layer ver-ification case. Left: top-surface absolute error |uPINN 
+
+z −uFEM 
+
+z |.Right: cross-sectional absolute error through the thickness. It is also important to view a generalized study not just the extremities of each interface, but also the internal points where the internal logic is formulated from a pure-physics driven method. Figure 7 and 8 present a best-case and worst-case error heatmap of absolute MAE for randomly-chosen configurations of the one-layer and three-layer models. The error patterns are proven to be consistent and representative of the model’s behavior across the full parameter space and the interiors of the physical design space. Additionally, the following are two tables (VIII) filled with the top five random 0.0 0.5 1.0 
+
+x
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> y
+
+Top-Surface Absolute Error VolMAE = 4.66%     
+
+> 0.00 0.25 0.50 0.75 1.00
+
+x
+
+> 0.00 0.05 0.10
+> z
+
+Cross-Section Absolute Error VolMAE = 4.66% 
+
+> 0.000 0.015 0.030 0.045 0.060 0.075 0.090 0.105 0.120 0.135
+> 0.000 0.015 0.030 0.045 0.060 0.075 0.090 0.105 0.120 0.135
+
+Three-Layer Error Maps 
+
+Fig. 6: Corresponding figure for a representative three-layer verification case. Bold white lines indicate layer interfaces interior generalization cases for both the one-layer and the three-layer model. 0.0 0.2 0.4 0.6 0.8 1.0      
+
+> x (m)
+> 0.00 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08
+> z (m)
+> 1L Best | E=1.36, t=0.083 m (N=100): CS MAE=4.87e-02 m | CS Max=1.22e-01 m | Top MAE=0.80%
+> 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Absolute Error (m) 0.0 0.2 0.4 0.6 0.8 1.0
+> x (m)
+> 0.00 0.01 0.02 0.03 0.04 0.05
+> z (m)
+> 1L Worst | E=9.20, t=0.054 m (N=100): CS MAE=1.98e-01 m | CS Max=3.25e-01 m | Top MAE=7.54%
+> 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Absolute Error (m)
+
+Fig. 7: Best vs. Worst cross-section error is calculated with MAE = 1
+
+Nxz 
+
+P
+
+i,k ε(xi, z k)
+
+Both the absolute volume and absolute error reveal that the model internally learns physics relatively accurately. For the one-layered configurations, the absolute cross-section error remains fairly accurate. In the best case scenario, the PINN’s interior prediction error remains at 0.87%, while its worst counterpart has larger discrepancies, with predictions differing by 0.33 and reaching a prediction error of 2.87%. In the instance of the three-layered configurations, the model and the FEM prediction differs under 0.15, which reveals that for the best case scenario, the error remains at 2.09%, a satisfactory result, while being 4.66% for the worst case. In other words, as top layers become thinner, the model’s interior predictions deteriorates. This issue most likely arose because of a lack of 0.0 0.2 0.4 0.6 0.8 1.0      
+
+> x (m)
+> 0.00 0.02 0.04 0.06 0.08 0.10 0.12 0.14
+> z (m)
+> 3L Best | E=[1.3,7.5,6.9], t=[0.029,0.031,0.100] m (N=100): CS MAE=6.38e-02 m | CS Max=8.99e-02 m | Top MAE=7.48%
+> 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Absolute Error (m) 0.0 0.2 0.4 0.6 0.8 1.0
+> x (m)
+> 0.00 0.02 0.04 0.06 0.08 0.10 0.12
+> z (m)
+> 3L Worst | E=[1.2,9.3,7.2], t=[0.063,0.026,0.051] m (N=100): CS MAE=4.90e-02 m | CS Max=1.26e-01 m | Top MAE=16.52%
+> 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Absolute Error (m)
+
+Fig. 8: Best vs. Worst cross-section error for the three-layer model. TABLE VIII: Five Results of Random Interior Generalization Cases 
+
+(a) One-Layer Model 
+
+Trial E t Vol MAE (%) I 6.12 .135 1.67 II 3.55 .133 1.49 III 1.04 .054 2.13 IV 5.76 .113 1.32 V 4.71 .143 1.72 
+
+(b) Three-Layer Model 
+
+Trial E t Vol MAE (%) I [6 .12 , 8.68 , 3.55] [.087 , . 020 , . 023] 2.17 II [5 .76 , 6.65 , 4.71] [.094 , . 069 , . 051] 2.33 III [7 .39 , 3.56 , 7.95] [.036 , . 036 , . 049] 2.15 IV [2 .28 , 5.84 , 4.67] [.074 , . 100 , . 032] 2.84 V [4 .62 , 1.02 , 8.84] [.074 , . 050 , . 073] 3.50 
+
+longer-term training and could be further resolved in future developments. VII. C ONCLUSION 
+
+We have presented an end-to-end workflow for parameter-ized physics-informed neural networks applied to a weighted multilayer elastic plate mechanics problem. The frame-work integrates a trusted FEM baseline, a parametric PINN field model with physics-driven training, automated FEM-referenced evaluation, and a rapid forward call that ensures computational efficiency. For one-layer configurations, the PINN achieves a mean volume MAE of 1.56% and a worst-case volume MAE of 2.87% against FEM. The worst-case configuration occurs at E = 9.203 , t = 0.05375 . For three-layer configura-tions, through systematic physics-first tuning including lay-erwise PDE decomposition, strengthened interface sampling, compliance-aware scaling, and lightweight cached supervision, we achieved a final configuration with 2.53% mean volume MAE and 4.66% worst-case volume MAE, meeting the stated near-5% worst-case volume-MAE target for preliminary de-sign space exploration. The worst-case configuration occurs at 
+
+E = [1 .201 , 9.348 , 7.196] , t = [0 .06322 , 0.02582 , 0.05095] .We believe the workflow is technically meaningful and reproducible for multilayer design-space explorations in the given design space with the configuration range. Broader robustness claims should remain tied to the tested sweep and extreme-case settings. The GitHub Repository is publicly available, enabling independent verification and extension. VIII. F UTURE WORKS 
+
+Even though our model has successfully reached the near-5% worst-case volume-MAE benchmark, it does not suffice for the majority of real-world simulations which encompass sudden spikes of energy from collisions or nonlinear, time-dependent systems. Thus, one future area of development could be geared towards incorporating nonlinearity into the model’s training process. Extensions to finite-strain hypere-lasticity could leverage energy-based PINN formulations [25] or Deep Ritz variants [15] for large-deformation equilibrium. The current static formulation cannot capture transient stress waves or evolving contact interfaces that arise during actual collisions. Auto-regressive physics-constrained networks have shown promise for dynamic PDE systems [47]. However, mixed-variable PINN formulations have demonstrated success for elastodynamic wave propagation without labeled data [48], and iterative δ-PINN refinement has shown promise for correcting transient solution errors [49]. Currently, for higher-dimensional models such as the three-layer PINN, controlled supervised learning from FEM labels is necessary for solution accuracy. Thus, future areas could include curriculum learning and transfer learning strategies to progressively reduce dependence on FEM supervision. Cur-riculum transfer learning enables convergence without increas-ing network depth [50]. Meta-learning approaches that allocate collocation points based on difficulty [51] allow the PINN to extend from single-layer baselines to multilayer systems with minimal FEM data. Meta-learning PINN loss functions pro-vides another avenue [52]. Multifidelity frameworks improve training efficiency [53]. While the current FEM-referenced evaluation provides em-pirical confidence bounds across the tested parameter sweep, uncertainty quantification is not explicit. Therefore, some other areas for improvement include incorporating uncertainty quantification and Bayesian approaches. Bayesian PINNs [54] could be leveraged to propagate uncertainty through network weights, quantifying prediction confidence. Quantifying total uncertainty [55] can address both aleatoric and epistemic sources. Meta-learning approaches [52] could adapt loss func-tions per problem characteristic, while Bayesian layers or ensemble methods improve uncertainty estimation. Lastly, to compare our model to accurate FEM, future implementations could incorporate mesh-based coupling. Vari-ational PINNs enforce the weak form via test functions and quadrature, integrating directly with FEM basis functions [56]. Hybrid PINN-FEM methods decompose the domain into FEM regions near boundaries and PINN regions in the interior, outperforming pure PINNs on complex geometries [57]. Wave propagation has been addressed with physics-informed formu-lations [58]. Examples such as δ-PINNs [49] have achieved fine-mesh FEM accuracy at reduced cost. REFERENCES [1] M. Raissi, P. Perdikaris, and G. E. Karniadakis, “Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations,” J. Comput. Phys. , vol. 378, pp. 686–707, 2019. [2] G. E. Karniadakis et al. , “Physics-informed machine learning,” Nat. Rev. Phys. , vol. 3, no. 6, pp. 422–440, 2021. [3] S. Wang, Y. Teng, and P. Perdikaris, “Understanding and mitigating gradient pathologies in physics-informed neural networks,” SIAM J. Sci. Comput. , vol. 43, no. 5, pp. A3055–A3081, 2021. [4] A. Krishnapriyan et al. , “Characterizing possible failure modes in physics-informed neural networks,” Adv. Neural Inf. Process. Syst. ,vol. 34, pp. 26 548–26 560, 2021. [5] S. Wang, X. Yu, and P. Perdikaris, “When and why PINNs fail to train: A neural tangent kernel perspective,” J. Comput. Phys. , vol. 449, p. 110768, 2022. [6] Y. Liu, J. Cao, and Z. Liu, “Deep learning for surrogate modeling of dynamic systems,” Appl. Energy , vol. 315, p. 119043, 2022. [7] A. I. J. Forrester and A. J. Keane, “Recent advances in surrogate-based optimization,” Prog. Aerosp. Sci. , vol. 45, no. 1–3, pp. 50–79, 2009. [8] S. Queipo et al. , “Surrogate-based analysis and optimization,” Prog. Aerosp. Sci. , vol. 41, no. 1, pp. 1–28, 2005. [9] R. B. Gramacy, Surrogates: Gaussian Process Modeling, Design, and Optimization for the Applied Sciences . Boca Raton, FL: Chapman and Hall/CRC, 2020. [10] L. Sun et al. , “Surrogate modeling for fluid flows based on physics-constrained deep learning without simulation data,” Comput. Methods Appl. Mech. Eng. , vol. 361, p. 112732, 2020. [11] Y. Zhu et al. , “Physics-constrained deep learning for climate downscal-ing,” IEEE Trans. Geosci. Remote Sens. , vol. 60, pp. 1–15, 2022. [12] T. J. R. Hughes, The Finite Element Method: Linear Static and Dynamic Finite Element Analysis . Mineola, NY: Dover Publications, 2012. [13] O. C. Zienkiewicz, R. L. Taylor, and J. Z. Zhu, The Finite Element Method: Its Basis and Fundamentals , 7th ed. Oxford: Butterworth-Heinemann, 2013. [14] I. E. Lagaris, A. Likas, and D. I. Fotiadis, “Artificial neural networks for solving ordinary and partial differential equations,” IEEE Trans. Neural Netw. , vol. 9, no. 5, pp. 987–1000, 1998. [15] W. E and B. Yu, “The deep Ritz method: A deep learning-based numerical algorithm for solving variational problems,” Commun. Math. Stat. , vol. 6, no. 1, pp. 1–12, 2018. [16] V. Dwivedi and B. Srinivasan, “Physics informed extreme learning machine (PIELM) – a rapid method for the numerical solution of partial differential equations,” Neurocomputing , vol. 391, pp. 96–110, 2020. [17] N. Wandel et al. , “Learning incompressible fluid dynamics from scratch,” arXiv preprint arXiv:2006.08762 , 2020. [18] M. Raissi, A. Yazdani, and G. E. Karniadakis, “Hidden fluid mechanics: Learning velocity and pressure fields from flow visualizations,” Science ,vol. 367, no. 6481, pp. 1026–1030, 2020. [19] X. Jin, S. Cai, H. Li, and G. E. Karniadakis, “NSFnets (Navier-Stokes flow nets): Physics-informed neural networks for the incompressible Navier-Stokes equations,” J. Comput. Phys. , vol. 426, p. 109951, 2021. [20] S. Cai et al. , “Physics-informed neural networks (PINNs) for fluid mechanics: A review,” Acta Mech. Sin. , vol. 37, no. 12, pp. 1727–1738, 2021. [21] Q. Luo and J. Li, “Data-driven discovery of governing equations for fluid dynamics,” Phys. Rev. Fluids , vol. 5, no. 8, p. 084301, 2020. [22] B. Stevens and T. Colonius, “Fourier-based and cyclic-spectral analysis for post-processing of homogeneous and isotropic turbulence,” J. Tur-bul. , vol. 21, no. 3–4, pp. 189–210, 2020. [23] H. Yu et al. , “A deep learning method for solving high-order nonlinear mathematical physics equations,” IEEE Access , vol. 8, pp. 215–222, 2019. [24] Y. Guo, X. Cai, and J. Li, “Energy-based neural network methods for solving elasticity problems,” Comput. Methods Appl. Mech. Eng. , vol. 399, p. 115292, 2022. [25] D. Klein et al. , “Polyconvex anisotropic hyperelasticity with neural networks,” J. Mech. Phys. Solids , vol. 159, p. 104777, 2022. [26] B. Fang, S. Zhan, and H. Guo, “Deep learning for predicting strain fields of amorphous materials,” Comput. Mater. Sci. , vol. 169, p. 109088, 2019. [27] S. Goswami et al. , “Learning stiff chemical kinetics using extended deep neural networks,” J. Chem. Inf. Model. , vol. 60, no. 11, pp. 5367–5379, 2020. [28] S. Bar and A. Givoli, “Learning the solution of PDE-PDE systems using neural networks,” Comput. Methods Appl. Mech. Eng. , vol. 391, p. 114621, 2022. [29] S. Goswami et al. , “Transfer learning enhanced physics informed neural network for phase-field modeling of fracture,” Theor. Appl. Fract. Mech. ,vol. 106, p. 102447, 2020. [30] L. Pang, W. Liu, and G. E. Karniadakis, “fPINNs: Fractional physics-informed neural networks,” SIAM J. Sci. Comput. , vol. 41, no. 4, pp. A2603–A2626, 2019. [31] W. Cho et al. , “Parameterized physics-informed neural networks for parameterized PDEs,” arXiv preprint arXiv:2408.09446 , 2024. [32] L. Lu et al. , “Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators,” Nat. Mach. Intell. , vol. 3, no. 3, pp. 218–229, 2021. [33] Z. Li et al. , “Fourier neural operator for parametric partial differential equations,” in Int. Conf. Learn. Represent. , 2021. [34] M. Howard et al. , “Learning parametric partial differential equations with sparse data,” Comput. Methods Appl. Mech. Eng. , vol. 406, p. 115878, 2023. [35] S. Wang, H. Wang, and P. Perdikaris, “Learning the solution operator of parametric partial differential equations with physics-informed Deep-ONets,” Sci. Adv. , vol. 7, no. 40, p. eabi8605, 2021. [36] K. Shukla, J. Jagtap, and G. E. Karniadakis, “Parallel physics-informed neural networks via domain decomposition,” J. Comput. Phys. , vol. 447, p. 110703, 2021. [37] A. Heinlein et al. , “Combining machine learning and domain decompo-sition methods for the solution of partial differential equations,” Electron. Trans. Numer. Anal. , vol. 56, pp. 57–83, 2022. [38] N. Berg and K. Nystr¨ om, “A unified deep artificial neural network approach to partial differential equations in complex geometries,” Neu-rocomputing , vol. 317, pp. 28–41, 2018. [39] N. Sukumar and A. Srivastava, “Exact imposition of boundary conditions with distance functions in physics-informed deep neural networks,” 
+
+Comput. Methods Appl. Mech. Eng. , vol. 389, p. 114333, 2022. [40] M. D. Ryck et al. , “Error estimation and adaptivity for physics-informed neural networks,” Comput. Mech. , vol. 71, no. 3, pp. 509–521, 2023. [41] S. Mishra and R. Molinaro, “Estimates on the generalization error of physics-informed neural networks for approximating PDEs,” IMA J. Numer. Anal. , vol. 43, no. 3, pp. 1733–1775, 2023. [42] D. P. Kingma and J. Ba, “Adam: A method for stochastic optimization,” in Int. Conf. Learn. Represent. , 2015. [43] D. C. Liu and J. Nocedal, “On the limited memory BFGS method for large scale optimization,” Math. Program. , vol. 45, no. 1–3, pp. 503–528, 1989. [44] L. McClenny and U. Braga-Neto, “Self-adaptive physics-informed neural networks using a soft attention mechanism,” arXiv preprint arXiv:2009.04544 , 2020. [45] N. Vyas et al. , “SOAP: Improving and stabilizing Shampoo using Adam,” arXiv preprint arXiv:2409.11321 , 2024. [46] E. Kiyani et al. , “Optimizing the optimizer for physics-informed neural networks and Kolmogorov-Arnold networks,” arXiv preprint arXiv:2501.16371 , 2025. [47] N. Geneva and N. Zabaras, “Modeling the dynamics of PDE systems with physics-constrained deep auto-regressive networks,” J. Comput. Phys. , vol. 403, p. 109056, 2020. [48] C. Rao, H. Sun, and Y. Liu, “Physics-informed deep learning for computational elastodynamics without labeled data,” J. Eng. Mech. , vol. 147, no. 8, p. 04021043, 2021. [49] F. S. Costabal, S. Pezzuto, and P. Perdikaris, “δ-PINNs: Physics-informed neural networks on complex geometries,” Eng. Appl. Artif. Intell. , vol. 127, p. 107324, 2024. [50] H. Lyu et al. , “Physics-informed neural networks for high-frequency and multi-scale problems using transfer learning,” arXiv preprint arXiv:2401.02810 , 2024. [51] M. Toloubidokhti et al. , “Dynamic collocation point allocation for meta-learning physics-informed neural networks,” in Proc. Adv. Neural Inf. Process. Syst. Workshop , 2023. [52] A. P. Psaros, K. Kawaguchi, and G. E. Karniadakis, “Meta-learning PINN loss functions,” J. Comput. Phys. , vol. 458, p. 111121, 2022. [53] M. Penwarden, A. D. Jagtap, and G. E. Karniadakis, “A unified scal-able framework for multifidelity physics-informed neural networks,” J. Comput. Phys. , vol. 489, p. 112278, 2023. [54] Y. Yang, P. Perdikaris, and G. E. Karniadakis, “Bayesian physics-informed neural networks for solving PDEs under uncertainty,” J. Comput. Phys. , vol. 438, p. 110295, 2021. [55] D. Zhang et al. , “Quantifying total uncertainty in physics-informed neural networks for solving forward and inverse stochastic problems,” 
+
+J. Comput. Phys. , vol. 397, p. 108850, 2019. [56] E. Kharazmi, Z. Zhang, and G. E. Karniadakis, “hp-VPINNs: Varia-tional physics-informed neural networks with domain decomposition,” 
+
+Comput. Methods Appl. Mech. Eng. , vol. 394, p. 114512, 2022. [57] N. Sobh, R. J. Gladstone, and H. Meidani, “PINN-FEM: A hybrid ap-proach for enforcing Dirichlet boundary conditions in physics-informed neural networks,” arXiv preprint arXiv:2501.07765 , 2025. [58] M. Rasht-Behesht et al. , “Physics-informed neural networks for wave propagation and full waveform inversions,” arXiv preprint arXiv:2108.12035 , 2021.

@@ -1,0 +1,1344 @@
+Title: Observation geometry for uncertainty-aware Hamiltonian inference and experimental design in quantum magnets
+
+URL Source: https://arxiv.org/pdf/2608.10350v1
+
+Published Time: Wed, 12 Aug 2026 00:31:20 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+## Observation geometry for uncertainty-aware Hamiltonian inference and experimental design in quantum magnets 
+
+Roy Liu, 1, 2 Venugopal Ranganathan, 1, 3 David Dahlbom, 4 Shizhou Xu, 5, 6 Tianyu Zhang, 1, 7 Yuan Ni, 6, 8 Daniel M. Pajerowski, 4 Garrett Granroth, 4 Thomas Strohmer, 5 Matthew B. Stone, 4 Andrew F. May, 4, 9 Mark D. Lumsden, 4 Joshua J. Turner, 6, 8 Yongqiang Cheng, 4, ∗ and Zhantao Chen 1, 3, 7, †
+
+> 1
+
+Group for AI in Materials Modeling and Analysis, The University of Texas at Austin, Austin, TX, USA. 
+
+> 2
+
+Department of Computer Science, The University of Texas at Austin, Austin, TX, USA. 
+
+> 3
+
+Walker Department of Mechanical Engineering, The University of Texas at Austin, Austin, TX, USA. 
+
+> 4
+
+Oak Ridge National Laboratory, Oak Ridge, TN, USA 
+
+> 5
+
+Department of Mathematics, University of California Davis, Davis, CA, USA. 
+
+> 6
+
+Stanford Institute for Materials and Energy Sciences, Stanford University, Stanford, CA 94305, USA 
+
+> 7
+
+Texas Materials Institute, The University of Texas at Austin, Austin, TX, USA. 
+
+> 8
+
+Linac Coherent Light Source, SLAC National Accelerator Laboratory, Menlo Park, CA, USA 
+
+> 9
+
+Materials Science and Technology Division, Oak Ridge National Laboratory, Oak Ridge, TN, USA 
+
+Determining microscopic interactions from spectroscopic and scattering measurements is central to understanding quantum materials, yet it often remains unclear which interactions can be reliably revealed by the available experimental data and how additional experimental modalities should be designed to resolve the remaining ambiguities. Here we present an artificial intelligence-enabled framework for uncertainty-aware Hamiltonian inference and adaptive experimental design. By com-bining Hamiltonian-conditioned neural surrogates with Bayesian inference and observation geometry, the framework characterizes how measurements constrain Hamiltonian parameter space, quantifies the identifiability of microscopic interactions, and propagates posterior uncertainty directly in the physical Hamiltonian parameter space rather than an abstract learned representation. Using multi-modal powder and single-crystal inelastic neutron scattering measurements of the quantum magnet NiPS 3, we demonstrate physically interpretable Hamiltonian inference, modality-aware uncertainty quantification, and adaptive experimental design. The framework provides a general strategy for uncertainty-aware microscopic characterization and multimodal experimental design across quantum materials. 
+
+INTRODUCTION 
+
+Microscopic models of elementary excitations provide a fundamental link between experimental observations and the underlying physics of condensed matter and ma-terials. For quantum magnets, this connection can be modeled through the spin Hamiltonian, whose parame-ters encode exchange couplings, anisotropies, and other microscopic interactions governing the excitation spec-trum 1–4 . By fitting model parameters to measured spec-tra, one can infer these parameters, thereby determin-ing the associated collective excitations as well as the static and dynamical properties of materials. In prac-tice, however, this inverse problem is often ill-posed: dis-tinct Hamiltonians can produce nearly indistinguishable spectra within experimental resolution, making it diffi-cult to determine whether subtle microscopic features are genuinely constrained by the available measurements 5–11 .Consequently, conventional refinement procedures that report only a single best-fit Hamiltonian may obscure substantial parameter uncertainty, correlations, and al-ternative microscopic descriptions that remain consistent with the data 12,13 . The central challenge is therefore not   
+
+> ∗chengy@ornl.gov
+> †zhantao@austin.utexas.edu
+
+only to identify a Hamiltonian that reproduces the ob-served spectra, but also to determine which interactions are uniquely identifiable, which remain ambiguous, and how much microscopic information a given measurement can truly reveal. Inelastic neutron scattering (INS) is a particularly powerful probe of magnetic and lattice excitations because it directly and quantitatively measures the momentum- and energy-resolved dynamical structure factor, S(Q, ω ), for magnons and phonons with high resolution 2–4,14–18 . Interpreting INS data typically re-lies on physically rigorous forward methods, including linear spin wave theory, exact diagonalization, density-matrix renormalization group calculations, and, more recently, neural quantum states, to generate theoreti-cal spectra for comparison with experiment 19–25 . Al-though their computational scaling differs substantially, repeatedly evaluating these forward models across a high-dimensional Hamiltonian parameter space can remain prohibitively expensive. Exhaustive grid-based searches scale exponentially with the dimensionality of the param-eter space, whereas coarse parameter sweeps can over-look narrow regions containing plausible solutions. Con-sequently, Hamiltonian refinement often relies on selected spectral cuts, expert-guided parameter tuning, or simpli-fied Hamiltonian parameterizations, making it difficult to systematically quantify parameter uncertainty and de-arXiv:2608.10350v1 [cond-mat.str-el] 11 Aug 2026 2termine which microscopic interactions are uniquely con-strained by the experimental data. Additional challenges arise from the increasingly mul-timodal nature of experimental materials characteriza-tion 26–30 . In INS, both powder and single-crystal mea-surements are widely employed. Single-crystal INS pre-serves directional momentum information and can re-solve fine features of the dynamical structure factor, 
+
+S(Q, ω )2–4 . However, each sample orientation probes only a limited region of reciprocal space, requiring mul-tiple measurements for comprehensive coverage, and suf-ficiently large, high-quality single crystals are often dif-ficult to grow. By contrast, powder samples are gen-erally easier to prepare in the quantities required for neutron-scattering experiments. Powder INS measures the orientationally averaged response, S(|Q|, ω ), sacrific-ing directional information in exchange for greater exper-imental accessibility and broader sampling of reciprocal space 31–33 . These complementary measurement modal-ities therefore impose distinct observational constraints on the same underlying Hamiltonian. Moreover, multi-modal experiments often differ in their coordinate repre-sentations, spatial and energy resolutions, selection rules, and noise characteristics, making it challenging to inte-grate heterogeneous datasets in a manner that is both mathematically rigorous and physically interpretable. Artificial intelligence (AI) and machine learning (ML) have been playing increasingly important roles in bridg-ing experimental observations and theories and compu-tations 24,34–38 . Recent advances in simulation-based in-ference, neural posterior estimation, and multimodal ma-chine learning 39–42 have provided powerful new tools for accelerating inverse problems and integrating heteroge-neous datasets. Many of these approaches, however, rely on learned latent representations or gridded data parameterizations to relate observations across different modalities. In practice, discrepancies between the simu-lated data used for training and experimental measure-ments, such as instrumental effects, sample imperfec-tions, and other phenomena not captured by the for-ward model, can degrade the robustness of learned latent representations and complicate their physical interpreta-tion, particularly in high-dimensional settings. For the Hamiltonian-inference problem considered here, however, a natural shared representation is provided by the pa-rameter space of the microscopic Hamiltonian itself. An effective framework for multimodal spectroscopy should therefore connect complementary measurements through this physically meaningful parameter space, propagate uncertainty consistently across measurement modalities, and guide experimental design by identifying the mea-surements that most effectively resolve the remaining am-biguities. In this work, we develop a framework that asks not only which Hamiltonian best reproduces an INS spec-trum, but also what microscopic information the mea-surements actually constrain. Our central idea is to treat each spectroscopic modality as an observation mapping from the Hamiltonian parameter space to the experimen-tally accessible response function. This mapping induces an observation geometry on the Hamiltonian parame-ter space, where stiff directions correspond to parameter combinations that strongly influence the measured spec-tra, while sloppy directions produce nearly indistinguish-able responses and are thus only weakly constrained 5–7 .To make this observation geometry computationally tractable, we construct Hamiltonian-conditioned, dif-ferentiable AI surrogate models that accurately em-ulate multimodal neutron-scattering spectra, leverag-ing recent advances in implicit neural representa-tions (INRs) for spectroscopy 43–45 . Combined with Bayesian inference, these surrogates enable rapid evalua-tion of spectral-discrepancy landscapes, quantification of modality-dependent parameter-wise identifiability, and propagation of posterior uncertainty directly within the physical Hamiltonian parameter space. Rather than fusing powder and single-crystal INS through an ab-stract learned embedding, our framework connects them through the shared microscopic Hamiltonian that gen-erates both measurements, thereby keeping inference within this physically meaningful parameter space. As a result, posterior information inferred from one modality can naturally inform inference in another, enabling se-quential Bayesian inference, joint parameter estimation, and uncertainty-aware experimental design 46–50 .We demonstrate this framework using simulated and experimental INS measurements of the quantum mag-net NiPS 3. The observation geometry reveals modality-dependent stiff and sloppy Hamiltonian directions, powder-informed posterior initialization reshapes the subsequent single-crystal acquisition strategy, and joint inference on experimental powder and single-crystal spec-tra yields a posterior distribution of Hamiltonians that reproduce both modalities with high spectral agreement. This work establishes a general framework that uses AI surrogates not only to accelerate Hamiltonian inference, but also to efficiently uncover which microscopic interac-tions are resolved by each experimental modality, quan-tify the remaining ambiguities, and guide adaptive ex-perimental design toward measurements with higher ex-pected information gain. 
+
+> RESULTS Multimodal AI surrogate
+
+In an INS experiment, illustrated schematically in Fig. 1(a), an incident neutron beam scatters from the sample, and the scattered neutrons are recorded by an array of detectors as a function of momentum and energy transfer. For a single-crystal sample, the crystal orienta-tion is controlled by a goniometer with rotation angle ψ.For a fixed sample orientation ψ, the detector array sam-ples the measured intensity I(Q, ω ) ∝ S(Q, ω ) over a re-gion of the four-dimensional scattering space determined 3=10.5 meV                             
+
+> = 0.0 = 45.0 = 90.0 = 135.0 = 180.0
+> =30.5 meV
+> 202H20 2
+> K
+> 2
+> 02
+> L
+> 0.0 2.5 5.0
+> |Q| (Å 1)
+> 020 40 60
+> (meV)
+> Ei= 10 meV
+> 0.0 2.5 5.0
+> |Q| (Å 1)
+> Ei= 20 meV
+> 0.0 2.5 5.0
+> |Q| (Å 1)
+> Ei= 30 meV
+> 0.0 2.5 5.0
+> |Q| (Å 1)
+> Ei= 40 meV
+> 0.0 2.5 5.0
+> |Q| (Å 1)
+> Ei= 60 meV
+
+ac db... (More Modalities) Embedding Network Coordinate Network (Single Crystal INS Modality) Coordinate Network (Powder INS Modality) 
+
+> Update
+
+ψ
+
+FIG. 1. Multimodal inelastic neutron scattering (INS) measurements and Hamiltonian-conditioned AI sur-rogate model. (a) Incident neutrons scatter from the sample and are recorded by a detector array, sampling a subset of the four-dimensional scattering space ( Q, ω ) for single-crystal measurements or a bounded region in ( |Q|, ω ) for powder mea-surements. (b) Experimental control variables and the corresponding measurement coverage. The upper panel illustrates the accessible ( Q, ω ) region for different single-crystal sample orientations, while the lower panel shows the accessible ( |Q|, ω ) region for different incident neutron energies in powder measurements. (c) AI surrogate model based on Hamiltonian-conditioned implicit neural representations (INRs) for multimodal INS. A shared embedding network encodes the Hamiltonian parameters into a common latent representation that conditions modality-specific coordinate networks, which predict scattering intensities at arbitrary ( Q, ω ) coordinates for single-crystal measurements and ( |Q|, ω ) coordinates for powder measurements. The trained surrogate enables efficient Bayesian inference of Hamiltonian parameters from multimodal INS measurements. (d) Represen-tative single-crystal (top) and powder (bottom) INS spectra illustrating the complementary reciprocal-space coverage of the two measurement modalities. 
+
+by the detector coverage and the kinematically accessible combinations of momentum transfer Q = [ H, K, L ] and energy transfer ℏω. Representative measurement cover-ages for different rotation angles are shown in the upper panels of Fig. 1(b). For a powder sample, the random orientation of crystallites reduces the measurement to the two-dimensional response S(Q, ω ), where Q = |Q|
+
+is the magnitude of the momentum transfer. The corre-sponding detector coverage for different incident neutron energies is shown in the lower panels of Fig. 1(b). We choose the van der Waals (vdW) quantum magnet NiPS 3 as the representative material system throughout this work. Its spin Hamiltonian is given by 3
+
+H = X
+
+> i,j
+
+Jij Si · Sj + X
+
+> i
+
+Ax(Sxi )2 + Az (Szi )2 , (1) where Jij denotes the Heisenberg exchange interactions extending from the first- to fourth-nearest neighbors, parameterized by [J1a , J 1b , J 2a , J 2b , J 3a , J 3b , J 4], while 
+
+Ax and Az are the single-ion anisotropy parameters. Ref. 3 distinguished J1a and J1b to account for the crystallographic distortion while imposing J2a = J2b 4and J3a = J3b . Because the same symmetry reduc-tion formally permits the corresponding second- and third-neighbor exchanges to be distinct, we relax these constraints and treat J2a , J2b , J3a , and J3b as inde-pendent parameters. These seven exchange and two anisotropy parameters together define a nine-dimensional (9D) Hamiltonian parameter space, which is denoted as 
+
+θ = [ Ax, A z , J 1a , J 1b , J 2a , J 2b , J 3a , J 3b , J 4]. To enable rapid, differentiable forward evaluations, we construct an AI surrogate model that maps Hamiltonian parameters to INS spectra. To accommodate multiple INS measurement modalities, the model consists of a shared Hamiltonian parameter embedding network cou-pled with modality-specific INRs 43 , which serve as co-ordinate networks. The embedding network conditions the modality-specific INRs on the Hamiltonian param-eters, allowing different parameter sets to generate dis-tinct dynamical structure factors, S(Q, ω ). For exam-ple, the coordinate network for single-crystal INS maps the momentum and energy transfer coordinates, ( Q, ω ), to the scattering intensity. Combined with the param-eter embedding network, the surrogate realizes the con-ditional mapping ( Q, ω ; θ) 7 → S(Q, ω ), where θ denotes the Hamiltonian parameters. By using a shared parame-ter embedding network to condition multiple observables, the intrinsically multimodal design provides a physics-based, extensible, and flexible framework. The overall architecture is illustrated in Fig. 1(c), with additional details on the datasets and model architecture provided in Methods and Supplementary Note 4. The differentiability and computational efficiency of the surrogate model enable seamless integration with Bayesian inference and Bayesian experimental design 46–50 . In particular, the surrogate-predicted spec-tra, Spred , serve as the forward model in the likelihood function, where likelihoods are evaluated by direct com-parison with the measured spectra, Starg , as illustrated in Fig. 1(d). 
+
+> Observation-induced geometry of Hamiltonian parameter space
+
+We define the empirical spectral distance between two Hamiltonian parameter sets using the normalized L2 dis-tance between their corresponding scalar scattering in-tensities, 
+
+dN (θ, θ′) = 
+
+"
+
+1
+
+N
+
+> N
+
+X
+
+> i=1
+
+|S(xi; θ) − S(xi; θ′)|2
+
+#1/2
+
+, (2) where xi = ( Qi, ω i) are the sampled momentum–energy coordinates. This is a metric on the sampled spectral vectors and induces a pseudometric on the Hamiltonian parameter space; it becomes a metric there if the for-ward map is injective. To characterize its local geom-etry, we define the smooth squared-distance landscape 
+
+f (θ) = d2 
+
+> N
+
+(θ, θref ), where the reference Hamiltonian θref 
+
+is taken from Ref. 3, whose parameter values are listed in Supplementary Note 5. An example of the local spectral-discrepancy land-scape, f (θ), for single-crystal INS is shown in Fig. 2(a). Several notable features emerge. First, the landscape is relatively flat along the Ax and Az directions, indicat-ing that these parameters weakly influence S(Q, ω ) near the reference Hamiltonian. Second, correlated parame-ter combinations involving ( J1a , J 1b ) and ( J2a , J 2b ) pro-duce similar spectra, leading to elongated valleys in the observation landscape. In contrast, anti-correlated vari-ations involving J3a and J3b produce only small spectral changes. These observations illustrate the central princi-ple: spectral distinguishability is governed by the geom-etry induced by the forward mapping, θ 7 → S(Q, ω ; θ), rather than by Euclidean distance in the Hamiltonian parameter space. To characterize the observation-induced geometry more generally, let x ∈ Ω denote a coordinate point in the observation space, where Ω is the experimentally accessible measurement domain. The spectroscopic for-ward map S(x; θ) induces a local metric on the Hamil-tonian parameter space through the normalized L2(Ω) inner product, 
+
+Gmn (θ) = ⟨∂θm S(x ; θ), ∂ θn S(x ; θ)⟩Ω = 1
+
+VΩ
+
+Z
+
+> Ω
+
+∂θm S(x; θ) ∂θn S(x; θ) d x, (3) where VΩ denotes the measure of the accessible momentum–energy domain and θm denotes the mth com-ponent of θ. For INS, x = ( Q, ω ), and the normalized inner product reads 
+
+Gmn (θ) = 1
+
+VΩ
+
+Z
+
+> Ω
+
+∂S (Q, ω ; θ)
+
+∂θ m
+
+∂S (Q, ω ; θ)
+
+∂θ n
+
+d3Q dω, (4) where VΩ = R 
+
+> Ω
+
+d3Q dω is the accessible measurement volume. In essence, this defines the intensity-induced L2
+
+pullback metric. In practice, the integral is approximated using Monte Carlo sampling, 
+
+Gmn (θ) ≈ 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+∂S (xi; θ)
+
+∂θ m
+
+∂S (xi; θ)
+
+∂θ n
+
+, (5) where xi = ( Qi, ω i) are sampled uniformly over Ω with 50 1 2 3 4 5020 40 60                                                               
+
+> (meV)  S(| Q|, )/ Ax
+> 012345
+> |Q| (Å 1)
+> 020 40 60
+> (meV)  S(| Q|, )/ J3a
+> 0.005
+> 0.000 0.005 2.5
+> 0.0 2.5 CYCZ
+> 020 40 60
+> (meV)  S(Q,)/ Ax
+> CYCZ
+> Wave vector (r.l.u.)
+> 020 40 60
+> (meV)  S(Q,)/ J3a
+> 0.05
+> 0.00 0.05 10
+> 010 0.2 0.3
+> Az
+> 3.2
+> 2.8
+> J1a
+> 2.0
+> 1.6
+> J1b
+> 0.18 0.24
+> J2a
+> 0.18 0.24
+> J2b
+> 13.6 14.4
+> J3a
+> 13.6 14.4
+> J3b
+> 0.6
+> 0.3
+> J4
+> 0.016
+> 0.008
+> Ax
+> 0.2 0.3
+> Az
+> 3.2
+> 2.8
+> J1a
+> 2.0
+> 1.6
+> J1b
+> 0.18 0.24
+> J2a
+> 0.18 0.24
+> J2b
+> 13.6 14.4
+> J3a
+> 13.6 14.4
+> J3b
+> 020 40 60
+> (meV)  S(Q,;ref )
+> 020 40 60
+> (meV)  S(Q,;)
+> CYCZ
+> Wave vector (r.l.u.)
+> 020 40 60
+> (meV)  S(Q,;)
+> 0.2 0.0 0.2
+> Perturbation
+> 0.0 0.5 1.0
+> Squared difference
+> Along v
+> Along v0.2 0.3
+> Az
+> 3.2
+> 2.8
+> J1a
+> 2.0
+> 1.6
+> J1b
+> 0.18 0.24
+> J2a
+> 0.18 0.24
+> J2b
+> 13.6 14.4
+> J3a
+> 13.6 14.4
+> J3b
+> 0.6
+> 0.3
+> J4
+> 0.016
+> 0.008
+> Ax
+> 0.2 0.3
+> Az
+> 3.2
+> 2.8
+> J1a
+> 2.0
+> 1.6
+> J1b
+> 0.18 0.24
+> J2a
+> 0.18 0.24
+> J2b
+> 13.6 14.4
+> J3a
+> 13.6 14.4
+> J3b
+> 020 40 60
+> (meV)  S(| Q|, ;ref )
+> 020 40 60
+> (meV)  S(| Q|, ;)
+> 012345
+> |Q| (Å 1)
+> 020 40 60
+> (meV)  S(| Q|, ;)
+> 0.2 0.0 0.2
+> Perturbation
+> 0.0 0.5 1.0
+> Squared difference
+> Along v
+> Along vAxAzJ1a J1b J2a J2b J3a J3b J4
+> 10 5
+> 10 4
+> 10 3
+> 10 2
+> 10 1
+> 10 0
+> Parameter sloppiness score (normalized within modality)
+> Single crystal Powder
+
+a bc d e
+
+FIG. 2. Observation landscapes and local parameter identifiability across INS modalities. a , Local observation landscape for the single-crystal INS modality, centered at the reference Hamiltonian θref . The corner plot shows two-parameter slices of the spectral-discrepancy landscape between the reference spectrum, S(Q, ω ; θref ), and spectra generated by perturbed Hamiltonians, S(Q, ω ; θ). Circular markers indicate θref . In the ( J1a , J 1b ) subspace, the solid and dashed lines denote pertur-bations along the eigenvectors, v⊥ and v∥, of the local observation metric tensor G, with eigenvalues satisfying λ⊥ ≥ λ∥. These directions correspond to the local stiff and sloppy directions in Hamiltonian parameter space, respectively. Representative spectra and the corresponding normalized squared differences demonstrate that perturbations of comparable magnitude along 
+
+v⊥ produce substantially larger spectral changes than perturbations along v∥. b, Corresponding local observation landscape for the powder INS modality, illustrating the distinct observation geometry induced by orientational averaging. c, Parameter-wise sloppiness scores for single-crystal and powder INS, computed from the diagonal elements of the inverse local metric tensor, ˜G−1, and normalized independently within each modality such that the maximum sloppiness score equals to 1. Larger values indicate Hamiltonian parameters that are less well constrained by the corresponding measurement modality. d, Representative partial derivatives of the dynamical structure factor with respect to selected normalized Hamiltonian parameters for the single-crystal modality, ∂S (Q, ω )/∂ ˜Ax and ∂S (Q, ω )/∂ ˜J3a. e, Representative partial derivatives of the dynamical structure factor with respect to selected normalized Hamiltonian parameters for the powder modality, ∂S (|Q|, ω )/∂ ˜Ax and ∂S (|Q|, ω )/∂ ˜J3a.
+
+respect to the normalized momentum-energy volume measure. Unless otherwise specified, we use N = 25 ,000 samples to estimate the observation metric. The eigenstructure of the pullback Gram matrix char-acterizes the local spectral sensitivity in the chosen Hamiltonian parameterization. Eigenvectors correspond-ing to large eigenvalues define stiff directions, along which small parameter perturbations produce substantial changes in the predicted spectra. Eigenvectors with small eigenvalues define sloppy directions, along which local pa-rameter perturbations produce comparatively small spec-tral changes. These directions characterize sensitivity un-der the selected L2 measure and do not by themselves incorporate counting noise, acquisition time, or prior in-formation. An example within the ( J1a , J 1b ) subspace is shown in the corner plot of Fig. 2(a). The perturbed Hamiltonians 
+
+θ⊥ and θ∥ are displaced by an equal distance of 0 .2 meV from the reference Hamiltonian θref along the stiff and sloppy eigen-directions of the local 2D subspace metric tensor G(θref ), respectively. The corresponding spectra, 
+
+S(Q, ω ; θ⊥) and S(Q, ω ; θ∥), are shown in the lower-left panels of Fig. 2, while the corresponding 9D eigenvec-tors are visualized in Supplementary Note 7. Pertur-6bations along the stiff direction produce substantially larger spectral changes relative to S(Q, ω ; θref ) than per-turbations along the sloppy direction. The normalized squared spectral differences, shown in the lower-right panels of Fig. 2, further highlight the different sensitiv-ities along these two directions. These results demon-strate that parameter-wise resolving power is fundamen-tally governed by the observation geometry induced by the forward map. Rather than merely identifying which Hamiltonian best reproduces the measurements, the ob-servation geometry characterizes what information the measurements can and cannot resolve. In Fig. 2(b), we present the corresponding local ob-servation landscape for the powder INS modality. Rel-ative to single-crystal INS, powder averaging produces broader low-discrepancy regions in Hamiltonian param-eter space, reflecting the loss of directional information. As a result, orientationally averaged spectra are less ef-fective at distinguishing correlated parameter variations. The representative powder spectra and their correspond-ing squared-difference maps again reveal stiff and sloppy parameter combinations, although the spectral response is generally less discriminative than in single-crystal INS. Despite this reduced parameter-wise resolving power, the observation geometry demonstrates that powder INS re-mains informative for Hamiltonian inference. In partic-ular, it provides meaningful constraints on the Hamilto-nian parameter space, making it a practical alternative when sufficiently large single crystals are unavailable or when rapid measurements with limited beam time are preferred. The complete 9D eigen-structures of the obser-vation metric for both single-crystal and powder modal-ities are provided in Supplementary Note 7. To compare the local identifiability of Hamiltonian pa-rameters with different scales, we evaluate the observa-tion metric in locally normalized coordinates. For a met-ric evaluated at a reference parameter point ˆθ, we define the dimensionless coordinates ˜θm = θm − ˆθm
+
+|ˆθm| . (6) The corresponding scaled observation metric is ˜G( ˆθ) = D( ˆθ)G( ˆθ)D( ˆθ), D( ˆθ) = diag 
+
+
+
+|ˆθ1|, . . . , |ˆθM |
+
+
+
+,
+
+(7) where M is the number of Hamiltonian parameters. This scaled metric removes the dependence of the local ge-ometry on the absolute magnitudes of the Hamiltonian parameters, enabling more intuitive comparisons of pa-rameter identifiability across different Hamiltonian pa-rameters. We quantify the sloppiness of parameter θm
+
+using the corresponding diagonal element of the inverse scaled metric, 
+
+Sm( ˆθ) = 
+
+ ˜G( ˆθ) + ϵI
+
+−1
+
+> mm
+
+, (8) where ϵ is a small numerical regularizer ( ϵ = 10 −12 
+
+throughout this work). Larger values of Sm indicate that parameter θm is less locally identifiable from the mea-sured spectra. To obtain a representative measure of parameter iden-tifiability across the Hamiltonian parameter space, we evaluate the sloppiness scores at 100 randomly sampled Hamiltonians ˆθ and report their averages in Fig. 2(c). For visualization, the sloppiness scores are normalized within each measurement modality by their largest value. For both powder and single-crystal INS, the trans-verse anisotropy Ax is identified as the least constrained parameter and therefore sets the normalization scale. Because the scores are normalized independently, this comparison concerns relative parameter-wise sloppiness within each modality rather than the absolute magnitude of the metric between modalities. Relative to this com-mon modality-wise reference, all remaining Hamiltonian parameters exhibit systematically larger normalized slop-piness scores under powder INS than under single-crystal INS (Fig. 2(c)). This indicates that the parameter-wise resolving power is less differentiated in the powder modality, with a broader set of Hamiltonian parameters remaining relatively sloppy compared with the least con-strained direction. This trend reflects the orientational averaging inherent in powder measurements, which sup-presses directional spectral features and expands the set of Hamiltonian perturbations that produce nearly indis-tinguishable spectra. The partial derivatives shown in Fig. 2(d,e) provide an intuitive visualization of the local observation geom-etry by revealing how infinitesimal perturbations of in-dividual Hamiltonian parameters modify the measured spectra. Consistent with the sloppiness analysis, pa-rameters with weaker spectral sensitivity generally ex-hibit smaller derivative magnitudes over the measured momentum–energy domain. Because these derivatives are obtained directly by automatic differentiation of the AI surrogate, they can be evaluated efficiently, in con-trast to conventional forward solvers where derivative in-formation is typically unavailable or substantially more expensive to compute numerically. More generally, the parameter-wise sloppiness profile provides a quantitative description of how effectively a given measurement modality constrains different direc-tions in the Hamiltonian parameter space. This observa-tion suggests a practical principle for multimodal exper-imental design: complementary measurements are most informative when they exhibit complementary sloppy di-rections, allowing one modality to constrain parameter combinations that remain weakly identifiable in another. The powder–single-crystal combination considered here serves primarily as a proof of concept, since powder INS is effectively an orientationally averaged projection of single-crystal scattering. Even greater gains can be ex-pected when combining experimental probes with gen-uinely complementary observation operators and corre-spondingly distinct observation geometries and sloppi-ness profiles. 7
+
+> Posterior-guided multimodal Hamiltonian inference and adaptive experimental design
+
+The proposed framework advances our understanding of how Hamiltonian parameters are jointly constrained by multimodal experimental observables. By learning a differentiable and computationally efficient mapping be-tween the Hamiltonian parameter space and INS spectra, the AI surrogate provides the foundation for Bayesian experimental design, enabling posterior-guided Hamil-tonian inference that integrates heterogeneous measure-ments and adaptively designs subsequent experiments. In INS, single-crystal measurements preserve direc-tional momentum information and can resolve fine fea-tures of the dynamical structure factor, S(Q, ω ). How-ever, each crystal orientation probes only a subset of reciprocal space, making comprehensive reciprocal-space coverage experimentally demanding. In contrast, pow-der INS rapidly provides an orientationally averaged overview of the excitation spectrum, although the av-eraging process obscures directional information. These complementary measurements therefore induce distinct observation geometries for the same underlying Hamil-tonian: powder measurements provide an efficient global characterization, while single-crystal measurements sub-sequently resolve the remaining microscopic ambiguities. To exploit this complementarity, we perform sequential Bayesian inference in which information inferred from powder INS is used to initialize the subsequent single-crystal analysis. We first infer the powder posterior 
+
+Ppd (θ), represented computationally by the particle ap-proximation Ppd . The initial particle distribution for the single-crystal stage is then constructed from Ppd using the partial posterior initialization procedure described in Methods. After acquiring the ( t+1)th single-crystal mea-surement at orientation ψ(t+1) , the posterior is updated according to 
+
+P (t+1) sc (θ) ∝ P
+
+
+
+S(t+1) sc | θ, ψ (t+1) 
+
+P (t)sc (θ), (9) where S(t+1) sc denotes the measured single-crystal spec-trum acquired at iteration t + 1, and ψ(t+1) is the corre-sponding sample orientation. Unlike many multimodal learning approaches 41,42 ,which fuse heterogeneous observations through learned latent representations, our framework connects powder and single-crystal measurements directly through the shared Hamiltonian parameter space θ. The modality-specific surrogate branches map the same Hamiltonian parameters to powder and single-crystal response func-tions in their respective observation spaces. Conse-quently, posterior uncertainty inferred from powder INS can be propagated directly through the shared Hamilto-nian parameterization to predict single-crystal spectra, enabling principled experimental planning in the subse-quent measurement stage. The next single-crystal measurement is selected using Bayesian experimental design. Here, we demonstrate the experimental design capability using the crystal orienta-tion ψ while this can be generalized to other experimental settings. We approximate the expected information gain using the predictive spectral variance 45,48,49,51 , leading to the utility function 
+
+U (t+1) (ψ) = 1
+
+N (ψ)
+
+> Q,ω
+
+X
+
+> (Q,ω )∈Ωψ
+
+Std θ∼P (t)sc (θ) [Ssc (Q, ω ; θ)] ,
+
+(10) where Ω ψ denotes the momentum–energy region accessi-ble at experimental setting ψ, and N (ψ) 
+
+> Q,ω
+
+is the number of sampled ( Q, ω ) points within this region. In practice, the utility is further adjusted to account for experimen-tal preferences, including penalties for repeated measure-ments and large changes in sample orientation (see Meth-ods and Supplementary Information). The next experi-mental setting (i.e., orientation ψ(t+1) ) is then selected by maximizing U (t+1) (ψ) over the candidate orientations. We demonstrate the proposed workflow using sim-ulated INS experiments (Fig. 3). For each ground-truth Hamiltonian used in the simulated experiments, synthetic single-crystal spectra are generated from 
+
+Ssc (Q, ω ; θ) with Poisson counting noise and treated as experimental observations. Figures 3(a) and (b) illus-trate the adaptive single-crystal acquisition strategies ob-tained without and with powder-informed initialization, respectively. In each panel, the heatmap shows the av-erage predictive-variance utility, U (t)(ψ), computed from 10 simulated experiments whose ground-truth Hamiltoni-ans are randomly sampled from the initial uniform prior 
+
+P (0) (θ) defined in Methods. The powder-informed initialization reshapes the pos-terior uncertainty before the single-crystal stage begins, altering the predictive utility landscape over the candi-date crystal orientations. Consequently, the preferred measurement sequence adapts to the remaining uncer-tainty, leading to different orientation trajectories than those obtained from an uninformative prior. The over-laid trajectory shows the sequence of crystal orientations selected for a representative simulated experiment gener-ated from the same reference Hamiltonian, θref , used in Fig. 2. Figure 3(c) compares the posterior evolution for the single-crystal-only and powder-initialized protocols. The marginal distributions along the top and left illus-trate the progressive reduction of parameter uncertainty with successive measurements, while the lower-right cor-ner plot shows the final posterior distribution after ten single-crystal acquisitions. Figure 3(d) compares the Hamiltonian parameter esti-mation errors obtained using powder-only, single-crystal-only, and staged multimodal acquisition protocols. Con-sistent with the parameter-wise sloppiness analysis in Fig. 2(c), powder-only inference produces the largest er-rors for most parameters because orientational averaging removes directional information that is retained in single-crystal measurements. Consequently, single-crystal INS generally achieves the lowest point-estimation errors, re-flecting its ability to resolve the full directional structure 810 4 10 3 10 2 10 1 10 0                      
+
+> Parameter sloppiness score (normalized within modality)
+> 10 3
+> 10 2
+> 10 1
+> post
+> i / |  i|
+> Single crystal Powder AxAzJ1a J1b J2a J2b J3a J3b J4
+> 10 3
+> 10 2
+> 10 1
+> Geometric Mean Absolute Error  Powder Single-Crystal Multi-Modal 025 50
+> Iteration
+> 100
+> 0100 200
+> Selected angle  (deg)
+> Low High Frequency 025 50
+> Iteration
+> 100
+> 0100 200
+> Selected angle  (deg)
+> Low High Frequency
+
+abcd e
+
+FIG. 3. Bayesian experimental design and multimodal Hamiltonian inference enabled by AI surrogates. a , Adap-tive experimental design on orientation ψ for single-crystal INS without powder-derived prior information. The orange curve shows the sequence of selected sample orientations ψ for a representative simulated experiment generated from S(Q, ω ; θref )with Poisson noise. The heatmap shows the average predictive-variance utility over 10 simulated experiments with ground-truth Hamiltonians sampled from the initial prior. b, Adaptive experimental design on orientation ψ for single-crystal INS initialized with a posterior obtained from powder INS measurements. Compared with panel (a), the suggested orientations shift toward different regions, reflecting the additional information contributed by the powder modality. c, Posterior distributions of Hamil-tonian parameters. The top and left panels show the marginal posterior evolution as a function of measurement steps, while the corner plot illustrates the posterior distribution after ten single-crystal measurements. d, Parameter estimation error for powder-only, single-crystal-only, and multimodal inference. Bars show the geometric mean of absolute error across benchmark realizations over sampled θ, computed as y = exp[ ⟨log |ˆθ−θ∗|⟩ ] and displayed on a logarithmic scale. Error bars indicate one log-standard-deviation interval, where σlog = std[log |ˆθ − θ∗|], corresponding to multiplicative intervals [ y exp( −σlog ), y exp( σlog )]. 
+
+e, Relationship between the parameter sloppiness score and the residual posterior uncertainty after sequential single-crystal inference. Each point corresponds to one Hamiltonian parameter. The positive correlation demonstrates that the local obser-vation geometry provides a useful predictor of the uncertainty remaining after Bayesian inference. 9of S(Q, ω ). Although powder-initialized measurement does not uniformly reduce the point-estimation error relative to the single-crystal-only measurement, it produces nar-rower posterior distributions for sloppy Hamiltonian pa-rameters including Ax, J2a , and J2b (Fig. 3(c)) compared with single-crystal-only measurements. This result indi-cates that powder measurements effectively concentrate the posterior distribution before single-crystal measure-ments are acquired, allowing the subsequent measure-ments to focus on the remaining parameter ambiguities. Rather than providing fundamentally independent infor-mation beyond an ideal, fully sampled single-crystal ex-periment, powder INS serves as an experimentally effi-cient initialization that enables the subsequent single-crystal measurement budget to be allocated more effec-tively. To assess whether the local observation geometry pre-dicts the practical identifiability of Hamiltonian parame-ters, Fig. 3(e) compares the parameter sloppiness scores with the normalized posterior uncertainties obtained af-ter Bayesian inference. The horizontal axis shows the sloppiness score computed from the inverse scaled obser-vation metric, while the vertical axis shows the poste-rior standard deviation normalized by the magnitude of the corresponding reference parameter, σpost  
+
+> i
+
+/|θref  
+
+> i
+
+|. The positive correlation demonstrates that the local obser-vation geometry provides an effective a priori predictor of the parameter uncertainty remaining after inference. This result suggests that the observation geometry can serve as a diagnostic of the parameter-resolving capabil-ity of a measurement configuration solely from the for-ward model, before experimental data are acquired. The powder–single-crystal example presented here serves primarily as a proof of concept for the pro-posed multimodal framework. More generally, the same methodology applies to any combination of experimen-tal probes whose observations can be linked through a shared microscopic Hamiltonian. 
+
+> Validation with experimental multimodal INS data
+
+We now apply our multimodal AI surrogate to infer Hamiltonian parameters from experimental INS data col-lected from powder and single-crystal NiPS 3 samples. Details about experimental data preparation are pre-sented in Methods. As in the staged workflow introduced in the previous section, the two measurement modalities are coupled through the shared Hamiltonian parameter space. The objective is therefore not simply to fit each spectrum independently, but to infer a posterior distribu-tion over Hamiltonian parameters that is simultaneously consistent with both powder and single-crystal observa-tions. Figure 4(a) shows the posterior distributions obtained from the two-stage Bayesian inference using the mul-timodal surrogate. The blue posterior corresponds to the unconstrained nine-parameter Hamiltonian, whereas the red posterior incorporates the symmetry constraints 
+
+J2a = J2b and J3a = J3b following Ref. 3, thereby reduc-ing the parameter space from nine to seven dimensions. The constrained posterior is centered near the literature-reported Hamiltonian, while the unconstrained model re-veals the associated uncertainty and parameter correla-tions when these symmetry constraints are relaxed. Despite the additional degrees of freedom in the uncon-strained model, the marginal posteriors of the remaining parameters are broadly consistent between the two for-mulations. The posterior widths and correlations further indicate that some exchange parameters remain more weakly constrained than others, such as Ax, Az , J2a , and 
+
+J2b , consistent with the sloppy directions identified by the local observation geometry. This extension from a seven-dimensional to a nine-dimensional Hamiltonian is computationally nontrivial for conventional grid-based forward-model evaluation. For a fixed resolution of N points along each parameter dimension, the number of required forward calculations increases by a factor of N 2. To put this into perspective, using the same computational budget as the surrogate training dataset used in this work (18 ,000 forward-model evaluations; see Methods), a direct grid search over the nine-dimensional Hamiltonian space would provide only about three grid points along each parameter dimension, making brute-force Hamiltonian fitting impractical. In-stead, these forward-model evaluations are used to train a differentiable neural surrogate that can subsequently be evaluated rapidly throughout the Hamiltonian parameter space, enabling efficient Bayesian inference and experi-mental design. Having obtained the unconstrained posterior, we next assess how well its Hamiltonian samples jointly repro-duce the experimental powder and single-crystal mea-surements. We draw 2 ,048 samples from the posterior and use independent Sunny calculations at the corre-sponding Hamiltonian parameter sets to generate the as-sociated spectra for comparison with experiment. The scatter plot in Fig. 4(b) compares the Pearson correla-tion coefficients (PCCs) between the experimental data and the corresponding Sunny-generated LSWT spectra for each sampled Hamiltonian. The horizontal and ver-tical axes denote PCC sc (PCC against the single-crystal experimental data) and PCC pd (PCC against the pow-der experimental data), respectively, so that each point represents a single Hamiltonian evaluated simultaneously against both experimental modalities. Larger PCC val-ues therefore indicate better joint agreement with the measured spectra. A pixel-wise decomposition illustrat-ing the contributions to the PCC metric is provided in Supplementary Note 8. The scatter plot is overlaid with the reference Hamil-tonian θref reported in Ref. 3, which was obtained from single-crystal measurements. Although individual pos-terior samples can fit one modality better than the other, the joint posterior-predictive comparison identi-10 0 2 3 4 6020 40 60                           
+
+> (meV)
+> Experiment
+> CYCZ
+> 02346020 40 60
+> (meV)
+> Best (PCC=0.913)
+> CYCZ
+> Best (PCC=0.601)
+> 02346
+> |Q| (Å 1)
+> 020 40 60
+> (meV)
+> Ref (PCC=0.905)
+> CYCZ
+> Q(r.l.u.) Ref (PCC=0.596)
+> 0.450 0.475 0.500 0.525 0.550 0.575 0.600
+> PCC (Single Crystal)
+> 0.86 0.88 0.90 0.92
+> PCC (Powder)  Ref Best
+> Low High
+
+a bc
+
+FIG. 4. Validation with experimental multimodal INS data. a , Posterior distributions inferred from multimodal INS measurements with (red) and without (blue) the exchange-parameter constraints J2a = J2b and J3a = J3b . The corner plot shows the final posterior distributions and parameter correlations, while the diagonal panels show the corresponding marginal posterior distributions. Black crosses and dashed vertical lines denote the reference Hamiltonian parameters θref , and horizontal error bars indicate the corresponding one-standard-deviation uncertainties reported in Ref. 3. b, Pearson correlation coefficients (PCCs) for powder and single-crystal INS evaluated using 2 ,048 samples drawn from the unconstrained posterior. The selected “best” Hamiltonian θbest is the posterior sample with the smallest normalized distance to the ideal agreement point, as defined in Eq. (12). c, Comparison of powder (left) and single-crystal (right) INS spectra. Within each column, from top to bottom: experimental spectrum, prediction from the selected posterior sample θbest , and prediction from the reference Hamiltonian θref .
+
+fies Hamiltonians that achieve balanced agreement across both measurements. In particular, let E denote the set of posterior samples whose single-crystal and powder PCCs are no smaller than the corresponding reference values: 
+
+E = θ(k) :PCC sc (θ(k)) ≥ PCC sc (θref ),
+
+PCC pd (θ(k)) ≥ PCC pd (θref ) .
+
+Assuming that E is nonempty and that the PCC range is nonzero for each modality, define 
+
+]PCC α(θ) = PCC α(θ) − min  
+
+> ϑ∈E
+
+PCC α(ϑ)max  
+
+> ϑ∈E
+
+PCC α(ϑ) − min  
+
+> ϑ∈E
+
+PCC α(ϑ) , (11) where α ∈ { sc , pd }. We select the Hamiltonian closest to the component-wise ideal point (1 , 1) in the normalized PCC plane: 
+
+θbest ∈ arg min 
+
+> θ∈E
+
+rh
+
+1 − ]PCC sc (θ)
+
+i2
+
++
+
+h
+
+1 − ]PCC pd (θ)
+
+i2
+
+.
+
+(12) The corresponding Hamiltonian parameter vectors for both the reference model, θref , and the selected posterior sample, θbest , are listed in Supplementary Note 5. Figures 4(b) and (c) compare the measured and pre-dicted powder and single-crystal spectra, respectively. For the powder INS, the left panels show the experi-mental S(|Q|, ω ) together with the spectrum generated by the “best” posterior sample, S(|Q|, ω ; θbest ), and that generated by the literature reference Hamiltonian, 
+
+S(|Q|, ω ; θref ). The right panels show the corresponding spectra for the single-crystal modality along the high-symmetry path. We emphasize here that the purpose of this compari-son is not to revise the Hamiltonian parameters reported in Ref. 3, but to demonstrate how the present framework identifies alternative parameter sets that are consistent with the processed experimental spectra and character-izes the associated parameter ambiguities. Both Hamiltonian estimates reproduce the dominant spectral features in both modalities, but differ in subtle intensity distributions and dispersive details that remain important for resolving the underlying microscopic inter-actions. In particular, θbest yields higher PCC values 11 for both powder and single-crystal measurements than 
+
+θref , indicating that the joint multimodal posterior iden-tifies Hamiltonians with improved simultaneous agree-ment with the processed experimental spectra considered here. Interestingly, the posterior samples span a much narrower range of powder agreement than single-crystal agreement. This behavior reflects the weaker constraints imposed by powder INS: many distinct Hamiltonians pro-duce similarly good powder spectra, whereas the direc-tional information preserved by single-crystal INS more effectively differentiates among competing microscopic models. Beyond returning a representative “best” Hamiltonian, the inference yields a full posterior distribution over Hamiltonian parameters, enabling direct quantification of the uncertainty associated with each microscopic inter-action. Rather than collapsing the inference to a single point estimate, the posterior distributions and param-eter correlations reveal which interaction combinations remain poorly resolved by the available measurements, consistent with the locally sloppy directions predicted by the observation geometry. This experimental validation demonstrates that the proposed framework extends beyond simulated datasets to real multimodal INS measurements, while preserv-ing physical interpretability through the shared Hamil-tonian parameter space. The framework also provides a principled approach for determining not only which mi-croscopic models are consistent with heterogeneous ex-perimental observations, but also which interactions re-main fundamentally unresolved by the available measure-ments. 
+
+> DISCUSSION
+
+In this work, we present an AI-enabled framework that not only accelerates Hamiltonian inference from experi-mentally measured spectra, but also provides a proba-bilistic and physically interpretable approach to Hamil-tonian inference. By combining Hamiltonian-conditioned neural surrogates with Bayesian inference, local ob-servation geometry, and Bayesian experimental design, the framework quantifies uncertainty, integrates com-plementary measurement modalities, and predicts the parameter-resolving capability of a given measurement configuration. Rather than simply producing a best-fit Hamiltonian, the framework characterizes the informa-tion content of spectroscopy measurements and the re-maining ambiguities in the inferred microscopic model. We demonstrate these capabilities using NiPS 3 as a representative quantum magnet with both powder and single-crystal INS measurements. The learned surro-gate enables rapid, differentiable evaluation of neutron-scattering spectra throughout the Hamiltonian parame-ter space, making it practical to construct observation landscapes that reveal stiff and sloppy parameter direc-tions. These landscapes provide intuitive and quantita-tive insight into why certain interactions are well con-strained by INS whereas others remain only weakly iden-tifiable. Importantly, the observation geometry itself is independent of the neural surrogate and can, in prin-ciple, be defined for any differentiable forward model. However, repeated evaluation of conventional forward solvers rapidly becomes computationally prohibitive in high-dimensional Hamiltonian spaces. For example, a uniform nine-dimensional grid with the same computa-tional budget as the training dataset used in this work would provide only about three sampling points along each parameter dimension, far too coarse to accurately resolve the posterior distribution. The surrogate there-fore serves as an enabling computational accelerator that makes repeated evaluation of the observation geome-try, Bayesian inference, and adaptive experimental de-sign practical for realistic high-dimensional Hamiltonian spaces. A key strength of the framework is its physically grounded treatment of multimodal inference. Rather than coupling heterogeneous measurements through an abstract learned latent representation, powder and single-crystal INS are linked through their shared mi-croscopic Hamiltonian parameter space. This enables posterior information inferred from one modality to be propagated naturally to another, supporting sequen-tial Bayesian inference, joint parameter estimation, and adaptive experimental design. In the experimental anal-ysis of NiPS 3, this strategy yields posterior distributions that simultaneously reproduce both powder and single-crystal spectra while explicitly quantifying the remain-ing uncertainty. Notably, starting from an established Hamiltonian obtained through conventional refinement, the framework identifies alternative parameter combina-tions consistent with the observations, providing a com-plementary characterization of parameter ambiguities be-yond the single best-fit solution. The present framework also has several limitations. First, the surrogate model is trained on spectra gener-ated from an assumed Hamiltonian family and forward solver, so its predictive accuracy is ultimately limited by the fidelity of the underlying physical model, the qual-ity of the approximation method used to calculate the spectra (here spin wave theory), and the coverage of the training dataset. Second, although neural surrogates pro-vide highly efficient forward evaluations after training, generating sufficiently informative training data remains computationally demanding for high-dimensional Hamil-tonians. Third, the inferred posterior quantifies uncer-tainty only within the assumed model class. Missing in-teractions, disorder, domain structure, instrumental ef-fects, or other sources of model mismatch may therefore manifest as broadened posterior distributions or system-atic residuals rather than being explicitly represented. Future work could address these limitations by incorpo-rating surrogate-model uncertainty, for example through Bayesian neural networks or ensemble methods, and by using cross-modal residuals as diagnostics of model inad-12 equacy. Beyond Hamiltonian inference, the inferred posterior may itself encode useful physical information. Real mate-rials often exhibit spatial inhomogeneity, strain, stacking faults, domains, or local disorder, giving rise to distri-butions of effective microscopic parameters rather than a single uniform Hamiltonian. Although the present work interprets the posterior primarily as epistemic un-certainty, future hierarchical Bayesian models could dis-tinguish uncertainty arising from limited measurements from intrinsic variations within the sample. Such exten-sions would enable multimodal spectroscopy to probe not only the most probable Hamiltonian but also the distri-bution of microscopic environments contributing to the measured response. Our framework uses AI not as an end-to-end inverse model, but as a reusable surrogate for computationally expensive physics calculations while keeping the infer-ence grounded in microscopic Hamiltonian parameters and experimentally defined observables. This separation between the physical model, the learned surrogate, and the Bayesian inference engine preserves physical inter-pretability while enabling efficient uncertainty quantifi-cation and experimental design. The central require-ment of this methodology, namely a computationally ef-ficient, differentiable forward model, is shared by many spectroscopic and scattering techniques, providing a ba-sis for applying the framework beyond INS to domains such as resonant inelastic X-ray scattering, Raman spec-troscopy, X-ray absorption spectroscopy, optical spec-troscopy, and transport measurements. By revealing how measurement modalities constrain microscopic interac-tions and identifying experiments that efficiently resolve remaining ambiguities, the framework establishes a gen-eral strategy for uncertainty-aware Hamiltonian inference and adaptive multimodal experimental design in quan-tum materials. Because the observation geometry is de-fined entirely by the forward model, the same frame-work naturally extends to optimizing additional exper-imental control variables, such as sample orientation, incident energy, magnetic field, pressure, temperature, or other external perturbations, as well as coordinat-ing complementary measurements across different experi-mental modalities. This statistical decision-making layer, combined with emerging agentic AI-driven laboratory au-tomation 52–56 , could enable closed-loop autonomous sci-entific experiments that iteratively identify the most in-formative measurements, acquire new data, and refine microscopic models. By unifying physically interpretable AI surrogates, Bayesian inference, observation geometry, and adaptive experimental design, this work provides a foundation for autonomous scientific discovery in quan-tum materials. 
+
+> METHODS Bayesian inference and experimental design
+
+Unless otherwise specified, we adopt independent uni-form priors over the nine Hamiltonian parameters, 
+
+P (0) (θ) = 
+
+> 9
+
+Y
+
+> m=1
+
+U(θm; θm, lb , θ m, ub ) , (13) where the lower and upper bounds are 
+
+θlb = ( −0.020 , 0.15 , −3.2, −2.2, 0.15 ,
+
+0.15 , 13 .5, 13 .5, −0.76) and 
+
+θub = ( −0.005 , 0.35 , −2.5, −1.5, 0.26 ,
+
+0.26 , 15 .0, 15 .0, −0.25) ,
+
+(14) in the parameter order 
+
+θ = ( Ax, A z , J 1a , J 1b , J 2a , J 2b , J 3a , J 3b , J 4). (15) The prior ranges were chosen to encompass physically plausible Hamiltonian values around the reference pa-rameter set while allowing reasonable variation along each parameter direction. The posterior distribution was approximated using a sequential Monte Carlo particle approximation, 
+
+P (t)(θ) ≈
+
+> N
+
+X
+
+> n=1
+
+w(t) 
+
+> n
+
+δ(θ − θ(t) 
+
+> n
+
+), (16) where N = 10 ,000 particles were initialized by inde-pendent sampling from the prior in Eq. (13), with ini-tial weights w(0)  
+
+> n
+
+= 1 /N . At design iteration t, the se-lected experimental setting produces a set of measured coordinates and intensities Dt = {(xj , y j )}Mj=1 . Here 
+
+xj = ( Hj , K j , L j , ω j ) for single-crystal measurements. For each particle, the surrogate forward model pro-duced an intensity prediction Sraw pred (Qj , ω j ; θ(t) 
+
+> n
+
+), which was scaled and clipped for the following particle-score calculation via 
+
+Spred (Qj , ω j ; θ(t) 
+
+> n
+
+) = αt max {Sraw pred (Qj , ω j ; θ(t) 
+
+> n
+
+), 0}
+
+(17) The global scale factor αt was adaptively estimated from the ratio between the mean measured intensity and the mean particle-averaged predicted intensity, with expo-nential smoothing in log space. Particle weights were subsequently updated using a Poisson-derived robust score ℓ(t) 
+
+> n
+
+,
+
+w(t+1)  
+
+> n
+
+= w(t) 
+
+> n
+
+exp( ℓ(t) 
+
+> n
+
+)
+
+PNm=1 w(t) 
+
+> m
+
+exp( ℓ(t) 
+
+> m
+
+) . (18) Because ℓ(t) 
+
+> n
+
+is a robust effective score rather than a conventional log-likelihood, the resulting particle distri-bution is interpreted as a generalized posterior. More 13 details about the adaptive intensity scale factor αt are provided in Supplementary Note 1, while the Poisson-derived robust score ℓ(t) 
+
+> n
+
+is described in Supplementary Note 2. To monitor particle degeneracy, we used the standard effective sample size 
+
+N (t)eff = 1
+
+PNn=1 
+
+
+
+w(t)
+
+> n
+
+2 . (19) When N (t)eff < N/ 2, particles were rejuvenated using Liu– West resampling 57 . Parent particles were sampled with replacement according to the current weights, and each child particle was shrunk toward the current weighted mean and perturbed by a Gaussian kernel, 
+
+θ′ 
+
+> n
+
+= aθIn + (1 − a) ¯θ + ϵn,
+
+ϵn ∼ N  0, (1 − a2)Σ + 10 −6I , (20) where In ∼ Categorical( {wm}Nm=1 ), ¯θ and Σ are the weighted particle mean and covariance, and a = 0 .98. After resampling, all weights were reset to 1 /N . Parti-cles falling outside the prior bounds were replaced by new samples drawn uniformly within the allowed parameter ranges. Because the masked powder measurements provide only weak constraints on several Hamiltonian parame-ters, directly propagating the entire powder particle set could result in overconfident initialization for the sub-sequent single-crystal inference. We therefore adopted a partial posterior initialization strategy. Specifically, particles were first resampled from the powder posterior according to their importance weights, after which the parameters Ax, J1a , J1b , J2a , J2b , and J4 were reinitial-ized by independently drawing from their original uni-form prior distributions, while the remaining parameters retained the powder-informed posterior values. The par-ticle weights were subsequently reset to a uniform distri-bution before beginning the single-crystal inference. Experimental settings were selected sequentially from the candidate setting space. For a candidate orientation 
+
+ψ, we sampled coordinates x within the corresponding instrumental coverage region and drew parameter sam-ples from the current particle approximation. The acqui-sition utility defined in Eq. (10) was multiplied by two scale factors to incorporate practical experimental con-siderations, ˜U (t+1) (ψ) = s(t+1) rep (ψ) s(t+1) dist (ψ) U (t+1) (ψ), (21) where srep penalizes repeated experimental settings and 
+
+sdist penalizes large changes relative to the previously selected single-crystal orientation. The specific forms of the two scale factors are provided in Supplementary Note 3. The next measurement was selected by maximizing the adjusted utility: 
+
+ψt+1 = arg max 
+
+> ψ
+
+˜U (t+1) (ψ). (22) For the default Bayesian optimal experimental design (BOED) runs, utilities were estimated using 1000 sam-pled coordinates and 500 parameter samples at each de-sign step. 
+
+> Neural surrogate model
+
+We used a multimodal neural surrogate to ap-proximate the dynamical structure factor for both single-crystal and powder neutron-scattering geome-tries. The surrogate was based on a combined feature-wise linear modulation (FiLM) sinusoidal represen-tation network (SIREN) architecture 43,58 , in which the nine-dimensional Hamiltonian parameter vector 
+
+θ = [Ax, A z , J 1a , J 1b , J 2a , J 2b , J 3a , J 3b , J 4] was passed through a shared mapping network to generate layer-wise scale and shift modulations. The mapping network was a fully connected ReLU network with three hidden layers of 256 neurons, producing the FiLM parameters for the coordinate networks. Separate coordinate networks were used for the single-crystal and powder modalities. The single-crystal net-work took ( H, K, L, ω ) as input, while the powder net-work took ( |Q|, ω ) as input. Each coordinate network consisted of four FiLM-modulated sine layers with 256 hidden units and SIREN frequency parameter ω0 = 30, followed by a linear output layer producing a scalar in-tensity. The Hamiltonian-parameter mapping network was shared between modalities, while the coordinate net-works were modality-specific. The surrogate was trained jointly on the single-crystal and powder datasets, which together comprise 20 ,000 Hamiltonian samples (see “Training data generation” be-low). The dataset was randomly split into training, val-idation, and testing sets containing 90%, 5%, and 5% of the samples, respectively. We optimized a weighted mean-squared error loss with equal weights for the two modalities, using the Adam optimizer with a learning rate 10 −4 and mini-batch size 4. Training was run for up to 300 epochs, and the model with the lowest validation loss (at epoch 239) was used for all BOED calculations. The detailed network architecture and training procedure are provided in Supplementary Note 4. 
+
+> Experiment and data preparation
+
+Polycrystalline NiPS 3 was prepared by heating a mix-ture of high-purity elements in a silica tube sealed under vacuum after argon purging. The reaction occurred by slowly heating (10 ◦C/h) to 400 ◦C followed by a 24 h dwell, then heating (10 ◦C/h) to 650 ◦C for 24 h. The furnace power was turned off and the ampoule cooled in the furnace. This produced a mixture of crystals and polycrystalline masses, which were ground in air and passed through a 0 .5 mm sieve to reduce particle size. The resulting powder was annealed for 16 h at 600 ◦C14 in an evacuated silica tube. The resulting material was lightly ground and passed through a 0 .5 mm sieve before characterization by x-ray diffraction and magnetization measurements to verify the desired phase and expected Neel temperature. Prior to use, forming gas was used to reduce nickel powder at 450 ◦C for 12 h. The powder sample of NiPS 3 was loaded under a he-lium atmosphere into aluminum sample cans. The sam-ple along with an identical empty can were mounted to the cold-finger of the SEQUOIA instruments closed-cycle refrigerator sample changer 59 . The third position of the sample changer had no sample installed for inde-pendent measurements of the sample environment back-ground contribution. Inelastic neutron scattering mea-surements were performed at T = 5 K for incident energy 
+
+Ei = 210 (6,3,3 C), 104 .6 (15,12,2.9 C), 62 .7 (12.3,9,1.5 C), and 29 .3 (8.9,9,1.5 C) meV with the instruments high resolution Fermi chopper spinning at 600, 540, 420, and 240 Hz respectively. Values in parentheses corre-spond to accumulated proton charge in Coulombs on the spallation target for measurements of the sample, the empty can, and the empty sample environment respec-tively. Details about extraction of powder magnon spec-trum from the total experimental INS data are presented in Supplementary Note 10. 
+
+Powder data. The powder INS data were reduced from the raw SEQUOIA event data using Mantid 60 . For the powder spectrum used in Fig. 4(c), the nominal 
+
+Ei = 100 meV dataset was used. Individual sample runs were merged prior to reduction, with the corresponding neutron-monitor data merged separately. The incident energy and time-zero correction were determined from the monitor data, and the scattering intensity was nor-malized to proton charge and corrected for detector ef-ficiency using a processed vanadium standard. The re-duced detector data were transformed to powder coor-dinates ( |Q|, ℏω) using ConvertToMD and histogrammed using BinMD over 0 ≤ | Q| ≤ 7 ˚ A−1 and 0 ≤ ℏω ≤ 80 meV, with bin widths of 0 .035 ˚ A−1 and 0 .4 meV, respectively. Measurements of the NiPS 3 sample together with the alu-minum sample can and heat shield were reduced inde-pendently from corresponding empty-can measurements containing the can and heat shield, using the same reduc-tion and histogramming procedure. Rather than directly subtracting the empty-can spectrum, the sample and empty-can spectra were retained as separate inputs to the vision-transformer-based source-separation workflow described in Supplementary Note 10. This workflow sep-arates the magnetic scattering from sample-phonon and sample-environment contributions, after which the ex-tracted magnon spectrum was processed by the feature-enhancement model and used for Hamiltonian inference. 
+
+Single-crystal data. The experimental spectrum along the high-symmetry path shown in Fig. 4(c) was generated from the original Mantid MDEventWorkspace (MDE) files 60 used to produce the figures in Ref. 3. The dataset comprises three merged MDE files contain-ing complete sample-rotation measurements collected at incident energies Ei = 28, 60, and 100 meV. For each incident energy, the data were histogrammed along the high-symmetry path C − Γ, Γ − Y , Y − C, C − Z, and 
+
+Z − Γ using the MDNorm algorithm as implemented in SHIVER 61,62 . The histogram specifications followed Ref. 3, with integration widths of ±0.05 reciprocal lat-tice units (r.l.u.) in the in-plane direction transverse to the path and ±0.25 r.l.u. in the out-of-plane direc-tion. An energy-bin width of 0 .5 meV was used over 0 ≤ ℏω ≤ 60 meV. The individual path segments were concatenated for each incident energy and then combined into a single spectrum, using the Ei = 28 meV data for 0–20 meV, the Ei = 60 meV data for 20–32 meV, and the Ei = 100 meV data above 32 meV. The effect of the finite reciprocal-space integration used to construct these cuts on the Hamiltonian inference is examined further in Supplementary Note 9. 
+
+> Training data generation
+
+Training data were generated using linear spin wave calculations implemented in Sunny.jl 23 . We randomly sampled 20 ,000 Hamiltonians by independently varying each Hamiltonian parameter over a range between zero and twice its value reported in Ref. 3, while preserv-ing its sign; i.e., θi ∼ U (0 , 2θref ,i ) for θref ,i > 0 and 
+
+θi ∼ U(2 θref ,i , 0) for θref ,i < 0. For each parame-ter set, the magnetic ground state was first obtained through classical energy minimization before construct-ing the corresponding spin wave model. The magnetic ground state search was always conducted on a single crystallographic unit cell. Parameter sets that failed to converge or yielded unstable magnon spectra were dis-carded and replaced with new samples. Single-crystal training data were generated by eval-uating the dynamical structure factor at 2,000 ran-domly sampled momentum-transfer points uniformly dis-tributed within [ −3, 3] 3 reciprocal lattice units (r.l.u.) and 100 uniformly spaced energy transfers between 0 and 100 meV. Powder spectra were generated using orienta-tional powder averaging with 300 randomly sampled |Q|
+
+values and 3 ,000 crystal orientations. Both single-crystal and powder spectra employed Gaussian energy broaden-ing with a full width at half maximum (FWHM) of 4 meV. Three rotational magnetic domains were averaged for the single-crystal calculations, and the Ni 2+ magnetic form factor was included throughout. The Hamiltonian parameters and scattering coordinates were linearly nor-malized to the interval [ −1, 1] before training. 
+
+> DATA AVAILABILITY
+
+The experimental data supporting the findings of this study are available from the corresponding author upon reasonable request. The simulation datasets can be re-15 generated using the code provided and will be made pub-licly available upon acceptance of the manuscript. 
+
+CODE AVAILABILITY 
+
+The source code required to reproduce the results presented in this work will be made publicly available through a GitHub repository with a permanent Zenodo archive upon acceptance of the manuscript. 
+
+ACKNOWLEDGMENTS 
+
+This work is primarily supported by the U.S. Depart-ment of Energy, Office of Science, Basic Energy Sciences (BES) under the Genesis Mission BES AI Pathfinder Program, MAIQMag: Multimodal AI for 2D Quantum Magnets. Sample synthesis and verification (A.F.M.) were supported by the U. S. Department of Energy, Of-fice of Science, Basic Energy Sciences, Materials Sci-ences and Engineering Division. This research used com-putational resources of the National Energy Research Scientific Computing Center (NERSC), a US Depart-ment of Energy Office of Science User Facility located at Lawrence Berkeley National Laboratory operated un-der contract DE-AC02-05CH11231, using NERSC award ERCAP0038195. The authors acknowledge the Texas Advanced Computing Center (TACC) at The University of Texas at Austin for providing computational resources under project code DMR25014 that have contributed to the research results reported within this paper. We thank Allen Scheie for providing the single-crystal INS data originally published in Ref. 3. A portion of this research used resources at the Spallation Neutron Source, a DOE Office of Science User Facility operated by the Oak Ridge National Laboratory. The beam time was allocated to SEQUOIA on proposal number IPTS-37598. During the preparation of this work, the authors used the large lan-guage model ChatGPT by OpenAI in order to refine the language and enhance the readability of this paper. After using this tool, the authors reviewed and edited the con-tent as needed and take full responsibility for all content in this publication. 
+
+[1] N. Ntallis, V. Borisov, Y. O. Kvashnin, D. Thonig, E. Sj¨ oqvist, A. Bergman, A. Delin, O. Eriksson, and M. Pereiro, Connection between magnetic interactions and the spin-wave gap of the insulating phase of NaOsO 3,Physical Review B 104 , 134433 (2021). [2] A. Petsch, N. Headings, D. Prabhakaran, A. Kolesnikov, C. Frost, A. Boothroyd, R. Coldea, and S. Hayden, High-energy spin waves in the spin-1 square-lattice antiferro-magnet La 2NiO 4, Physical Review Research 5, 033113 (2023). [3] A. Scheie, P. Park, J. W. Villanova, et al. , Spin wave hamiltonian and anomalous scattering in NiPS 3, Phys. Rev. B 108 , 104402 (2023). [4] M. Hase, R. Tamura, K. Hukushima, S. Asai, T. Masuda, S. Itoh, and A. D¨ onni, Inelastic neutron scattering stud-ies on the eight-spin zigzag-chain compound KCu 4P3O12 :Confirmation of the validity of a data-driven technique based on machine learning, Physical Review B 109 ,094434 (2024). [5] R. N. Gutenkunst, J. J. Waterfall, F. P. Casey, K. S. Brown, C. R. Myers, and J. P. Sethna, Universally sloppy parameter sensitivities in systems biology models, PLoS computational biology 3, e189 (2007). [6] M. K. Transtrum, B. B. Machta, K. S. Brown, B. C. Daniels, C. R. Myers, and J. P. Sethna, Perspective: Sloppiness and emergent theories in physics, biology, and beyond, The Journal of chemical physics 143 (2015). [7] S.-i. Amari, Information geometry and its applications 
+
+(Springer, 2016). [8] A. M. Samarakoon, K. Barros, Y. W. Li, M. Eisenbach, Q. Zhang, F. Ye, V. Sharma, Z. Dun, H. Zhou, S. A. Grig-era, et al. , Machine-learning-assisted insight into spin ice Dy 2Ti 2O7, Nature communications 11 , 892 (2020). [9] Z. Chen, X. Shen, N. Andrejevic, T. Liu, D. Luo, T. Nguyen, N. C. Drucker, M. E. Kozina, Q. Song, C. Hua, et al. , Panoramic mapping of phonon transport from ultrafast electron diffraction and scientific machine learning, Advanced Materials 35 , 2206997 (2023). [10] A. M. Samarakoon and D. Alan Tennant, Machine learn-ing for magnetic phase diagrams and inverse scattering problems, Journal of Physics: Condensed Matter 34 ,044002 (2022). [11] T. Misawa, R. Tamura, K. Yoshimi, and Y. Yamaji, Re-visiting spin hamiltonian parameters in a kitaev material via bayesian optimization of magnetization curves, arXiv preprint arXiv:2605.24857 (2026). [12] A. Tarantola, Inverse problem theory and methods for model parameter estimation (SIAM, 2005). [13] A. M. Stuart, Inverse problems: a bayesian perspective, Acta numerica 19 , 451 (2010). [14] G. L. Squires, Introduction to the theory of thermal neu-tron scattering (Courier Corporation, 1996). [15] S. W. Lovesey, Theory of Neutron Scattering from Con-densed Matter, Volume 2: Polarization Effects and Mag-netic Scattering (Clarendon Press, Oxford, 1984). [16] J. R. Copley and T. J. Udovic, Neutron time-of-flight spectroscopy, Journal of research of the National Insti-tute of Standards and Technology 98 , 71 (1993). [17] A. Ivanov and P. Alekseev, Neutron spectroscopy: Prin-ciples and equipment, Crystallography Reports 67 , 18 (2022). [18] T. Chatterji, Neutron scattering from magnetic materials 
+
+(Elsevier, 2005). [19] J. Jakliˇ c and P. Prelovˇ sek, Lanczos method for the calcu-lation of finite-temperature quantities in correlated sys-tems, Physical Review B 49 , 5065 (1994). 16 
+
+[20] U. Schollw¨ ock, The density-matrix renormalization group, Rev. Mod. Phys. 77 , 259 (2005). [21] S. Toth and B. Lake, Linear spin wave theory for single-q incommensurate magnetic structures, Journal of Physics: Condensed Matter 27 , 166002 (2015). [22] D. Blosser, N. Kestin, K. Y. Povarov, R. Bewley, E. Coira, T. Giamarchi, and A. Zheludev, Finite-temperature correlations in a quantum spin chain near saturation, Physical Review B 96 , 134406 (2017). [23] D. Dahlbom, H. Zhang, C. Miles, S. Quinn, A. Niraula, B. Thipe, M. Wilson, S. Matin, H. Mankad, S. Hahn, 
+
+et al. , Sunny.jl: A Julia package for spin dynamics, arXiv preprint arXiv:2501.13095 (2025). [24] G. Carleo and M. Troyer, Solving the quantum many-body problem with artificial neural networks, Science 
+
+355 , 602 (2017). [25] T. Mendes-Santos, M. Schmitt, and M. Heyl, Highly re-solved spectral functions of two-dimensional systems with neural quantum states, Physical Review Letters 131 ,046501 (2023). [26] S. Chillal, Y. Iqbal, H. O. Jeschke, J. A. Rodriguez-Rivera, R. Bewley, P. Manuel, D. Khalyavin, P. Steffens, R. Thomale, A. N. Islam, et al. , Evidence for a three-dimensional quantum spin liquid in PbCuTe 2O6, Nature communications 11 , 2348 (2020). [27] X. Huang, H. Miao, H. Kim, A. Townsend, K. Champ-ley, J. Tringe, V. Pascucci, and P.-T. Bremer, Bimodal visualization of industrial x-ray and neutron computed tomography data, IEEE Transactions on Visualization and Computer Graphics 31 , 2196 (2024). [28] P. Vestin, E. Schlautmann, O. Sans-Planell, N. Kardjilov, R. Woracek, A. Tengattini, W. G. Zeier, and S. Hall, 4D multimodal neutron and x-ray tomography of lithium transport in all-solid-state batteries using Li-7 contrast enhancement, Cell Reports Physical Science 7 (2026). [29] J.-G. Park, K.-X. Zhang, H. Cheong, J. H. Kim, C. A. Belvin, D. Hsieh, H. Ning, and N. Gedik, 2D van der waals magnets: from fundamental physics to applica-tions, Reviews of Modern Physics 98 , 025003 (2026). [30] I. A. Moses, C. Chen, J. M. Redwing, and W. F. Rein-hart, Cross-modal characterization of thin-film MoS 2 us-ing generative models, Advanced Intelligent Systems 8,2500613 (2026). [31] S. M. Avdoshenko, A. A. Kulbakov, E. H¨ außler, P. Schlender, T. Doert, J. Ollivier, and D. S. Inosov, Spin-wave dynamics in the KCeS 2 delafossite: A theo-retical description of powder inelastic neutron-scattering data, Physical Review B 106 , 214431 (2022). [32] Y. Su and C. Li, Uncovering obscured phonon dynamics from powder inelastic neutron scattering using machine learning, Machine Learning: Science and Technology 5,035080 (2024). [33] Y. Cheng, M. B. Stone, and A. J. Ramirez-Cuesta, A database of synthetic inelastic neutron scattering spec-tra from molecules and crystals, Scientific Data 10 , 54 (2023). [34] Z. Chen, N. Andrejevic, N. C. Drucker, T. Nguyen, R. P. Xian, T. Smidt, Y. Wang, R. Ernstorfer, D. A. Tennant, M. Chan, et al. , Machine learning on neutron and x-ray scattering and spectroscopies, Chemical Physics Reviews 
+
+2 (2021). [35] R. Plumley, S. Chitturi, C. Peng, T. Assefa, N. Burdet, L. Shen, Z. Chen, A. Reid, G. Dakovski, M. Seaberg, 
+
+et al. , On ultrafast x-ray scattering methods for mag-netism, Advances in Physics: X 9, 2423935 (2024). [36] J. P. Horwath, X.-M. Lin, H. He, Q. Zhang, E. M. Dufresne, M. Chu, S. K. Sankaranarayanan, W. Chen, S. Narayanan, and M. J. Cherukara, Ai-nerd: Elucida-tion of relaxation dynamics beyond equilibrium through ai-informed x-ray photon correlation spectroscopy, Na-ture Communications 15 , 5945 (2024). [37] Q. Li, R. Jiao, L. Wu, T. Zhu, W. Huang, S. Jin, Y. Liu, H. Weng, and X. Chen, Powder diffraction crystal structure determination using generative models, Nature Communications 16 , 7428 (2025). [38] K. T. Butler, D. W. Davies, H. Cartwright, O. Isayev, and A. Walsh, Machine learning for molecular and ma-terials science, Nature 559 , 547 (2018). [39] G. Papamakarios and I. Murray, Fast ε-free inference of simulation models with bayesian conditional density es-timation, Advances in neural information processing sys-tems 29 (2016). [40] J.-M. Lueckmann, J. Boelts, D. Greenberg, P. Goncalves, and J. Macke, Benchmarking simulation-based inference, in International conference on artificial intelligence and statistics (PMLR, 2021) pp. 343–351. [41] T. Baltrusaitis, C. Ahuja, and L.-P. Morency, Multi-modal machine learning: A survey and taxonomy, IEEE transactions on pattern analysis and machine intelligence 
+
+41 , 423 (2019). [42] P. P. Liang, A. Zadeh, and L.-P. Morency, Foundations & trends in multimodal machine learning: Principles, chal-lenges, and open questions, ACM computing surveys 56 ,1 (2024). [43] V. Sitzmann, J. Martel, A. Bergman, D. Lindell, and G. Wetzstein, Implicit neural representations with peri-odic activation functions, Advances in neural information processing systems 33 , 7462 (2020). [44] S. Chitturi, Z. Ji, A. Petsch, C. Peng, Z. Chen, R. Plum-ley, M. Dunne, S. Mardanya, S. Chowdhury, H. Chen, 
+
+et al. , Capturing dynamical correlations using implicit neural representations, arXiv preprint arXiv:2304.03949 (2023). [45] Z. Chen, A. N. Petsch, Z. Ji, S. R. Chitturi, C. Peng, C. Jia, A. I. Kolesnikov, J. B. Thayer, and J. J. Turner, Implicit neural representations for experimental steering of advanced experiments, Cell Reports Physical Science 
+
+6 (2025). [46] K. Chaloner and I. Verdinelli, Bayesian experimental de-sign: A review, Statistical science , 273 (1995). [47] C. E. Granade, C. Ferrie, N. Wiebe, and D. G. Cory, Ro-bust online hamiltonian learning, New Journal of Physics 
+
+14 , 103013 (2012). [48] X. Huan and Y. M. Marzouk, Simulation-based opti-mal bayesian experimental design for nonlinear systems, Journal of Computational Physics 232 , 288 (2013). [49] R. D. McMichael and S. M. Blakley, Simplified algo-rithms for adaptive experiment design in parameter esti-mation, Physical review applied 18 , 10 (2022). [50] X. Huan, J. Jagalur, and Y. Marzouk, Optimal exper-imental design: Formulations and computations, Acta Numerica 33 , 715 (2024). [51] Z. Chen, C. Peng, A. N. Petsch, S. R. Chitturi, A. Okullo, S. Chowdhury, C. H. Yoon, and J. J. Turner, Bayesian ex-perimental design and parameter estimation for ultrafast spin dynamics, Machine Learning: Science and Technol-ogy 4, 045056 (2023). 17 
+
+[52] D. A. Boiko, R. MacKnight, B. Kline, and G. Gomes, Au-tonomous chemical research with large language models, Nature 624 , 570 (2023). [53] Z. Xiao, G. Zhang, Z. Morgan, V. Reshniak, and X. Wang, CrystalPilot: A machine-learning based soft-ware platform for single crystal neutron diffraction ex-periments, Structural Dynamics 12 , A125 (2025). [54] T. Hellert, D. Bertwistle, S. C. Leemann, A. Sulc, and M. Venturini, Agentic artificial intelligence for multistage physics experiments at a large-scale user facility particle accelerator, Physical Review Research 8, L012017 (2026). [55] Z. Chen, A. N. Petsch, A. J. Israelski, R. Plumley, L. Shen, C. Wang, C. Peng, Y. Ni, A. Bansil, S. Chowd-hury, et al. , An agentic artificially intelligent x-ray scien-tist, Nature Machine Intelligence , 1 (2026). [56] S. Qiu, P. D. Suh, N. H. Tran, X. Wang, H. Park, K. Akin, K. K. Multani, S. Jung, W. Cai, X. Liu, et al. ,AIMS: An uncertainty-aware ai experimentalist for quan-tum matter, arXiv preprint arXiv:2607.16544 (2026). [57] J. Liu and M. West, Combined parameter and state esti-mation in simulation-based filtering, in Sequential Monte Carlo methods in practice (Springer, 2001) pp. 197–223. [58] E. Perez, F. Strub, H. De Vries, V. Dumoulin, and A. Courville, FiLM: Visual reasoning with a general con-ditioning layer, in Proceedings of the AAAI conference on artificial intelligence , Vol. 32 (2018). [59] M. B. Stone, G. E. Granroth, D. M. Pajerowski, D. L. Abernathy, D. L. Conner, L. DeBeer-Schmitt, V. R. Fanelli, R. Goyette, A. I. Kolesnikov, R. Mills, M. Odom, A. Podlesnyak, C. Schmitt, T. E. Sherline, L. Solomon, and J. F. Wenzel, Sample changers for direct geometry neutron chopper spectrometers, Scientific Reports 15 ,31936 (2025). [60] O. Arnold, J. C. Bilheux, J. M. Borreguero, A. Buts, S. I. Campbell, L. Chapon, et al. , Mantid—data analysis and visualization package for neutron scattering and μSR ex-periments, Nuclear Instruments and Methods in Physics Research Section A 764 , 156 (2014). [61] A. T. Savici, M. A. Gigg, O. Arnold, R. Tolchenov, R. E. Whitfield, S. E. Hahn, W. Zhou, and I. A. Zaliznyak, Efficient data reduction for time-of-flight neutron scat-tering experiments on single crystals, Journal of Applied Crystallography 55 , 1514 (2022). [62] A. T. Savici, SHIVER: Spectroscopy histogram visualizer for event reduction (2025), Oak Ridge National Labora-tory. 1
+
+Supplementary Note 1. Global scale factor 
+
+For each particle, the surrogate forward model produced an intensity prediction Spred (Qj , ω j ; θ(t) 
+
+> n
+
+). Since the surrogate intensity scale need not match the measured count scale, we introduced an adaptive global scale factor, where M is the number of measured data points, 
+
+bαt = M −1 PMj=1 max( Starg (Qj , ω j ), 0) 
+
+M −1 PMj=1 N −1 PNn=1 max {Sraw pred (Qj , ω j ; θ(t) 
+
+> n
+
+), 0} + ε , ε = 10 −12 . (S1) The scale used in the particle score, αt, was obtained by smoothing bαt with an exponential moving average in log space, log αt = ρ log αt−1 + (1 − ρ) log bαt, (S2) with ρ = 0 .95, except for the first update where αt = bαt. The scaled surrogate prediction becomes 
+
+Spred (Qj , ω j ; θ(t) 
+
+> n
+
+) = αt max 
+
+h
+
+Sraw pred (Qj , ω j ; θ(t) 
+
+> n
+
+), 0
+
+i
+
+. (S3) 2
+
+Supplementary Note 2. Poisson-derived robust score 
+
+We use a Poisson-derived robust particle score to define a generalized Bayesian update rather than directly evalu-ating the raw Poisson likelihood, which was found to be numerically too sharp for the sparse, high-intensity spectra considered here. We first computed 
+
+r(t) 
+
+> nj
+
+= log Pois 
+
+
+
+Starg (Qj , ω j ); Spred (Qj , ω j ; θ(t) 
+
+> n
+
+)
+
+
+
+. (S4) For numerical stabilization, these scores were normalized over the measured data points for each particle, 
+
+p(t) 
+
+> nj
+
+= exp( r(t) 
+
+> nj
+
+)
+
+PMk=1 exp( r(t) 
+
+> nk
+
+) , (S5) and then rescaled using min–max normalization across particles at each measured point, ˜p(t) 
+
+> nj
+
+= p(t) 
+
+> nj
+
+− min m p(t)
+
+> mj
+
+max m p(t) 
+
+> mj
+
+− min m p(t) 
+
+> mj
+
++ ε + ε, ε = 10 −12 . (S6) The score used for the particle update was 
+
+ℓ(t) 
+
+> n
+
+= 1
+
+M
+
+> M
+
+X
+
+> j=1
+
+log ˜ p(t) 
+
+> nj
+
+. (S7) The resulting score is not a conventional log-likelihood because of the normalization and rescaling operations above. We therefore use it as an effective log-score in a generalized Bayesian particle update, 
+
+w(t+1)  
+
+> n
+
+= w(t) 
+
+> n
+
+exp( ℓ(t) 
+
+> n
+
+)
+
+PNm=1 w(t) 
+
+> m
+
+exp( ℓ(t) 
+
+> m
+
+) . (S8) Accordingly, the resulting particle distribution should be interpreted as an effective (generalized) posterior induced by this robust score rather than as the posterior associated with the raw Poisson likelihood. 3
+
+Supplementary Note 3. History-dependent setting penalties 
+
+The BOED acquisition utility was multiplied by two history-dependent penalty factors, ˜U (t+1) (ψ) = s(t+1) rep (ψ)s(t+1) dist (ψ)U (t+1) (ψ), (S9) where srep discourages repeated measurements at the same setting and sdist discourages abrupt jumps in the single-crystal rotation angle. These factors were introduced as pragmatic scheduling regularizers: they do not modify the posterior update, but only bias the selection of the next experimental setting among candidates with similar acquisition utilities. Let H(t) = {ψ(1) , . . . , ψ (t)} denote the history of selected angles before step t + 1. The repetition penalty was defined as 
+
+s(t+1) rep (ψ) = exp 
+
+h
+
+−γrep C(t)(ψ)
+
+i
+
+, (S10) where 
+
+C(t)(ψ) = 
+
+> t
+
+X
+
+> k=1
+
+δ
+
+
+
+ψ − ψ(k)
+
+(S11) counts the number of previous selections of angle ψ, within a small numerical tolerance ϵψ . In the calculations reported here, γrep = 0 .5. Thus, each repeated use of the same angle reduces its acquisition score by a factor of exp( −0.5). For single-crystal BOED, we also applied a distance penalty relative to the most recently selected angle ψ(t),
+
+s(t+1) dist (ψ) = exp 
+
+"
+
+−γdist 
+
+ dper (ψ, ψ (t))
+
+ℓψ
+
+2#
+
+. (S12) Here dper is the periodic angular distance, 
+
+dper (ψ, ψ (t)) = min 
+
+
+
+|ψ − ψ(t)|, 360 ◦ − | ψ − ψ(t)|
+
+
+
+, (S13) to account for the 360 ◦ periodicity of the sample rotation. We used γdist = 0 .1 and ℓψ = 15 ◦. At the first design step, before any setting has been selected, sdist = 1 for all candidate angles. The final multiplicative penalty factor was clipped from below, 
+
+s(t+1) rep (ψ)s(t+1) dist (ψ) ← max 
+
+h
+
+s(t+1) rep (ψ)s(t+1) dist (ψ), 10 −6i
+
+, (S14) to avoid assigning exactly zero acquisition score to any candidate setting. The next setting was then chosen by maximizing the penalized acquisition utility, 
+
+ψt+1 = arg max 
+
+> ψ
+
+˜U (t+1) (ψ). (S15) 4
+
+Supplementary Note 4. AI surrogate architecture and training 
+
+The multimodal surrogate consists of a shared Hamiltonian-parameter mapping network and separate coordinate networks for the single-crystal and powder modalities. The mapping network takes the nine-dimensional Hamiltonian parameter vector θ as input to produce the FiLM modulation parameters used by the modality-specific coordinate networks. The single-crystal branch takes four-dimensional coordinates ( H, K, L, ω ) as input, whereas the powder branch takes two-dimensional coordinates ( |Q|, ω ) as input. Both branches use four modulated sine layers with 256 hidden units, followed by a linear scalar-output layer. The complete model architecture, as reported by the implementation, is shown below. 
+
+> MultiModalModulatedSiren( (coordinate_networks): ModuleDict( (single_crystal): Sequential( (0): ModulatedSineLayer( (linear): Linear(in_features=4, out_features=256, bias=True) )(1): ModulatedSineLayer( (linear): Linear(in_features=256, out_features=256, bias=True) )(2): ModulatedSineLayer( (linear): Linear(in_features=256, out_features=256, bias=True) )(3): ModulatedSineLayer( (linear): Linear(in_features=256, out_features=256, bias=True) )(4): Linear(in_features=256, out_features=1, bias=True) )(powder): Sequential( (0): ModulatedSineLayer( (linear): Linear(in_features=2, out_features=256, bias=True) )(1): ModulatedSineLayer( (linear): Linear(in_features=256, out_features=256, bias=True) )(2): ModulatedSineLayer( (linear): Linear(in_features=256, out_features=256, bias=True) )(3): ModulatedSineLayer( (linear): Linear(in_features=256, out_features=256, bias=True) )(4): Linear(in_features=256, out_features=1, bias=True) ))(mapping_net): MappingNetwork( (net): Sequential( (0): Linear(in_features=9, out_features=256, bias=True) (1): ReLU(inplace=True) (2): Linear(in_features=256, out_features=256, bias=True) (3): ReLU(inplace=True) (4): Linear(in_features=256, out_features=256, bias=True) (5): ReLU(inplace=True) (6): Linear(in_features=256, out_features=2048, bias=True) )))
+
+The surrogate was trained for 300 epochs. Figure S1 shows the training and validation loss histories on a logarithmic scale. Both losses decrease rapidly during the initial stage of training and continue to improve more gradually at later epochs. The validation loss exhibits larger epoch-to-epoch fluctuations than the training loss, as expected, but does not show sustained divergence from the training curve. The checkpoint with the lowest validation loss was obtained at epoch 239 and was used in the subsequent inference and experimental-design calculations. 50 50 100 150 200 250 300  
+
+> Epoch
+> 10 1
+> Loss
+> Best val loss 0.01319
+> Training loss Validation loss Best model: epoch 239
+
+FIG. S1. Training and validation loss histories of the multimodal neural surrogate. Training and validation losses are shown as functions of training epoch on a logarithmic scale. The model was trained for 300 epochs. The dashed vertical line marks the selected checkpoint at epoch 239, which achieved the minimum validation loss of 0 .01319. This checkpoint was used for the subsequent Hamiltonian inference and Bayesian experimental-design calculations. 6
+
+Supplementary Note 5. Hamiltonian parameter values 
+
+Table S1 lists the Hamiltonian parameters of the literature reference model, θref , and the selected posterior sample, 
+
+θbest , reported in the main text. 
+
+TABLE S1. Reference and inferred Hamiltonian parameters (meV). The reference Hamiltonian is taken from Ref. 3, while 
+
+θbest denotes the posterior sample selected according to Eq. (12). 
+
+Ax Az J1a J1b J2a J2b J3a J3b J4
+
+θref −0.005 0.21 −2.70 −2.00 0 .20 0 .20 13 .90 13 .90 −0.38 
+
+θbest −0.00595 0 .20 −2.87 −2.13 0 .19 0 .21 13 .61 13 .52 −0.39 7 
+
+> Supplementary Note 6. Convergence rate comparison: sequential, random, and BOED
+
+We compare the convergence behavior of three data-acquisition strategies: sequential acquisition, random acquisi-tion, and BOED. For each strategy, we track the mean absolute error (MAE) of the inferred Hamiltonian parameters as a function of the acquisition step. The benchmark includes ten trials in total: nine Hamiltonian parameter sets randomly sampled from the prior distribution P0(θ), together with the reference parameter set reported in Ref. 3. As shown in Fig. S2, BOED substantially accelerates convergence compared to the sequential strategy, reaching a low-error regime within the first few measurements. In contrast, the sequential strategy decreases the error more gradually, indicating that a fixed acquisition order can spend measurements on configurations that provide limited additional information. Random acquisition achieves a mean performance that is relatively close to BOED in this benchmark, but with noticeably greater variability across trials. This behavior is expected because random acquisition may occasionally sample informative configurations, but does not consistently target the measurements that are most informative under the current posterior uncertainty. We also note that fully random acquisition is rarely used as a practical experimental protocol, where measurement choices are typically constrained by time, prior knowledge, and instrument operation. BOED therefore provides a more systematic and reproducible strategy for rapidly reducing Hamiltonian uncertainty under a finite measurement budget. 0 10 20 30 40 50 Iteration 0.03 0.04 0.05 0.06 0.07 Mean absolute error (meV)  BOED Sequential Random   
+
+> FIG. S2. Comparison of parameter-estimation error histories for sequential, random, and BOED acquisition strategies. Solid curves show the mean absolute error (MAE) averaged over ten benchmark trials, consisting of nine randomly sampled Hamiltonian parameter sets from the prior P0(θ) and one reference parameter set reported in Ref. 3. Shaded regions indicate
+> ±1 standard deviation across trials. BOED converges substantially faster than the sequential strategy and achieves comparable or lower final error with reduced variability relative to random acquisition.
+
+8
+
+Supplementary Note 7. High-dimensional eigen-structure 
+
+To further illustrate the geometric interpretation of the metric tensor, Fig. S3 shows pairwise spectral discrepancy landscapes for the single-crystal modality, overlaid with the projections of the global stiffest (red, largest eigenvalue) and sloppiest (yellow, smallest eigenvalue) eigenvectors obtained from the full nine-dimensional metric tensor. Similar results for the powder modality are presented in Fig. S5. Several observations are worth noting. First, the projected eigenvectors should be interpreted with caution because each panel represents only a two-dimensional projection of a nine-dimensional eigen-direction. Furthermore, the parameters span substantially different numerical ranges, producing unequal axis scales that can visually distort the projected directions. Nevertheless, the projected stiffest direction remains approximately perpendicular to the elongated discrepancy valleys for the most sensitive parameter pairs, such as the J1a –J1b and J3a –J3b subspaces, consistent with these parameter pairs contributing strongly to the largest-curvature directions of the global metric. To directly validate the eigen-decomposition, Fig. S4 compares the spectral discrepancy along the global nine-dimensional stiff and sloppy eigenvectors with the corresponding principal directions obtained from the J1a –J1b 
+
+two-dimensional subspace. The discrepancy increases most rapidly along the global stiff direction and most slowly along the global sloppy direction, while the two-dimensional principal directions exhibit intermediate behavior. This demonstrates that the full nine-dimensional eigen-directions provide upper and lower bounds on the local sensitivity observed within individual parameter subspaces. A similar trend is observed for the powder modality (Fig. S6), which is expected because powder INS provides an orientationally averaged measurement of the single-crystal response. Ax                    
+
+> 0.2 0.2 0.3 0.3
+> Az
+> 0.015
+> 0.010
+> 0.005
+> 3.0 2.5
+> J1a
+> 2.0 1.5
+> J1b
+> 0.20 0.25
+> J2a
+> 0.20 0.25
+> J2b
+> 14 15
+> J3a
+> 14 15
+> J3b
+> 0.75 0.50 0.25
+> J4
+> 0.015
+> 0.010
+> 0.005
+> Ax
+> Az
+> 3.0 2.5
+> 0.2 0.3
+> 0.2 0.3
+> Az
+> J1a
+> 2.0 1.5
+> 3.00
+> 2.75
+> 2.50
+> 3.00
+> 2.75
+> 2.50
+> J1a
+> J1b
+> 0.20 0.25 2.00
+> 1.75
+> 1.50
+> 2.00
+> 1.75
+> 1.50
+> J1b
+> J2a
+> 0.20 0.25 0.20 0.25
+> 0.20 0.25
+> J2a
+> J2b
+> 14 15 0.20 0.25
+> 0.20 0.25
+> J2b
+> J3a
+> 14 15 13.5 14.0 14.5 15.0
+> 13.5 14.0 14.5 15.0
+> J3a
+> J3b
+> 0.75 0.50 0.25
+> 13.5 13.5 14.0 14.0 14.5 14.5 15.0 15.0
+> J3b
+> J4
+
+FIG. S3. Pairwise spectral discrepancy landscapes for the single-crystal modality with projections of the global nine-dimensional metric tensor eigen-directions. Red and yellow line segments denote the projected stiffest (largest eigenvalue) and sloppiest (smallest eigenvalue) eigenvectors, respectively. Since each panel represents a two-dimensional projection of the full nine-dimensional parameter space, the projected eigen-directions are not generally expected to align with the principal axes of the corresponding two-dimensional discrepancy landscapes. 91.00 0.75 0.50 0.25 0.00 0.25 0.50 0.75 1.00 
+
+Perturbation magnitude (×10 2 meV) 
+
+0.0 0.1 0.2 0.3 0.4 0.5 
+
+> Spectral discrepancy (a.u.)
+
+Stiff direction (9D) Stiff direction (2D) Sloppy direction (2D) Sloppy direction (9D) 
+
+FIG. S4. Comparison of spectral discrepancy along the global nine-dimensional and local two-dimensional principal directions for the single-crystal modality. The blue and red curves correspond to perturbations along the stiffest and sloppiest eigenvectors of the full nine-dimensional metric tensor, respectively, while the orange and green curves correspond to the principal directions obtained from the J1a –J1b two-dimensional subspace. The global stiff and sloppy directions exhibit the fastest and slowest discrepancy growth, respectively, demonstrating that the full metric tensor eigen-directions bound the local sensitivity observed within lower-dimensional parameter subspaces. Ax                    
+
+> 0.2 0.2 0.3 0.3
+> Az
+> 0.015
+> 0.010
+> 0.005
+> 3.0 2.5
+> J1a
+> 2.0 1.5
+> J1b
+> 0.20 0.25
+> J2a
+> 0.20 0.25
+> J2b
+> 14 15
+> J3a
+> 14 15
+> J3b
+> 0.75 0.50 0.25
+> J4
+> 0.015
+> 0.010
+> 0.005
+> Ax
+> Az
+> 3.0 2.5
+> 0.2 0.3
+> 0.2 0.3
+> Az
+> J1a
+> 2.0 1.5
+> 3.00
+> 2.75
+> 2.50
+> 3.00
+> 2.75
+> 2.50
+> J1a
+> J1b
+> 0.20 0.25 2.00
+> 1.75
+> 1.50
+> 2.00
+> 1.75
+> 1.50
+> J1b
+> J2a
+> 0.20 0.25 0.20 0.25
+> 0.20 0.25
+> J2a
+> J2b
+> 14 15 0.20 0.25
+> 0.20 0.25
+> J2b
+> J3a
+> 14 15 13.5 14.0 14.5 15.0
+> 13.5 14.0 14.5 15.0
+> J3a
+> J3b
+> 0.75 0.50 0.25
+> 13.5 13.5 14.0 14.0 14.5 14.5 15.0 15.0
+> J3b
+> J4
+
+FIG. S5. Pairwise spectral discrepancy landscapes for the powder modality with projections of the global nine-dimensional metric tensor eigen-directions. Red and yellow line segments denote the projected stiffest (largest eigenvalue) and sloppiest (smallest eigenvalue) eigenvectors, respectively. Similar to the single-crystal case, the projected global eigen-directions are not generally expected to align with the principal axes of the two-dimensional discrepancy landscapes because they represent projections of directions defined in the full nine-dimensional parameter space. 10 1.00 0.75 0.50 0.25 0.00 0.25 0.50 0.75 1.00 
+
+Perturbation magnitude (×10 2 meV) 
+
+> 0.00 0.01 0.02 0.03 0.04 0.05
+> Spectral discrepancy (a.u.)
+> Stiff direction (9D) Stiff direction (2D) Sloppy direction (2D) Sloppy direction (9D)
+
+FIG. S6. Comparison of spectral discrepancy along the global nine-dimensional and local two-dimensional principal directions for the powder modality. The global stiff and sloppy eigen-directions exhibit the fastest and slowest discrepancy growth, respectively, while the corresponding J1a –J1b two-dimensional principal directions show intermediate behavior, consistent with the observations for the single-crystal modality. 11 
+
+Supplementary Note 8. Pixel-wise decomposition of spectral correlation 
+
+To identify the spectral regions responsible for the observed agreement, we decompose the Pearson correlation coefficient into additive pixel-wise contributions. For either modality α ∈ { pd , sc }, let x(α) 
+
+> i
+
+and y(α) 
+
+> i
+
+denote the predicted and experimental intensities, respectively, at valid pixel i. The corresponding Pearson correlation coefficient can be written as PCC α =
+
+P
+
+> i
+
+
+
+x(α) 
+
+> i
+
+− ¯x(α)
+
+  
+
+y(α) 
+
+> i
+
+− ¯y(α)
+
+rP
+
+> i
+
+
+
+x(α) 
+
+> i
+
+− ¯x(α)
+
+2rP
+
+> i
+
+
+
+y(α) 
+
+> i
+
+− ¯y(α)
+
+2 = X
+
+> i
+
+c(α) 
+
+> i
+
+, (S16) where 
+
+c(α) 
+
+> i
+
+=
+
+
+
+x(α) 
+
+> i
+
+− ¯x(α)
+
+  
+
+y(α) 
+
+> i
+
+− ¯y(α)
+
+rP
+
+> j
+
+
+
+x(α) 
+
+> j
+
+− ¯x(α)
+
+2rP
+
+> j
+
+
+
+y(α) 
+
+> j
+
+− ¯y(α)
+
+2 (S17) is the contribution of the ith pixel to the global correlation PCC α. Figures S7 and S8 show the pixel-wise contribution maps for the powder and single-crystal spectra, respectively, comparing the selected Hamiltonian θbest and the reference Hamiltonian θref with the experimental data. Larger positive contributions identify spectral regions that support the global correlation, whereas negative contributions identify regions that reduce it. These maps reveal which spectral regions account for the differences in global agreement reported in Fig. 4. 0 2 3 4 6
+
+|Q| (Å 1)    
+
+> 010 20 30 40 50 60
+> (meV)
+> 0.0000 0.0005 0.0010 0.0015
+> (a) 02346
+
+|Q| (Å 1) 
+
+> 010 20 30 40 50 60
+> (meV)
+> 0.0000 0.0005 0.0010 0.0015 (b)
+
+FIG. S7. Pixel-wise decomposition of the powder spectra Pearson correlation coefficient, PCC pd , for (a) the selected Hamil-tonian θbest and (b) the literature reference Hamiltonian θref .C Y C Z
+
+Q (r.l.u.)    
+
+> 020 40 60
+> (meV)
+> 0.00 0.01
+> (a) CYCZ
+
+Q (r.l.u.)  
+
+> 020 40 60
+> (meV)
+> 0.00 0.01 (b)
+
+FIG. S8. Pixel-wise decomposition of the single-crystal spectra Pearson correlation coefficient, PCC sc , for (a) the selected Hamiltonian θbest and (b) the literature reference Hamiltonian θref .12 
+
+Supplementary Note 9. Effect of finite momentum-space binning 
+
+The single-crystal experimental spectra along the high-symmetry path were obtained by integrating the measured in-tensity over finite regions of reciprocal space. Directly incorporating this binning procedure during random-coordinate training data generation would substantially increase the computational cost. We therefore use the same sharp-coordinate surrogate and subsequently average its predictions over the corresponding experimental momentum-bin volumes. This separation also preserves the generality of the surrogate, allowing different momentum-space resolutions and integration widths to be applied at inference time without retraining. We do not apply additional energy binning because the surrogate is trained on simulated spectra with an energy broadening of FWHM = 4 meV. Figure S9 presents the resulting finite-bin-averaged spectral comparison, while Figs. S10 and S11 show the corre-sponding pixel-wise PCC contribution maps. The similar overall conclusions obtained with and without finite-bin averaging indicate that the reported multimodal spectral comparison is robust to this difference in representation. Table S2 lists the inferred Hamiltonian parameter values. 
+
+TABLE S2. Inferred Hamiltonian parameters obtained with finite Q-space averaging (meV). 
+
+Ax Az J1a J1b J2a J2b J3a J3b J4
+
+θbest ,binned −0.0082 0 .21 −2.55 −2.10 0 .21 0 .17 13 .78 14 .86 −0.49 0 2 3 4 6020 40 60                     
+
+> (meV)
+> Experiment
+> CYCZ
+> 02346020 40 60
+> (meV)
+> Best (PCC=0.915)
+> CYCZ
+> Best (PCC=0.623)
+> 02346
+> |Q| (Å 1)
+> 020 40 60
+> (meV)
+> Ref (PCC=0.905)
+> CYCZ
+> Q(r.l.u.) Ref (PCC=0.622)
+> 0.450 0.475 0.500 0.525 0.550 0.575 0.600 0.625
+> PCC (Single Crystal)
+> 0.86 0.88 0.90 0.92
+> PCC (Powder)  Ref Best
+> Low High
+
+a bc
+
+FIG. S9. Finite Q-space binning comparison corresponding to Fig. 4. The single-crystal surrogate spectra are averaged over the experimental momentum-bin volumes during Bayesian inference to obtain the reported posterior distribution. All panel definitions, symbols, and plotting conventions follow Fig. 4; see its caption for details. 13 0 2 3 4 6
+
+|Q| (Å 1)
+
+> 010 20 30 40 50 60
+> (meV)
+> 0.00025
+> 0.00000 0.00025 0.00050 0.00075 0.00100
+
+(a) 0 2 3 4 6
+
+|Q| (Å 1) 
+
+> 010 20 30 40 50 60
+> (meV)
+> 0.0000 0.0005 0.0010 0.0015
+
+(b) 
+
+FIG. S10. Pixel-wise decomposition of the powder spectra Pearson correlation coefficient, PCC pd , for (a) the selected Hamiltonian θbest obtained with finite Q-space binning and (b) the literature reference Hamiltonian θref .C Y C Z
+
+Q (r.l.u.) 
+
+020 40 60 
+
+> (meV)
+
+0.000 0.005 
+
+(a) C Y C Z
+
+Q (r.l.u.) 
+
+020 40 60 
+
+> (meV)
+
+0.00 0.01 (b) 
+
+FIG. S11. Pixel-wise decomposition of the single-crystal spectra Pearson correlation coefficient, PCC sc , for (a) the selected Hamiltonian θbest obtained with finite Q-space binning and (b) the literature reference Hamiltonian θref .14  
+
+> Supplementary Note 10. Extraction of powder magnon spectrum from the experimental INS data
+
+INS measures not only magnetic excitations (magnons) but also lattice excitations (phonons) from the sample. In addition, the nonmagnetic aluminum sample holder contributes phonon scattering to the measured spectrum. Magnon scattering is typically strongest at low momentum transfer ( |Q|) and decreases with increasing |Q| due to the magnetic form factor. In contrast, phonon scattering generally becomes more prominent at higher |Q|. In orientationally averaged powder spectra, the magnon and phonon contributions partially overlap. In this case, although most magnon intensity is concentrated at |Q| < 3 ˚ A−1 and most phonon intensity appears at |Q| > 3 ˚ A−1, the two contributions still overlap, and their separation remains essential because the AI surrogate model predicts only magnon spectra. To isolate the magnetic signal, we trained a source-separation vision transformer using synthetic datasets that include a variety of NiPS 3 magnon spectra, NiPS 3 phonon spectra, and aluminum phonon spectra. The extracted magnon spectrum was subsequently denoised using a feature-enhancement vision transformer to improve signal quality prior to inference. The spectra that go through the data processing workflow are illustrated in Fig. S12. As shown in Fig. S12, the final NiPS3 magnon spectrum preserves the key features of the measured magnetic signal. The source separation effectively isolates the magnon contribution from the phonon background, while the feature-enhancement model suppresses noise and sharpens spectral features within the constraints imposed by the underlying physical model. A detailed description of the source separation and spectral processing workflow using vision transformers will be presented in a separate publication, as its methodology is beyond the scope of the present work. Because the source-separation and feature-enhancement procedures introduce additional model-dependent process-ing beyond the raw experimental measurement, the resulting powder spectrum should be interpreted as an effective magnetic-spectrum estimate rather than a model-independent experimental observable. The experimental powder analysis presented here is intended primarily to demonstrate the multimodal inference workflow; quantitative differ-ences in the inferred Hamiltonian may depend on the specific preprocessing procedure. A systematic comparison of alternative powder-data processing strategies is left for future work. NiPS 3
